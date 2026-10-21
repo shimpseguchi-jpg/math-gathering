@@ -78,6 +78,7 @@ function humanAI() {
           const o = { convoke: c.def.kw?.includes('convoke') };
           const pl = plan(s, c.def.cost, colorsOf(c.def), o);
           if (!pl) continue;
+          if (c.def.modes) { if (c.def.modes.some((m) => modeOk(m, { attackers }))) opts.push({ c, pl, modes: true }); continue; }
           if (c.def.tgt) { if (cands(c.def.tgt[0], { attackers }).length) opts.push({ c, pl, tgt: true }); continue; }
           const r = c.def.react(s, api, { attackers, blocks });
           if (r) opts.push({ c, pl, r });
@@ -89,7 +90,11 @@ function humanAI() {
           { label: '使わない', value: null },
         ], { title: 'ブロックの あとで', dismiss: false });
         if (!v) return;
-        if (v.tgt) {
+        if (v.modes) {
+          const run = await chooseMode(v.c.def, { attackers });
+          if (!run) continue;
+          castCard(s, v.c, plan(s, v.c.def.cost, colorsOf(v.c.def)) || v.pl, { run });
+        } else if (v.tgt) {
           const picks = await pickAll(v.c.def.tgt, { attackers });
           if (!picks) continue;
           castCard(s, v.c, plan(s, v.c.def.cost, colorsOf(v.c.def), { convoke: v.c.def.kw?.includes('convoke') }) || v.pl, { run: () => v.c.def.apply(s, api, picks) });
@@ -174,6 +179,7 @@ function cands(spec, ctx = {}) {
   const s = B.s;
   let list = [];
   if (spec.side === 'atk') list = (ctx.attackers || []).filter((p) => onBf(s, p));
+  else if (spec.side === 'mine') list = s.P.bf.filter((p) => isCreature(p) && (B.mode !== 'tricks' || p.attacking));
   else for (const sd of spec.side === 'any' ? ['P', 'E'] : [spec.side]) list.push(...s[sd].bf.filter((p) => (spec.perm ? !p.def.factory : isCreature(p)) && p !== ctx.src));
   list = list.filter((p) => !(s.floor.untargetable?.(s, p, api)) && (!spec.filter || spec.filter(s, api, p)));
   if (spec.face && faceAvailable()) list.unshift('face');
@@ -208,6 +214,21 @@ async function pickAll(tgt, ctx = {}) {
 const needsTargets = (tgt, ctx) => tgt.every((spec) => cands(spec, ctx).length >= (spec.min ?? 1));
 const tName = (t) => (t === 'face' ? faceName() : nm(t));
 
+// ---- モードを えらぶ 呪文（ボロスの 魔除け など）：1つ えらんで、対象も えらぶ。やめたら null ----
+const modeOk = (m, ctx) => !m.tgt || needsTargets(m.tgt, ctx);
+async function chooseMode(d, ctx = {}) {
+  for (;;) {
+    render();
+    const m = await sheet(`<p>つぎの うち 1つを えらぶ。</p>`, [
+      ...d.modes.map((m) => ({ label: m.label, value: m, kind: 'primary', disabled: !modeOk(m, ctx), note: modeOk(m, ctx) ? '' : 'ねらえる 相手が いない' })),
+      { label: 'やめる', value: null },
+    ], { title: noRuby(info(d).name) });
+    if (!m) return null;
+    const picks = m.tgt ? await pickAll(m.tgt, ctx) : [];
+    if (picks) return () => m.apply(B.s, api, picks);
+  }
+}
+
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
@@ -231,6 +252,7 @@ function castInfo(c, from = 'hand') {
     return { ok: true, pl, x };
   }
   if (d.tgt && d.apply) return needsTargets(d.tgt, {}) ? { ok: true, pl, x } : { why: 'ねらえる 相手が いない' };
+  if (d.modes) return d.modes.some((m) => modeOk(m, {})) ? { ok: true, pl, x } : { why: 'いまは こうかが ない' };
   const ctx = { phase: B.phase, c, xMax: x, human: true };
   const r = d.play(s, api, ctx) || d.play(s, api, { ...ctx, phase: 3 - B.phase });
   if (!r) return { why: 'いまは こうかが ない（ねらう 相手が いない など）' };
@@ -243,7 +265,8 @@ async function doCast(c, from = 'hand') {
   const ci = castInfo(c, from);
   if (!ci.ok) return;
   B.busy = true;
-  let picks;
+  let picks, modeRun;
+  if (d.modes && !(modeRun = await chooseMode(d))) { B.busy = false; return render(); }
   if (d.tgt) {
     if (needsTargets(d.tgt, {})) {
       picks = await pickAll(d.tgt, { x: ci.x });
@@ -257,7 +280,7 @@ async function doCast(c, from = 'hand') {
   const base = from === 'gy' ? d.flashback.cost : d.cost;
   if (d.x && await quiz(xQuestion(base + x, base))) x++;
   if (d.quiz) s.mathQueue.push(await quiz({ ...quizFor(B.grade), hint: '抜き打ち テスト！', reward: 'カードを もう1枚 引く' }));
-  const run = d.apply && picks ? () => d.apply(s, api, picks, x) : ci.r ? () => ci.r.run(x) : undefined;
+  const run = modeRun || (d.apply && picks ? () => d.apply(s, api, picks, x) : ci.r ? () => ci.r.run(x) : undefined);
   await castCard(s, c, ci.pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined });
   s.mathQueue = [];
   B.busy = false;
@@ -332,7 +355,7 @@ async function tapHand(c) {
   }
   if (B.mode === 'tricks') {
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
-    if (tr) {
+    if (tr || d.modes) {
       const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
       const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke') });
       choices.push({ label: d.bloodrush ? '湧血で 使う' : '使う', value: 'trick', kind: 'primary', disabled: !pl, note: pl ? '' : 'マナが たりない' });
@@ -349,8 +372,9 @@ async function useTrick(c) {
   const s = B.s, d = c.def;
   const tr = d.trick || { kind: 'single' };
   const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
-  let target = null;
-  if (tr.kind !== 'mass') {
+  let target = null, modeRun = null;
+  if (d.modes) { if (!(modeRun = await chooseMode(d))) return; }
+  else if (tr.kind !== 'mass') {
     const live = B.atk.filter((a) => onBf(s, a.p));
     target = await sheet('<p>どの クリーチャーに 使う？</p>', [...live.map((a) => ({ label: `${esc(nm(a.p))}（${power(s, a.p)}/${pt(s, a.p)[1]}）`, value: a.p })), { label: 'やめる', value: null }]);
     if (!target) return;
@@ -360,7 +384,7 @@ async function useTrick(c) {
   B.busy = true;
   s.mathQueue = [];
   if (pl.srcs.some((x) => x.kind === 'convoke')) s.mathQueue.push(await quiz(convokeQuestion(pl)));
-  const run = target ? () => { api.target(s, target); d.singleRun(s, api, target); } : () => d.massRun(s, api);
+  const run = modeRun || (target ? () => { api.target(s, target); d.singleRun(s, api, target); } : () => d.massRun(s, api));
   if (d.bloodrush) { s.P.hand.splice(s.P.hand.indexOf(c), 1); s.P.gy.push(c); pay(s, pl); run(); }
   else castCard(s, c, pl, { run });
   s.mathQueue = [];

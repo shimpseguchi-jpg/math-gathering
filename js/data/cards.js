@@ -258,6 +258,10 @@ const GOLD1 = [
     ...single(0, 0, { dbl: true }),
     singleRun: (s, E, q) => E.pump(q, 0, 0, ['double']),
     play: (s, E) => (s.floor.face ? { score: 4 * (s.floor.faceUnit ?? 1) + 2, run: () => E.hitEnemy(s, 4, null) } : burn(4, { creatureOnly: true })(s, E)),
+    react: (s, E, ctx) => {
+      const saved = mine(s, E).filter((p) => !E.hasKw(s, p, 'indestructible') && ctx.attackers.some((a) => ctx.blocks?.get(a.uid) === p && E.power(s, a) >= E.need(s, p)));
+      return saved.length ? { score: saved.length * 5, run: () => { for (const p of s.P.bf) E.pump(p, 0, 0, ['indestructible']); } } : null;
+    },
   }),
   cr('RW02', '勝利の神 イロアス', 'R', 'RW', 5, 7, 4, ['god'], ['indestructible'], { protectAttackers: true }),
 ];
@@ -518,7 +522,14 @@ const TARGETS = {
   R16: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手（獰猛なら ＋2）' }], apply: (s, E, [[t]], x) => hit(s, E, t, x + (ferocious(s, E) ? 2 : 0)) },
   R19: { tgt: [{ side: 'E', label: '3点（カウンターが あれば 5点）を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, t.ctr > 0 ? 5 : 3) },
   R22: { tgt: [{ side: 'E', filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: '5点を あたえる 飛行のない クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
-  RW01: { tgt: [{ side: 'E', face: true, label: '4点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 4) },
+  // モードを 1つ えらぶ（ui/battle.js の chooseMode）。tgt の side 'mine' は 自分の クリーチャー（攻撃中なら 攻撃している もの）
+  RW01: {
+    modes: [
+      { label: '敵に 4点の ダメージ', tgt: [{ side: 'E', face: true, label: '4点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 4) },
+      { label: '自分の パーマネントは ターン終了時まで 破壊不能', apply: (s, E) => { for (const p of s.P.bf) E.pump(p, 0, 0, ['indestructible']); } },
+      { label: 'クリーチャー1体に 二段攻撃', tgt: [{ side: 'mine', label: '二段攻撃を あたえる クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 0, 0, ['double']); } },
+    ],
+  },
   U05: { tgt: [{ side: 'E', label: '手札に もどす（敵は 墓地へ）クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.drawCard(s); E.sba(s); } },
   U03: { tgt: [{ side: 'E', max: 2, label: 'タップして 止める クリーチャー（2体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; t.frozen = true; } } },
   G08: {
