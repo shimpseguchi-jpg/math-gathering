@@ -30,18 +30,27 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, mathRate = 0.7
 export function L(s, msg) { if (s.logOn) s.logs.push(`[${s.turn}${s.active}] ${msg}`); }
 
 // ---- 1戦の流れ ----
-export function play(s, maxTurns = 40) {
+// AI どうしの1戦（シミュレーション用）。人が遊ぶときは ui/ が beginPlayerTurn などを順に呼ぶ
+export async function play(s, maxTurns = 40) {
   while (!s.over) {
-    playerTurn(s);
+    playerTurnAI(s);
     if (s.over) break;
     if (s.stats.playerTurns >= maxTurns) { s.over = 'timeout'; break; }
     if (s.E.extraTurns > 0) { s.E.extraTurns--; continue; }
-    enemyTurn(s);
+    await enemyTurn(s);
   }
   return s;
 }
 
-function playerTurn(s) {
+function playerTurnAI(s) {
+  beginPlayerTurn(s); if (s.over) return;
+  s.ai.main(s, 1); if (s.over) return;
+  combatAI(s); if (s.over) return;
+  s.ai.main(s, 2); if (s.over) return;
+  endPlayerTurn(s);
+}
+
+export function beginPlayerTurn(s) {
   const P = s.P;
   s.turn++; s.active = 'P'; s.stats.playerTurns++;
   P.flags.enteredLastTurn = P.flags.enteredThisTurn; P.flags.enteredThisTurn = false;
@@ -53,18 +62,18 @@ function playerTurn(s) {
   for (const p of [...P.bf]) if (onBf(s, p) && p.def.upkeep) p.def.upkeep(s, p, api);
   sba(s); if (s.over) return;
   if (s.stats.playerTurns > 1) drawCard(s);
-  s.ai.main(s, 1); if (s.over) return;
-  combatPlayer(s); if (s.over) return;
-  s.ai.main(s, 2); if (s.over) return;
-  for (const p of [...P.bf]) if (onBf(s, p) && p.def.endStep) p.def.endStep(s, p, api);
+}
+
+export function endPlayerTurn(s) {
+  for (const p of [...s.P.bf]) if (onBf(s, p) && p.def.endStep) p.def.endStep(s, p, api);
   endTurn(s);
 }
 
-function enemyTurn(s) {
+export async function enemyTurn(s) {
   s.turn++; s.active = 'E';
   for (const p of s.E.bf) { if (p.frozen) p.frozen = false; else p.tapped = false; p.sick = false; }
   s.E.flags.turn = {};
-  s.floor.enemyTurn(s, api);
+  await s.floor.enemyTurn(s, api);
   if (!s.over) endTurn(s);
 }
 
@@ -284,18 +293,18 @@ function returnLinked(s, l) {
 }
 
 // ---- 敵の呪文 ----
-export function reveal(s, n) {
+export async function reveal(s, n) {
   for (let i = 0; i < n && !s.over; i++) {
     const c = s.E.lib.shift();
     if (!c) return;
-    enemyCast(s, c);
+    await enemyCast(s, c);
   }
 }
 
-export function enemyCast(s, c) {
+export async function enemyCast(s, c) {
   L(s, `敵：${c.def.name} を公開した`);
   for (const q of [...s.P.bf]) if (q.def.onAnyCast) q.def.onAnyCast(s, q, c.def, 'E', api);
-  if (s.ai.counter(s, c)) { s.E.gy.push(c); L(s, '打ち消した'); return; }
+  if (await s.ai.counter(s, c)) { s.E.gy.push(c); L(s, '打ち消した'); return; }
   if (c.def.types.includes('sorcery')) { c.def.effect(s, api); s.E.gy.push(c); }
   else enter(s, 'E', c.def, { card: c.def });
   sba(s);
@@ -330,36 +339,61 @@ export function enemyBlocks(s, atk) {
   return blocks;
 }
 
-function combatPlayer(s) {
-  for (const p of [...s.P.bf]) if (onBf(s, p) && p.def.combatStart) p.def.combatStart(s, p, api);
-  for (const c of [...s.P.gy]) if (c.def.gyCombatStart) c.def.gyCombatStart(s, c, api);
-  sba(s); if (s.over) return;
+function combatAI(s) {
+  combatStart(s); if (s.over) return;
   const atk = s.ai.attack(s);
   if (!atk.length) return;
+  const blocks = declareAttack(s, atk);
+  s.ai.tricks(s, atk, blocks);
+  const q = attackSumQuestion(s, atk, blocks);
+  finishCombat(s, atk, blocks, !!q && ask(s, q));
+}
+
+// 戦闘のはじめ（ゴブリンの大将・スーラク など）
+export function combatStart(s) {
+  for (const p of [...s.P.bf]) if (onBf(s, p) && p.def.combatStart) p.def.combatStart(s, p, api);
+  for (const c of [...s.P.gy]) if (c.def.gyCombatStart) c.def.gyCombatStart(s, c, api);
+  sba(s);
+}
+
+// 攻撃を宣言して、敵のブロックを返す。atk = [{ p, t }]（t は敵のパーマネント・'face'）
+export function declareAttack(s, atk) {
   for (const a of atk) { a.p.attacking = true; if (!hasKw(s, a.p, 'vigilance')) tapPerm(s, a.p); }
   L(s, `攻撃：${atk.map((a) => `${a.p.def.name}→${a.t === 'face' ? '本体' : a.t.def?.name}`).join('、')}`);
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
-  const blocks = enemyBlocks(s, atk);
-  s.ai.tricks(s, atk, blocks);
-  if (atk.length >= 3 && ask(s)) {
+  return enemyBlocks(s, atk);
+}
+
+// 3体以上で攻撃したときの「ダメージの合計は？」
+export function attackSumQuestion(s, atk, blocks) {
+  const u = atk.filter((a) => !blocks.has(a.p.uid) && onBf(s, a.p) && !a.t?.def?.factory);
+  if (atk.length < 3 || !u.length) return null;
+  const ps = u.map((a) => Math.max(0, power(s, a.p)));
+  return { hint: 'ブロックされなかった クリーチャーの ダメージの ごうけいは？', text: `${ps.join(' ＋ ')} ＝ □`, answer: ps.reduce((t, x) => t + x, 0), reward: '1体の パワーが ＋1' };
+}
+
+export function finishCombat(s, atk, blocks, bonus) {
+  if (bonus) {
     const u = atk.filter((a) => !blocks.has(a.p.uid) && onBf(s, a.p) && !a.t?.def?.factory);
     if (u.length) u[0].p.mP += 1;
   }
   resolveCombat(s, atk, blocks);
+  for (const a of atk) a.p.attacking = false;
 }
 
-export function enemyAttack(s, attackers) {
+export async function enemyAttack(s, attackers) {
   attackers = attackers.filter((p) => onBf(s, p) && isCreature(p));
   if (!attackers.length) return;
   for (const p of attackers) { p.attacking = true; if (!hasKw(s, p, 'vigilance')) p.tapped = true; }
   L(s, `敵の攻撃：${attackers.map((p) => p.def.name).join('、')}`);
-  s.ai.beforeBlocks(s, attackers);
+  await s.ai.beforeBlocks(s, attackers);
   attackers = attackers.filter((p) => onBf(s, p));
-  const blocks = s.ai.blocks(s, attackers);
-  s.ai.duringBlocks(s, attackers, blocks);
+  const blocks = await s.ai.blocks(s, attackers);
+  await s.ai.duringBlocks(s, attackers, blocks);
   attackers = attackers.filter((p) => onBf(s, p));
-  const unblocked = attackers.filter((p) => !blocks.has(p.uid)).reduce((t, p) => t + Math.max(0, power(s, p)), 0);
-  const reduce = unblocked > 0 && ask(s) ? 1 : 0;
+  const ps = attackers.filter((p) => !blocks.has(p.uid)).map((p) => Math.max(0, power(s, p)));
+  const unblocked = ps.reduce((t, x) => t + x, 0);
+  const reduce = unblocked > 0 && await askAsync(s, { hint: 'ブロックしなかった 敵の こうげき。うける ダメージは？', text: `${ps.join(' ＋ ')} ＝ □`, answer: unblocked, reward: 'ダメージが 1 へる' }) ? 1 : 0;
   resolveCombat(s, attackers.map((p) => ({ p, t: 'player' })), blocks, reduce);
 }
 
@@ -400,9 +434,22 @@ export function resolveCombat(s, atk, blocks, reduce = 0) {
 }
 
 // ---- けいさんボーナス ----
-export function ask(s) {
+// q = { text, answer, hint, reward }。人が遊ぶときは ui が先に聞いた答えを s.mathQueue に入れておく
+export function ask(s, q) {
+  let ok;
+  if (s.mathQueue?.length) ok = s.mathQueue.shift();
+  else if (s.ai.askSync) { ok = s.ai.askSync(s, q); if (ok == null) return false; }
+  else ok = s.rng() < s.mathRate;
   s.stats.asked++;
-  const ok = s.rng() < s.mathRate;
+  if (ok) s.stats.ok++;
+  return ok;
+}
+
+// 相手のターンの問題（人が遊ぶときは画面で答えを待つ）
+export async function askAsync(s, q) {
+  if (!s.ai.ask) return ask(s, q);
+  s.stats.asked++;
+  const ok = await s.ai.ask(s, q);
   if (ok) s.stats.ok++;
   return ok;
 }
@@ -410,7 +457,7 @@ export function ask(s) {
 Object.assign(api, {
   L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
-  enemyAttack, enemyBlocks, canBlock, blockFacts, ask, is, isCreature, onBf, colorsOf, card,
+  enemyAttack, enemyBlocks, canBlock, blockFacts, ask, askAsync, is, isCreature, onBf, colorsOf, card,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
 });

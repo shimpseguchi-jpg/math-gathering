@@ -36,15 +36,15 @@ const HYDRA_DECK = [
 
 // 頭の階（1階・5階の段階1）で共通の部品
 const headsFloor = {
-  headTurn(s, E, dmgBonus = 0) {
+  async headTurn(s, E, dmgBonus = 0) {
     if (s.over) return;
-    let total = 0;
+    const ds = [];
     for (const p of s.E.bf) if (p.def.head && !p.tapped) {
-      total += p.def.headDmg + dmgBonus + (s.E.flags.turn.extra || 0);
+      ds.push(p.def.headDmg + dmgBonus + (s.E.flags.turn.extra || 0));
       if (p.def.fang) { const t = biggest(s, E); if (t) E.damage(s, t, 1, null); }
     }
-    if (s.E.flags.turn.noDmg) total = 0;
-    if (total > 0 && E.ask(s)) total -= 1; // 「つぎに うける ダメージは？」
+    let total = s.E.flags.turn.noDmg ? 0 : ds.reduce((t, x) => t + x, 0);
+    if (total > 0 && await E.askAsync(s, { hint: '頭が ダメージを あたえる。うける ダメージは？', text: `${ds.join(' ＋ ')} ＝ □`, answer: total, reward: 'ダメージが 1 へる' })) total -= 1; // 「つぎに うける ダメージは？」
     E.hurt(s, total);
     E.sba(s);
   },
@@ -74,10 +74,10 @@ export function hydra() {
       for (const p of s.E.bf) p.sick = false;
       s.E.lib = toLib(s, E, defs);
     },
-    enemyTurn(s, E) {
+    async enemyTurn(s, E) {
       for (const p of s.E.bf) if (p.flags.indTurns) p.flags.indTurns--;
-      E.reveal(s, 1);
-      headsFloor.headTurn(s, E);
+      await E.reveal(s, 1);
+      await headsFloor.headTurn(s, E);
     },
     onEnter(s, p) { if (p.def.head) p.def = { ...p.def, kwFn: headIndestructible }; },
     onLeave(s, p, E) { if (p.def.head) headsFloor.regrow(s, E, DIFF(s, 1, 1, 2)); },
@@ -117,16 +117,16 @@ export function horde() {
       s.E.lib = toLib(s, E, build(HORDE_DECK));
       s.E.extraTurns = DIFF(s, 2, 2, 2);
     },
-    enemyTurn(s, E) {
+    async enemyTurn(s, E) {
       for (const p of s.E.bf) if (p.def.totem) { const t = weakest(s, E); if (t) { E.damage(s, t, 1, null); E.sba(s); } }
       s.E.flags.hordeTurn = (s.E.flags.hordeTurn || 0) + 1;
       const n = DIFF(s, 1, 1, 1 + (s.E.flags.hordeTurn % 2)) + s.E.bf.filter((p) => p.def.altar).length; // むずかしい：1枚と2枚を交互に
-      E.reveal(s, n);
+      await E.reveal(s, n);
       if (s.over) return;
       const atk = attackers(s, E, (p) => p.def.attacks);
       if (s.E.flags.turn.deathtouch) for (const p of atk) E.pump(p, 0, 0, ['deathtouch']);
       for (const p of atk) p.def.onAttackE?.(s, p, E);
-      E.enemyAttack(s, atk);
+      await E.enemyAttack(s, atk);
     },
     face(s, n, E) {
       for (let i = 0; i < n && s.E.lib.length; i++) {
@@ -179,14 +179,14 @@ export function factory() {
       s.E.key = DIFF(s, 4, 6, 7);
       s.E.lib = toLib(s, E, build(FACTORY_DECK));
     },
-    enemyTurn(s, E) {
+    async enemyTurn(s, E) {
       if (s.E.flags.inspect) s.E.flags.inspect = false;
       else if (s.E.bf.filter((p) => p.def.golem).length < 2) E.token(s, 'E', GOLEM);
-      E.reveal(s, 1);
+      await E.reveal(s, 1);
       if (s.over || s.E.flags.turn.halt) return;
       const atk = attackers(s, E, (p) => p.def.attacks);
       if (s.E.flags.turn.golemPump) for (const p of atk) E.pump(p, 1, 0);
-      E.enemyAttack(s, atk);
+      await E.enemyAttack(s, atk);
     },
     cantLeave: (s, p) => p.def.factory && !s.E.flags.broken,
     onDamaged(s, p, n) {
@@ -254,10 +254,10 @@ export function slime() {
       E.enter(s, 'E', slimeDef(n)); // 最初のターンは攻撃しない
       s.E.lib = toLib(s, E, build(SLIME_DECK));
     },
-    enemyTurn(s, E) {
-      E.reveal(s, 1);
+    async enemyTurn(s, E) {
+      await E.reveal(s, 1);
       if (s.over || !s.E.flags.started) { s.E.flags.started = true; return; } // 最初のターンは攻撃しない
-      E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
+      await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
     },
     check(s, E, when) { if (when === 'end' && !s.E.bf.some((p) => p.def.slime)) s.over = 'win'; },
     priority(s, p, E) { return Math.max(1, 12 - E.power(s, p) * 2); },
@@ -298,12 +298,12 @@ export function xenagos() {
       for (const p of s.E.bf) p.sick = false;
       s.E.lib = toLib(s, E, build(XEN_DECK));
     },
-    enemyTurn(s, E) {
-      E.reveal(s, 1);
+    async enemyTurn(s, E) {
+      await E.reveal(s, 1);
       if (s.over) return;
       const panic = s.E.bf.some((p) => p.def.panic) && revelers(s).length >= 5;
       const atk = s.E.bf.filter((p) => E.isCreature(p) && !p.tapped && (p.flags.mustAttack || p.def.attacks || (panic && p.def.reveler)) && (!p.sick || panic));
-      E.enemyAttack(s, atk);
+      await E.enemyAttack(s, atk);
     },
     cantLeave: (s, p) => p.def.xenagos && revelers(s).length > 0,
     onLeave(s, p) { if (p.def.xenagos) s.over = 'win'; },
@@ -388,20 +388,20 @@ export function erebos() {
       for (const p of s.E.bf) p.sick = false;
       s.E.lib = toLib(s, E, defs);
     },
-    enemyTurn(s, E) {
-      if (s.phase === 1) { E.reveal(s, 1); headsFloor.headTurn(s, E); return; }
+    async enemyTurn(s, E) {
+      if (s.phase === 1) { await E.reveal(s, 1); await headsFloor.headTurn(s, E); return; }
       if (s.phase === 2) {
-        E.reveal(s, DIFF(s, 1, 2, 2));
+        await E.reveal(s, DIFF(s, 1, 2, 2));
         if (s.over || s.E.flags.turn.halt) return;
-        E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
+        await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
         return;
       }
       E.hurt(s, DIFF(s, 2, 3, 3)); // エレボス：死者の神のターンのはじめに ライフを失う
       if (s.over) return;
-      E.reveal(s, DIFF(s, 1, 2, 2));
+      await E.reveal(s, DIFF(s, 1, 2, 2));
       if (s.over) return;
       const rest = s.E.flags.erebosRest; s.E.flags.erebosRest = false;
-      E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks || (p.def.erebos && !rest)));
+      await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks || (p.def.erebos && !rest)));
     },
     onLeave(s, p, E) { if (s.phase === 1 && p.def.head) headsFloor.regrow(s, E, 1); },
     cantLeave: (s, p) => !!p.def.erebos,

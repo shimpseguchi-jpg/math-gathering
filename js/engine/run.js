@@ -21,9 +21,10 @@ export function openPack(rng) {
     for (let i = 0; i < PACK.C; i++) cards.push(pick(rng, POOL.C));
     for (let i = 0; i < PACK.U; i++) cards.push(pick(rng, POOL.U));
     for (let i = 0; i < PACK.R; i++) cards.push(pick(rng, rng() < PACK.legendFromRare ? POOL.L : POOL.R));
-    if (rng() < PACK.legendFromCommon) cards[0] = pick(rng, POOL.L);
+    const surprise = rng() < PACK.legendFromCommon;
+    if (surprise) cards[0] = pick(rng, POOL.L);
     const cols = new Set(cards.flatMap(colorsOf));
-    if (cols.size === 4 || tries >= 20) return cards;
+    if (cols.size === 4 || tries >= 20) { cards.surprise = surprise; return cards; }
   }
 }
 
@@ -58,13 +59,13 @@ export function buildDeck(pool, o = {}) {
   return { deck, pair: best.pair.join(''), points: best.pick.reduce((t, d) => t + RARITY_PTS[d.rar], 0), real: best.pick.length };
 }
 
-export function fight(deck, floorId, o = {}) {
+export async function fight(deck, floorId, o = {}) {
   const s = newGame({ deck, floor: FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, mathRate: o.mathRate ?? 0.7, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log });
-  play(s, o.maxTurns || 40);
+  await play(s, o.maxTurns || 40);
   return s;
 }
 
-export function runAdventure(o = {}) {
+export async function runAdventure(o = {}) {
   const rng = seeded(o.seed || 1);
   const pool = [];
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng));
@@ -75,7 +76,7 @@ export function runAdventure(o = {}) {
   for (let i = 0; i < floors.length; i++) {
     log.decks.push({ pair: b.pair, real: b.real, points: b.points });
     for (;;) {
-      const s = fight(b.deck, floors[i], { ...o, seed: Math.floor(rng() * 1e9), log: o.logFloor === floors[i] });
+      const s = await fight(b.deck, floors[i], { ...o, seed: Math.floor(rng() * 1e9), log: o.logFloor === floors[i] });
       if (s.logOn) (log.fightLogs ||= []).push(s.logs.join('\n'));
       log.floors.push({ floor: floors[i], result: s.over, turns: s.stats.playerTurns, life: s.P.life, phase: s.stats.phase, asked: s.stats.asked, ok: s.stats.ok, reshuffled: s.stats.reshuffled });
       if (s.over === 'win') break;

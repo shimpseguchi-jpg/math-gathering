@@ -54,11 +54,17 @@ export function pay(s, pl) {
   }
   if (pl.prism) pl.prism.tapped = true;
   // 召集のけいさんボーナス：正解でタップしたクリーチャー1体がアンタップ
-  if (convoked.length && ask(s)) convoked[0].tapped = false;
+  if (convoked.length && ask(s, convokeQuestion(pl))) convoked[0].tapped = false;
   return convoked;
 }
 
 const manaCount = (s, o = {}) => sources(s, o).length;
+
+export function convokeQuestion(pl) {
+  const n = pl.srcs.length, c = pl.srcs.filter((x) => x.kind === 'convoke').length;
+  return { hint: '召集：マナの たりない ぶんを クリーチャーで はらう。なんたい タップする？', text: `コスト ${n} ＝ マナ ${n - c} ＋ なかま □`, answer: c, reward: 'タップした クリーチャー1体が アンタップ' };
+}
+export const xQuestion = (total, base) => ({ hint: 'X呪文：つかえる マナで X を きめる', text: `マナ ${total} ＝ X ＋ ${base}　X ＝ □`, answer: total - base, reward: 'X が ＋1' });
 
 // ---- 唱える ----
 export function castCard(s, c, pl, o = {}) {
@@ -99,7 +105,7 @@ function optionsFor(s, c, phase, from) {
     return [{
       score: r.score, name: def.name, exec: () => {
         const pl = plan(s, cost + x, req, o); if (!pl) return;
-        const xx = x + (ask(s) ? 1 : 0); // X のけいさんボーナス
+        const xx = x + (ask(s, xQuestion(cost + x, cost)) ? 1 : 0); // X のけいさんボーナス
         castCard(s, c, pl, { x: xx, ctr: xx, run: () => r.run(xx), from });
       },
     }];
@@ -443,7 +449,8 @@ function divide(s, n, cands) {
     .filter((x) => x.need !== Infinity).sort((a, b) => (a.need - b.need) || (b.v - a.v));
   const out = [];
   let left = n;
-  if (left > 1 && ask(s)) left++; // 割り振るのけいさんボーナス
+  const k = Math.max(1, Math.min(list.length, n));
+  if (left > 1 && ask(s, { hint: '割り振る：おなじ数ずつ わけると？（あまりは きりすて）', text: `${n} ÷ ${k} ＝ □`, answer: Math.floor(n / k), reward: '割り振る数が ＋1' })) left++; // 割り振るのけいさんボーナス
   for (const x of list) { if (x.need <= left) { out.push({ t: x.p, n: x.need }); left -= x.need; } }
   if (left > 0 && (out.length || list.length)) {
     const tgt = out.length ? out[out.length - 1] : { t: list[0].p, n: 0 };

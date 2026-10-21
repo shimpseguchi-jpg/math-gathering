@@ -303,7 +303,7 @@ const U = [
   cr('U10', 'ジェスカイの 風斥候', 'C', 'U', 3, 2, 1, ['bird', 'scout'], ['flying', 'prowess']),
   sp('U11', '本質の 散乱', 'C', 'U', 2, 'instant', { counter: 'creature', reactive: true }),
   sp('U12', '二度 考える', 'C', 'U', 2, 'instant', { play: draw(1, 3), flashback: { cost: 3, req: ['U'] } }),
-  sp('U13', '抜き打ち テスト', 'U', 'U', 3, 'instant', { play: (s, E) => ({ score: 5, run: () => { E.drawCard(s); if (E.ask(s)) E.drawCard(s); } }) }),
+  sp('U13', '抜き打ち テスト', 'U', 'U', 3, 'instant', { quiz: true, play: (s, E) => ({ score: 5, run: () => { E.drawCard(s); if (E.ask(s, { hint: '抜き打ち テスト！', text: '7 ＋ 5 ＝ □', answer: 12, reward: 'カードを もう1枚 引く' })) E.drawCard(s); } }) }),
   cr('U14', '放蕩の 魔術師', 'U', 'U', 3, 1, 1, ['human', 'wizard'], [], {
     acts: [{ cost: 0, tap: true, when: [2], play: (s, p, E) => { const b = E.burnTarget(s, 1, { mustHit: !!s.floor.face }); return b ? { score: 2 + b.score, run: () => hit(s, E, b.t, 1) } : null; } }],
   }),

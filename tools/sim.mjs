@@ -40,7 +40,7 @@ if (mode === 'fights') {
     for (const f of FLOOR_IDS) {
       let win = 0; const turns = []; let timeout = 0;
       for (let i = 0; i < N; i++) {
-        const s = fight(deckOf(k), f, { ...opts, seed: SEED * 100000 + i });
+        const s = await fight(deckOf(k), f, { ...opts, seed: SEED * 100000 + i });
         if (s.over === 'win') { win++; turns.push(s.stats.playerTurns); }
         if (s.over === 'timeout') timeout++;
       }
@@ -53,7 +53,7 @@ if (mode === 'fights') {
 
 if (mode === 'runs') {
   const res = [];
-  for (let i = 0; i < N; i++) res.push(runAdventure({ ...opts, seed: SEED * 100000 + i }));
+  for (let i = 0; i < N; i++) res.push(await runAdventure({ ...opts, seed: SEED * 100000 + i }));
   const cleared = res.filter((r) => r.cleared).length;
   console.log(`冒険 ${N}回（${DIFF}・けいさん正解率 ${MATH}）：クリア ${pct(cleared / N)}`);
   const lost = [0, 0, 0, 0, 0, 0];
@@ -78,7 +78,7 @@ if (mode === 'runs') {
 
 if (mode === 'log') {
   const k = process.argv[3] || 'RG', f = process.argv[4] || 'hydra';
-  const s = fight(deckOf(k), f, { ...opts, seed: SEED, log: true });
+  const s = await fight(deckOf(k), f, { ...opts, seed: SEED, log: true });
   console.log(s.logs.join('\n'));
   console.log(`結果：${s.over}（${s.stats.playerTurns}ターン、ライフ ${s.P.life}）`);
 }
@@ -92,7 +92,7 @@ if (mode === 'floors') {
     for (let i = 0; i < N; i++) {
       const rng = seeded(SEED * 100000 + i);
       const pool = []; for (let k = 0; k < packs; k++) pool.push(...openPack(rng));
-      const s = fight(buildDeck(pool).deck, f, { ...opts, seed: SEED * 7919 + i });
+      const s = await fight(buildDeck(pool).deck, f, { ...opts, seed: SEED * 7919 + i });
       if (s.over === 'win') { win++; turns.push(s.stats.playerTurns); } else if (s.stats.phase) ph.push(s.stats.phase);
       if (s.stats.reshuffled) resh++;
     }
