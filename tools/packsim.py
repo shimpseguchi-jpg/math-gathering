@@ -8,11 +8,14 @@ def card():
     elif r<0.9: c=set(random.choice(pairs))
     else: c=set()
     return c
-# 1パックのレアリティ構成（C, U, R）。レアは8パックに1回レジェンド（4点）
+# 1パックのレアリティ構成（C, U, R）。レアは8パックに1回レジェンド（4点）、
+# さらにコモン1枚が COMMON_TO_LEGEND の確率でレジェンドに変わる
 COMPOS={5:(2,2,1),6:(3,2,1),8:(4,3,1),10:(5,4,1)}
+COMMON_TO_LEGEND=1/20
 def pack(n):
     c,u,r=COMPOS[n]
     rs=[1]*c+[2]*u+[4 if random.random()<1/8 else 3 for _ in range(r)]
+    if c and random.random()<COMMON_TO_LEGEND: rs[0]=4
     return [(card(),p) for p in rs]
 for n in COMPOS:
     for k in (3,5,7):
