@@ -59,9 +59,12 @@ export function beginPlayerTurn(s) {
   for (const p of P.bf) { if (p.frozen) p.frozen = false; else p.tapped = false; p.sick = false; p.flags.turn = {}; }
   for (const m of P.mana) m.tapped = false;
   s.floor.playerUpkeep?.(s, api);
-  for (const p of [...P.bf]) if (onBf(s, p) && p.def.upkeep) p.def.upkeep(s, p, api);
-  sba(s); if (s.over) return;
-  if (s.stats.playerTurns > 1) drawCard(s);
+  const waits = [];
+  for (const p of [...P.bf]) if (onBf(s, p) && p.def.upkeep) { const r = p.def.upkeep(s, p, api); if (r && r.then) waits.push(r); }
+  const rest = () => { sba(s); if (s.over) return; if (s.stats.playerTurns > 1) drawCard(s); };
+  // 占術（海の神タッサ）を画面で聞くときは、答えを待ってから引く
+  if (waits.length) return Promise.all(waits).then(rest);
+  rest();
 }
 
 export function endPlayerTurn(s) {
@@ -199,6 +202,7 @@ export function damage(s, p, n, src) {
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
   if (p.side === 'P' && p.attacking && s.P.bf.some((q) => q.def.protectAttackers)) return 0;
   if (isCreature(p)) { p.dmg += n; if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
+  L(s, `${src ? `${src.def.name} → ` : ''}${p.side === 'E' ? '敵：' : ''}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   return n;
@@ -226,6 +230,7 @@ export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
   if (t === 'player') return hurt(s, n, src);
   if (t === 'face') {
+    L(s, `${src ? `${src.def.name} → ` : ''}敵の本体に ${n}点`);
     s.floor.face(s, n, api);
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   } else damage(s, t, n, src);

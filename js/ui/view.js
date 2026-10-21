@@ -102,7 +102,14 @@ export function detail(def, o = {}) {
 
 // ---- 下から出るシート（選択肢を待つ） ----
 const root = () => document.getElementById('sheet');
+// シートは1つずつ。開いている間に来たものは順番待ち
+let queue = Promise.resolve();
 export function sheet(html, choices = [], o = {}) {
+  const p = queue.then(() => openSheet(html, choices, o));
+  queue = p.catch(() => {});
+  return p;
+}
+function openSheet(html, choices, o) {
   return new Promise((resolve) => {
     const el = root();
     el.innerHTML = `<div class="sheet-back"></div><div class="sheet-body" role="dialog" aria-modal="true">

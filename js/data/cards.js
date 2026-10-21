@@ -5,8 +5,14 @@ const cr = (id, name, rar, color, cost, pow, tou, sub, kw = [], x = {}) => ({ id
 const sp = (id, name, rar, color, cost, type, x = {}) => ({ id, name, rar, color, cost, types: [type], kw: [], ...x });
 const pm = (id, name, rar, color, cost, types, x = {}) => ({ id, name, rar, color, cost, types, kw: [], ...x });
 
-const hit = (s, E, t, n) => { if (t === 'face') E.hitTarget(s, 'face', n, null); else E.damage(s, t, n, null); E.sba(s); };
-const burn = (n, o = {}) => (s, E) => { const b = E.burnTarget(s, n, o); return b ? { score: 6 + b.score, run: () => hit(s, E, b.t, n) } : null; };
+// 対象が もう いなければ（ほかの能力で 倒れたなど）、そのときに ねらいなおす
+const hit = (s, E, t, n) => {
+  if (t !== 'face' && !E.onBf(s, t)) { const b = E.burnTarget(s, n, { mustHit: true }); if (!b) return; t = b.t; }
+  if (t === 'face') E.hitTarget(s, 'face', n, null); else E.damage(s, t, n, null);
+  E.sba(s);
+};
+// 人が遊ぶとき（ctx.human）は、倒せなくても 敵に当てられる
+const burn = (n, o = {}) => (s, E, ctx = {}) => { const b = E.burnTarget(s, n, { ...o, mustHit: !!ctx.human || o.mustHit }); return b ? { score: 6 + b.score, run: () => hit(s, E, b.t, n) } : null; };
 // X のダメージ呪文：いちばん小さい X で倒せる敵、なければ本体に最大の X（工場はちょうど鍵の数）
 const xBurn = (s, E, ctx, bonus) => {
   for (let x = 1; x <= ctx.xMax; x++) {
@@ -299,7 +305,7 @@ const U = [
     }],
   }),
   // 赤青
-  sp('U09', '選択', 'C', 'U', 1, 'instant', { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3, run: () => { E.scry(s, 1); E.drawCard(s); } } : null) }),
+  sp('U09', '選択', 'C', 'U', 1, 'instant', { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3, run: () => E.then(E.scry(s, 1), () => E.drawCard(s)) } : null) }),
   cr('U10', 'ジェスカイの 風斥候', 'C', 'U', 3, 2, 1, ['bird', 'scout'], ['flying', 'prowess']),
   sp('U11', '本質の 散乱', 'C', 'U', 2, 'instant', { counter: 'creature', reactive: true }),
   sp('U12', '二度 考える', 'C', 'U', 2, 'instant', { play: draw(1, 3), flashback: { cost: 3, req: ['U'] } }),
@@ -333,7 +339,7 @@ const R = [
     onAttack: (s, p, E, atk) => E.pump(p, atk.filter((a) => a.p !== p && isSub(a.p, 'goblin')).length, 0),
   }),
   cr('R08', '鍛冶の神 パーフォロス', 'L', 'R', 4, 6, 5, ['god'], ['indestructible'], {
-    onOtherEnter: (s, p, q, E) => { if (q.side === 'P' && E.isCreature(q)) E.hitEnemy(s, 2, null); },
+    onOtherEnter: (s, p, q, E) => { if (q.side === 'P' && E.isCreature(q)) E.hitEnemy(s, 2, p); },
     acts: [{ cost: 3, req: ['R'], when: [1], play: (s, p, E) => (E.readyAttackers(s).length >= 3 ? { score: E.readyAttackers(s).length, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0); } } : null) }],
   }),
   // 赤青
@@ -344,7 +350,7 @@ const R = [
   }),
   sp('R11', '稲妻の 一撃', 'C', 'R', 2, 'instant', { play: burn(3), burnN: 3 }),
   cr('R12', '火口の 射手', 'C', 'R', 2, 2, 1, ['human', 'archer'], [], {
-    onCast: (s, p, d, E) => { if (!d.types.includes('creature')) E.hitEnemy(s, 1, null); },
+    onCast: (s, p, d, E) => { if (!d.types.includes('creature')) E.hitEnemy(s, 1, p); },
   }),
   cr('R13', '窯の 悪鬼', 'U', 'R', 4, 3, 3, ['elemental', 'beast'], [], {
     onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.pump(p, 3, 0); },
@@ -352,13 +358,13 @@ const R = [
   cr('R14', '若き 紅蓮術士', 'U', 'R', 2, 2, 1, ['human', 'shaman'], [], {
     onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.token(s, 'P', T.elemental); },
   }),
-  sp('R15', 'マグマの 噴流', 'U', 'R', 2, 'instant', { play: (s, E) => { const r = burn(2)(s, E); return r ? { score: r.score + 1, run: () => { r.run(); E.scry(s, 2); } } : null; }, burnN: 2 }),
+  sp('R15', 'マグマの 噴流', 'U', 'R', 2, 'instant', { play: (s, E) => { const r = burn(2)(s, E); return r ? { score: r.score + 1, run: () => { r.run(); return E.scry(s, 2); } } : null; }, burnN: 2 }),
   sp('R16', '火口の 爪', 'R', 'R', 1, 'sorcery', {
     x: true,
     play: (s, E, ctx) => xBurn(s, E, ctx, ferocious(s, E) ? 2 : 0),
   }),
   cr('R17', '路地裏の 火の子', 'R', 'R', 3, 2, 2, ['goblin', 'shaman'], [], {
-    onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.hitEnemy(s, 2, null); },
+    onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.hitEnemy(s, 2, p); },
   }),
   // 緑赤
   cr('R18', '山頂の 徘徊者', 'C', 'R', 4, 4, 3, ['troll']),
@@ -391,7 +397,7 @@ const R = [
     },
   }),
   cr('R26', '嵐息吹の ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
-    acts: [{ cost: 6, req: ['R'], monstrosity: true, when: [1, 2], play: (s, p, E) => ({ score: 6 + s.P.hand.length, run: () => { E.addCounters(s, p, 3); E.hitEnemy(s, s.P.hand.length, null); } }) }],
+    acts: [{ cost: 6, req: ['R'], monstrosity: true, when: [1, 2], play: (s, p, E) => ({ score: 6 + s.P.hand.length, run: () => { E.addCounters(s, p, 3); E.hitEnemy(s, s.P.hand.length, p); } }) }],
   }),
 ];
 
@@ -429,7 +435,7 @@ const GOLD2 = [
     upkeep: (s, p, E) => {
       const c = s.P.lib.shift(); if (!c) return;
       const d = c.def;
-      if (d.types.includes('instant') || d.types.includes('sorcery')) { E.hitEnemy(s, 3, null); s.P.hand.push(c); }
+      if (d.types.includes('instant') || d.types.includes('sorcery')) { E.hitEnemy(s, 3, p); s.P.hand.push(c); }
       else if (d.types.includes('creature') && s.P.mana.length < 7) s.P.mana.push({ ...c, tapped: false });
       else s.P.hand.push(c);
     },
@@ -438,7 +444,7 @@ const GOLD2 = [
     bloodrush: { cost: 2, req: ['R', 'G'] }, singleRun: (s, E, q) => E.pump(q, 4, 4),
   }),
   cr('RG02', '運命の神 クローティス', 'R', 'RG', 3, 4, 5, ['god'], ['indestructible'], {
-    combatStart: (s, p, E) => { if (ferocious(s, E)) { E.hitEnemy(s, 2, null); E.gain(s, 2); } },
+    combatStart: (s, p, E) => { if (ferocious(s, E)) { E.hitEnemy(s, 2, p); E.gain(s, 2); } },
   }),
   cr('GU01', 'クアンドリクスの 天才 ジモーネ', 'U', 'GU', 3, 1, 3, ['human', 'wizard'], [], {
     acts: [{

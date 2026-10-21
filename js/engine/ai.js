@@ -81,14 +81,17 @@ export function castCard(s, c, pl, o = {}) {
     q.def.onCast?.(s, q, def, api);
     q.def.onAnyCast?.(s, q, def, 'P', api);
   }
-  if (isPermDef(def)) enter(s, 'P', def, { ctr: o.ctr || 0, convoked, card: def });
-  else {
-    o.run?.(o.x);
+  if (isPermDef(def)) { enter(s, 'P', def, { ctr: o.ctr || 0, convoked, card: def }); sba(s); return; }
+  const done = () => {
     if (from === 'gy' || o.free) P.exile.push(c);
     else if (def.backToHand) { c.locked = true; P.hand.push(c); }
     else P.gy.push(c);
-  }
-  sba(s);
+    sba(s);
+  };
+  // 効果が 画面の答えを待つ（占術など）ときだけ Promise を返す。シミュレーションでは そのまま進む
+  const r = o.run?.(o.x);
+  if (r && r.then) return r.then(done);
+  done();
 }
 
 function optionsFor(s, c, phase, from) {
@@ -463,6 +466,7 @@ function divide(s, n, cands) {
 function enemyThreatOf(s, p) { return power(s, p) * 2 + (s.floor.priority(s, p, api) || 0); }
 
 Object.assign(api, {
+  then: (r, f) => (r && r.then ? r.then(f) : f()),
   plan, pay, castCard, assignKill, killTargets, burnTarget, bestBuffTarget, divide, readyAttackers, enemyThreatOf, keepValue,
   attackersReady: readyAttackers,
   manaCount: (s) => manaCount(s, {}),
@@ -477,7 +481,10 @@ Object.assign(api, {
     return best;
   },
   castFree: (s, c, r) => { castCard(s, c, null, { run: r.run, from: 'gy', free: true, x: r.x }); },
+  // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {
+    L(s, `占術 ${n}`);
+    if (s.ai.scry) return s.ai.scry(s, n);
     const top = s.P.lib.splice(0, n);
     const keepL = [], bottom = [];
     for (const c of top) (scryKeep(s, c) ? keepL : bottom).push(c);

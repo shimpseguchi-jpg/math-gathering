@@ -48,6 +48,21 @@ function humanAI() {
       }
     },
     blocks: (s, attackers) => chooseBlocks(attackers),
+    // 占術：上から1まいずつ「上に のこす／いちばん下へ」
+    scry: async (s, n) => {
+      const top = s.P.lib.splice(0, n);
+      const keep = [], bottom = [];
+      for (let i = 0; i < top.length; i++) {
+        if (B) render();
+        const v = await sheet(`<p>ライブラリーの 上から ${i + 1}まいめ。つぎに 引く カードに するなら「上に のこす」。</p>${detail(top[i].def)}`, [
+          { label: '上に のこす', value: 'keep', kind: 'primary' }, { label: 'いちばん 下へ', value: 'bottom' },
+        ], { title: `占術（せんじゅつ）${i + 1}/${top.length}`, dismiss: false });
+        (v === 'bottom' ? bottom : keep).push(top[i]);
+      }
+      s.P.lib.unshift(...keep); s.P.lib.push(...bottom);
+      s.logs.push(`[${s.turn}P] 占術：上に ${keep.length}まい、下に ${bottom.length}まい`);
+      if (B) render();
+    },
     duringBlocks: async (s, attackers, blocks) => {
       for (let guard = 0; guard < 5; guard++) {
         const opts = [];
@@ -79,10 +94,12 @@ function chooseBlocks(attackers) {
 }
 
 // ---- ターンの流れ ----
-function startTurn() {
+async function startTurn() {
   const s = B.s;
-  beginPlayerTurn(s);
   B.mode = 'main'; B.phase = 1; B.combatDone = false; B.sel = new Map();
+  B.busy = true;
+  await beginPlayerTurn(s);
+  B.busy = false;
   if (checkOver()) return;
   render();
 }
@@ -158,7 +175,7 @@ function castInfo(c, from = 'hand') {
     if (d.need && !d.need(s, api)) return { why: 'いまは 出しても こうかが ない' };
     return { ok: true, pl, x };
   }
-  const ctx = { phase: B.phase, c, xMax: x };
+  const ctx = { phase: B.phase, c, xMax: x, human: true };
   const r = d.play(s, api, ctx) || d.play(s, api, { ...ctx, phase: 3 - B.phase });
   if (!r) return { why: 'いまは こうかが ない（ねらう 相手が いない など）' };
   if (d.x && r.x) x = Math.min(r.x, x);
@@ -176,7 +193,7 @@ async function doCast(c, from = 'hand') {
   const base = from === 'gy' ? d.flashback.cost : d.cost;
   if (d.x && await quiz(xQuestion(base + x, base))) x++;
   if (d.quiz) s.mathQueue.push(await quiz({ ...quizFor(B.grade), hint: '抜き打ち テスト！', reward: 'カードを もう1枚 引く' }));
-  castCard(s, c, ci.pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run: ci.r ? () => ci.r.run(x) : undefined });
+  await castCard(s, c, ci.pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run: ci.r ? () => ci.r.run(x) : undefined });
   s.mathQueue = [];
   B.busy = false;
   if (!checkOver()) render();
