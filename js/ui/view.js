@@ -78,7 +78,7 @@ export function permFace(s, p, o = {}) {
     <div class="card-name">${esc(noRuby(i.name))}</div>
     <div class="card-kw">${kws.slice(0, 3).map((k) => `<span>${esc(k)}</span>`).join('')}</div>
     ${ptHtml}
-    ${o.label ? `<div class="card-label">${esc(o.label)}</div>` : ''}
+    ${o.label ? `<div class="card-label ${o.label[0] === '!' ? 'warn' : ''}">${esc(o.label.replace(/^!/, ''))}</div>` : ''}
   </button>`;
 }
 
@@ -104,10 +104,71 @@ export function detail(def, o = {}) {
 const root = () => document.getElementById('sheet');
 // シートは1つずつ。開いている間に来たものは順番待ち
 let queue = Promise.resolve();
-export function sheet(html, choices = [], o = {}) {
-  const p = queue.then(() => openSheet(html, choices, o));
+function enqueue(fn) {
+  const p = queue.then(fn);
   queue = p.catch(() => {});
   return p;
+}
+export const sheet = (html, choices = [], o = {}) => enqueue(() => openSheet(html, choices, o));
+
+// いくつか えらぶ（min〜max）。items = [{ label, value }]。やめたら null
+export function pickMany(title, items, { min = 1, max = 1, note = '' } = {}) {
+  return enqueue(() => new Promise((resolve) => {
+    const el = root();
+    const sel = new Set();
+    const draw = () => {
+      const ok = sel.size >= min && sel.size <= max;
+      el.innerHTML = `<div class="sheet-back"></div><div class="sheet-body ${el.innerHTML ? 'still' : ''}" role="dialog" aria-modal="true">
+        <h3 class="sheet-title">${title}</h3>
+        <p class="pick-note">${note || (max > 1 ? `${max}つまで えらべる` : '')}</p>
+        <div class="pick-list">${items.map((it, k) => `<button type="button" class="pick ${sel.has(k) ? 'on' : ''}" data-k="${k}" aria-pressed="${sel.has(k)}">${it.label}</button>`).join('')}</div>
+        <div class="sheet-actions"><button type="button" class="btn primary" data-ok="1" ${ok ? '' : 'disabled'}>けってい（${sel.size}）</button><button type="button" class="btn" data-no="1">やめる</button></div>
+      </div>`;
+    };
+    draw();
+    el.hidden = false;
+    const done = (v) => { el.hidden = true; el.innerHTML = ''; el.onclick = null; resolve(v); };
+    el.onclick = (e) => {
+      // 前のシートを とじた タップが ここまで 届いても むしする
+      if (!el.contains(e.target)) return;
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.no) return done(null);
+      if (b.dataset.ok) return done([...sel].map((k) => items[k].value));
+      const k = +b.dataset.k;
+      if (sel.has(k)) sel.delete(k);
+      else if (max === 1) { sel.clear(); sel.add(k); }
+      else if (sel.size < max) sel.add(k);
+      draw();
+    };
+  }));
+}
+
+// 割り振る：n を えらんだ相手に（それぞれ1以上）
+export function divideSheet(title, n, items) {
+  return enqueue(() => new Promise((resolve) => {
+    const el = root();
+    const v = items.map(() => Math.floor(n / items.length));
+    for (let i = 0; i < n % items.length; i++) v[i]++;
+    const draw = () => {
+      const left = n - v.reduce((t, x) => t + x, 0);
+      el.innerHTML = `<div class="sheet-back"></div><div class="sheet-body ${el.innerHTML ? 'still' : ''}" role="dialog" aria-modal="true">
+        <h3 class="sheet-title">${title}</h3>
+        <p class="div-sum">${v.join(' ＋ ')} ＝ ${n - left}<span>（のこり ${left}）</span></p>
+        <div class="div-list">${items.map((it, k) => `<div class="div-row"><span>${it.label}</span>
+          <button type="button" class="step" data-k="${k}" data-d="-1" ${v[k] <= 1 ? 'disabled' : ''} aria-label="へらす">−</button><b>${v[k]}</b>
+          <button type="button" class="step" data-k="${k}" data-d="1" ${left <= 0 ? 'disabled' : ''} aria-label="ふやす">＋</button></div>`).join('')}</div>
+        <div class="sheet-actions"><button type="button" class="btn primary" data-ok="1" ${left === 0 ? '' : 'disabled'}>けってい</button></div>
+      </div>`;
+    };
+    draw();
+    el.hidden = false;
+    el.onclick = (e) => {
+      if (!el.contains(e.target)) return;
+      const b = e.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.ok) { el.hidden = true; el.innerHTML = ''; el.onclick = null; return resolve(items.map((it, k) => ({ t: it.value, n: v[k] }))); }
+      v[+b.dataset.k] += +b.dataset.d; draw();
+    };
+  }));
 }
 function openSheet(html, choices, o) {
   return new Promise((resolve) => {
@@ -118,8 +179,9 @@ function openSheet(html, choices, o) {
       <div class="sheet-actions">${choices.map((c, k) => `<button type="button" class="btn ${c.kind || ''}" data-k="${k}" ${c.disabled ? 'disabled' : ''}>${c.label}${c.note ? `<small>${c.note}</small>` : ''}</button>`).join('')}</div>
     </div>`;
     el.hidden = false;
+    el.onclick = null;
     const done = (v) => { el.hidden = true; el.innerHTML = ''; resolve(v); };
-    el.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => done(choices[+b.dataset.k].value)));
+    el.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); done(choices[+b.dataset.k].value); }));
     if (o.dismiss !== false) el.querySelector('.sheet-back').addEventListener('click', () => done(o.dismissValue ?? null));
   });
 }

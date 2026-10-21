@@ -4,6 +4,7 @@ import { BY_ID, BASICS } from '../data/cards.js';
 import { colorsOf } from '../engine/game.js';
 import { RARITY_PTS } from '../engine/ai.js';
 import { startBattle } from './battle.js';
+import { sfx, soundOn, setSound } from './sfx.js';
 import { cardFace, detail, sheet, esc, ruby, noRuby, info, COLOR_NAME } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -51,34 +52,94 @@ export function title() {
 
 function resume() { if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
 
-// ---- パック開封 ----
+// ---- パック開封（ソシャゲの ガチャ演出） ----
+// ① 光る パックを タップして やぶる → ② 1まいずつ めくる（裏の光り方で レアリティが わかる）→ ③ まとめ
+const ORDER = [1, 2, 3, 0, 4, 5, 6, 7]; // コモン → アンコモン → レア の順。0 は「！？」の わく
+const GLOW = { C: '', U: 'g-U', R: 'g-R', L: 'g-L' };
 function packs() {
   const cards = openPack(Math.random);
-  const surprise = cards.surprise;
+  const surprise = !!cards.surprise;
   const ids = cards.map((d) => d.id);
-  const shown = new Set();
+  const owned = new Set(A.pool);
+  const best = cards.some((d) => d.rar === 'L') ? 'L' : 'R';
+  let stage = 'pack', k = 0, cracked = false, flipped = false;
+  const st = { aura: best === 'L' ? 'aura-L' : 'aura-R' };
+  const top = () => `<div class="pk-top"><p class="eyebrow">パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}</p>
+    <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>`;
+  const burst = (n = 22) => Array.from({ length: n }, (_, i) => `<i style="--a:${(360 / n) * i + Math.random() * 12}deg;--d:${70 + Math.random() * 90}px;--h:${Math.floor(Math.random() * 360)}"></i>`).join('');
+
   const draw = () => {
-    app().innerHTML = `<main class="packs">
-      <p class="eyebrow">パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}</p>
-      <h2>${shown.size < 8 ? 'カードを タップして めくろう' : 'このパックの カード'}</h2>
-      <div class="pack-grid">${ids.map((id, i) => shown.has(i)
-        ? `<button type="button" class="flip open ${surprise && i === 0 ? 'surprise' : ''} ${BY_ID[id].rar === 'L' ? 'legend' : ''}" data-i="${i}">${cardFace(BY_ID[id])}${surprise && i === 0 ? '<span class="wow">！？</span>' : ''}</button>`
-        : `<button type="button" class="flip back" data-i="${i}" aria-label="${i + 1}まいめを めくる"><span>${i < 4 ? 'C' : i < 7 ? 'U' : 'R'}</span></button>`).join('')}</div>
-      <div class="row-btns">${shown.size < 8 ? '<button type="button" class="btn" data-all="1">ぜんぶ めくる</button>' : '<button type="button" class="btn primary" data-next="1">つぎへ</button>'}</div>
+    if (stage === 'pack') {
+      app().innerHTML = `<main class="gacha">${top()}
+        <button type="button" class="foil ${st.aura}" data-open="1" aria-label="パックを あける">
+          <span class="foil-shine"></span><span class="foil-title">MATHEMATIC<br>THE GATHERING</span><span class="foil-sub">8まい いり</span>
+        </button>
+        <p class="gacha-hint">${best === 'L' ? 'パックが にじいろに 光っている…！？' : 'タップして パックを やぶろう'}</p>
+      </main>`;
+      return;
+    }
+    if (stage === 'reveal') {
+      const i = ORDER[k], d = BY_ID[ids[i]];
+      const isSurprise = surprise && i === 0;
+      const rar = isSurprise && !cracked ? 'C' : d.rar;
+      const isNew = !owned.has(ids[i]);
+      app().innerHTML = `<main class="gacha">${top()}
+        <div class="stage ${flipped ? `shown s-${d.rar}` : ''}">
+          ${flipped ? `<div class="big-card ${d.rar === 'L' ? 'legend' : ''}">${cardFace(d)}${isNew ? '<span class="new">NEW</span>' : ''}${isSurprise ? '<span class="wow">！？</span>' : ''}</div>`
+            : `<button type="button" class="big-back ${GLOW[rar]} ${isSurprise && cracked ? 'crack' : ''}" data-flip="1" aria-label="めくる"><span>${isSurprise && cracked ? '！？' : '?'}</span></button>`}
+          ${flipped && (d.rar === 'R' || d.rar === 'L') ? `<div class="burst ${d.rar === 'L' ? 'b-L' : ''}" aria-hidden="true">${burst(d.rar === 'L' ? 36 : 20)}</div>` : ''}
+          ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? 'しょうかく！ ' : ''}LEGEND!!</p>` : ''}
+        </div>
+        <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${esc(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
+        <ol class="dots">${ORDER.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
+        <div class="row-btns">${flipped ? `<button type="button" class="btn primary" data-next="1">${k < 7 ? 'つぎの カード' : 'まとめを 見る'}</button>` : ''}<button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
+      </main>`;
+      return;
+    }
+    app().innerHTML = `<main class="gacha">${top()}
+      <h2 class="sum-title">このパックの カード</h2>
+      <div class="pack-grid">${ids.map((id, i) => `<button type="button" class="sum-card ${GLOW[BY_ID[id].rar]}" data-i="${i}">${cardFace(BY_ID[id])}${!owned.has(id) ? '<span class="new">NEW</span>' : ''}</button>`).join('')}</div>
+      <div class="row-btns"><button type="button" class="btn primary" data-done="1">つぎへ</button></div>
     </main>`;
   };
   draw();
+
   app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.all) { for (let i = 0; i < 8; i++) shown.add(i); return draw(); }
-    if (b.dataset.next) {
+    if (b.dataset.snd) { setSound(!soundOn()); return draw(); }
+    if (b.dataset.open) {
+      sfx.tear();
+      b.classList.add('torn');
+      setTimeout(() => { stage = 'reveal'; draw(); }, 520);
+      return;
+    }
+    if (b.dataset.skip) { stage = 'sum'; sfx.flip(); return draw(); }
+    if (b.dataset.flip) {
+      const i = ORDER[k], d = BY_ID[ids[i]];
+      if (surprise && i === 0 && !cracked) { cracked = true; sfx.surprise(); return draw(); } // コモンの はずが…！？
+      if ((d.rar === 'R' || d.rar === 'L') && !b.classList.contains('charging')) {
+        b.classList.add('charging'); sfx.charge();
+        setTimeout(() => { flipped = true; (d.rar === 'L' ? sfx.legend : sfx.rare)(); draw(); if (d.rar === 'L') flash(); }, 900);
+        return;
+      }
+      flipped = true;
+      (d.rar === 'U' ? sfx.uncommon : sfx.flip)();
+      return draw();
+    }
+    if (b.dataset.next) { if (k < 7) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); return draw(); }
+    if (b.dataset.done) {
       A.pool.push(...ids); A.toOpen--; A.opened++; save();
       return A.toOpen > 0 ? packs() : deckBuilder();
     }
-    const i = +b.dataset.i;
-    if (!shown.has(i)) { shown.add(i); return draw(); }
-    await sheet(detail(BY_ID[ids[i]]), [{ label: 'とじる', value: 0 }]);
+    if (b.dataset.i != null) await sheet(detail(BY_ID[ids[+b.dataset.i]]), [{ label: 'とじる', value: 0 }]);
   };
+}
+const RAR_NAME = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド' };
+function flash() {
+  const f = document.createElement('div');
+  f.className = 'flash';
+  document.body.append(f);
+  setTimeout(() => f.remove(), 900);
 }
 
 // ---- デッキ構築 ----

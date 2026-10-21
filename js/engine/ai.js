@@ -81,7 +81,7 @@ export function castCard(s, c, pl, o = {}) {
     q.def.onCast?.(s, q, def, api);
     q.def.onAnyCast?.(s, q, def, 'P', api);
   }
-  if (isPermDef(def)) { enter(s, 'P', def, { ctr: o.ctr || 0, convoked, card: def }); sba(s); return; }
+  if (isPermDef(def)) { enter(s, 'P', def, { ctr: o.ctr || 0, convoked, card: def, chosen: o.chosen }); sba(s); return; }
   const done = () => {
     if (from === 'gy' || o.free) P.exile.push(c);
     else if (def.backToHand) { c.locked = true; P.hand.push(c); }

@@ -37,6 +37,13 @@ for (let i = 0; i < STEPS && !ended; i++) {
     await page.waitForTimeout(1800);
     continue;
   }
+  if (await page.locator('#sheet:not([hidden]) .pick-list').count()) {
+    await shot(`pick${battles}`);
+    await page.locator('#sheet .pick').first().click();
+    await page.click('#sheet [data-ok]');
+    continue;
+  }
+  if (await page.locator('#sheet:not([hidden]) .div-list').count()) { await shot('divide'); await page.click('#sheet [data-ok]'); continue; }
   if (await page.locator('#sheet:not([hidden]) .sheet-actions button').count()) {
     const btns = page.locator('#sheet .sheet-actions button:not([disabled])');
     const n = await btns.count();
@@ -46,7 +53,12 @@ for (let i = 0; i < STEPS && !ended; i++) {
     continue;
   }
   if (await page.locator('.ending').count()) { await shot('ending'); ended = true; break; }
-  if (await page.locator('.packs').count()) { await shot('packs'); const all = page.locator('[data-all]'); if (await all.count()) await all.click(); else await page.click('[data-next]'); continue; }
+  if (await page.locator('.gacha').count()) {
+    for (const [sel, name, wait] of [['[data-open]', 'pack', 650], ['[data-flip]', 'back', 1100], ['[data-next]', 'reveal', 100], ['[data-done]', 'summary', 100]]) {
+      if (await page.locator(sel).count()) { await shot(`${name}${shots.size}`.replace(/\d+$/, (n) => (+n < 14 ? n : ''))); await page.click(sel, { force: true }); await page.waitForTimeout(wait); break; }
+    }
+    continue;
+  }
   if (await page.locator('.builder').count()) { await shot('builder'); await page.click('[data-a=ok]'); continue; }
   if (await page.locator('.tower').count()) { await shot('tower'); battles++; await page.click('[data-a=go]'); continue; }
   if (await page.locator('.battle').count()) {

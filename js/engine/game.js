@@ -309,6 +309,7 @@ export async function reveal(s, n) {
 export async function enemyCast(s, c) {
   L(s, `敵：${c.def.name} を公開した`);
   for (const q of [...s.P.bf]) if (q.def.onAnyCast) q.def.onAnyCast(s, q, c.def, 'E', api);
+  await s.ai.revealed?.(s, c);
   if (await s.ai.counter(s, c)) { s.E.gy.push(c); L(s, '打ち消した'); return; }
   if (c.def.types.includes('sorcery')) { c.def.effect(s, api); s.E.gy.push(c); }
   else enter(s, 'E', c.def, { card: c.def });

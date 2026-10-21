@@ -53,7 +53,7 @@ const G = [
   cr('G01', '森の ちいさな エルフ', 'C', 'G', 1, 1, 1, ['elf'], [], { mana: ['G'] }),
   cr('G02', '旅する サテュロス', 'C', 'G', 2, 1, 2, ['satyr'], [], { mana: 'any' }),
   cr('G03', '生きている トーテム', 'C', 'G', 4, 2, 3, ['elemental'], ['convoke'], {
-    etb: (s, p, E) => { const t = E.bestBuffTarget(s, p); if (t) E.addCounters(s, t, 1); },
+    etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.bestBuffTarget(s, p); if (t) E.addCounters(s, t, 1); },
   }),
   sp('G04', '勇気の あつまり', 'C', 'G', 2, 'instant', { kw: ['convoke'], ...single(2, 2) }),
   cr('G05', '森の 大ワーム', 'C', 'G', 7, 5, 5, ['wurm'], ['convoke', 'trample']),
@@ -161,7 +161,7 @@ const W = [
   pm('W07', '議事会の さばき', 'U', 'W', 4, ['enchantment'], {
     kw: ['convoke'],
     need: (s, E) => !!E.burnTarget(s, 99, { creatureOnly: true, mustHit: true }),
-    etb: (s, p, E) => { const b = E.burnTarget(s, 99, { creatureOnly: true, mustHit: true }); if (b) E.exileLinked(s, p, b.t); },
+    etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.burnTarget(s, 99, { creatureOnly: true, mustHit: true })?.t; if (t) E.exileLinked(s, p, t); },
   }),
   cr('W08', 'あがめられた ロクソドン', 'R', 'W', 5, 4, 4, ['elephant', 'soldier'], ['convoke'], {
     etb: (s, p, E, o) => { for (const q of o.convoked || []) E.addCounters(s, q, 1); },
@@ -216,7 +216,7 @@ const W = [
   cr('W20', '密集軍の 隊長', 'U', 'W', 2, 1, 1, ['human', 'soldier'], [], { heroic: (s, p, E) => { for (const q of mine(s, E)) E.addCounters(s, q, 1); } }),
   sp('W21', '民衆の 奮起', 'U', 'W', 3, 'instant', { ...mass(2, 0), flashback: { cost: 3, req: ['R'] } }),
   cr('W22', '退去の 僧侶', 'U', 'W', 3, 2, 2, ['human', 'cleric'], [], {
-    etb: (s, p, E) => { const b = E.burnTarget(s, 99, { creatureOnly: true, mustHit: true }); if (b) E.exileLinked(s, p, b.t); },
+    etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.burnTarget(s, 99, { creatureOnly: true, mustHit: true })?.t; if (t) E.exileLinked(s, p, t); },
   }),
   cr('W23', '管区の 隊長', 'R', 'W', 2, 2, 2, ['human', 'soldier'], ['first'], { onCombatHit: (s, p, E) => E.token(s, 'P', T.soldier) }),
   cr('W24', '見張りの 隊長', 'R', 'W', 6, 3, 3, ['human', 'soldier'], ['vigilance'], {
@@ -420,8 +420,8 @@ const U2 = [
   pm('U24', '容赦なき 潮流', 'R', 'U', 5, ['enchantment'], { onCast: (s, p, d, E) => E.proliferate(s) }),
   cr('U25', 'クローン', 'R', 'U', 4, 0, 0, ['shapeshifter'], [], {
     need: (s, E) => [...mine(s, E), ...theirs(s, E)].some((q) => E.power(s, q) >= 3 && !q.def.noCopy),
-    etb: (s, p, E) => {
-      const t = [...mine(s, E), ...theirs(s, E)].filter((q) => q !== p && !q.def.noCopy).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+    etb: (s, p, E, o) => {
+      const t = o.chosen ? o.chosen[0]?.[0] : [...mine(s, E), ...theirs(s, E)].filter((q) => q !== p && !q.def.noCopy).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
       if (t) { const d = t.card || t.def; p.def = { ...d, reward: undefined, noBlock: undefined, attacks: undefined }; }
     },
   }),
@@ -505,3 +505,48 @@ export function bindEngine(E) {
 
 export const ALL = [...W, ...U, ...U2, ...G, ...R, ...GOLD1, ...GOLD2, ...C];
 export const BY_ID = Object.fromEntries([...ALL, ...Object.values(BASICS)].map((d) => [d.id, d]));
+
+// ---- 人が遊ぶとき：対象を自分で選ぶカード（ui/battle.js が使う） ----
+// tgt：選ぶものの並び。side は E（敵）・P（自分）・any（両方）・atk（攻撃してきた敵）。face は敵の本体も選べる。
+// divide は割り振る数（'x' は X）。apply(s, E, picks, x) の picks は tgt ごとの配列（divide は { t, n } の配列）
+const kill1 = (n) => ({ tgt: [{ side: 'E', face: true, label: `${n}点を あたえる 相手` }], apply: (s, E, [[t]]) => hit(s, E, t, n) });
+const TARGETS = {
+  R04: kill1(2), R11: kill1(3),
+  R15: { tgt: [{ side: 'E', face: true, label: '2点を あたえる 相手' }], apply: (s, E, [[t]]) => { hit(s, E, t, 2); return E.scry(s, 2); } },
+  B04: { tgt: [{ side: 'E', label: '1点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 1) },
+  R10: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手' }], apply: (s, E, [[t]], x) => hit(s, E, t, x) },
+  R16: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手（獰猛なら ＋2）' }], apply: (s, E, [[t]], x) => hit(s, E, t, x + (ferocious(s, E) ? 2 : 0)) },
+  R19: { tgt: [{ side: 'E', label: '3点（カウンターが あれば 5点）を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, t.ctr > 0 ? 5 : 3) },
+  R22: { tgt: [{ side: 'E', filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: '5点を あたえる 飛行のない クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
+  RW01: { tgt: [{ side: 'E', face: true, label: '4点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 4) },
+  U05: { tgt: [{ side: 'E', label: '手札に もどす（敵は 墓地へ）クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.drawCard(s); E.sba(s); } },
+  U03: { tgt: [{ side: 'E', max: 2, label: 'タップして 止める クリーチャー（2体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; t.frozen = true; } } },
+  G08: {
+    tgt: [{ side: 'P', label: 'たたかう 自分の クリーチャー' }, { side: 'E', label: 'たたかう 相手' }],
+    apply: (s, E, [[me], [t]]) => { E.target(s, me); if (ferocious(s, E)) E.pump(me, 2, 2); E.fight(s, me, t); },
+  },
+  G19: {
+    tgt: [{ side: 'P', label: '＋1/＋1カウンターを 置いて たたかう クリーチャー' }, { side: 'E', label: 'たたかう 相手' }],
+    apply: (s, E, [[me], [t]]) => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, t); },
+  },
+  G14: { tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2個 置く クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); t.tapped = false; } },
+  W12: { tgt: [{ side: 'P', max: 2, label: '＋1/＋1カウンターを 置く クリーチャー（2体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { E.target(s, t); E.addCounters(s, t, 1); } } },
+  W15: { tgt: [{ side: 'P', max: 2, label: '＋2/＋2 と 飛行を あたえる クリーチャー（2体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { E.target(s, t); E.pump(t, 2, 2, ['flying']); } } },
+  R24: { tgt: [{ side: 'P', label: 'パワーを 2倍に する クリーチャー' }], apply: (s, E, [[t]], x) => { E.target(s, t); const p0 = E.power(s, t); E.pump(t, p0 * (2 ** Math.min(x, 4) - 1), 0); } },
+  W22: { tgt: [{ side: 'E', label: '追放する クリーチャー' }] },
+  W07: { tgt: [{ side: 'E', perm: true, filter: (s, E, p) => !p.def.factory, label: '追放する 敵の カード' }] },
+  G03: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを 置く クリーチャー' }] },
+  U25: { tgt: [{ side: 'any', filter: (s, E, p) => !p.def.noCopy, label: 'コピーする クリーチャー' }] },
+  W05: { tgt: [{ side: 'atk', label: '追放する 攻撃中の クリーチャー' }], apply: (s, E, [[t]]) => E.exile(s, t) },
+  W13: { tgt: [{ side: 'atk', max: 9, divide: 4, label: '4点を 割り振る 攻撃中の クリーチャー' }], apply: (s, E, [al]) => { for (const d of al) E.damage(s, d.t, d.n, null); E.sba(s); } },
+};
+// 起動型能力
+const ACT_TARGETS = {
+  U14: { tgt: [{ side: 'E', face: true, label: '1点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 1) },
+  U08: { tgt: [{ side: 'P', label: 'このターン ブロックされない クリーチャー' }], apply: (s, E, [[t]]) => { t.flags.turn.unblockable = true; } },
+  W16: { tgt: [{ side: 'P', max: 2, divide: 2, label: '＋1/＋1カウンター 2個を 割り振る クリーチャー' }], apply: (s, E, [al]) => { for (const d of al) { E.target(s, d.t); E.addCounters(s, d.t, d.n); } } },
+  WU02: { tgt: [{ side: 'P', max: 3, divide: 3, filter: (s, E, p) => E.hasKw(s, p, 'flying'), label: '＋1/＋1カウンター 3個を 割り振る 飛行クリーチャー' }], apply: (s, E, [al]) => { for (const d of al) { E.target(s, d.t); E.addCounters(s, d.t, d.n); } } },
+  G17: { tgt: [{ side: 'E', max: 9, divide: 'x', label: 'X点を 割り振る 敵の クリーチャー' }], apply: (s, E, [al], x, p) => { E.addCounters(s, p, x); for (const d of al) E.damage(s, d.t, d.n, null); E.sba(s); } },
+};
+for (const [id, h] of Object.entries(TARGETS)) Object.assign(BY_ID[id], h);
+for (const [id, h] of Object.entries(ACT_TARGETS)) Object.assign(BY_ID[id].acts[0], h);
