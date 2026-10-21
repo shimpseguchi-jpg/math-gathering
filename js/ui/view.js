@@ -1,11 +1,64 @@
 // 画面の部品：カードの見た目・ルビ・下から出るシート・けいさんの問題
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
 import { colorsOf, pt, hasKw, isCreature } from '../engine/game.js';
+import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // 「漢字（よみ）」をルビにする
-export const ruby = (t) => esc(t).replace(/([一-龯々ヶ]+)（([ぁ-ゖー]+)）/g, '<ruby>$1<rt>$2</rt></ruby>').replace(/\n/g, '<br>');
+// 送りがなを はさむ ことば（割り振って（わりふって））も まとめて ルビに
+export const ruby = (t) => esc(t).replace(/((?:[一-龯々ヶ]+[ぁ-ゖ]{0,2})+?)（([ぁ-ゖー]+)）/g, '<ruby>$1<rt>$2</rt></ruby>').replace(/\n/g, '<br>');
 export const noRuby = (t) => String(t ?? '').replace(/（[ぁ-ゖー]+）/g, '');
+
+// 文章の中の ことば（キーワード・用語）に 点線を つける。長おし・2回タップで せつめい（それぞれ 最初の1つだけ）
+export function richText(raw) {
+  const t = String(raw ?? '');
+  const used = new Set();
+  let out = '', last = 0;
+  for (const m of t.matchAll(TERM_RE)) {
+    const g = termAt(m.slice(1));
+    if (!g || used.has(g.key)) continue;
+    used.add(g.key);
+    out += ruby(t.slice(last, m.index)) + `<span class="term" data-term="${esc(g.key)}">${ruby(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + ruby(t.slice(last));
+}
+
+export function showTerm(key) {
+  const g = TERM[key]; if (!g) return;
+  let el = document.getElementById('term');
+  if (!el) { el = document.createElement('div'); el.id = 'term'; document.body.append(el); }
+  el.innerHTML = `<div class="term-pop" role="dialog" aria-modal="true">
+    <p class="term-name">${esc(g.key)}${g.yomi ? `<small>${esc(g.yomi)}</small>` : ''}</p>
+    <p class="term-text">${ruby(g.text)}</p>
+    <p class="term-hint">タップで とじる</p></div>`;
+  el.hidden = false;
+  setTimeout(() => {
+    const close = (e) => { e.stopPropagation(); e.preventDefault(); el.hidden = true; document.removeEventListener('click', close, true); };
+    document.addEventListener('click', close, true);
+  }, 60);
+}
+
+// 長おし（0.45びょう）か 2回タップで せつめいを 出す
+export function initTerms() {
+  let timer = null, fired = false, last = { k: null, t: 0 };
+  document.addEventListener('pointerdown', (e) => {
+    clearTimeout(timer); fired = false;
+    const t = e.target.closest?.('[data-term]'); if (!t) return;
+    timer = setTimeout(() => { fired = true; showTerm(t.dataset.term); }, 450);
+  }, true);
+  for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, () => clearTimeout(timer), true);
+  document.addEventListener('click', (e) => {
+    // 長おしを はなした タップは、ほかの ボタンにも せつめいを とじる 処理にも わたさない
+    if (fired) { fired = false; e.stopImmediatePropagation(); e.preventDefault(); return; }
+    const t = e.target.closest?.('[data-term]'); if (!t) return;
+    const now = Date.now();
+    if (last.k === t.dataset.term && now - last.t < 400) { e.stopImmediatePropagation(); e.preventDefault(); last = { k: null, t: 0 }; showTerm(t.dataset.term); return; }
+    last = { k: t.dataset.term, t: now };
+  }, true);
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('[data-term]')) e.preventDefault(); });
+}
+const kwChip = (k) => `<span ${KW_TERM[k] ? `data-term="${esc(KW_TERM[k])}"` : ''}>${esc(k)}</span>`;
 
 export const COLOR_NAME = { W: '白', U: '青', G: '緑', R: '赤' };
 const KW = {
@@ -39,7 +92,7 @@ export function cardFace(def, o = {}) {
   return `<div class="card ${colorClass(def, o.enemy)} ${o.cls || ''}" data-id="${esc(o.dataId ?? '')}">
     <div class="card-top"><span class="cost">${esc(costLabel(def))}</span><span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
     <div class="card-name">${esc(noRuby(i.name))}</div>
-    <div class="card-kw">${kws.slice(0, 3).map((k) => `<span>${esc(k)}</span>`).join('')}</div>
+    <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
     ${pts ? `<div class="card-pt">${pts}</div>` : `<div class="card-type">${esc(typeShort(def))}</div>`}
   </div>`;
 }
@@ -76,7 +129,7 @@ export function permFace(s, p, o = {}) {
   return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${o.cls || ''}" data-uid="${p.uid}">
     <div class="card-top">${head}<span class="badges">${badges}</span></div>
     <div class="card-name">${esc(noRuby(i.name))}</div>
-    <div class="card-kw">${kws.slice(0, 3).map((k) => `<span>${esc(k)}</span>`).join('')}</div>
+    <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
     ${ptHtml}
     ${o.label ? `<div class="card-label ${o.label[0] === '!' ? 'warn' : ''}">${esc(o.label.replace(/^!/, ''))}</div>` : ''}
   </button>`;
@@ -92,11 +145,12 @@ export function detail(def, o = {}) {
       <h2>${ruby(i.name)}</h2>
       ${enemy ? '' : `<span class="cost big">${esc(costLabel(def))}</span>`}
     </div>
-    <div class="detail-type">${ruby(i.type)} ${pts}</div>
-    <p class="detail-text">${ruby(i.text) || '（とくべつな能力はない）'}</p>
-    ${i.reward && i.reward !== '−' ? `<p class="detail-sub">英雄（えいゆう）の報酬（ほうしゅう）：${ruby(i.reward)}</p>` : ''}
+    <div class="detail-type">${richText(i.type)} ${pts}</div>
+    <p class="detail-text">${richText(i.text) || '（とくべつな能力はない）'}</p>
+    ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('英雄（えいゆう）の報酬')}：${richText(i.reward)}</p>` : ''}
     ${i.math && i.math !== '−' ? `<p class="detail-sub">算数：${ruby(i.math)}</p>` : ''}
     <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
+    <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>
   </div>`;
 }
 

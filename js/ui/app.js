@@ -5,7 +5,7 @@ import { colorsOf } from '../engine/game.js';
 import { RARITY_PTS } from '../engine/ai.js';
 import { startBattle } from './battle.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { cardFace, detail, sheet, esc, ruby, noRuby, info, COLOR_NAME } from './view.js';
+import { cardFace, detail, sheet, esc, ruby, noRuby, info, COLOR_NAME, initTerms } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
 const FLOOR_NAMES = {
@@ -90,6 +90,7 @@ function packs() {
           ${flipped && (d.rar === 'R' || d.rar === 'L') ? `<div class="burst ${d.rar === 'L' ? 'b-L' : ''}" aria-hidden="true">${burst(d.rar === 'L' ? 36 : 20)}</div>` : ''}
           ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? 'しょうかく！ ' : ''}LEGEND!!</p>` : ''}
         </div>
+        ${flipped ? `<div class="reveal-text">${detail(d)}</div>` : ''}
         <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${esc(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
         <ol class="dots">${ORDER.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
         <div class="row-btns">${flipped ? `<button type="button" class="btn primary" data-next="1">${k < 7 ? 'つぎの カード' : 'まとめを 見る'}</button>` : ''}<button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
@@ -288,4 +289,5 @@ function ending(win) {
   app().onclick = (e) => { if (e.target.closest('[data-a]')) title(); };
 }
 
+initTerms();
 title();

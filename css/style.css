@@ -296,3 +296,18 @@ span.pile { cursor: default; }
 .sum-card.g-L .card { box-shadow: 0 0 0 3px #ff8ad8, 0 0 18px rgba(255, 120, 220, 0.7); }
 .flash { position: fixed; inset: 0; z-index: 30; pointer-events: none; background: radial-gradient(circle, #fff 0%, rgba(255, 220, 255, 0.85) 40%, transparent 75%); animation: flash 0.9s ease-out forwards; }
 @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+
+/* ---- ことばの せつめい ---- */
+.term { border-bottom: 2px dotted currentColor; cursor: help; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+[data-term] { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.detail-hint { margin: 6px 0 0; font-size: 11px; opacity: 0.6; }
+#term { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(5, 8, 18, 0.55); padding-inline: 16px; }
+.term-pop { width: min(340px, 100%); background: var(--paper); color: var(--paper-ink); border-radius: 16px; border-top: 10px solid var(--U); padding: 14px 16px; box-shadow: 0 10px 0 rgba(0, 0, 0, 0.35); animation: pop 0.2s ease-out; }
+.term-name { margin: 0; font-family: var(--display); font-size: 24px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.term-name small { font-family: var(--body); font-size: 13px; opacity: 0.7; }
+.term-text { margin: 8px 0; font-size: 16px; line-height: 2; }
+.term-hint { margin: 0; font-size: 11px; opacity: 0.6; text-align: right; }
+.reveal-text { width: 100%; max-width: 440px; }
+.reveal-text .detail { padding: 10px 12px; }
+.reveal-text .detail h2 { font-size: 16px; }
+.reveal-text .detail-text { font-size: 14px; }

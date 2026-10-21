@@ -4,7 +4,7 @@ import re, glob, os, json
 
 here = os.path.dirname(os.path.abspath(__file__))
 docs = os.path.join(here, '..', 'docs')
-cells = lambda line: [c.strip() for c in line.strip().strip('|').split('|')]
+cells = lambda line: [c.strip().replace('**', '') for c in line.strip().strip('|').split('|')]
 plain = lambda t: re.sub(r'（[ぁ-ゖー]+）', '', t).replace(' ', '').replace('　', '')
 
 cards, enemies = {}, {}
