@@ -17,6 +17,7 @@ export function startBattle(o) {
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, grade: o.grade, onEnd: o.onEnd, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), mathRate: 0, ai: humanAI(), log: true });
   app().onclick = onClick;
+  initSwipe();
   startTurn();
 }
 
@@ -265,6 +266,7 @@ async function doCast(c, from = 'hand') {
 
 // ---- タップしたとき ----
 async function onClick(e) {
+  if (B.swiped) { B.swiped = false; return; } // スワイプの おわりの タップは むし
   const b = e.target.closest('[data-act],[data-uid],[data-hand]');
   if (!b || (B.busy && B.mode !== 'block') || document.getElementById('sheet').hidden === false) return;
   const s = B.s;
@@ -438,6 +440,99 @@ async function showGy() {
   if (v) doCast(v, 'gy');
 }
 
+// ---- スワイプ：自分の クリーチャーから 敵へ ひっぱると 攻撃先・ブロックを きめる ----
+// 本体（大群の山札・エレボスのライフ）を ねらえる 階は、敵の 戦場に「本体」の 札を 出す
+const attackFace = () => ['horde', 'erebos'].includes(B.s.floor.id) && attackTargets().includes('face');
+function canDrag(p) {
+  const s = B.s;
+  if (!isCreature(p)) return false;
+  if (B.mode === 'block') return !p.tapped;
+  if (B.mode === 'attack' || (B.mode === 'main' && B.phase === 1 && !B.combatDone && s.active === 'P')) return readyAttackers(s).includes(p);
+  return false;
+}
+function dropAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return null;
+  if (el.closest('[data-face]')) return 'face';
+  const pe = el.closest('.perm[data-uid]');
+  if (pe) return B.s.E.bf.find((q) => q.uid === +pe.dataset.uid) || null;
+  return null;
+}
+function validDrop(p, t) {
+  const s = B.s;
+  if (!t) return false;
+  if (B.mode === 'block') return t !== 'face' && B.blockAttackers.includes(t) && canBlock(s, p, t) && (!B.blockMap.has(t.uid) || B.blockMap.get(t.uid) === p);
+  return attackTargets().includes(t);
+}
+let drag = null;
+function arrow(x0, y0, x1, y1, ok) {
+  let svg = document.getElementById('arrow');
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'arrow';
+    svg.innerHTML = '<defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs><line marker-end="url(#ah)"/>';
+    document.body.append(svg);
+  }
+  svg.hidden = false;
+  const l = svg.querySelector('line');
+  l.setAttribute('x1', x0); l.setAttribute('y1', y0); l.setAttribute('x2', x1); l.setAttribute('y2', y1);
+  svg.classList.toggle('ok', ok); svg.classList.toggle('block', B.mode === 'block');
+}
+function clearDrag() {
+  const svg = document.getElementById('arrow'); if (svg) svg.hidden = true;
+  document.querySelectorAll('.drop-ok').forEach((x) => x.classList.remove('drop-ok'));
+}
+function toast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.append(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 1600);
+}
+let swipeReady = false;
+function initSwipe() {
+  if (swipeReady) return;
+  swipeReady = true;
+  document.addEventListener('pointerdown', (e) => {
+    if (!B || !document.getElementById('sheet').hidden || (B.busy && B.mode !== 'block')) return;
+    const el = e.target.closest?.('.zone.mine .perm[data-uid]'); if (!el) return;
+    const p = B.s.P.bf.find((q) => q.uid === +el.dataset.uid);
+    if (p && canDrag(p)) drag = { p, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false };
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 14) return;
+    drag.moved = true;
+    const t = dropAt(e.clientX, e.clientY);
+    const ok = validDrop(drag.p, t);
+    document.querySelectorAll('.drop-ok').forEach((x) => x.classList.remove('drop-ok'));
+    if (ok) document.querySelector(t === 'face' ? '[data-face]' : `.zone.enemy [data-uid="${t.uid}"]`)?.classList.add('drop-ok');
+    arrow(drag.x0, drag.y0, e.clientX, e.clientY, ok);
+  });
+  const end = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null; clearDrag();
+    if (!d.moved || e.type === 'pointercancel') return;
+    B.swiped = true; setTimeout(() => { B.swiped = false; }, 400);
+    const t = dropAt(e.clientX, e.clientY);
+    if (!validDrop(d.p, t)) { if (t || dropAt(e.clientX, e.clientY) === null) toast(B.mode === 'block' ? 'その 敵は ブロック できない' : 'そこは 攻撃 できない'); return; }
+    if (B.mode === 'block') {
+      for (const [k, v] of B.blockMap) if (v === d.p) B.blockMap.delete(k);
+      B.blockMap.set(t.uid, d.p);
+      return render();
+    }
+    if (B.mode === 'main') { // 攻撃モードに 入る
+      combatStart(B.s); B.combatDone = true;
+      if (checkOver()) return;
+      B.mode = 'attack'; B.sel = new Map();
+      for (const q of readyAttackers(B.s)) if (q.def.mustAttack) { const f = attackTargets()[0]; if (f) B.sel.set(q.uid, f); }
+      if (!onBf(B.s, d.p) || !validDrop(d.p, t)) return render();
+    }
+    B.sel.set(d.p.uid, t);
+    render();
+  };
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+}
+
 // ---- 描く ----
 function enemyStatus() {
   const s = B.s, cr = s.E.bf.filter(isCreature);
@@ -489,11 +584,11 @@ function revealNote(d) {
 
 function banner() {
   switch (B.mode) {
-    case 'attack': return '攻撃する クリーチャーを タップして、相手を えらぶ';
+    case 'attack': return '攻撃する クリーチャーを 敵へ ひっぱる（タップでも えらべる）';
     case 'tricks': return B.blocks.size ? 'ブロックされた！ 強化の 呪文を 使うなら いま' : 'ブロックされなかった。強化の 呪文を 使うなら いま';
-    case 'block': return '敵の 攻撃！ ブロックする クリーチャーを タップ';
+    case 'block': return '敵の 攻撃！ 自分の クリーチャーを 攻撃してくる 敵へ ひっぱって ブロック';
     case 'enemy': return '敵の ターン…';
-    default: return B.phase === 1 ? 'カードを 使うか、マナゾーンに 置こう' : '攻撃は おわり。カードを 使って、ターンを おわろう';
+    default: return B.phase === 1 ? (B.combatDone ? 'カードを 使うか、マナゾーンに 置こう' : 'カードを 使おう。クリーチャーを 敵へ ひっぱると 攻撃') : '攻撃は おわり。カードを 使って、ターンを おわろう';
   }
 }
 
@@ -518,8 +613,9 @@ function render() {
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];
   const perms = (side) => s[side].bf.map((p) => permFace(s, p, {
     label: permLabel(p),
-    cls: [B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : ''].join(' '),
+    cls: [B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
+  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(faceName())}</span><b>${s.floor.id === 'horde' ? `山札 ${s.E.lib.length}` : `ライフ ${s.E.life}`}</b></div>` : '';
   const untapped = s.P.mana.filter((m) => !m.tapped).length;
   const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }
@@ -536,7 +632,7 @@ function render() {
       <div class="chips">${enemyStatus()}</div>
     </header>
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>つぎの 敵</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
-    <section class="zone enemy" aria-label="敵の 戦場">${perms('E')}</section>
+    <section class="zone enemy" aria-label="敵の 戦場">${face}${perms('E')}</section>
     <button type="button" class="logline" data-act="log">${last.map((l) => `<span>${esc(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
     <p class="banner">${esc(banner())}</p>
     <section class="zone mine" aria-label="わたしの 戦場">${perms('P')}</section>

@@ -15,14 +15,42 @@ export const PACK = { C: 4, U: 3, R: 1, legendFromRare: 1 / 8, legendFromCommon:
 const byRar = (r) => ALL.filter((d) => d.rar === r);
 const POOL = { C: byRar('C'), U: byRar('U'), R: byRar('R'), L: byRar('L') };
 
-export function openPack(rng) {
+// ごほうびパック：クリアした階の数（cleared）だけ 上のレアリティが 少し出やすくなり、favor の色が 出やすくなる
+export const REWARD = { cToU: 0.05, uToR: 0.04, rToL: 0.04, surprise: 0.01, favor: 2 };
+export function packOdds(cleared = 0) {
+  return {
+    cToU: REWARD.cToU * cleared, uToR: REWARD.uToR * cleared,
+    rToL: PACK.legendFromRare + REWARD.rToL * cleared, surprise: PACK.legendFromCommon + REWARD.surprise * cleared,
+  };
+}
+// 1パックに レジェンドが 1まい以上 出る かくりつ
+export const legendChance = (cleared = 0) => { const o = packOdds(cleared); return 1 - (1 - o.rToL) * (1 - o.surprise); };
+
+// デッキで いちばん多く 使っている色（きほんカードは のぞく）
+export function favorColor(deck) {
+  const n = {};
+  for (const d of deck) if (!d.basic) for (const c of colorsOf(d)) n[c] = (n[c] || 0) + 1;
+  return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+function pickFavored(rng, list, favor) {
+  if (!favor) return pick(rng, list);
+  const w = list.map((d) => (colorsOf(d).includes(favor) ? REWARD.favor : 1));
+  let r = rng() * w.reduce((t, x) => t + x, 0);
+  for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+export function openPack(rng, o = {}) {
+  const odds = packOdds(o.cleared || 0);
+  const take = (r) => pickFavored(rng, POOL[r], o.favor);
   for (let tries = 0; ; tries++) {
     const cards = [];
-    for (let i = 0; i < PACK.C; i++) cards.push(pick(rng, POOL.C));
-    for (let i = 0; i < PACK.U; i++) cards.push(pick(rng, POOL.U));
-    for (let i = 0; i < PACK.R; i++) cards.push(pick(rng, rng() < PACK.legendFromRare ? POOL.L : POOL.R));
-    const surprise = rng() < PACK.legendFromCommon;
-    if (surprise) cards[0] = pick(rng, POOL.L);
+    for (let i = 0; i < PACK.C; i++) cards.push(take(rng() < odds.cToU ? 'U' : 'C'));
+    for (let i = 0; i < PACK.U; i++) cards.push(take(rng() < odds.uToR ? 'R' : 'U'));
+    for (let i = 0; i < PACK.R; i++) cards.push(take(rng() < odds.rToL ? 'L' : 'R'));
+    const surprise = rng() < odds.surprise;
+    if (surprise) cards[0] = take('L');
     const cols = new Set(cards.flatMap(colorsOf));
     if (cols.size === 4 || tries >= 20) { cards.surprise = surprise; return cards; }
   }
@@ -84,7 +112,7 @@ export async function runAdventure(o = {}) {
       log.lostAt = i + 1;
       return log;
     }
-    if (i < 4) { pool.push(...openPack(rng)); b = buildDeck(pool, o); }
+    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? {} : { cleared: i + 1, favor: favorColor(b.deck) })); b = buildDeck(pool, o); }
   }
   log.cleared = true;
   return log;

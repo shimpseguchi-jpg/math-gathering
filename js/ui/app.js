@@ -1,5 +1,5 @@
 // 冒険の流れ：タイトル → パック開封 → デッキ構築 → 塔 → たたかい → …
-import { openPack, buildDeck, DECK_SIZE, CAPACITY } from '../engine/run.js';
+import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance } from '../engine/run.js';
 import { BY_ID, BASICS } from '../data/cards.js';
 import { colorsOf } from '../engine/game.js';
 import { RARITY_PTS } from '../engine/ai.js';
@@ -57,7 +57,10 @@ function resume() { if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); 
 const ORDER = [1, 2, 3, 0, 4, 5, 6, 7]; // コモン → アンコモン → レア の順。0 は「！？」の わく
 const GLOW = { C: '', U: 'g-U', R: 'g-R', L: 'g-L' };
 function packs() {
-  const cards = openPack(Math.random);
+  // ごほうびパック：登った階が 多いほど レア以上が 出やすく、デッキで いちばん使う色が 出やすい
+  const cleared = A.idx;
+  const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
+  const cards = openPack(Math.random, { cleared, favor });
   const surprise = !!cards.surprise;
   const ids = cards.map((d) => d.id);
   const owned = new Set(A.pool);
@@ -75,6 +78,10 @@ function packs() {
           <span class="foil-shine"></span><span class="foil-title">MATHEMATIC<br>THE GATHERING</span><span class="foil-sub">8まい いり</span>
         </button>
         <p class="gacha-hint">${best === 'L' ? 'パックが にじいろに 光っている…！？' : 'タップして パックを やぶろう'}</p>
+        ${cleared > 0 ? `<div class="bonus"><p class="bonus-title">${cleared}階 クリアの ごほうびパック</p>
+          <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
+          <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
+          ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}</div>` : ''}
       </main>`;
       return;
     }
@@ -93,7 +100,8 @@ function packs() {
         ${flipped ? `<div class="reveal-text">${detail(d)}</div>` : ''}
         <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${esc(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
         <ol class="dots">${ORDER.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
-        <div class="row-btns">${flipped ? `<button type="button" class="btn primary" data-next="1">${k < 7 ? 'つぎの カード' : 'まとめを 見る'}</button>` : ''}<button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
+        <p class="tap-next">${flipped ? (k < 7 ? 'カードを タップで つぎへ（せつめいの 中は 読む ところ）' : 'カードを タップで まとめへ') : ''}</p>
+        <div class="row-btns"><button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
       </main>`;
       return;
     }
@@ -105,7 +113,14 @@ function packs() {
   };
   draw();
 
+  let flippedAt = 0;
+  const next = () => { if (k < 7) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); draw(); };
   app().onclick = async (e) => {
+    // めくった あとは、せつめい欄・音・スキップ 以外の どこを タップしても つぎへ
+    if (stage === 'reveal' && flipped && !e.target.closest('.reveal-text, [data-snd], [data-skip]')) {
+      if (Date.now() - flippedAt > 350) next();
+      return;
+    }
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.snd) { setSound(!soundOn()); return draw(); }
     if (b.dataset.open) {
@@ -120,14 +135,13 @@ function packs() {
       if (surprise && i === 0 && !cracked) { cracked = true; sfx.surprise(); return draw(); } // コモンの はずが…！？
       if ((d.rar === 'R' || d.rar === 'L') && !b.classList.contains('charging')) {
         b.classList.add('charging'); sfx.charge();
-        setTimeout(() => { flipped = true; (d.rar === 'L' ? sfx.legend : sfx.rare)(); draw(); if (d.rar === 'L') flash(); }, 900);
+        setTimeout(() => { flipped = true; flippedAt = Date.now(); (d.rar === 'L' ? sfx.legend : sfx.rare)(); draw(); if (d.rar === 'L') flash(); }, 900);
         return;
       }
-      flipped = true;
+      flipped = true; flippedAt = Date.now();
       (d.rar === 'U' ? sfx.uncommon : sfx.flip)();
       return draw();
     }
-    if (b.dataset.next) { if (k < 7) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); return draw(); }
     if (b.dataset.done) {
       A.pool.push(...ids); A.toOpen--; A.opened++; save();
       return A.toOpen > 0 ? packs() : deckBuilder();

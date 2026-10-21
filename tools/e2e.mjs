@@ -14,6 +14,13 @@ await page.goto(url);
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 const shots = new Set();
+async function swipe(from, to) {
+  const a = await from.boundingBox(), b = await to.boundingBox();
+  if (!a || !b) return;
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(a.x + a.width / 2 + (b.x - a.x) * i / 8, a.y + a.height / 2 + (b.y + b.height / 2 - a.y - a.height / 2) * i / 8);
+  await page.mouse.up(); await page.waitForTimeout(80);
+}
 const tag = process.env.START ? `s${process.env.START}${process.env.FLOOR3 || ''}_` : '';
 const shot = async (name) => { if (shots.has(name)) return; shots.add(name); await page.screenshot({ path: `${out}/mtg_${tag}${name}.png` }); };
 await shot('title');
@@ -54,7 +61,7 @@ for (let i = 0; i < STEPS && !ended; i++) {
   }
   if (await page.locator('.ending').count()) { await shot('ending'); ended = true; break; }
   if (await page.locator('.gacha').count()) {
-    for (const [sel, name, wait] of [['[data-open]', 'pack', 650], ['[data-flip]', 'back', 1100], ['[data-next]', 'reveal', 100], ['[data-done]', 'summary', 100]]) {
+    for (const [sel, name, wait] of [['[data-open]', 'pack', 650], ['[data-flip]', 'back', 1100], ['.stage.shown', 'reveal', 400], ['[data-done]', 'summary', 100]]) {
       if (await page.locator(sel).count()) { await shot(`${name}${shots.size}`.replace(/\d+$/, (n) => (+n < 14 ? n : ''))); await page.click(sel, { force: true }); await page.waitForTimeout(wait); break; }
     }
     continue;
@@ -63,8 +70,16 @@ for (let i = 0; i < STEPS && !ended; i++) {
   if (await page.locator('.tower').count()) { await shot('tower'); battles++; await page.click('[data-a=go]'); continue; }
   if (await page.locator('.battle').count()) {
     await shot(`battle${battles}`);
-    if (await page.locator('[data-act=blockauto]').count()) { await page.click('[data-act=blockauto]'); await page.click('[data-act=blockdone]'); continue; }
+    if (await page.locator('[data-act=blockauto]').count()) {
+      // スワイプで ブロック（自分の クリーチャー → 攻撃してくる 敵）
+      const me = page.locator('.zone.mine .perm.drag'), at = page.locator('.zone.enemy .perm.attacking');
+      if (await me.count() && await at.count()) { await swipe(me.first(), at.first()); await shot(`block${battles}`); }
+      await page.click('[data-act=blockdone]'); continue;
+    }
     if (await page.locator('[data-act=auto]').count()) { await page.click('[data-act=auto]'); await page.click('[data-act=declare]'); continue; }
+    // スワイプで 攻撃（自分の クリーチャー → 敵）
+    const dr = page.locator('.zone.mine .perm.drag'), en = page.locator('.zone.enemy .perm');
+    if (await dr.count() && await en.count() && Math.random() < 0.5) { await swipe(dr.first(), en.first()); continue; }
     if (await page.locator('[data-act=damage]').count()) { await page.click('[data-act=damage]'); continue; }
     // 手札を1まい ためす → 使えたら 使う、だめなら マナに
     const hand = page.locator('.hand-slot');
