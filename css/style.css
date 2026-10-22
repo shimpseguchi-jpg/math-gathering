@@ -192,7 +192,7 @@ span.pile { cursor: default; }
 .mchip { font-size: 12px; padding: 3px 8px; border-radius: 8px; color: var(--paper-ink); font-weight: 700; }
 .mchip.used { opacity: 0.4; }
 .big-result { font-family: var(--display); font-size: 34px; margin: 8px 0; }
-.big-result.win { color: var(--gold); } .big-result.lose { color: var(--bad); }
+.big-result.win { color: var(--gold); } .big-result.lose { color: var(--bad); } .big-result.draw { color: var(--ink); }
 
 /* 数を えらぶ・攻撃の けっか・待機 */
 .num-row { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 10px; }
@@ -346,9 +346,18 @@ span.pile { cursor: default; }
 .ol-me > div:first-child { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .ol-name { font-family: var(--display); font-size: 20px; }
 .btn.small { min-height: 34px; padding: 4px 10px; font-size: 13px; }
-.ol-trophy { display: flex; flex-direction: column; align-items: flex-end; }
-.ol-trophy b { font-family: var(--display); font-size: 32px; color: var(--gold); line-height: 1; }
-.ol-trophy span, .ol-trophy small { font-size: 12px; color: var(--ink-dim); }
+.ol-score { display: flex; flex-direction: column; align-items: flex-end; }
+.ol-score b { font-family: var(--display); font-size: 32px; color: var(--gold); line-height: 1; }
+.ol-score b small, .ol-rank b small { font-family: var(--body); font-size: 13px; margin-left: 2px; font-weight: 700; }
+.ol-score > span, .ol-score > small { font-size: 12px; color: var(--ink-dim); }
+.ol-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ol-rank li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; background: var(--table-2); }
+.ol-rank li.me { outline: 2px solid var(--gold); }
+.ol-place { font-family: var(--display); min-width: 2em; text-align: center; color: var(--gold); }
+.ol-rank li:nth-child(-n+3) .ol-place { font-size: 18px; }
+.ol-dname { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; }
+.ol-dname small { font-size: 11px; color: var(--gold); }
+.ol-rank b { font-family: var(--display); }
 .ol-news { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--paper); color: var(--paper-ink); font-weight: 700; }
 .ol-help { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
 .ol-h { margin: 4px 0 0; font-size: 14px; color: var(--gold); }

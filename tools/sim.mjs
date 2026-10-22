@@ -97,7 +97,7 @@ if (mode === 'pvp') {
   const keys = Object.keys(SAMPLE);
   console.log(`オンラインバトル：見本デッキどうし（${N}回ずつ・先攻は交互）。行のデッキの勝率`);
   console.log('      ' + keys.map((k) => k.padEnd(6)).join(''));
-  let turns = [], timeouts = 0;
+  let turns = [], timeouts = 0, draws = 0;
   for (const a of keys) {
     const row = [];
     for (const b of keys) {
@@ -106,11 +106,12 @@ if (mode === 'pvp') {
         const s = await fight(deckOf(a), 'pvp', { ...opts, seed: SEED * 100000 + i, floor: pvp({ deck: deckOf(b), first: i % 2 ? 'E' : 'P' }) });
         if (s.over === 'win') win++;
         if (s.over === 'timeout') timeouts++;
+        if (s.over === 'draw') draws++;
         turns.push(s.stats.playerTurns);
       }
       row.push(pct(win / N).padEnd(6));
     }
     console.log(a.padEnd(6) + row.join(''));
   }
-  console.log(`平均 ${avg(turns).toFixed(1)} ターン、40ターンで決着なし ${timeouts}回`);
+  console.log(`平均 ${avg(turns).toFixed(1)} ターン、ひきわけ ${draws}回、40ターンで決着なし ${timeouts}回`);
 }

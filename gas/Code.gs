@@ -2,6 +2,7 @@
 // ・ゲーム本体は index.html（node mathtcg/tools/build_gas.mjs で つくる 1ファイル版）
 // ・オンライン バトル（非同期）の「ゴースト」を この スクリプトの スクリプト プロパティに あずかる
 //   ゴースト = 冒険を おえた デッキ（20まい）と なまえ・とどいた 階・勝ち負けの 数。プレイヤー本人の 情報は もたない
+// ・デッキの 点（かち ＋2・ひきわけ ＋1・まけ −1。0より 下には ならない）と、上位20の ランキング（きまった 時刻に こうしん）
 function doGet() {
   var out = HtmlService.createHtmlOutputFromFile('index');
   out.setTitle('マスマティック・ザ・ギャザリング')
@@ -18,10 +19,22 @@ var CARDS = {"W01":[1,"W"],"W02":[1,"W"],"W03":[1,"W"],"W04":[1,"W"],"W05":[1,"W
 var NAME_A = 20, NAME_B = 20; // なまえの 定型語の 数（js/ui/online.js の NAME_A・NAME_B）
 var DECK_SIZE = 20, CAPACITY = 30;
 var KEEP = 30;   // 階ごとに のこす ゴーストの 数（ふるい ものから けす。1件 9KB に おさまる）
+var POINTS = { w: 2, d: 1, l: -1 };  // デッキの 点：かち・ひきわけ・まけ
+var RANK_SIZE = 20;                 // ランキングに のせる 数
+var RANK_HOURS = [7, 17];           // ランキングを こうしんする 時刻（日本時間、毎日）
+var JST = 9 * 3600 * 1000;
 
 function key_(tier) { return 'ghosts:' + tier; }
 function loadTier_(props, tier) { var v = props.getProperty(key_(tier)); return v ? JSON.parse(v) : []; }
 function saveTier_(props, tier, list) { props.setProperty(key_(tier), JSON.stringify(list)); }
+function deckKey_(id) { return 'deck:' + id; }
+function idOk_(id) { return /^[1-6]-[0-9a-f]{8}$/.test(String(id || '')); }
+// デッキの 2色（W・U・G・R の じゅん）
+function pairOf_(d) {
+  var has = {};
+  d.forEach(function (id) { var c = CARDS[id]; if (c) for (var k = 0; k < c[1].length; k++) has[c[1].charAt(k)] = 1; });
+  return 'WUGR'.split('').filter(function (c) { return has[c]; }).join('');
+}
 function tierOf_(id) { var m = /^([1-6])-[0-9a-f]{8}$/.exec(String(id || '')); return m ? Number(m[1]) : 0; }
 
 // デッキが ルールどおりか（20まい・30点まで・2色まで。きほんカードは 0点）
@@ -61,6 +74,8 @@ function mtgSubmitGhost(g) {
     var list = loadTier_(props, tier);
     list.push(ghost);
     saveTier_(props, tier, list.slice(-KEEP));
+    // デッキの 点（ゴーストが けされても のこる）
+    props.setProperty(deckKey_(ghost.i), JSON.stringify({ s: 0, n: ghost.n, p: pairOf_(ghost.d), u: ghost.c }));
   } finally {
     lock.releaseLock();
   }
@@ -77,7 +92,7 @@ function mtgRandomGhost(q) {
   return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
 }
 
-// たたかいの けっか：{ i: ゴーストID, w: ゴーストが かったか }
+// （ふるい 画面の ため のこす）たたかいの けっか：{ i: ゴーストID, w: ゴーストが かったか }
 function mtgReport(r) {
   var id = String((r && r.i) || ''), tier = tierOf_(id);
   if (!tier) throw new Error('ゴーストが いない');
@@ -97,14 +112,92 @@ function mtgReport(r) {
   return null;
 }
 
-// じぶんの ゴーストの 勝ち負け：[ID…] → [{ i, w, l }]（もう けされた ものは かえさない）
+// たたかいの けっか（デッキの 点つき）：{ g: あいての ゴーストID, i: じぶんの デッキID, r: 'w'|'l'|'d'（じぶんから 見て）, n: なまえ, p: 2色 }
+// → { s: じぶんの デッキの 点 }（デッキIDが ない とき・サーバーに ない ときは s: null）
+function mtgResult(q) {
+  var res = String(q && q.r);
+  if (!(res in POINTS)) throw new Error('けっかが おかしい');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    // あいての ゴーストの 勝ち負け（ひきわけは 数えない）
+    var gid = String(q.g || ''), tier = tierOf_(gid);
+    if (tier && res !== 'd') {
+      var list = loadTier_(props, tier);
+      for (var k = 0; k < list.length; k++) if (list[k].i === gid) {
+        if (res === 'l') list[k].w = Math.min(99999, list[k].w + 1); else list[k].l = Math.min(99999, list[k].l + 1);
+        saveTier_(props, tier, list);
+        break;
+      }
+    }
+    // じぶんの デッキの 点
+    var id = String(q.i || '');
+    if (!idOk_(id)) return { s: null };
+    var v = props.getProperty(deckKey_(id));
+    var rec = v ? JSON.parse(v) : { s: 0, p: String(q.p || '').replace(/[^WUGR]/g, '').slice(0, 2) };
+    rec.s = Math.max(0, Math.min(99999, rec.s + POINTS[res]));
+    rec.n = checkName_(q.n);
+    rec.u = Date.now();
+    props.setProperty(deckKey_(id), JSON.stringify(rec));
+    return { s: rec.s };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ランキング：上位20の デッキ。毎日 RANK_HOURS の 時刻に こうしんする（その あとで はじめて 見た 人が つくりなおす）
+// → { at: こうしんした 時刻, next: つぎの こうしん, l: [[点, なまえ1, なまえ2, 2色, デッキID]…] }
+function slots_(now) {
+  // 日本時間の きょう 0時（UTC の ミリ秒）
+  var day = Math.floor((now + JST) / 86400000) * 86400000 - JST;
+  var all = [];
+  [-1, 0, 1].forEach(function (k) { RANK_HOURS.forEach(function (h) { all.push(day + k * 86400000 + h * 3600000); }); });
+  all.sort(function (a, b) { return a - b; });
+  var last = all.filter(function (x) { return x <= now; }).pop();
+  var next = all.filter(function (x) { return x > now; })[0];
+  return { last: last, next: next };
+}
+function mtgRanking() {
+  var now = Date.now(), sl = slots_(now);
+  var props = PropertiesService.getScriptProperties();
+  var v = props.getProperty('rank');
+  var snap = v ? JSON.parse(v) : null;
+  if (!snap || snap.at < sl.last) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      v = props.getProperty('rank'); snap = v ? JSON.parse(v) : null;
+      if (!snap || snap.at < sl.last) {
+        var all = props.getProperties(), rows = [];
+        Object.keys(all).forEach(function (k) {
+          if (k.indexOf('deck:') !== 0) return;
+          var r = JSON.parse(all[k]), id = k.slice(5);
+          // 0点の まま 30日 たった デッキは けす（ほぞんの 上限の ため）
+          if (!r.s && now - (r.u || 0) > 30 * 86400000) { props.deleteProperty(k); return; }
+          if (r.s > 0) rows.push([r.s, r.n[0], r.n[1], r.p, id, r.u || 0]);
+        });
+        rows.sort(function (a, b) { return b[0] - a[0] || a[5] - b[5]; }); // 点が 同じなら 先に とった デッキが 上
+        snap = { at: sl.last, l: rows.slice(0, RANK_SIZE).map(function (r) { return r.slice(0, 5); }) };
+        props.setProperty('rank', JSON.stringify(snap));
+      }
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  return { at: snap.at, next: sl.next, l: snap.l };
+}
+
+// じぶんの ゴーストの 勝ち負けと デッキの 点：[ID…] → [{ i, w, l, s }]（もう けされた ものは かえさない）
 function mtgMyGhosts(ids) {
   if (!Array.isArray(ids)) return [];
   var props = PropertiesService.getScriptProperties(), cache = {}, out = [];
   ids.slice(0, 10).forEach(function (id) {
     id = String(id); var tier = tierOf_(id); if (!tier) return;
     if (!cache[tier]) cache[tier] = loadTier_(props, tier);
-    cache[tier].forEach(function (g) { if (g.i === id) out.push({ i: g.i, w: g.w, l: g.l }); });
+    var g = cache[tier].filter(function (x) { return x.i === id; })[0];
+    var d = props.getProperty(deckKey_(id)), s = d ? JSON.parse(d).s : null;
+    if (g || s !== null) out.push({ i: id, w: g ? g.w : null, l: g ? g.l : null, s: s });
   });
   return out;
 }

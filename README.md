@@ -15,7 +15,7 @@ css/style.css       見た目
 js/ui/app.js        冒険の流れ（タイトル・パック・デッキ構築・塔・おわり）
 js/ui/battle.js     たたかいの画面（タップの操作、敵のターン中の質問）
 js/ui/tutorial.js   チュートリアル（メレティスの 訓練場）のステップ
-js/ui/online.js     オンライン バトル（ゴースト・あいて さがし・トロフィー）
+js/ui/online.js     オンライン バトル（ゴースト・あいて さがし・デッキの 点・ランキング）
 gas/                GAS 版（Code.gs：ゴーストの サーバー、index.html：1ファイル版）
 js/ui/view.js       カードの見た目・ルビ・シート（対象・割り振り・数）
 js/ui/sfx.js        効果音（WebAudio で合成）

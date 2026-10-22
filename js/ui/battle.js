@@ -4,7 +4,7 @@ import {
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
-import { FLOORS, nyxLoss } from '../data/enemies.js';
+import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
 import { permFace, cardFace, detail, sheet, esc, ruby, info, pickMany, divideSheet, numberSheet } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
@@ -176,10 +176,10 @@ function checkOver(lines) {
   const s = B.s;
   if (!s.over) return false;
   render();
-  const win = s.over === 'win';
-  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : 'lose'}">${win ? 'かった！' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>`,
+  const win = s.over === 'win', draw = s.over === 'draw';
+  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
-    .then(() => B.onEnd({ win, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase }));
+    .then(() => B.onEnd({ win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase }));
   return true;
 }
 
@@ -760,7 +760,7 @@ function render() {
   if (B.mode === 'enemy') btns = `<span class="wait">${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ターン…</span>`;
   app().innerHTML = `<div class="battle">
     <header class="bt-head">
-      <div><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}</span></div>
+      <div><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
       <div class="chips">${enemyStatus()}</div>
       <button type="button" class="btn small menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー">≡ メニュー</button>
     </header>

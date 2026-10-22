@@ -505,9 +505,9 @@ export function pvp(g) {
     },
     // ニクスの 嵐：じぶんの 10ターンめから、ターンの はじめに ライフを 1・2・3…と 失う（長びかない ように）
     playerUpkeep(s, E) { nyxStorm(s, E); },
-    face(s, n) { s.E.life -= n; if (s.E.life <= 0) s.over = 'win'; },
+    face(s, n) { s.E.life -= n; if (s.E.life <= 0) s.over = s.P.life <= 0 ? 'draw' : 'win'; },
     faceValue: (s, n) => (n >= s.E.life ? 200 : n * 1.5),
-    check(s) { if (s.E.life <= 0) s.over = 'win'; },
+    check(s) { if (s.E.life <= 0) s.over = s.P.life <= 0 ? 'draw' : 'win'; },
     priority(s, p, E) { return E.power(s, p) * 2 + (E.hasKw(s, p, 'flying') ? 2 : 0) + 1; },
     assign(s, atkers) { return atkers.map((p) => ({ p, t: 'face' })); },
     threat(s, E) { const a = s.E.bf.filter((q) => E.isCreature(q) && !E.hasKw(s, q, 'defender') && !q.def.cantAttack); return { damage: sumPow(s, E, a), attackers: a.length }; },
@@ -517,8 +517,10 @@ export function pvp(g) {
 }
 
 export const NYX_FROM = 10;
+export const PVP_TURNS = 15; // おたがい 15ターンで 決着が つかなければ ひきわけ
 export const nyxLoss = (turns) => Math.max(0, turns - NYX_FROM + 1);
 function nyxStorm(s, E) {
+  if (s.stats.playerTurns > PVP_TURNS) { E.L(s, `${PVP_TURNS}ターンで 決着が つかなかった`); s.over = 'draw'; return; }
   const n = nyxLoss(s.stats.playerTurns);
   if (!n) return;
   E.L(s, `ニクスの あらし：${s.swapped ? 'てきの ' : ''}ライフ −${n}`);

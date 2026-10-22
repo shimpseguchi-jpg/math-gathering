@@ -271,8 +271,10 @@ export function hurt(s, n, src) {
   if (n <= 0 || s.over) return;
   s.P.life -= n; s.stats.lifeLost += n;
   L(s, `${s.swapped ? 'てき' : 'プレイヤー'}に ${n}点（のこり ${s.P.life}）`);
-  if (s.P.life <= 0) s.over = 'lose';
+  if (s.P.life <= 0) s.over = dead(s);
 }
+// ライフが 0：オンラインバトルで あいても 0 なら ひきわけ
+const dead = (s) => (s.floor.id === 'pvp' && s.E.life <= 0 ? 'draw' : 'lose');
 
 export function gainLife(s, n) { if (!s.P.noLifeGain && n > 0) s.P.life += n; }
 
@@ -312,7 +314,7 @@ export function sba(s) {
       const lethal = T <= 0 || ((p.dmg >= T || p.dt) && !hasKw(s, p, 'indestructible'));
       if (lethal && leave(s, p, 'gy', { died: true })) changed = true;
     }
-    if (s.P.life <= 0) s.over = 'lose';
+    if (s.P.life <= 0) s.over = dead(s);
     if (!s.over) s.floor.check?.(s, api, 'sba');
     if (!changed) break;
   }
