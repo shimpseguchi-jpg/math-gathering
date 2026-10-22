@@ -5,7 +5,7 @@ import {
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
-import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet } from './view.js';
+import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
 let B = null; // いまのたたかい
@@ -444,9 +444,9 @@ async function action(a) {
   }
   if (a === 'blockauto') { B.blockMap = AI.blocks(s, B.blockAttackers); return render(); }
   if (a === 'gy') return showGy();
-  if (a === 'lib') return sheet(`<p>やまふだは のこり <b>${s.P.lib.length}まい</b>。ターンの はじめに、てふだが 5まいに なるまで ここから 引く。</p><p>なくなったら ぼちを まぜて もどす。そのとき ライフが へる（つぎは −${reshuffleCost(s.P, true)}。1回ごとに 2・4・6…）。</p>`, [{ label: 'とじる', value: 0 }], { title: 'やまふだ' });
+  if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどし、ライフ −${reshuffleCost(s.P, true)}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
   if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
-  if (a === 'egy') return sheet(`<div class="mini-list">${s.E.gy.map((c) => cardFace(c.def, { enemy: s.floor.id !== 'pvp' })).join('') || '<p>ぼちは からっぽ</p>'}</div>`, [{ label: 'とじる', value: 0 }], { title: `てきの ぼち（${s.E.gy.length}まい）` });
+  if (a === 'egy') return sheet(pileList(s.E.gy, s.floor.id !== 'pvp'), [{ label: 'とじる', value: 0 }], { title: `${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ぼち（${s.E.gy.length}まい）` });
   if (a === 'mana') return sheet(`<div class="mana-list">${s.P.mana.map((m) => `<span class="mchip ${colorsOf(m.def)[0] ? `m-${colorsOf(m.def).join('')}` : 'm-C'} ${m.tapped ? 'used' : ''}">${ruby(info(m.def).name)}</span>`).join('')}</div>`, [{ label: 'とじる', value: 0 }], { title: `マナゾーン（${s.P.mana.filter((m) => !m.tapped).length}/${s.P.mana.length} 使える）` });
   if (a === 'log') return sheet(`<ol class="elog">${s.logs.slice(-40).map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>`, [{ label: 'とじる', value: 0 }], { title: 'これまでの できごと' });
 }
@@ -598,7 +598,7 @@ async function showGy() {
     choices.push({ label: `${ruby(info(c.def).name)} を だっしゅつで となえる（${c.def.escape.cost}マナ・ほかの ぼち ${c.def.escape.exile}まい）`, value: { c, from: 'escape' }, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
   }
   choices.push({ label: 'とじる', value: null });
-  const v = await sheet(`<div class="mini-list">${s.P.gy.map((c) => cardFace(c.def)).join('') || '<p>ぼちは からっぽ</p>'}</div>`, choices, { title: `ぼち（${s.P.gy.length}まい）` });
+  const v = await sheet(pileList(s.P.gy), choices, { title: `ぼち（${s.P.gy.length}まい）` });
   if (v) doCast(v.c, v.from);
 }
 
@@ -801,14 +801,13 @@ function gravePile(side) {
     <span class="gyc ${top ? (side === 'E' && s.floor.id !== 'pvp' ? 'b1-E b2-E' : band(top.def)) : 'none'} ${gy.length > 1 ? 'stack' : ''}">${top ? `<i>${ruby(info(top.def).name)}</i>` : ''}<b>${gy.length}</b></span>
     <small>${esc2 ? 'だっしゅつ' : 'ぼち'}</small></button>`;
 }
-// マナゾーン：小さい カードを ならべる（タップした ものは よこむき）
-function manaZone() {
-  const s = B.s, ms = s.P.mana, untapped = ms.filter((m) => !m.tapped).length;
-  const tr = s.P.bf.filter((p) => p.def.treasure).length;
-  return `<button type="button" class="manazone ${ms.length > 7 ? 'tight' : ''}" data-act="mana" aria-label="マナ ${untapped} / ${ms.length}">
-    <span class="mz-cards">${ms.map((m) => `<i class="mz ${band(m.def)} ${m.tapped ? 't' : ''}"></i>`).join('') || '<em>マナゾーン</em>'}</span>
-    <span class="mz-num"><b>${untapped}</b>/${ms.length}${tr ? `<small>＋たからもの ${tr}</small>` : ''}</span>
-  </button>`;
+// やまふだ・ぼちの 中身：おなじ カードは まとめて「×2」。じゅんばんは デッキ構築と おなじ（色 → コスト）
+function pileList(cards, enemy = false) {
+  const groups = new Map();
+  for (const c of cards) { const g = groups.get(c.def.id ?? c.def.name); if (g) g.n++; else groups.set(c.def.id ?? c.def.name, { def: c.def, n: 1 }); }
+  const list = [...groups.values()].sort((a, b) => byColorCost(a.def, b.def));
+  if (!list.length) return '<p>からっぽ</p>';
+  return `<div class="mini-list">${list.map(({ def, n }) => `<div class="ml-item">${cardFace(def, { enemy })}${n > 1 ? `<b class="ml-n">×${n}</b>` : ''}</div>`).join('')}</div>`;
 }
 
 function render() {
@@ -823,6 +822,9 @@ function render() {
     cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
   const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : `ライフ ${s.E.life}`}</b></div>` : '';
+  const untapped = s.P.mana.filter((m) => !m.tapped).length;
+  const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
+  for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }
   const last = s.logs.slice(-2).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
   // まえに 描いた ときから ふえた カード・かわった ライフに 印を つけて うごかす
   const pv = B.prev || { perms: null, hand: null, life: s.P.life, elife: s.E.life, gy: s.P.gy.length };
@@ -849,7 +851,10 @@ function render() {
     <section class="zone mine" aria-label="わたしの せんじょう">${perms('P')}</section>
     <div class="me-bar">
       <span class="life ${s.P.life <= 5 ? 'low' : ''} ${s.P.life < pv.life ? 'hit' : s.P.life > pv.life ? 'heal' : ''}" role="status"><small>ライフ</small><b>${s.P.life}</b></span>
-      ${manaZone()}
+      <div class="me-mana">
+        <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
+        ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
+      </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}</div>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}

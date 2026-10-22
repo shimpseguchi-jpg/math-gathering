@@ -7,7 +7,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms } from './view.js';
+import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
 const FLOOR_NAMES = {
@@ -15,7 +15,6 @@ const FLOOR_NAMES = {
   xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
 };
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
-const COLOR_ORDER = ['W', 'U', 'G', 'R'];
 
 let A = null; // いまの冒険
 const app = () => document.getElementById('app');
@@ -220,11 +219,7 @@ function whyNot(sel, i) {
 
 function deckBuilder() {
   if (!A.deck) { A.deck = autoDeck(); save(); }
-  const order = A.pool.map((id, i) => i).sort((a, b) => {
-    const da = BY_ID[A.pool[a]], db = BY_ID[A.pool[b]];
-    const ka = colorKey(da), kb = colorKey(db);
-    return ka - kb || da.cost - db.cost || da.id.localeCompare(db.id);
-  });
+  const order = A.pool.map((id, i) => i).sort((a, b) => byColorCost(BY_ID[A.pool[a]], BY_ID[A.pool[b]]));
   const draw = () => {
     const st = deckStats(A.deck);
     const left = CAPACITY - st.points;
@@ -267,7 +262,6 @@ function deckBuilder() {
     save(); draw();
   };
 }
-const colorKey = (d) => { const c = colorsOf(d); return c.length === 0 ? 9 : c.length === 2 ? 5 + COLOR_ORDER.indexOf(c[0]) / 10 : COLOR_ORDER.indexOf(c[0]); };
 
 // ---- 塔 ----
 function tower() {

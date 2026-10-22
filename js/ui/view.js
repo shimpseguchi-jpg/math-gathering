@@ -88,6 +88,11 @@ export function colorClass(def, enemy = false) {
   return c.length ? `c-${c[0]}` : 'c-C';
 }
 
+// カードの ならべかた（デッキ構築・やまふだ・ぼち）：色（白・青・緑・赤・2色・無色）→ コスト → ID。きほんカードは さいご
+const COLOR_ORDER = ['W', 'U', 'G', 'R'];
+const colorKey = (d) => { const c = colorsOf(d); return c.length === 0 ? 9 : c.length === 2 ? 5 + COLOR_ORDER.indexOf(c[0]) / 10 : COLOR_ORDER.indexOf(c[0]); };
+export const byColorCost = (a, b) => !!a.basic - !!b.basic || colorKey(a) - colorKey(b) || (a.cost ?? 0) - (b.cost ?? 0) || String(a.id ?? a.name).localeCompare(String(b.id ?? b.name));
+
 const costLabel = (def) => (def.x ? `X+${def.cost}` : String(def.cost ?? 0));
 
 // 手札・プールのカード（def だけ）
