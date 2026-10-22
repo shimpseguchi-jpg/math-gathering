@@ -353,3 +353,4 @@ span.pile { cursor: default; }
 .ol-deck { text-align: left; border: 2px solid var(--line); background: var(--table-2); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; color: inherit; }
 .ol-deck small { font-size: 11px; color: var(--ink-dim); }
 .ol-deck.on { border-color: var(--gold); background: var(--table-3); }
+.sheet-actions.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -15,7 +15,7 @@ function doGet() {
 // ───── オンライン バトル ─────
 // カードの 点数と 色（build_gas.mjs が js/data/cards.js から 書きこむ）。デッキの チェックに つかう
 var CARDS = /*CARDS*/{};
-var NAME_A = 10, NAME_B = 10; // なまえの ことばの 数（js/ui/online.js の NAME_A・NAME_B）
+var NAME_A = 20, NAME_B = 20; // なまえの 定型語の 数（js/ui/online.js の NAME_A・NAME_B）
 var DECK_SIZE = 20, CAPACITY = 30;
 var KEEP = 30;   // 階ごとに のこす ゴーストの 数（ふるい ものから けす。1件 9KB に おさまる）
 var SHOW = 3;    // いちどに みせる あいての 数

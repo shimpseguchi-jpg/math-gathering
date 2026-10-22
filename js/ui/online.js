@@ -9,9 +9,16 @@ import { startBattle } from './battle.js';
 import { sheet, esc, ruby, COLOR_NAME } from './view.js';
 
 const KEY = 'mtg-online-v1';
-// ニックネームは 自由入力に しない（えらぶ だけ）。サーバーも この ならびの 番号で うけとる
-export const NAME_A = ['あかい', 'あおい', 'しろい', 'みどりの', 'ひかる', 'ちいさな', 'おおきな', 'はやい', 'かしこい', 'つよい'];
-export const NAME_B = ['ドラゴン', 'ペガサス', 'ハイドラ', 'スフィンクス', 'グリフィン', 'ゴブリン', 'エルフ', 'サテュロス', 'ミノタウルス', 'フェニックス'];
+// ニックネームは 自由入力に しない。定型語を 2つ えらんで くみあわせる（サーバーも この ならびの 番号で うけとる）
+// 1つめの ことばで 形が きまる：「〇〇な〇〇」（ゆうかんな ドラゴン）か「〇〇 〇〇」（ほのお ドラゴン）
+export const NAME_A = [
+  'ゆうかんな', 'げんきな', 'ふしぎな', 'しずかな', 'にぎやかな', 'ゆかいな', 'すてきな', 'まっすぐな', 'きまぐれな', 'おだやかな',
+  'ほのお', 'こおり', 'かみなり', 'かぜ', 'ほし', 'つき', 'たいよう', 'うみ', 'もり', 'にじ',
+];
+export const NAME_B = [
+  'ドラゴン', 'ペガサス', 'ハイドラ', 'スフィンクス', 'グリフィン', 'ゴブリン', 'エルフ', 'サテュロス', 'ミノタウルス', 'フェニックス',
+  'ケンタウロス', 'ユニコーン', 'クラーケン', 'ゴーレム', 'ワーム', 'レオニン', 'トリトン', 'ニンフ', 'ナイト', 'まほうつかい',
+];
 const KEEP_DECKS = 6;
 export const TIER_LABEL = ['', '1階まで', '2階まで', '3階まで', '4階まで', '5階まで', '塔を クリア'];
 const RANKS = [[50, 'ニクス'], [25, 'ゴールド'], [10, 'シルバー'], [0, 'ブロンズ']];
@@ -25,7 +32,7 @@ function state() {
   o.trophies ??= 0; o.wins ??= 0; o.losses ??= 0; o.decks ??= []; o.seen ??= {};
   return o;
 }
-const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim();
+const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim(); // 「ゆうかんな ドラゴン」「ほのお ドラゴン」
 const pairName = (p) => [...(p || '')].map((c) => COLOR_NAME[c]).join('') || '無色';
 
 // ---- サーバー ----
@@ -107,9 +114,9 @@ export async function onlineMenu(app, back) {
 }
 
 async function chooseName(o) {
-  const a = await sheet('<p>なまえの はじめを えらぶ</p>', NAME_A.map((w, i) => ({ label: w, value: i + 1 })), { title: 'なまえ（1/2）' });
+  const a = await sheet('<p>1つめの ことばを えらぶ</p>', NAME_A.map((w, i) => ({ label: `${esc(w)}…`, value: i + 1 })), { title: 'なまえ（1/2）', cols: true });
   if (!a) return;
-  const b = await sheet(`<p>${esc(NAME_A[a - 1])} ……？</p>`, NAME_B.map((w, i) => ({ label: w, value: i + 1 })), { title: 'なまえ（2/2）' });
+  const b = await sheet(`<p>${esc(NAME_A[a - 1])} ……？ 2つめの ことばを えらぶ</p>`, NAME_B.map((w, i) => ({ label: `${esc(NAME_A[a - 1])} ${esc(w)}`, value: i + 1 })), { title: 'なまえ（2/2）', cols: true });
   if (b) o.name = [a - 1, b - 1];
 }
 
