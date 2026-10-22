@@ -3,8 +3,11 @@
 //   node mathtcg/tools/sim.mjs runs     … パックからの冒険を N回
 //   node mathtcg/tools/sim.mjs floors  … 各階を、その階でのパックの数（1階は3パック〜ボスは7パック）で組んだデッキで N回
 //   node mathtcg/tools/sim.mjs log RG hydra … 1戦のログ
+//   node mathtcg/tools/sim.mjs pvp     … オンラインバトル：見本デッキどうし（どちらも AI）
 // 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED
 import { BY_ID } from '../js/data/cards.js';
+import { SAMPLE } from '../js/data/samples.js';
+import { pvp } from '../js/data/enemies.js';
 import { fight, runAdventure, openPack, buildDeck } from '../js/engine/run.js';
 import { seeded } from '../js/engine/rng.js';
 
@@ -14,15 +17,6 @@ const RESHUFFLE = process.env.RESHUFFLE !== '0';
 const SEED = Number(process.env.SEED ?? 1);
 const opts = { diff: DIFF, reshuffle: RESHUFFLE };
 
-// docs/cards/*.md の見本デッキ（20枚・30点）
-const SAMPLE = {
-  WG: 'W09 W08 WG02 W06 W07 G07 WG01 G01 G01 W01 W01 G03 G05 G04 W04 W05 W02 W03 G02 B03',
-  UW: 'U08 W16 U07 WU02 W14 WU01 U06 W10 W10 U01 U01 U02 U02 W11 W12 W13 U03 U04 B01 B02',
-  RW: 'W26 R07 W24 RW02 W20 RW01 R06 R05 W17 W17 R01 R01 W18 R03 W19 R04 R02 B04 B01 B04',
-  UR: 'U17 U16 R17 UR02 UR01 R13 R14 U13 R09 R09 U09 U09 R11 R10 U10 R12 U11 B04 B02 B04',
-  RG: 'G17 R26 R24 RG02 RG01 R22 G12 G13 G10 G10 R18 R18 G09 R20 G08 G11 B03 B04 B03 B04',
-  UG: 'G26 G23 G24 GU02 GU01 G21 U22 G22 G20 G20 U18 U18 G18 G19 U19 U20 U21 B03 B02 B03',
-};
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);
 const FLOOR_IDS = ['hydra', 'horde', 'factory', 'slime', 'xenagos', 'erebos'];
 const pct = (x) => `${Math.round(x * 100)}%`.padStart(4);
@@ -97,4 +91,26 @@ if (mode === 'floors') {
     }
     console.log(`  ${f.padEnd(8)}（${packs}パック） ${pct(win / N)}  ${avg(turns).toFixed(1)}ターン  山札切れ${pct(resh / N)}${ph.length ? `  負けた段階の平均 ${avg(ph).toFixed(2)}` : ''}`);
   }
+}
+
+if (mode === 'pvp') {
+  const keys = Object.keys(SAMPLE);
+  console.log(`オンラインバトル：見本デッキどうし（${N}回ずつ・先攻は交互）。行のデッキの勝率`);
+  console.log('      ' + keys.map((k) => k.padEnd(6)).join(''));
+  let turns = [], timeouts = 0;
+  for (const a of keys) {
+    const row = [];
+    for (const b of keys) {
+      let win = 0;
+      for (let i = 0; i < N; i++) {
+        const s = await fight(deckOf(a), 'pvp', { ...opts, seed: SEED * 100000 + i, floor: pvp({ deck: deckOf(b), first: i % 2 ? 'E' : 'P' }) });
+        if (s.over === 'win') win++;
+        if (s.over === 'timeout') timeouts++;
+        turns.push(s.stats.playerTurns);
+      }
+      row.push(pct(win / N).padEnd(6));
+    }
+    console.log(a.padEnd(6) + row.join(''));
+  }
+  console.log(`平均 ${avg(turns).toFixed(1)} ターン、40ターンで決着なし ${timeouts}回`);
 }

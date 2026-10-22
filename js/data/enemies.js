@@ -469,4 +469,78 @@ export function tutorial() {
   };
 }
 
+// ===== オンラインバトル：ほかの 人の デッキ（ゴースト）と 1対1 =====
+// g = { deck: [def…], name, first: 'P' | 'E' }。どちらも ライフ 20。攻撃は あいて（プレイヤー）に する（MTG と おなじ）
+// あいての ターンは P と E を 入れかえて、プレイヤー用の AI（ai.js）と カードの 効果を そのまま 使う
+export function pvp(g) {
+  return {
+    id: 'pvp', name: g.name || 'あいて', faceUnit: 1, faceLabel: 'あいて', first: g.first || 'P',
+    setup(s, E) {
+      Object.assign(s.E, { lib: shuffle(s.rng, g.deck.map((d) => E.card(d))), hand: [], mana: [], suspended: [], life: 20, noLifeGain: false, flags: {} });
+      for (let i = 0; i < 5; i++) s.E.hand.push(s.E.lib.shift());
+      s.foeStats = { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 };
+    },
+    async enemyTurn(s, E) {
+      const human = s.ai, AI = E.AI;
+      const mine = () => { E.swapSides(s); s.ai = AI; };
+      const back = () => { E.swapSides(s); s.ai = human; };
+      mine();
+      ghostBegin(s, E);
+      let atk = [];
+      if (!s.over) AI.main(s, 1);
+      if (!s.over) E.combatStart(s);
+      if (!s.over) {
+        atk = AI.attack(s).filter((a) => a.t);
+        if (atk.length) { E.L(s, `敵の攻撃：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
+      }
+      back();
+      if (!s.over && atk.length) await E.enemyAttack(s, atk.map((a) => a.p));
+      if (s.over) return;
+      mine();
+      AI.main(s, 2);
+      for (const p of [...s.P.bf]) if (E.onBf(s, p) && p.def.endStep) p.def.endStep(s, p, E);
+      back();
+    },
+    // ニクスの 嵐：じぶんの 10ターンめから、ターンの はじめに ライフを 1・2・3…と 失う（長びかない ように）
+    playerUpkeep(s, E) { nyxStorm(s, E); },
+    face(s, n) { s.E.life -= n; if (s.E.life <= 0) s.over = 'win'; },
+    faceValue: (s, n) => (n >= s.E.life ? 200 : n * 1.5),
+    check(s) { if (s.E.life <= 0) s.over = 'win'; },
+    priority(s, p, E) { return E.power(s, p) * 2 + (E.hasKw(s, p, 'flying') ? 2 : 0) + 1; },
+    assign(s, atkers) { return atkers.map((p) => ({ p, t: 'face' })); },
+    threat(s, E) { const a = s.E.bf.filter((q) => E.isCreature(q) && !E.hasKw(s, q, 'defender') && !q.def.cantAttack); return { damage: sumPow(s, E, a), attackers: a.length }; },
+    anyTarget() { return 'face'; },
+    castThreat(s, d) { return d.types.includes('creature') ? (d.pow || 0) + 1 : 2; },
+  };
+}
+
+export const NYX_FROM = 10;
+export const nyxLoss = (turns) => Math.max(0, turns - NYX_FROM + 1);
+function nyxStorm(s, E) {
+  const n = nyxLoss(s.stats.playerTurns);
+  if (!n) return;
+  E.L(s, `ニクスの 嵐：${s.swapped ? '敵の ' : ''}ライフ −${n}`);
+  E.hurt(s, n);
+}
+
+// ゴーストの ターンの はじめ（入れかえた あと。アンタップは enemyTurn が すませている）
+function ghostBegin(s, E) {
+  const P = s.P;
+  s.stats.playerTurns++;
+  P.flags.enteredLastTurn = P.flags.enteredThisTurn; P.flags.enteredThisTurn = false;
+  P.flags.cast = 0; P.flags.charged = false;
+  for (const c of P.hand) c.locked = false;
+  for (const p of P.bf) { p.sick = false; p.flags.turn = {}; }
+  for (const m of P.mana) m.tapped = false;
+  nyxStorm(s, E);
+  if (s.over) return;
+  for (const p of [...P.bf]) if (E.onBf(s, p) && p.def.upkeep) p.def.upkeep(s, p, E);
+  const ready = [];
+  for (const x of P.suspended) { x.n--; if (x.n <= 0) ready.push(x); }
+  P.suspended = P.suspended.filter((x) => x.n > 0);
+  for (const x of ready) E.castSuspended(s, x.c);
+  E.sba(s);
+  if (!s.over && (s.stats.playerTurns > 1 || s.floor.first === 'P')) E.drawCard(s);
+}
+
 export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, tutorial };

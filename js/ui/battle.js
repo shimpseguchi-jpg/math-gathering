@@ -4,7 +4,7 @@ import {
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
-import { FLOORS } from '../data/enemies.js';
+import { FLOORS, nyxLoss } from '../data/enemies.js';
 import { permFace, cardFace, detail, sheet, esc, ruby, info, noRuby, pickMany, divideSheet, numberSheet } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
@@ -14,13 +14,19 @@ const nm = (p) => noRuby(info(p.def).name);
 const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery');
 
 export function startBattle(o) {
-  const floor = FLOORS[o.floorId]();
+  const floor = o.floor || FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true });
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
-  startTurn();
+  if (floor.first === 'E') enemyFirst(); else startTurn();
+}
+
+// オンラインバトルで あいてが 先に うごく とき
+async function enemyFirst() {
+  await sheet(`<p>${esc(B.floorName)}が 先に うごく。</p>`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: 'あいての 先攻', dismiss: false });
+  await enemyPhase();
 }
 
 // ---- 敵のターン中にプレイヤーに聞くこと ----
@@ -147,13 +153,19 @@ async function endTurn() {
   if (s.E.extraTurns > 0) {
     s.E.extraTurns--;
     await sheet('<p>大群が 来る前に、もう1ターン 準備できる。</p>', [{ label: 'つぎの ターン', value: 1, kind: 'primary' }], { title: '追加ターン！' });
-  } else {
-    B.mode = 'enemy'; render();
-    const from = s.logs.length;
-    await enemyTurn(s);
-    const lines = s.logs.slice(from).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
-    if (!checkOver(lines)) await sheet(`<ol class="elog">${lines.map((l) => `<li>${esc(l)}</li>`).join('') || '<li>なにも 起きなかった</li>'}</ol>`, [{ label: 'わたしの ターン', value: 1, kind: 'primary' }], { title: '敵の ターン' });
-  }
+    B.busy = false;
+    if (!B.s.over) startTurn();
+  } else await enemyPhase();
+}
+
+async function enemyPhase() {
+  const s = B.s;
+  B.busy = true;
+  B.mode = 'enemy'; render();
+  const from = s.logs.length;
+  await enemyTurn(s);
+  const lines = s.logs.slice(from).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
+  if (!checkOver(lines)) await sheet(`<ol class="elog">${lines.map((l) => `<li>${esc(l)}</li>`).join('') || '<li>なにも 起きなかった</li>'}</ol>`, [{ label: 'わたしの ターン', value: 1, kind: 'primary' }], { title: s.floor.id === 'pvp' ? 'あいての ターン' : '敵の ターン' });
   B.busy = false;
   if (!B.s.over) startTurn();
 }
@@ -177,6 +189,7 @@ function attackTargets() {
     case 'horde': return [...(s.E.lib.length ? ['face'] : []), ...s.E.bf.filter((p) => p.def.types.includes('artifact'))];
     case 'factory': { const f = s.E.bf.find((p) => p.def.factory); return cr.some((p) => p.def.guard) || !f ? cr : [f, ...cr]; }
     case 'xenagos': { const r = cr.filter((p) => p.def.reveler); return r.length ? r : cr.filter((p) => p.def.xenagos); }
+    case 'pvp': return ['face'];
     case 'erebos':
       if (s.phase === 1) return cr.filter((p) => p.def.head);
       if (s.phase === 2) return cr.filter((p) => p.def.minion);
@@ -184,12 +197,12 @@ function attackTargets() {
     default: return cr;
   }
 }
-const faceName = () => ({ horde: '大群（山札を 削る）', erebos: 'エレボス（ライフを 減らす）', factory: `ゴーレム工場（鍵 ${B.s.E.key}：ちょうど 同じ数で こわれる）` })[B.s.floor.id] || '敵';
+const faceName = () => (B.s.floor.id === 'pvp' ? `${B.s.floor.name}（ライフ ${B.s.E.life}）` : null) || ({ horde: '大群（山札を 削る）', erebos: 'エレボス（ライフを 減らす）', factory: `ゴーレム工場（鍵 ${B.s.E.key}：ちょうど 同じ数で こわれる）` })[B.s.floor.id] || '敵';
 
 // ---- 対象を えらぶ ----
 function faceAvailable() {
   const s = B.s;
-  return { horde: s.E.lib.length > 0, erebos: s.phase === 3, factory: true }[s.floor.id] || false;
+  return { horde: s.E.lib.length > 0, erebos: s.phase === 3, factory: true, pvp: true }[s.floor.id] || false;
 }
 function cands(spec, ctx = {}) {
   const s = B.s;
@@ -534,7 +547,7 @@ async function showGy() {
 
 // ---- スワイプ：自分の クリーチャーから 敵へ ひっぱると 攻撃先・ブロックを きめる ----
 // 本体（大群の山札・エレボスのライフ）を ねらえる 階は、敵の 戦場に「本体」の 札を 出す
-const attackFace = () => ['horde', 'erebos'].includes(B.s.floor.id) && attackTargets().includes('face');
+const attackFace = () => ['horde', 'erebos', 'pvp'].includes(B.s.floor.id) && attackTargets().includes('face');
 function canDrag(p) {
   const s = B.s;
   if (!isCreature(p) || (B.tut && !B.tut.allowDrag(p))) return false;
@@ -636,6 +649,7 @@ function enemyStatus() {
     case 'slime': return `<span class="chip hot">スライム ${cr.filter((p) => p.def.slime).length}体</span>${lib}`;
     case 'xenagos': return `<span class="chip hot">歓楽者 ${cr.filter((p) => p.def.reveler).length}体</span>${lib}`;
     case 'tutorial': return '';
+    case 'pvp': return `<span class="chip hot">あいての ライフ ${s.E.life}</span><span class="chip">手札 ${s.E.hand.length}</span><span class="chip">マナ ${s.E.mana.length}</span>${lib}`;
     case 'erebos': return `<span class="chip">段階 ${s.phase}/3</span>${s.phase === 3 ? `<span class="chip hot">エレボスの ライフ ${s.E.life}</span>` : ''}${lib}`;
     default: return lib;
   }
@@ -645,6 +659,7 @@ function enemyStatus() {
 function willAttack(p) {
   const s = B.s;
   if (s.floor.id === 'tutorial') return !!p.def.straw && (s.E.flags.n || 0) >= 1;
+  if (s.floor.id === 'pvp') return false;
   if (!isCreature(p) || p.def.head) return false;
   if (s.floor.id === 'slime' && !s.E.flags.started) return false;
   if (s.floor.id === 'erebos' && s.phase === 3 && p.def.erebos) return !s.E.flags.erebosRest;
@@ -653,6 +668,13 @@ function willAttack(p) {
 function intent() {
   const s = B.s, cr = s.E.bf.filter(isCreature);
   const out = [];
+  if (s.floor.id === 'pvp') {
+    const can = cr.filter((p) => !hasKw(s, p, 'defender') && !p.def.cantAttack && power(s, p) > 0);
+    if (can.length) out.push(`攻撃して くる かも（パワー ${can.map((p) => power(s, p)).join('・')}）`);
+    const n = nyxLoss(s.stats.playerTurns + 1), m = nyxLoss(s.foeStats.playerTurns + 1);
+    if (n || m) out.push(`ニクスの 嵐：つぎの ターン じぶん −${n}・あいて −${m}`);
+    return out.length ? out : ['まだ 攻撃できる クリーチャーが いない'];
+  }
   const heads = cr.filter((p) => p.def.head);
   if (heads.length) {
     const live = heads.filter((p) => !p.frozen);
@@ -681,7 +703,7 @@ function banner() {
     case 'attack': return '攻撃する クリーチャーを 敵へ ひっぱる（タップでも えらべる）';
     case 'tricks': return B.blocks.size ? 'ブロックされた！ 強化の 呪文を 使うなら いま' : 'ブロックされなかった。強化の 呪文を 使うなら いま';
     case 'block': return '敵の 攻撃！ 自分の クリーチャーを 攻撃してくる 敵へ ひっぱって ブロック';
-    case 'enemy': return '敵の ターン…';
+    case 'enemy': return B.s.floor.id === 'pvp' ? 'あいての ターン…' : '敵の ターン…';
     default: return B.phase === 1 ? (B.combatDone ? 'カードを 使うか、マナゾーンに 置こう' : 'カードを 使おう。クリーチャーを 敵へ ひっぱると 攻撃') : '攻撃は おわり。カードを 使って、ターンを おわろう';
   }
 }
@@ -711,7 +733,7 @@ function render() {
     label: permLabel(p),
     cls: [B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
-  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(faceName())}</span><b>${s.floor.id === 'horde' ? `山札 ${s.E.lib.length}` : `ライフ ${s.E.life}`}</b></div>` : '';
+  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : faceName())}</span><b>${s.floor.id === 'horde' ? `山札 ${s.E.lib.length}` : `ライフ ${s.E.life}`}</b></div>` : '';
   const untapped = s.P.mana.filter((m) => !m.tapped).length;
   const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }
@@ -721,13 +743,13 @@ function render() {
   if (B.mode === 'attack') btns = `<button type="button" class="btn" data-act="cancel">攻撃しない</button><button type="button" class="btn" data-act="auto">おまかせ</button><button type="button" class="btn primary" data-act="declare">攻撃！（${B.sel.size}体）</button>`;
   if (B.mode === 'tricks') btns = '<button type="button" class="btn primary" data-act="damage">ダメージ！</button>';
   if (B.mode === 'block') btns = '<button type="button" class="btn" data-act="blockauto">おまかせ</button><button type="button" class="btn primary" data-act="blockdone">ブロック けってい</button>';
-  if (B.mode === 'enemy') btns = '<span class="wait">敵の ターン…</span>';
+  if (B.mode === 'enemy') btns = `<span class="wait">${s.floor.id === 'pvp' ? 'あいて' : '敵'}の ターン…</span>`;
   app().innerHTML = `<div class="battle">
     <header class="bt-head">
       <div><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}</span></div>
       <div class="chips">${enemyStatus()}</div>
     </header>
-    <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>つぎの 敵</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
+    <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの 敵'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
     <section class="zone enemy" aria-label="敵の 戦場">${face}${perms('E')}</section>
     <button type="button" class="logline" data-act="log">${last.map((l) => `<span>${esc(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
     ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}

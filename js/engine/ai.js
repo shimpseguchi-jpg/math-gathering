@@ -69,7 +69,7 @@ export function castCard(s, c, pl, o = {}) {
   else if (from === 'gy') P.gy.splice(P.gy.indexOf(c), 1);
   const convoked = pl ? pay(s, pl) : [];
   P.flags.cast++;
-  L(s, `唱えた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}`);
+  L(s, `${s.swapped ? '敵：' : ''}唱えた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}`);
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
     if (!onBf(s, q)) continue;
@@ -519,3 +519,4 @@ Object.assign(api, {
 });
 
 export const AI = { main, attack, tricks, blocks, beforeBlocks, duringBlocks, counter };
+api.AI = AI;

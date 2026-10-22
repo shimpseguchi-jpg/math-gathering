@@ -28,10 +28,25 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 }
 
 export function L(s, msg) { if (s.logOn) s.logs.push(`[${s.turn}${s.active}] ${msg}`); }
+// ログの「敵：」。オンラインバトルで 入れかわって いる（s.swapped）ときは 'P' が あいて
+export const foe = (s, side) => ((side === 'E') !== !!s.swapped ? '敵：' : '');
+
+// ---- オンラインバトル：P と E を 入れかえる ----
+// あいて（ゴースト）の ターンは、入れかえて プレイヤー用の AI と カードの 効果を そのまま 使う
+export function swapSides(s) {
+  [s.P, s.E] = [s.E, s.P];
+  s.P.side = 'P'; s.E.side = 'E';
+  for (const p of s.P.bf) p.side = 'P';
+  for (const p of s.E.bf) p.side = 'E';
+  [s.stats, s.foeStats] = [s.foeStats, s.stats];
+  s.swapped = !s.swapped;
+  if (s.over === 'win') s.over = 'lose'; else if (s.over === 'lose') s.over = 'win';
+}
 
 // ---- 1戦の流れ ----
 // AI どうしの1戦（シミュレーション用）。人が遊ぶときは ui/ が beginPlayerTurn などを順に呼ぶ
 export async function play(s, maxTurns = 40) {
+  if (s.floor.first === 'E') await enemyTurn(s);
   while (!s.over) {
     playerTurnAI(s);
     if (s.over) break;
@@ -65,7 +80,8 @@ export function beginPlayerTurn(s) {
   const ready = [];
   for (const x of P.suspended) { x.n--; if (x.n <= 0) ready.push(x); }
   P.suspended = P.suspended.filter((x) => x.n > 0);
-  const rest = () => { sba(s); if (s.over) return; if (s.stats.playerTurns > 1) drawCard(s); };
+  // 先に うごいた ほうは 1ターンめに 引かない（あいてが 先なら 1ターンめから 引く）
+  const rest = () => { sba(s); if (s.over) return; if (s.stats.playerTurns > 1 || s.floor.first === 'E') drawCard(s); };
   const castReady = () => ready.reduce((w, x) => w.then(() => api.castSuspended(s, x.c)), Promise.resolve());
   // 占術（海の神タッサ）や 待機の 対象を 画面で聞くときは、答えを待ってから引く
   if (waits.length || (ready.length && s.ai.castSuspended)) return Promise.all(waits).then(castReady).then(rest);
@@ -117,7 +133,7 @@ export function rampTop(s) {
 export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
   s.P.mana.push({ ...c, tapped });
-  L(s, `マナ：${c.def.name}`);
+  L(s, `${foe(s, 'P')}マナ：${c.def.name}`);
 }
 
 // ---- パーマネント ----
@@ -131,7 +147,7 @@ function makePerm(side, def, o = {}) {
 export function enter(s, side, def, o = {}) {
   const p = makePerm(side, def, o);
   s[side].bf.push(p);
-  L(s, `${side === 'P' ? '' : '敵：'}${def.name} が戦場に出た`);
+  L(s, `${foe(s, side)}${def.name} が戦場に出た`);
   if (def.etb) def.etb(s, p, api, o);
   if (!onBf(s, p)) return p;
   if (isCreature(p)) {
@@ -189,7 +205,7 @@ export function tapPerm(s, p) {
 
 export function addCounters(s, p, n) {
   if (!onBf(s, p) || n <= 0) return;
-  if (p.side === 'P') n += s.P.bf.filter((q) => q.def.scales).length;
+  n += s[p.side].bf.filter((q) => q.def.scales).length;
   p.ctr += n;
 }
 
@@ -225,10 +241,10 @@ export function target(s, p) { if (p.side === 'P' && onBf(s, p) && p.def.heroic)
 export function damage(s, p, n, src, o = {}) {
   if (n <= 0 || !onBf(s, p)) return 0;
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
-  if (p.side === 'P' && p.attacking && s.P.bf.some((q) => q.def.protectAttackers)) return 0;
+  if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
   if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
   if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: p, n });
-  L(s, `${src ? `${src.def.name} → ` : ''}${p.side === 'E' ? '敵：' : ''}${p.def.name} に ${n}点`);
+  L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   return n;
@@ -237,7 +253,7 @@ export function damage(s, p, n, src, o = {}) {
 export function hurt(s, n, src) {
   if (n <= 0 || s.over) return;
   s.P.life -= n; s.stats.lifeLost += n;
-  L(s, `プレイヤーに ${n}点（のこり ${s.P.life}）`);
+  L(s, `${s.swapped ? '敵' : 'プレイヤー'}に ${n}点（のこり ${s.P.life}）`);
   if (s.P.life <= 0) s.over = 'lose';
 }
 
@@ -253,10 +269,10 @@ export function hitEnemy(s, n, src, o = {}) {
 
 export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
-  if (t === 'player') return hurt(s, n, src);
+  if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
-    L(s, `${src ? `${src.def.name} → ` : ''}敵の本体に ${n}点`);
+    L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || '敵の本体')}に ${n}点`);
     s.floor.face(s, n, api);
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   } else damage(s, t, n, src);
@@ -301,7 +317,7 @@ export function leave(s, p, to = 'gy', o = {}) {
     const c = { uid: p.uid, def: p.card };
     if (to === 'hand') s.P.hand.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
   }
-  L(s, `${p.side === 'P' ? '' : '敵：'}${p.def.name} が戦場を離れた（${to}）`);
+  L(s, `${foe(s, p.side)}${p.def.name} が戦場を離れた（${to}）`);
   if (exact) {
     s.stats.exact++; p.exact = true;
     L(s, `ぴったり！ ${p.def.name}（タフネス ${p.dmg}）`);
@@ -404,9 +420,14 @@ export function combatStart(s) {
 export function declareAttack(s, atk) {
   for (const a of atk) { a.p.attacking = true; if (!hasKw(s, a.p, 'vigilance')) tapPerm(s, a.p); }
   L(s, `攻撃：${atk.map((a) => `${a.p.def.name}→${a.t === 'face' ? '本体' : a.t.def?.name}`).join('、')}`);
+  attackTriggers(s, atk);
+  return enemyBlocks(s, atk);
+}
+
+// 攻撃したときの 能力（ブリマーズ・大隊・集団戦術・訓練・教導 など）
+export function attackTriggers(s, atk) {
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
   attackCounters(s, atk);
-  return enemyBlocks(s, atk);
 }
 
 // 訓練：自分より パワーが 大きい クリーチャーと 攻撃すると ＋1/＋1カウンター
@@ -482,6 +503,7 @@ Object.assign(api, {
   L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
+  swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
 });

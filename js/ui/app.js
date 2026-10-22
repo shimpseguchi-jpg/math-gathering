@@ -5,6 +5,7 @@ import { colorsOf } from '../engine/game.js';
 import { RARITY_PTS } from '../engine/ai.js';
 import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
+import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { cardFace, detail, sheet, esc, ruby, noRuby, info, COLOR_NAME, initTerms } from './view.js';
 
@@ -40,6 +41,7 @@ export function title() {
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.idx + 1}階）</button>` : ''}
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい 冒険</button>
+      <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
     </div>
     <p class="fine">試作版。敵を タフネスと ちょうど 同じ ダメージで 倒すと「ぴったり！」。</p>
@@ -48,6 +50,7 @@ export function title() {
     const b = e.target.closest('[data-go]'); if (!b) return;
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     if (b.dataset.go === 'tut') return tutorial();
+    if (b.dataset.go === 'online') return onlineMenu(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     A = { diff, pool: [], deck: null, floors: ['hydra', 'horde', Math.random() < 0.5 ? 'factory' : 'slime', 'xenagos', 'erebos'], idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
@@ -309,6 +312,8 @@ function fight() {
 
 function ending(win) {
   const reached = win ? 5 : A.idx + 1;
+  // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
+  if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
     <p class="eyebrow">${win ? '塔を のぼりきった' : `${reached}階で ちからつきた`}</p>
     <h2>${win ? 'エレボスを たおした！' : 'ぼうけん おわり'}</h2>
@@ -317,6 +322,7 @@ function ending(win) {
       <div><dt>ぴったり</dt><dd>${A.exact || 0}<small>回</small></dd></div>
       <div><dt>あけた パック</dt><dd>${A.opened}</dd></div>
     </dl>
+    <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
     <button type="button" class="btn primary" data-a="t">タイトルへ</button>
   </main>`;
   clearSave();

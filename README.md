@@ -15,13 +15,25 @@ css/style.css       見た目
 js/ui/app.js        冒険の流れ（タイトル・パック・デッキ構築・塔・おわり）
 js/ui/battle.js     たたかいの画面（タップの操作、敵のターン中の質問）
 js/ui/tutorial.js   チュートリアル（メレティスの 訓練場）のステップ
+js/ui/online.js     オンライン バトル（ゴースト・あいて さがし・トロフィー）
+gas/                GAS 版（Code.gs：ゴーストの サーバー、index.html：1ファイル版）
 js/ui/view.js       カードの見た目・ルビ・シート（対象・割り振り・数）
 js/ui/sfx.js        効果音（WebAudio で合成）
 js/ui/glossary.js   ことばの せつめい（キーワード能力・用語 約65）
 js/engine/          ルール（game.js）・シミュレーション用AI（ai.js）・冒険（run.js）
 js/data/            カード（cards.js）・敵（enemies.js）・カードの文章（texts.js：docs から自動生成）
 docs/               要件定義・カードリスト・敵・シミュレーションの結果
-tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・gen_texts.py・check_cards.py・packsim.py
+tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・gen_texts.py・check_cards.py・packsim.py
+```
+
+## GAS（Google Apps Script）版とオンライン バトル
+
+学校の iPad などで github.io が開けないときは、GAS のウェブアプリとして公開できる。手順は [`gas/README.md`](gas/README.md)。
+GAS 版では **オンライン バトル（非同期）** が遊べる：冒険を おえた デッキが「ゴースト」になり、ほかの人のゴーストと たたかう（REQUIREMENTS 11章）。
+GitHub Pages 版でも、見本デッキとの「れんしゅう」として遊べる。
+
+```sh
+node mathtcg/tools/build_gas.mjs   # mathtcg/gas/ の 1ファイル版を つくりなおす
 ```
 
 ## 遊び方のポイント

@@ -114,7 +114,7 @@ const G = [
     },
   }),
   cr('G15', 'ガラクの 群れ率い', 'R', 'G', 5, 4, 4, ['wolf'], [], {
-    onOtherEnter: (s, p, q, E) => { if (q.side === 'P' && E.isCreature(q) && E.power(s, q) >= 3) E.drawCard(s); },
+    onOtherEnter: (s, p, q, E) => { if (q.side === p.side && E.isCreature(q) && E.power(s, q) >= 3) E.drawCard(s); },
   }),
   cr('G16', '狩り呼びの スーラク', 'R', 'G', 4, 5, 4, ['human', 'warrior'], [], {
     combatStart: (s, p, E) => {
@@ -144,7 +144,7 @@ const G = [
   }),
   cr('G20', '実験体 一号', 'C', 'G', 1, 1, 1, ['human', 'ooze'], ['evolve']),
   cr('G21', '蔦草通りの 住人', 'U', 'G', 3, 2, 3, ['elf', 'warrior'], [], {
-    onOtherEnter: (s, p, q, E) => { if (q.side === 'P' && E.isCreature(q) && E.colorsOf(q.def).includes('G')) { const t = E.bestBuffTarget(s, null); if (t) { E.target(s, t); E.addCounters(s, t, 1); } } },
+    onOtherEnter: (s, p, q, E) => { if (q.side === p.side && E.isCreature(q) && E.colorsOf(q.def).includes('G')) { const t = E.bestBuffTarget(s, null); if (t) { E.target(s, t); E.addCounters(s, t, 1); } } },
   }),
   sp('G22', '耕作', 'U', 'G', 3, 'sorcery', {
     play: (s, E) => ({ score: s.P.mana.length < 7 ? 13 : 4, run: () => { api_rampTop(s); E.drawCard(s); } }),
@@ -178,7 +178,7 @@ const W = [
       return t && E.power(s, t) >= 3 ? { score: E.enemyThreatOf(s, t), run: () => { E.exile(s, t); E.bolster(s, 1); } } : null;
     },
   }),
-  cr('W06', '群衆の 天使', 'U', 'W', 6, (s, p, E) => mine(s, E).length, (s, p, E) => mine(s, E).length, ['angel'], ['convoke', 'flying']),
+  cr('W06', '群衆の 天使', 'U', 'W', 6, (s, p, E) => E.creatures(s, p.side).length, (s, p, E) => E.creatures(s, p.side).length, ['angel'], ['convoke', 'flying']),
   pm('W07', '議事会の さばき', 'U', 'W', 4, ['enchantment'], {
     kw: ['convoke'],
     need: (s, E) => !!E.burnTarget(s, 99, { creatureOnly: true, mustHit: true }),
@@ -188,7 +188,7 @@ const W = [
     etb: (s, p, E, o) => { for (const q of o.convoked || []) E.addCounters(s, q, 1); },
   }),
   cr('W09', '太陽の神 ヘリオッド', 'L', 'W', 3, 4, 5, ['god'], ['indestructible'], {
-    grant: (s, q, p, E) => (p.side === 'P' && E.isCreature(p) ? ['vigilance'] : null),
+    grant: (s, q, p, E) => (p.side === q.side && E.isCreature(p) ? ['vigilance'] : null),
     acts: [{ cost: 3, req: ['W'], when: [2], play: (s, p, E) => ({ score: 3, run: () => E.token(s, 'P', T.cleric) }) }],
   }),
   // 青白
@@ -221,8 +221,8 @@ const W = [
     },
   }),
   cr('W16', 'アラシンの 見張り', 'R', 'W', 4,
-    (s, p, E) => 3 + s.P.bf.filter((q) => q !== p && E.isCreature(q) && q.ctr > 0).length,
-    (s, p, E) => 4 + s.P.bf.filter((q) => q !== p && E.isCreature(q) && q.ctr > 0).length,
+    (s, p, E) => 3 + s[p.side].bf.filter((q) => q !== p && E.isCreature(q) && q.ctr > 0).length,
+    (s, p, E) => 4 + s[p.side].bf.filter((q) => q !== p && E.isCreature(q) && q.ctr > 0).length,
     ['griffin'], ['flying'], {
       acts: [{
         cost: 3, req: ['W'], when: [2],
@@ -243,8 +243,8 @@ const W = [
   }),
   cr('W23', '管区の 隊長', 'R', 'W', 2, 2, 2, ['human', 'soldier'], ['first'], { onCombatHit: (s, p, E) => E.token(s, 'P', T.soldier) }),
   cr('W24', '見張りの 隊長', 'R', 'W', 6, 3, 3, ['human', 'soldier'], ['vigilance'], {
-    anthem: (s, q, p) => (p !== q && p.side === 'P' && isSub(p, 'soldier') ? [1, 1] : null),
-    grant: (s, q, p) => (p !== q && p.side === 'P' && isSub(p, 'soldier') ? ['vigilance'] : null),
+    anthem: (s, q, p) => (p !== q && p.side === q.side && isSub(p, 'soldier') ? [1, 1] : null),
+    grant: (s, q, p) => (p !== q && p.side === q.side && isSub(p, 'soldier') ? ['vigilance'] : null),
     etb: (s, p, E) => E.token(s, 'P', T.soldier, 3),
   }),
   pm('W25', '軍団の 集結', 'R', 'W', 5, ['enchantment'], {
@@ -265,7 +265,7 @@ const GOLD1 = [
   }),
   cr('WU01', '雷鳴の ワイバーン', 'U', 'WU', 4, 2, 3, ['drake'], ['flash', 'flying'], {
     flash: true,
-    anthem: (s, q, p, E) => (p !== q && p.side === 'P' && E.hasKw(s, p, 'flying') ? [1, 1] : null),
+    anthem: (s, q, p, E) => (p !== q && p.side === q.side && E.hasKw(s, p, 'flying') ? [1, 1] : null),
   }),
   cr('WU02', 'ポリスの神 エファラ', 'R', 'WU', 6, 6, 5, ['god'], ['indestructible'], {
     upkeep: (s, p, E) => { if (s.P.flags.enteredLastTurn) E.drawCard(s); },
@@ -389,7 +389,7 @@ const R = [
     onAttack: (s, p, E, atk) => E.pump(p, atk.filter((a) => a.p !== p && isSub(a.p, 'goblin')).length, 0),
   }),
   cr('R08', '鍛冶の神 パーフォロス', 'L', 'R', 4, 6, 5, ['god'], ['indestructible'], {
-    onOtherEnter: (s, p, q, E) => { if (q.side === 'P' && E.isCreature(q)) E.hitEnemy(s, 2, p); },
+    onOtherEnter: (s, p, q, E) => { if (q.side === p.side && q.side === 'P' && E.isCreature(q)) E.hitEnemy(s, 2, p); },
     acts: [{ cost: 3, req: ['R'], when: [1], play: (s, p, E) => (E.readyAttackers(s).length >= 3 ? { score: E.readyAttackers(s).length, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0); } } : null) }],
   }),
   // 赤青

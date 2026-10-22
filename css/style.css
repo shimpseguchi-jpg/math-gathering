@@ -335,3 +335,21 @@ span.pile { cursor: default; }
 .tut-hl { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 12px; animation: tut-pulse 1.2s ease-in-out infinite; }
 @keyframes tut-pulse { 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .tut-hl { animation: none; } }
+
+/* ---- オンライン バトル ---- */
+.online { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; }
+.online h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); }
+.ol-me { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; background: var(--table-2); border-radius: 14px; padding: 12px; }
+.ol-me > div:first-child { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.ol-name { font-family: var(--display); font-size: 20px; }
+.btn.small { min-height: 34px; padding: 4px 10px; font-size: 13px; }
+.ol-trophy { display: flex; flex-direction: column; align-items: flex-end; }
+.ol-trophy b { font-family: var(--display); font-size: 32px; color: var(--gold); line-height: 1; }
+.ol-trophy span, .ol-trophy small { font-size: 12px; color: var(--ink-dim); }
+.ol-news { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--paper); color: var(--paper-ink); font-weight: 700; }
+.ol-help { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
+.ol-h { margin: 4px 0 0; font-size: 14px; color: var(--gold); }
+.ol-decks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ol-deck { text-align: left; border: 2px solid var(--line); background: var(--table-2); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; color: inherit; }
+.ol-deck small { font-size: 11px; color: var(--ink-dim); }
+.ol-deck.on { border-color: var(--gold); background: var(--table-3); }
