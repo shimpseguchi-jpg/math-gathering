@@ -142,14 +142,16 @@ async function findOpponent(app, back, o, mine) {
   const first = Math.random() < 0.5 ? 'P' : 'E';
   startBattle({
     deck: mine.d.map((id) => BY_ID[id]), floor: pvp({ deck: v.d.map((id) => BY_ID[id]).filter(Boolean), name: v.name, first }), floorName: v.name, diff: 'normal',
-    onEnd: async (r) => {
-      const win = !!r.win;
-      if (win) { o.trophies += 3; o.wins++; } else { o.trophies = Math.max(0, o.trophies - 1); o.losses++; }
-      save(o);
-      if (v.id && hasServer()) call('mtgReport', { i: v.id, w: !win }).catch(() => {});
-      await sheet(`<p class="big-result ${win ? 'win' : 'lose'}">${win ? 'かった！ トロフィー ＋3' : 'まけた… トロフィー −1'}</p><p>トロフィー ${o.trophies}（${rankOf(o.trophies)}）</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'オンライン バトル', dismiss: false });
-      onlineMenu(app, back);
-    },
+    quit: { label: 'こうさんして もどる', note: 'とちゅうで やめると「こうさん」に なって、まけ（トロフィー −1）に なるよ。', go: () => end({ win: false }) },
+    onEnd: (r) => end(r),
   });
+  async function end(r) {
+    const win = !!r.win;
+    if (win) { o.trophies += 3; o.wins++; } else { o.trophies = Math.max(0, o.trophies - 1); o.losses++; }
+    save(o);
+    if (v.id && hasServer()) call('mtgReport', { i: v.id, w: !win }).catch(() => {});
+    await sheet(`<p class="big-result ${win ? 'win' : 'lose'}">${win ? 'かった！ トロフィー ＋3' : 'まけた… トロフィー −1'}</p><p>トロフィー ${o.trophies}（${rankOf(o.trophies)}）</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'オンライン バトル', dismiss: false });
+    onlineMenu(app, back);
+  }
 }
 const pairOf = (ids) => [...new Set(ids.flatMap((id) => (BY_ID[id] ? colorsOf(BY_ID[id]) : [])))].join('');

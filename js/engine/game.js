@@ -115,8 +115,14 @@ export function drawCard(s, n = 1) {
   const P = s.P;
   for (let i = 0; i < n; i++) {
     if (!P.lib.length) {
-      if (s.reshuffle && P.gy.length) { P.lib = shuffle(s.rng, P.gy.splice(0)); s.stats.reshuffled++; L(s, 'ぼちを ライブラリーに もどした'); }
-      else if (!s.reshuffle) { s.over = 'lose'; s.stats.deckout = true; return; }
+      if (s.reshuffle && P.gy.length) {
+        // 山札が なくなったら ぼちを まぜて もどす。そのたびに ライフを 2・4・6…（2の だん）失う
+        P.lib = shuffle(s.rng, P.gy.splice(0)); P.reshuffles = (P.reshuffles || 0) + 1; s.stats.reshuffled++;
+        const n = reshuffleCost(P);
+        L(s, `${foe(s, 'P')}ぼちを まぜて やまふだに もどした（ライフ −${n}）`);
+        hurt(s, n);
+        if (s.over) return;
+      } else if (!s.reshuffle) { s.over = 'lose'; s.stats.deckout = true; return; }
       else return;
     }
     P.hand.push(P.lib.shift());
@@ -126,6 +132,8 @@ export function drawCard(s, n = 1) {
 // 手札の 補充（遊戯王ラッシュデュエルと おなじ）：ターンの はじめに、手札が HAND_SIZE まいに なるまで 引く
 export const HAND_SIZE = 5;
 export const LOW_LIBRARY = 5; // 山札が これより 少ないと、画面で「もうすぐ なくなる」
+// ぼちを まぜて もどす ときに 失う ライフ（1回め 2、2回め 4、3回め 6…）。next は つぎに まぜたときの 数
+export const reshuffleCost = (P, next = false) => 2 * ((P.reshuffles || 0) + (next ? 1 : 0));
 export function refill(s) {
   const n = HAND_SIZE - s.P.hand.length;
   if (n <= 0) return;

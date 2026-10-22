@@ -62,6 +62,7 @@ export function title() {
 function tutorial() {
   startBattle({
     deck: tutorialDeck(), floorId: 'tutorial', diff: 'easy', floorName: 'メレティスの くんれんじょう', tutorial: true, setup: tutorialSetup,
+    quit: { label: 'タイトルへ もどる', note: 'チュートリアルを やめて タイトルへ もどる？ あとで また はじめから できるよ。', go: title },
     onEnd: async (r) => {
       if (r.win) {
         try { localStorage.setItem(TUTORIAL_DONE, '1'); } catch { /* 保存できなくても よい */ }
@@ -291,6 +292,7 @@ function fight() {
   const f = A.floors[A.idx];
   startBattle({
     deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f],
+    quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
       if (r.win) {

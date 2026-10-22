@@ -86,7 +86,7 @@ const STEPS = [
 export function makeTutorial() {
   let k = 0, free = false;
   const step = () => (free ? null : STEPS[k]);
-  const ALWAYS = ['gy', 'mana', 'log', 'tutnext'];
+  const ALWAYS = ['gy', 'mana', 'log', 'tutnext', 'menu'];
   return {
     get active() { return !free; },
     // done を 見て すすめる（描く まえに よぶ）

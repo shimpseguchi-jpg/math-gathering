@@ -1,6 +1,6 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
-  api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY,
+  api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
@@ -17,7 +17,7 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 
 export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
-  B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
+  B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true });
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
@@ -362,10 +362,21 @@ async function onClick(e) {
   if (p) return t && !t.allowPerm(p) ? toast(t.hint()) : tapPerm_(p);
 }
 
+// たたかいの とちゅうで メニューへ もどる（o.quit：{ label, note, go }。冒険は つづきが のこる、オンラインは こうさん）
+async function menu() {
+  const q = B.quit || { label: 'タイトルへ もどる', note: '', go: () => {} };
+  const v = await sheet(`<p>${esc(q.note || 'たたかいを やめて もどる？')}</p>`,
+    [{ label: 'たたかいを つづける', value: 0, kind: 'primary' }, { label: q.label, value: 1 }], { title: 'メニュー' });
+  if (!v) return;
+  B.left = true;
+  q.go();
+}
+
 async function action(a) {
   const s = B.s;
   if (a === 'end') return endTurn();
   if (a === 'tutnext') { B.tut?.next(); return render(); }
+  if (a === 'menu') return menu();
   if (a === 'attack') {
     combatStart(s); B.combatDone = true;
     if (checkOver()) return;
@@ -727,6 +738,7 @@ function permLabel(p) {
 }
 
 function render() {
+  if (B.left) return; // メニューへ もどった あと
   const s = B.s;
   if (!drag) clearDrag();
   B.tut?.update(s, B);
@@ -750,6 +762,7 @@ function render() {
     <header class="bt-head">
       <div><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}</span></div>
       <div class="chips">${enemyStatus()}</div>
+      <button type="button" class="btn small menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー">≡ メニュー</button>
     </header>
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの てき'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
     <section class="zone enemy" aria-label="てきの せんじょう">${face}${perms('E')}</section>
@@ -759,7 +772,7 @@ function render() {
     <div class="me-bar">
       <span class="life ${s.P.life <= 5 ? 'low' : ''}">ライフ <b>${s.P.life}</b></span>
       <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
-      <span class="pile ${s.P.lib.length < LOW_LIBRARY ? 'low' : ''}" title="${s.P.lib.length < LOW_LIBRARY ? 'なくなったら ぼちを まぜて もどす' : ''}">やまふだ ${s.P.lib.length}${s.P.lib.length < LOW_LIBRARY ? '<small>もうすぐ なくなる</small>' : ''}</span>
+      <span class="pile ${s.P.lib.length < LOW_LIBRARY ? 'low' : ''}" title="${s.P.lib.length < LOW_LIBRARY ? `なくなったら ぼちを まぜて もどす。そのとき ライフ −${reshuffleCost(s.P, true)}` : ''}">やまふだ ${s.P.lib.length}${s.P.lib.length < LOW_LIBRARY ? `<small>もうすぐ なくなる（まぜると ライフ −${reshuffleCost(s.P, true)}）</small>` : ''}</span>
       <button type="button" class="pile" data-act="gy">ぼち ${s.P.gy.length}</button>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
