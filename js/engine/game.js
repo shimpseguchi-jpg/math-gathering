@@ -141,6 +141,12 @@ export function refill(s) {
   L(s, `${foe(s, 'P')}てふだを ${HAND_SIZE}まいに した（${n}まい 引いた）`);
 }
 
+// 手札を 捨てる（怪物化などの コスト）。捨てた カードは 墓地へ
+export function discard(s, cards) {
+  for (const c of cards) { const i = s.P.hand.indexOf(c); if (i >= 0) { s.P.hand.splice(i, 1); s.P.gy.push(c); } }
+  if (cards.length) L(s, `${foe(s, 'P')}すてた：${cards.map((c) => c.def.name).join('、')}`);
+}
+
 export function rampTop(s) {
   if (!s.P.lib.length) return;
   const c = s.P.lib.shift();
@@ -521,7 +527,7 @@ export function resolveCombat(s, atk, blocks) {
 Object.assign(api, {
   L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
-  refill, enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
+  refill, discard, enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),

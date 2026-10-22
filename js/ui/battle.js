@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
@@ -517,9 +517,9 @@ async function tapPerm_(p) {
       const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
       const o = { exclude: a.tap || a.sac ? p : null };
       let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
-      const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
+      const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
       const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x });
-      const label = a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `のうりょくを 使う（${a.x ? `X+${cost}` : cost}マナ${a.tap ? '・タップ' : ''}）`;
+      const label = a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `のうりょくを 使う（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip) choices.push({ label: `そうびする（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
@@ -536,9 +536,15 @@ async function tapPerm_(p) {
   if (v.pump) { pay(s, plan(s, v.a.cost, v.a.req || [])); api.pump(p, v.a.pumpP, 0); return render(); }
   let picks;
   if (v.a.tgt) { picks = await pickAll(v.a.tgt, { src: p, x: v.x }); if (!picks) return render(); }
+  let drop = [];
+  if (v.a.discard) {
+    drop = await pickMany(`すてる カードを ${v.a.discard}まい えらぶ`, s.P.hand.map((c) => ({ label: ruby(info(c.def).name), value: c })), { min: v.a.discard, max: v.a.discard, note: `てふだ ${s.P.hand.length}まい − ${v.a.discard}まい ＝ のこり ${s.P.hand.length - v.a.discard}まい` });
+    if (!drop) return render();
+  }
   const pl = plan(s, v.cost + v.x, v.a.req || [], v.o); if (!pl) return;
   pay(s, pl);
   if (v.a.tap) tapPerm(s, p);
+  discard(s, drop);
   if (v.a.monstrosity) p.monstrous = true;
   if (v.a.levelUp) levelUp(s, p);
   if (picks) v.a.apply(s, api, picks, v.x, p); else v.r.run(v.x);

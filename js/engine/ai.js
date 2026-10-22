@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -155,12 +155,20 @@ function permScore(s, def, phase) {
   return 10 + def.cost * 3 + rarityV(def);
 }
 
+// 捨てる カードを えらぶ：きほんカード、つぎに いま 唱えられない 重い カードから
+export function discardPick(s, n, spend = 0) {
+  const left = manaCount(s) - spend;
+  const key = (c) => (c.def.rar === 'B' ? 0 : c.def.cost > left ? 100 - c.def.cost : 200 - c.def.cost);
+  return [...s.P.hand].sort((a, b) => key(a) - key(b)).slice(0, n);
+}
+
 function actOptions(s, phase) {
   const out = [];
   for (const p of s.P.bf) for (const a of p.def.acts || []) {
     if (a.when && !a.when.includes(phase)) continue;
     if (a.tap && (p.tapped || (isCreature(p) && p.sick))) continue;
     if (a.monstrosity && p.monstrous) continue;
+    if (a.discard && s.P.hand.length < a.discard) continue;
     if (a.levelUp && p.def.levelMax && p.level >= p.def.levelMax) continue;
     const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
     const o = { exclude: a.tap || a.sac ? p : null };
@@ -175,6 +183,7 @@ function actOptions(s, phase) {
         const pl = plan(s, cost + x, a.req || [], o); if (!pl) return;
         pay(s, pl);
         if (a.tap) tapPerm(s, p);
+        if (a.discard) discard(s, discardPick(s, a.discard, cost + x));
         if (a.monstrosity) p.monstrous = true;
         if (a.levelUp) levelUp(s, p);
         r.run(x);

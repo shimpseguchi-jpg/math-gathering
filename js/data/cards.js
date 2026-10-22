@@ -105,7 +105,7 @@ const G = [
     onAttack: (s, p, E) => { if (ferocious(s, E)) E.pump(p, 1, 1); },
   }),
   cr('G13', 'ネシアンの アスプ', 'U', 'G', 5, 4, 5, ['snake'], ['reach'], {
-    acts: [{ cost: 7, req: ['G'], monstrosity: true, when: [1], play: (s, p, E) => ({ score: 8, run: () => E.addCounters(s, p, 4) }) }],
+    acts: [{ cost: 1, req: ['G'], discard: 2, monstrosity: true, when: [1], play: (s, p, E) => ({ score: 8, run: () => E.addCounters(s, p, 4) }) }],
   }),
   sp('G14', '竜鱗（りゅうりん）の 恵（めぐ）み', 'U', 'G', 4, 'instant', {
     play: (s, E, ctx) => {
@@ -447,7 +447,7 @@ const R = [
     },
   }),
   cr('R26', '嵐息吹（あらしいぶき）の ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
-    acts: [{ cost: 6, req: ['R'], monstrosity: true, when: [1, 2], play: (s, p, E) => ({ score: 6 + s.P.hand.length, run: () => { E.addCounters(s, p, 3); E.hitEnemy(s, s.P.hand.length, p); } }) }],
+    acts: [{ cost: 1, req: ['R'], discard: 2, monstrosity: true, when: [1, 2], play: (s, p, E) => ({ score: 4 + s.P.hand.length, run: () => { E.addCounters(s, p, 3); E.hitEnemy(s, s.P.hand.length, p); } }) }],
   }),
 ];
 
