@@ -7,12 +7,12 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { cardFace, detail, sheet, esc, ruby, noRuby, info, COLOR_NAME, initTerms } from './view.js';
+import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
 const FLOOR_NAMES = {
-  hydra: '1階 ハイドラとの対峙', horde: '2階 大群との戦い', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
-  xenagos: '4階 神を討て', erebos: '5階 死者の神 エレボス',
+  hydra: '1階 ハイドラとの たいじ', horde: '2階 たいぐんとの たたかい', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
+  xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
 };
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
 const COLOR_ORDER = ['W', 'U', 'G', 'R'];
@@ -23,7 +23,7 @@ const load = () => { try { return JSON.parse(localStorage.getItem(SAVE) || 'null
 const save = () => { try { localStorage.setItem(SAVE, JSON.stringify(A)); } catch { /* 保存できない環境でも遊べる */ } };
 const clearSave = () => { try { localStorage.removeItem(SAVE); } catch { /* なし */ } };
 const defs = (ids) => ids.map((id) => BY_ID[id]);
-const nm = (d) => noRuby(info(d).name);
+const nm = (d) => info(d).name; // ふりがなつきの 名前（ruby に とおして 出す）
 
 // ---- タイトル ----
 const tutorialDone = () => { try { return !!localStorage.getItem(TUTORIAL_DONE); } catch { return true; } };
@@ -35,16 +35,16 @@ export function title() {
   app().innerHTML = `<main class="title">
     <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
     <h1>マスマティック・<br>ザ・ギャザリング</h1>
-    <p class="title-sub">算数の デッキ構築 ローグライク。パックを あけて デッキを くみ、5階だての 塔を のぼろう。</p>
+    <p class="title-sub">算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。</p>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <div class="title-btns">
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.idx + 1}階）</button>` : ''}
-      <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい 冒険</button>
+      <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
     </div>
-    <p class="fine">試作版。敵を タフネスと ちょうど 同じ ダメージで 倒すと「ぴったり！」。</p>
+    <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
   </main>`;
   app().onclick = (e) => {
     const b = e.target.closest('[data-go]'); if (!b) return;
@@ -61,11 +61,11 @@ export function title() {
 // ---- チュートリアル（メレティスの 訓練場）----
 function tutorial() {
   startBattle({
-    deck: tutorialDeck(), floorId: 'tutorial', diff: 'easy', floorName: 'メレティスの 訓練場', tutorial: true, setup: tutorialSetup,
+    deck: tutorialDeck(), floorId: 'tutorial', diff: 'easy', floorName: 'メレティスの くんれんじょう', tutorial: true, setup: tutorialSetup,
     onEnd: async (r) => {
       if (r.win) {
         try { localStorage.setItem(TUTORIAL_DONE, '1'); } catch { /* 保存できなくても よい */ }
-        await sheet(`<p>${ruby(r.exact ? 'ぴったり 10点で まとを たおした！ マナの 置きかた、召集（しょうしゅう）、ブロック、圧倒（あっとう）、ぴったり。これで 塔に いどめるよ。' : 'まとを たおした！ つぎは ぴったりを ねらってみよう。これで 塔に いどめるよ。')}</p>`,
+        await sheet(`<p>${ruby(r.exact ? 'ぴったり 10点で まとを たおした！ マナの おきかた、しょうしゅう、ブロック、あっとう、ぴったり。これで とうに いどめるよ。' : 'まとを たおした！ つぎは ぴったりを ねらってみよう。これで とうに いどめるよ。')}</p>`,
           [{ label: 'タイトルへ', value: 1, kind: 'primary' }], { title: 'チュートリアル クリア！', dismiss: false });
       }
       title();
@@ -121,7 +121,7 @@ function packs() {
           ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? 'しょうかく！ ' : ''}LEGEND!!</p>` : ''}
         </div>
         ${flipped ? `<div class="reveal-text">${detail(d)}</div>` : ''}
-        <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${esc(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
+        <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${ruby(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
         <ol class="dots">${ORDER.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
         <p class="tap-next">${flipped ? (k < 7 ? 'カードを タップで つぎへ（せつめいの 中は 読む ところ）' : 'カードを タップで まとめへ') : ''}</p>
         <div class="row-btns"><button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
@@ -251,7 +251,7 @@ function deckBuilder() {
     if (b.dataset.a === 'auto') { A.deck = autoDeck(); save(); return draw(); }
     if (b.dataset.a === 'clear') { A.deck = []; save(); return draw(); }
     if (b.dataset.a === 'ok') {
-      if (!A.deck.length) return sheet('<p>カードを 1まい 以上 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
+      if (!A.deck.length) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
       save(); return tower();
     }
     const i = +b.dataset.i;
@@ -273,9 +273,9 @@ function tower() {
   const st = deckStats(A.deck);
   app().innerHTML = `<main class="tower">
     <p class="eyebrow">${DIFFS.find(([k]) => k === A.diff)[1]}　コンティニュー のこり ${A.continues}回</p>
-    <h2>塔</h2>
+    <h2>とう</h2>
     <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${esc(FLOOR_NAMES[f])}</span><em>${i < A.idx ? 'クリア' : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
-    <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || '無色'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
+    <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${esc(FLOOR_NAMES[A.floors[A.idx]])}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
   </main>`;
@@ -315,7 +315,7 @@ function ending(win) {
   // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
   if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
-    <p class="eyebrow">${win ? '塔を のぼりきった' : `${reached}階で ちからつきた`}</p>
+    <p class="eyebrow">${win ? 'とうを のぼりきった' : `${reached}階で ちからつきた`}</p>
     <h2>${win ? 'エレボスを たおした！' : 'ぼうけん おわり'}</h2>
     <dl class="stats">
       <div><dt>とどいた 階</dt><dd>${reached}<small>/5</small></dd></div>

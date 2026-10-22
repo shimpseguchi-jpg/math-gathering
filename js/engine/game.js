@@ -29,7 +29,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 
 export function L(s, msg) { if (s.logOn) s.logs.push(`[${s.turn}${s.active}] ${msg}`); }
 // ログの「敵：」。オンラインバトルで 入れかわって いる（s.swapped）ときは 'P' が あいて
-export const foe = (s, side) => ((side === 'E') !== !!s.swapped ? '敵：' : '');
+export const foe = (s, side) => ((side === 'E') !== !!s.swapped ? 'てき：' : '');
 
 // ---- オンラインバトル：P と E を 入れかえる ----
 // あいて（ゴースト）の ターンは、入れかえて プレイヤー用の AI と カードの 効果を そのまま 使う
@@ -116,7 +116,7 @@ export function drawCard(s, n = 1) {
   const P = s.P;
   for (let i = 0; i < n; i++) {
     if (!P.lib.length) {
-      if (s.reshuffle && P.gy.length) { P.lib = shuffle(s.rng, P.gy.splice(0)); s.stats.reshuffled++; L(s, '墓地をライブラリーにもどした'); }
+      if (s.reshuffle && P.gy.length) { P.lib = shuffle(s.rng, P.gy.splice(0)); s.stats.reshuffled++; L(s, 'ぼちを ライブラリーに もどした'); }
       else if (!s.reshuffle) { s.over = 'lose'; s.stats.deckout = true; return; }
       else return;
     }
@@ -147,7 +147,7 @@ function makePerm(side, def, o = {}) {
 export function enter(s, side, def, o = {}) {
   const p = makePerm(side, def, o);
   s[side].bf.push(p);
-  L(s, `${foe(s, side)}${def.name} が戦場に出た`);
+  L(s, `${foe(s, side)}${def.name} が せんじょうに 出た`);
   if (def.etb) def.etb(s, p, api, o);
   if (!onBf(s, p)) return p;
   if (isCreature(p)) {
@@ -223,7 +223,7 @@ export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of 
 export function bolster(s, n) {
   const t = s.P.bf.filter(isCreature).sort((a, b) => pt(s, a)[1] - pt(s, b)[1])[0];
   if (!t) return null;
-  L(s, `鼓舞${n}：${t.def.name}（タフネス ${pt(s, t)[1]}）`);
+  L(s, `こぶ${n}：${t.def.name}（タフネス ${pt(s, t)[1]}）`);
   target(s, t);
   addCounters(s, t, n);
   return t;
@@ -253,7 +253,7 @@ export function damage(s, p, n, src, o = {}) {
 export function hurt(s, n, src) {
   if (n <= 0 || s.over) return;
   s.P.life -= n; s.stats.lifeLost += n;
-  L(s, `${s.swapped ? '敵' : 'プレイヤー'}に ${n}点（のこり ${s.P.life}）`);
+  L(s, `${s.swapped ? 'てき' : 'プレイヤー'}に ${n}点（のこり ${s.P.life}）`);
   if (s.P.life <= 0) s.over = 'lose';
 }
 
@@ -272,7 +272,7 @@ export function hitTarget(s, t, n, src, combat = false) {
   if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
-    L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || '敵の本体')}に ${n}点`);
+    L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
     s.floor.face(s, n, api);
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   } else damage(s, t, n, src);
@@ -317,7 +317,7 @@ export function leave(s, p, to = 'gy', o = {}) {
     const c = { uid: p.uid, def: p.card };
     if (to === 'hand') s.P.hand.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
   }
-  L(s, `${foe(s, p.side)}${p.def.name} が戦場を離れた（${to}）`);
+  L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${{ gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだへ' }[to] || to}）`);
   if (exact) {
     s.stats.exact++; p.exact = true;
     L(s, `ぴったり！ ${p.def.name}（タフネス ${p.dmg}）`);
@@ -362,7 +362,7 @@ export async function reveal(s, n) {
 }
 
 export async function enemyCast(s, c) {
-  L(s, `敵：${c.def.name} を公開した`);
+  L(s, `てき：${c.def.name} を 公開した`);
   for (const q of [...s.P.bf]) if (q.def.onAnyCast) q.def.onAnyCast(s, q, c.def, 'E', api);
   await s.ai.revealed?.(s, c);
   if (await s.ai.counter(s, c)) { s.E.gy.push(c); L(s, '打ち消した'); return; }
@@ -419,7 +419,7 @@ export function combatStart(s) {
 // 攻撃を宣言して、敵のブロックを返す。atk = [{ p, t }]（t は敵のパーマネント・'face'）
 export function declareAttack(s, atk) {
   for (const a of atk) { a.p.attacking = true; if (!hasKw(s, a.p, 'vigilance')) tapPerm(s, a.p); }
-  L(s, `攻撃：${atk.map((a) => `${a.p.def.name}→${a.t === 'face' ? '本体' : a.t.def?.name}`).join('、')}`);
+  L(s, `こうげき：${atk.map((a) => `${a.p.def.name}→${a.t === 'face' ? '本体' : a.t.def?.name}`).join('、')}`);
   attackTriggers(s, atk);
   return enemyBlocks(s, atk);
 }
@@ -435,12 +435,12 @@ export function attackTriggers(s, atk) {
 function attackCounters(s, atk) {
   const live = () => atk.map((a) => a.p).filter((q) => onBf(s, q));
   for (const p of live()) {
-    if (hasKw(s, p, 'training') && live().some((q) => q !== p && power(s, q) > power(s, p))) { addCounters(s, p, 1); L(s, `訓練：${p.def.name}`); }
+    if (hasKw(s, p, 'training') && live().some((q) => q !== p && power(s, q) > power(s, p))) { addCounters(s, p, 1); L(s, `くんれん：${p.def.name}`); }
   }
   for (const p of live()) {
     if (!hasKw(s, p, 'mentor')) continue;
     const t = live().filter((q) => q !== p && power(s, q) < power(s, p)).sort((a, b) => power(s, b) - power(s, a))[0];
-    if (t) { addCounters(s, t, 1); L(s, `教導：${p.def.name} → ${t.def.name}`); }
+    if (t) { addCounters(s, t, 1); L(s, `きょうどう：${p.def.name} → ${t.def.name}`); }
   }
 }
 
@@ -453,7 +453,7 @@ export async function enemyAttack(s, attackers) {
   attackers = attackers.filter((p) => onBf(s, p) && isCreature(p));
   if (!attackers.length) return;
   for (const p of attackers) { p.attacking = true; if (!hasKw(s, p, 'vigilance')) p.tapped = true; }
-  L(s, `敵の攻撃：${attackers.map((p) => p.def.name).join('、')}`);
+  L(s, `てきの こうげき：${attackers.map((p) => p.def.name).join('、')}`);
   await s.ai.beforeBlocks(s, attackers);
   attackers = attackers.filter((p) => onBf(s, p));
   const blocks = await s.ai.blocks(s, attackers);

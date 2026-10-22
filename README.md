@@ -23,7 +23,7 @@ js/ui/glossary.js   ことばの せつめい（キーワード能力・用語 �
 js/engine/          ルール（game.js）・シミュレーション用AI（ai.js）・冒険（run.js）
 js/data/            カード（cards.js）・敵（enemies.js）・カードの文章（texts.js：docs から自動生成）
 docs/               要件定義・カードリスト・敵・シミュレーションの結果
-tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・gen_texts.py・check_cards.py・packsim.py
+tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・gen_texts.py・check_cards.py・packsim.py
 ```
 
 ## GAS（Google Apps Script）版とオンライン バトル
@@ -35,6 +35,12 @@ GitHub Pages 版でも、見本デッキとの「れんしゅう」として遊�
 ```sh
 node mathtcg/tools/build_gas.mjs   # mathtcg/gas/ の 1ファイル版を つくりなおす
 ```
+
+## 漢字
+
+3年生までに 習う 漢字だけを つかう。それ いがいは、画面の ことばは ひらがな、カードの 文章は ふりがな「漢字（よみ）」（REQUIREMENTS 3.1）。
+カードの 文章は `docs/cards/*.md`・`docs/ENEMIES.md` に ふりがなを 書いて、`python3 mathtcg/tools/gen_texts.py` で `js/data/texts.js` に する。
+`node mathtcg/tools/kanji.mjs` で、ふりがなの ない 習わない 漢字が のこって いないか しらべられる。
 
 ## 遊び方のポイント
 

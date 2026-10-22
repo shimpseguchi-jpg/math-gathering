@@ -49,13 +49,13 @@ const mass = (p, t, filter) => ({ trick: { kind: 'mass', p, t }, massRun: (s, E)
 
 // ---- トークン ----
 export const T = {
-  soldier: cr('t_soldier', '兵士', null, 'W', 0, 1, 1, ['soldier']),
-  soldierLL: cr('t_soldierLL', '兵士', null, 'W', 0, 1, 1, ['soldier'], ['lifelink']),
-  soldierHaste: cr('t_soldierH', '兵士', null, 'W', 0, 1, 1, ['soldier'], ['haste']),
-  catSoldier: cr('t_cat', '猫・兵士', null, 'W', 0, 1, 1, ['cat', 'soldier'], ['vigilance']),
+  soldier: cr('t_soldier', '兵士（へいし）', null, 'W', 0, 1, 1, ['soldier']),
+  soldierLL: cr('t_soldierLL', '兵士（へいし）', null, 'W', 0, 1, 1, ['soldier'], ['lifelink']),
+  soldierHaste: cr('t_soldierH', '兵士（へいし）', null, 'W', 0, 1, 1, ['soldier'], ['haste']),
+  catSoldier: cr('t_cat', '猫（ねこ）・兵士（へいし）', null, 'W', 0, 1, 1, ['cat', 'soldier'], ['vigilance']),
   spirit: cr('t_spirit', 'スピリット', null, 'W', 0, 1, 1, ['spirit'], ['flying']),
   cleric: cr('t_cleric', 'クレリック', null, 'W', 0, 2, 1, ['cleric']),
-  saproling: cr('t_sap', '苗木', null, 'G', 0, 1, 1, ['saproling']),
+  saproling: cr('t_sap', '苗木（なえぎ）', null, 'G', 0, 1, 1, ['saproling']),
   goblin: cr('t_goblin', 'ゴブリン', null, 'R', 0, 1, 1, ['goblin']),
   goblinHaste: cr('t_goblinH', 'ゴブリン', null, 'R', 0, 1, 1, ['goblin'], ['haste']),
   drake: cr('t_drake', 'ドレイク', null, 'U', 0, 2, 2, ['drake'], ['flying']),
@@ -72,9 +72,9 @@ const G = [
   cr('G03', '生きている トーテム', 'C', 'G', 4, 2, 3, ['elemental'], ['convoke'], {
     etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.bestBuffTarget(s, p); if (t) E.addCounters(s, t, E.formidable(s) ? 2 : 1); },
   }),
-  sp('G04', '勇気の あつまり', 'C', 'G', 2, 'instant', { kw: ['convoke'], ...single(2, 2) }),
+  sp('G04', '勇気（ゆうき）の あつまり', 'C', 'G', 2, 'instant', { kw: ['convoke'], ...single(2, 2) }),
   cr('G05', '森の 大ワーム', 'C', 'G', 7, 5, 5, ['wurm'], ['convoke', 'trample']),
-  sp('G06', '芽ばえの むれ', 'U', 'G', 2, 'instant', {
+  sp('G06', '芽（め）ばえの むれ', 'U', 'G', 2, 'instant', {
     kw: ['convoke'], backToHand: true,
     play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3, run: () => E.token(s, 'P', T.saproling) } : null),
   }),
@@ -87,7 +87,7 @@ const G = [
     },
   }),
   // 緑赤
-  sp('G08', '荒々しい 一撃', 'C', 'G', 1, 'sorcery', {
+  sp('G08', '荒々（あらあら）しい 一撃（いちげき）', 'C', 'G', 1, 'sorcery', {
     play: (s, E) => {
       const me = E.bestBuffTarget(s, null); if (!me) return null;
       const bonus = ferocious(s, E) ? 2 : 0;
@@ -96,34 +96,34 @@ const G = [
       return { score: 6 + b.score, run: () => savagePunch(s, E, me, b.t) };
     },
   }),
-  sp('G09', '巨大化', 'C', 'G', 2, 'instant', single(4, 4)),
-  cr('G10', '見習いの 射手', 'C', 'G', 2, 1, 4, ['human', 'archer'], ['reach', 'training']),
-  cr('G11', 'ふみならす 大鹿の むれ', 'C', 'G', 5, 5, 5, ['elk'], [], {
+  sp('G09', '巨大化（きょだいか）', 'C', 'G', 2, 'instant', single(4, 4)),
+  cr('G10', '見習（みなら）いの 射手（しゃしゅ）', 'C', 'G', 2, 1, 4, ['human', 'archer'], ['reach', 'training']),
+  cr('G11', 'ふみならす 大鹿（おおじか）の むれ', 'C', 'G', 5, 5, 5, ['elk'], [], {
     onAttack: (s, p, E) => { if (E.formidable(s)) for (const q of mine(s, E)) E.pump(q, 0, 0, ['trample']); },
   }),
-  cr('G12', '野生の 後継者', 'U', 'G', 2, 2, 2, ['human', 'warrior'], ['deathtouch'], {
+  cr('G12', '野生（やせい）の 後継者（こうけいしゃ）', 'U', 'G', 2, 2, 2, ['human', 'warrior'], ['deathtouch'], {
     onAttack: (s, p, E) => { if (ferocious(s, E)) E.pump(p, 1, 1); },
   }),
   cr('G13', 'ネシアンの アスプ', 'U', 'G', 5, 4, 5, ['snake'], ['reach'], {
     acts: [{ cost: 7, req: ['G'], monstrosity: true, when: [1], play: (s, p, E) => ({ score: 8, run: () => E.addCounters(s, p, 4) }) }],
   }),
-  sp('G14', '竜鱗の 恵み', 'U', 'G', 4, 'instant', {
+  sp('G14', '竜鱗（りゅうりん）の 恵（めぐ）み', 'U', 'G', 4, 'instant', {
     play: (s, E, ctx) => {
       if (ctx.phase !== 2) return null;
       const t = E.bestBuffTarget(s, null); return t ? { score: 5, run: () => { E.target(s, t); E.addCounters(s, t, 2); t.tapped = false; } } : null;
     },
   }),
-  cr('G15', 'ガラクの 群れ率い', 'R', 'G', 5, 4, 4, ['wolf'], [], {
+  cr('G15', 'ガラクの 群（む）れ率（ひき）い', 'R', 'G', 5, 4, 4, ['wolf'], [], {
     onOtherEnter: (s, p, q, E) => { if (q.side === p.side && E.isCreature(q) && E.power(s, q) >= 3) E.drawCard(s); },
   }),
-  cr('G16', '狩り呼びの スーラク', 'R', 'G', 4, 5, 4, ['human', 'warrior'], [], {
+  cr('G16', '狩（か）り呼（よ）びの スーラク', 'R', 'G', 4, 5, 4, ['human', 'warrior'], [], {
     combatStart: (s, p, E) => {
       if (!E.formidable(s)) return;
       const t = mine(s, E).filter((q) => q.sick && !q.tapped).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
       if (t) E.pump(t, 0, 0, ['haste']);
     },
   }),
-  cr('G17', '世界を 喰らう者 ポルクラノス', 'L', 'G', 4, 5, 5, ['hydra'], [], {
+  cr('G17', '世界（せかい）を 喰（く）らう者（もの） ポルクラノス', 'L', 'G', 4, 5, 5, ['hydra'], [], {
     acts: [{
       cost: 1, req: ['G'], x: true, monstrosity: true, when: [1, 2],
       play: (s, p, E, ctx) => {
@@ -134,30 +134,30 @@ const G = [
     }],
   }),
   // 青緑
-  sp('G18', '豊かな 成長', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 ? 14 : 2, run: () => api_rampTop(s) }) }),
-  sp('G19', '弱者の 選別', 'C', 'G', 4, 'sorcery', {
+  sp('G18', '豊（ゆた）かな 成長（せいちょう）', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 ? 14 : 2, run: () => api_rampTop(s) }) }),
+  sp('G19', '弱者（じゃくしゃ）の 選別（せんべつ）', 'C', 'G', 4, 'sorcery', {
     play: (s, E) => {
       const me = E.bestBuffTarget(s, null); if (!me) return null;
       const b = E.burnTarget(s, E.power(s, me) + 1, { creatureOnly: true }); if (!b) return null;
       return { score: 6 + b.score, run: () => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, b.t); } };
     },
   }),
-  cr('G20', '実験体 一号', 'C', 'G', 1, 1, 1, ['human', 'ooze'], ['evolve']),
-  cr('G21', '蔦草通りの 住人', 'U', 'G', 3, 2, 3, ['elf', 'warrior'], [], {
+  cr('G20', '実験体（じっけんたい） 一号（いちごう）', 'C', 'G', 1, 1, 1, ['human', 'ooze'], ['evolve']),
+  cr('G21', '蔦草（つたくさ）通（どお）りの 住人（じゅうにん）', 'U', 'G', 3, 2, 3, ['elf', 'warrior'], [], {
     onOtherEnter: (s, p, q, E) => { if (q.side === p.side && E.isCreature(q) && E.colorsOf(q.def).includes('G')) { const t = E.bestBuffTarget(s, null); if (t) { E.target(s, t); E.addCounters(s, t, 1); } } },
   }),
-  sp('G22', '耕作', 'U', 'G', 3, 'sorcery', {
+  sp('G22', '耕作（こうさく）', 'U', 'G', 3, 'sorcery', {
     play: (s, E) => ({ score: s.P.mana.length < 7 ? 13 : 4, run: () => { api_rampTop(s); E.drawCard(s); } }),
   }),
-  cr('G23', '魔力喰らいの ハイドラ', 'R', 'G', 2, 1, 1, ['hydra'], ['trample'], {
+  cr('G23', '魔力喰（まりょくく）らいの ハイドラ', 'R', 'G', 2, 1, 1, ['hydra'], ['trample'], {
     onAnyCast: (s, p, d, who, E) => E.addCounters(s, p, 1),
   }),
-  pm('G24', '硬化した 鱗', 'R', 'G', 1, ['enchantment'], { scales: true }),
+  pm('G24', '硬化（こうか）した 鱗（うろこ）', 'R', 'G', 1, ['enchantment'], { scales: true }),
   cr('G25', 'ジョラーガの 木語り', 'R', 'G', 2, 1, 1, ['elf', 'druid'], [], {
     levels: [{ at: 1, pow: 1, tou: 2, mana: ['G'], manaN: 2 }, { at: 5, pow: 1, tou: 4, mana: 'any', manaN: 3 }], levelMax: 5,
     acts: [{ cost: 2, req: ['G'], levelUp: true, when: [1, 2], play: (s, p) => ({ score: p.level < 5 ? 6 : 0, run: () => {} }) }],
   }),
-  cr('G26', '原初の ハイドラ', 'L', 'G', 1, 0, 0, ['hydra'], [], {
+  cr('G26', '原初（げんしょ）の ハイドラ', 'L', 'G', 1, 0, 0, ['hydra'], [], {
     x: true,
     play: (s, E, ctx) => (ctx.xMax >= 2 ? { score: 10 + ctx.xMax * 4, run: () => {} } : null),
     upkeep: (s, p, E) => E.addCounters(s, p, p.ctr),
@@ -167,8 +167,8 @@ const G = [
 
 // ---- 白 ----
 const W = [
-  sp('W01', '警報の かね', 'C', 'W', 2, 'instant', { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', T.soldier, 2) }) }),
-  cr('W02', 'おともの 騎士', 'C', 'W', 3, 2, 2, ['human', 'knight'], ['first'], { etb: (s, p, E) => E.token(s, 'P', T.soldier) }),
+  sp('W01', '警報（けいほう）の かね', 'C', 'W', 2, 'instant', { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', T.soldier, 2) }) }),
+  cr('W02', 'おともの 騎士（きし）', 'C', 'W', 3, 2, 2, ['human', 'knight'], ['first'], { etb: (s, p, E) => E.token(s, 'P', T.soldier) }),
   cr('W03', 'ニクスの 毛皮の ひつじ', 'C', 'W', 2, 0, 5, ['sheep'], ['defender'], { upkeep: (s, p, E) => E.gain(s, 1) }),
   sp('W04', '三つの たましい', 'C', 'W', 6, 'sorcery', { kw: ['convoke'], play: (s, E) => ({ score: 15, run: () => E.token(s, 'P', T.spirit, 3) }) }),
   sp('W05', 'まばゆい 光', 'C', 'W', 3, 'instant', {
@@ -178,8 +178,8 @@ const W = [
       return t && E.power(s, t) >= 3 ? { score: E.enemyThreatOf(s, t), run: () => { E.exile(s, t); E.bolster(s, 1); } } : null;
     },
   }),
-  cr('W06', '群衆の 天使', 'U', 'W', 6, (s, p, E) => E.creatures(s, p.side).length, (s, p, E) => E.creatures(s, p.side).length, ['angel'], ['convoke', 'flying']),
-  pm('W07', '議事会の さばき', 'U', 'W', 4, ['enchantment'], {
+  cr('W06', '群衆（ぐんしゅう）の 天使（てんし）', 'U', 'W', 6, (s, p, E) => E.creatures(s, p.side).length, (s, p, E) => E.creatures(s, p.side).length, ['angel'], ['convoke', 'flying']),
+  pm('W07', '議事会（ぎじかい）の さばき', 'U', 'W', 4, ['enchantment'], {
     kw: ['convoke'],
     need: (s, E) => !!E.burnTarget(s, 99, { creatureOnly: true, mustHit: true }),
     etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.burnTarget(s, 99, { creatureOnly: true, mustHit: true })?.t; if (t) E.exileLinked(s, p, t); },
@@ -192,9 +192,9 @@ const W = [
     acts: [{ cost: 3, req: ['W'], when: [2], play: (s, p, E) => ({ score: 3, run: () => E.token(s, 'P', T.cleric) }) }],
   }),
   // 青白
-  cr('W10', 'いやしの 鷹', 'C', 'W', 1, 1, 1, ['bird'], ['flying', 'lifelink']),
+  cr('W10', 'いやしの 鷹（たか）', 'C', 'W', 1, 1, 1, ['bird'], ['flying', 'lifelink']),
   cr('W11', '天馬の 乗り手', 'C', 'W', 3, 2, 2, ['human', 'soldier'], ['flying'], { heroic: (s, p, E) => E.addCounters(s, p, 1) }),
-  sp('W12', '戦いの そなえ', 'C', 'W', 1, 'sorcery', {
+  sp('W12', '戦（たたか）いの そなえ', 'C', 'W', 1, 'sorcery', {
     strive: 1,
     play: (s, E, ctx) => {
       const ts = strive(mine(s, E).filter((p) => !E.hasKw(s, p, 'defender')).sort((a, b) => E.power(s, b) - E.power(s, a)), 1, ctx);
@@ -211,7 +211,7 @@ const W = [
       return kills ? { score: kills * 6, run: () => arrowRain(s, E, plan) } : null;
     },
   }),
-  cr('W14', '空の 戦術家', 'U', 'W', 4, 3, 3, ['bird', 'soldier'], ['flying'], { etb: (s, p, E) => E.bolster(s, 2) }),
+  cr('W14', '空（そら）の 戦術家（せんじゅつか）', 'U', 'W', 4, 3, 3, ['bird', 'soldier'], ['flying'], { etb: (s, p, E) => E.bolster(s, 2) }),
   sp('W15', '天の 風', 'U', 'W', 3, 'sorcery', {
     strive: 1,
     play: (s, E, ctx) => {
@@ -220,7 +220,7 @@ const W = [
       return ts.length ? { score: 2 + ts.length * 3, extra: ts.length - 1, run: () => { for (const t of ts) { E.target(s, t); E.pump(t, 2, 2, ['flying']); } } } : null;
     },
   }),
-  cr('W16', 'アラシンの 見張り', 'R', 'W', 4,
+  cr('W16', 'アラシンの 見張（みは）り', 'R', 'W', 4,
     (s, p, E) => 3 + s[p.side].bf.filter((q) => q !== p && E.isCreature(q) && q.ctr > 0).length,
     (s, p, E) => 4 + s[p.side].bf.filter((q) => q !== p && E.isCreature(q) && q.ctr > 0).length,
     ['griffin'], ['flying'], {
@@ -233,21 +233,21 @@ const W = [
       }],
     }),
   // 赤白
-  cr('W17', 'とりでの 精鋭', 'C', 'W', 1, 1, 1, ['human', 'soldier'], [], { onAttack: (s, p, E, atk) => { if (battalion(atk)) E.pump(p, 2, 2); } }),
-  cr('W18', '勇敢な 空騎兵', 'C', 'W', 2, 3, 1, ['human', 'knight'], [], { onAttack: (s, p, E, atk) => { if (battalion(atk)) E.pump(p, 0, 0, ['flying']); } }),
-  sp('W19', 'ふるい立つ 突撃', 'C', 'W', 4, 'instant', mass(2, 1)),
-  cr('W20', '密集軍の 隊長', 'U', 'W', 2, 1, 1, ['human', 'soldier'], [], { heroic: (s, p, E) => { for (const q of mine(s, E)) E.addCounters(s, q, 1); } }),
-  sp('W21', '民衆の 奮起', 'U', 'W', 3, 'instant', { ...mass(2, 0), flashback: { cost: 3, req: ['R'] } }),
-  cr('W22', '退去の 僧侶', 'U', 'W', 3, 2, 2, ['human', 'cleric'], [], {
+  cr('W17', 'とりでの 精鋭（せいえい）', 'C', 'W', 1, 1, 1, ['human', 'soldier'], [], { onAttack: (s, p, E, atk) => { if (battalion(atk)) E.pump(p, 2, 2); } }),
+  cr('W18', '勇敢（ゆうかん）な 空騎兵（そらきへい）', 'C', 'W', 2, 3, 1, ['human', 'knight'], [], { onAttack: (s, p, E, atk) => { if (battalion(atk)) E.pump(p, 0, 0, ['flying']); } }),
+  sp('W19', 'ふるい立（た）つ 突撃（とつげき）', 'C', 'W', 4, 'instant', mass(2, 1)),
+  cr('W20', '密集軍（みっしゅうぐん）の 隊長（たいちょう）', 'U', 'W', 2, 1, 1, ['human', 'soldier'], [], { heroic: (s, p, E) => { for (const q of mine(s, E)) E.addCounters(s, q, 1); } }),
+  sp('W21', '民衆（みんしゅう）の 奮起（ふんき）', 'U', 'W', 3, 'instant', { ...mass(2, 0), flashback: { cost: 3, req: ['R'] } }),
+  cr('W22', '退去（たいきょ）の 僧侶（そうりょ）', 'U', 'W', 3, 2, 2, ['human', 'cleric'], [], {
     etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.burnTarget(s, 99, { creatureOnly: true, mustHit: true })?.t; if (t) E.exileLinked(s, p, t); },
   }),
-  cr('W23', '管区の 隊長', 'R', 'W', 2, 2, 2, ['human', 'soldier'], ['first'], { onCombatHit: (s, p, E) => E.token(s, 'P', T.soldier) }),
-  cr('W24', '見張りの 隊長', 'R', 'W', 6, 3, 3, ['human', 'soldier'], ['vigilance'], {
+  cr('W23', '管区（かんく）の 隊長（たいちょう）', 'R', 'W', 2, 2, 2, ['human', 'soldier'], ['first'], { onCombatHit: (s, p, E) => E.token(s, 'P', T.soldier) }),
+  cr('W24', '見張（みは）りの 隊長（たいちょう）', 'R', 'W', 6, 3, 3, ['human', 'soldier'], ['vigilance'], {
     anthem: (s, q, p) => (p !== q && p.side === q.side && isSub(p, 'soldier') ? [1, 1] : null),
     grant: (s, q, p) => (p !== q && p.side === q.side && isSub(p, 'soldier') ? ['vigilance'] : null),
     etb: (s, p, E) => E.token(s, 'P', T.soldier, 3),
   }),
-  pm('W25', '軍団の 集結', 'R', 'W', 5, ['enchantment'], {
+  pm('W25', '軍団（ぐんだん）の 集結（しゅうけつ）', 'R', 'W', 5, ['enchantment'], {
     upkeep: (s, p, E) => { p.flags.muster = (p.flags.muster || 0) + 1; E.token(s, 'P', T.soldierHaste, p.flags.muster); },
   }),
   cr('W26', 'オレスコスの 王 ブリマーズ', 'L', 'W', 3, 3, 4, ['cat', 'soldier'], ['vigilance'], {
@@ -257,13 +257,13 @@ const W = [
 
 // ---- 白緑・青白・赤白 ----
 const GOLD1 = [
-  cr('WG01', '協約の 魂 エマーラ', 'U', 'WG', 3, 2, 2, ['elf', 'cleric'], [], {
+  cr('WG01', '協約（きょうやく）の 魂（たましい） エマーラ', 'U', 'WG', 3, 2, 2, ['elf', 'cleric'], [], {
     onTapped: (s, p, E) => { if (p.flags.turn.emmara) return; p.flags.turn.emmara = 1; E.token(s, 'P', T.soldierLL); },
   }),
-  cr('WG02', '収穫の神 カラメトラ', 'R', 'WG', 5, 5, 6, ['god'], ['indestructible'], {
+  cr('WG02', '収穫（しゅうかく）の神（かみ） カラメトラ', 'R', 'WG', 5, 5, 6, ['god'], ['indestructible'], {
     onCast: (s, p, d) => { if (d.types.includes('creature')) api_rampTop(s); },
   }),
-  cr('WU01', '雷鳴の ワイバーン', 'U', 'WU', 4, 2, 3, ['drake'], ['flash', 'flying'], {
+  cr('WU01', '雷鳴（らいめい）の ワイバーン', 'U', 'WU', 4, 2, 3, ['drake'], ['flash', 'flying'], {
     flash: true,
     anthem: (s, q, p, E) => (p !== q && p.side === q.side && E.hasKw(s, p, 'flying') ? [1, 1] : null),
   }),
@@ -277,7 +277,7 @@ const GOLD1 = [
       },
     }],
   }),
-  sp('RW01', 'ボロスの 魔除け', 'U', 'RW', 2, 'instant', {
+  sp('RW01', 'ボロスの 魔除（まよ）け', 'U', 'RW', 2, 'instant', {
     ...single(0, 0, { dbl: true }),
     singleRun: (s, E, q) => E.pump(q, 0, 0, ['double']),
     play: (s, E) => (s.floor.face ? { score: 4 * (s.floor.faceUnit ?? 1) + 2, run: () => E.hitEnemy(s, 4, null) } : burn(4, { creatureOnly: true })(s, E)),
@@ -286,7 +286,7 @@ const GOLD1 = [
       return saved.length ? { score: saved.length * 5, run: () => { for (const p of s.P.bf) E.pump(p, 0, 0, ['indestructible']); } } : null;
     },
   }),
-  cr('RW02', '勝利の神 イロアス', 'R', 'RW', 5, 7, 4, ['god'], ['indestructible'], { protectAttackers: true }),
+  cr('RW02', '勝利（しょうり）の神（かみ） イロアス', 'R', 'RW', 5, 7, 4, ['god'], ['indestructible'], { protectAttackers: true }),
 ];
 
 // ---- 青 ----
@@ -301,7 +301,7 @@ const U = [
       return v >= 3 ? { score: v * 2 - ts.length, extra: ts.length - 1, run: () => { for (const t of ts) { t.tapped = true; t.frozen = true; } } } : null;
     },
   }),
-  cr('U04', '対称の 賢者', 'C', 'U', 2, 0, 2, ['human', 'wizard'], ['flying'], {
+  cr('U04', '対称（たいしょう）の 賢者（けんじゃ）', 'C', 'U', 2, 0, 2, ['human', 'wizard'], ['flying'], {
     onCast: (s, p, d) => { if (d.types.includes('instant') || d.types.includes('sorcery')) p.base2 = true; },
   }),
   sp('U05', 'ゼロで わる', 'U', 'U', 3, 'instant', {
@@ -333,11 +333,11 @@ const U = [
     }],
   }),
   // 赤青
-  sp('U09', '選択', 'C', 'U', 1, 'instant', { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3, run: () => E.then(E.scry(s, 1), () => E.drawCard(s)) } : null) }),
-  cr('U10', 'ジェスカイの 風斥候', 'C', 'U', 3, 2, 2, ['bird', 'scout'], ['flying', 'prowess']),
-  sp('U11', '本質の 散乱', 'C', 'U', 2, 'instant', { counter: 'creature', reactive: true }),
+  sp('U09', '選択（せんたく）', 'C', 'U', 1, 'instant', { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3, run: () => E.then(E.scry(s, 1), () => E.drawCard(s)) } : null) }),
+  cr('U10', 'ジェスカイの 風斥候（かぜせっこう）', 'C', 'U', 3, 2, 2, ['bird', 'scout'], ['flying', 'prowess']),
+  sp('U11', '本質（ほんしつ）の 散乱（さんらん）', 'C', 'U', 2, 'instant', { counter: 'creature', reactive: true }),
   sp('U12', '二度 考える', 'C', 'U', 2, 'instant', { play: draw(1, 3), flashback: { cost: 3, req: ['U'] } }),
-  sp('U13', 'なぞめいた 命令', 'U', 'U', 2, 'instant', {
+  sp('U13', 'なぞめいた 命令（めいれい）', 'U', 'U', 2, 'instant', {
     escalate: 1,
     // AI：ねうちの 大きい モードから、払える だけ
     play: (s, E, ctx) => {
@@ -352,14 +352,14 @@ const U = [
       return { score: use.reduce((t, m) => t + m.v, 0) - use.length, extra: use.length - 1, run: () => { for (const m of use) m.run(); } };
     },
   }),
-  cr('U14', '放蕩の 魔術師', 'U', 'U', 3, 1, 1, ['human', 'wizard'], [], {
+  cr('U14', '放蕩（ほうとう）の 魔術師（まじゅつし）', 'U', 'U', 3, 1, 1, ['human', 'wizard'], [], {
     acts: [{ cost: 0, tap: true, when: [2], play: (s, p, E) => { const b = E.burnTarget(s, 1, { mustHit: !!s.floor.face }); return b ? { score: 2 + b.score, run: () => hit(s, E, b.t, 1) } : null; } }],
   }),
-  sp('U15', '対抗呪文', 'U', 'U', 2, 'instant', { counter: 'any', req2: true, reactive: true }),
-  cr('U16', '空召喚士 ターランド', 'R', 'U', 4, 2, 2, ['merfolk', 'wizard'], [], {
+  sp('U15', '対抗呪文（たいこうじゅもん）', 'U', 'U', 2, 'instant', { counter: 'any', req2: true, reactive: true }),
+  cr('U16', '空召喚士（そらしょうかんし） ターランド', 'R', 'U', 4, 2, 2, ['merfolk', 'wizard'], [], {
     onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.token(s, 'P', T.drake); },
   }),
-  { ...cr('U17', '激浪の 機械巨人', 'L', 'U', 6, 5, 6, ['construct'], ['flash'], {
+  { ...cr('U17', '激浪（げきろう）の 機械巨人（きかいきょじん）', 'L', 'U', 6, 5, 6, ['construct'], ['flash'], {
     flash: true,
     etb: (s, p, E) => { const b = E.bestInstantInGy(s); if (b) E.castFree(s, b.c, b.r); },
   }), types: ['artifact', 'creature'] },
@@ -368,10 +368,10 @@ const U = [
 // ---- 赤 ----
 const R = [
   // 赤白
-  sp('R01', 'ゴブリンの 号令', 'C', 'R', 2, 'sorcery', { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', T.goblin, 2) }) }),
-  cr('R02', '突進する 軍曹', 'C', 'R', 3, 3, 2, ['human', 'soldier'], ['haste', 'mentor']),
-  cr('R03', 'ウォジェクの 槍兵', 'C', 'R', 3, 2, 2, ['human', 'soldier'], [], { onAttack: (s, p, E, atk) => { if (packTactics(s, E, atk)) E.pump(p, 1, 0, ['first']); } }),
-  sp('R04', 'シヴの 炎', 'C', 'R', 1, 'instant', {
+  sp('R01', 'ゴブリンの 号令（ごうれい）', 'C', 'R', 2, 'sorcery', { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', T.goblin, 2) }) }),
+  cr('R02', '突進（とっしん）する 軍曹（ぐんそう）', 'C', 'R', 3, 3, 2, ['human', 'soldier'], ['haste', 'mentor']),
+  cr('R03', 'ウォジェクの 槍兵（そうへい）', 'C', 'R', 3, 2, 2, ['human', 'soldier'], [], { onAttack: (s, p, E, atk) => { if (packTactics(s, E, atk)) E.pump(p, 1, 0, ['first']); } }),
+  sp('R04', 'シヴの 炎（ほのお）', 'C', 'R', 1, 'instant', {
     kicker: 2, burnN: 2,
     play: (s, E, ctx = {}) => {
       const k = (ctx.manaLeft ?? 0) >= 2 ? burn(4)(s, E, ctx) : null;
@@ -383,51 +383,51 @@ const R = [
   cr('R05', 'ときの声の ゴブリン', 'U', 'R', 2, 2, 2, ['goblin'], [], {
     onAttack: (s, p, E, atk, a) => { if (!packTactics(s, E, atk)) return; const [t] = E.token(s, 'P', T.goblin, 1, { tapped: true }); if (t) { t.attacking = true; atk.push({ p: t, t: a.t }); } },
   }),
-  sp('R06', 'ラッパの 一吹き', 'U', 'R', 3, 'instant', mass(2, 0, (q) => q.attacking)),
-  cr('R07', 'ゴブリンの 大将', 'R', 'R', 3, 2, 2, ['goblin', 'warrior'], ['mentor'], {
+  sp('R06', 'ラッパの 一吹（ひとふ）き', 'U', 'R', 3, 'instant', mass(2, 0, (q) => q.attacking)),
+  cr('R07', 'ゴブリンの 大将（たいしょう）', 'R', 'R', 3, 2, 2, ['goblin', 'warrior'], ['mentor'], {
     combatStart: (s, p, E) => E.token(s, 'P', T.goblinHaste),
     onAttack: (s, p, E, atk) => E.pump(p, atk.filter((a) => a.p !== p && isSub(a.p, 'goblin')).length, 0),
   }),
-  cr('R08', '鍛冶の神 パーフォロス', 'L', 'R', 4, 6, 5, ['god'], ['indestructible'], {
+  cr('R08', '鍛冶（かじ）の神（かみ） パーフォロス', 'L', 'R', 4, 6, 5, ['god'], ['indestructible'], {
     onOtherEnter: (s, p, q, E) => { if (q.side === p.side && q.side === 'P' && E.isCreature(q)) E.hitEnemy(s, 2, p); },
     acts: [{ cost: 3, req: ['R'], when: [1], play: (s, p, E) => (E.readyAttackers(s).length >= 3 ? { score: E.readyAttackers(s).length, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0); } } : null) }],
   }),
   // 赤青
-  cr('R09', '僧院の 速槍', 'C', 'R', 1, 1, 2, ['human', 'monk'], ['haste', 'prowess']),
-  sp('R10', '火炎', 'C', 'R', 1, 'sorcery', {
+  cr('R09', '僧院（そういん）の 速槍（はややり）', 'C', 'R', 1, 1, 2, ['human', 'monk'], ['haste', 'prowess']),
+  sp('R10', '火炎（かえん）', 'C', 'R', 1, 'sorcery', {
     x: true,
     play: (s, E, ctx) => xBurn(s, E, ctx, 0, (t) => { if (t.exact) E.drawCard(s); }),
   }),
-  sp('R11', '裂け目の 稲妻', 'C', 'R', 3, 'sorcery', { play: burn(3), burnN: 3, suspend: { cost: 1, req: ['R'], turns: 1 }, suspendScore: 9 }),
-  cr('R12', '火口の 射手', 'C', 'R', 2, 2, 2, ['human', 'archer'], [], {
+  sp('R11', '裂（さ）け目（め）の 稲妻（いなずま）', 'C', 'R', 3, 'sorcery', { play: burn(3), burnN: 3, suspend: { cost: 1, req: ['R'], turns: 1 }, suspendScore: 9 }),
+  cr('R12', '火口（かこう）の 射手（いて）', 'C', 'R', 2, 2, 2, ['human', 'archer'], [], {
     onCast: (s, p, d, E) => { if (!d.types.includes('creature')) E.hitEnemy(s, 1, p); },
   }),
-  cr('R13', '窯の 悪鬼', 'U', 'R', 4, 3, 3, ['elemental', 'beast'], [], {
+  cr('R13', '窯（かま）の 悪鬼（あっき）', 'U', 'R', 4, 3, 3, ['elemental', 'beast'], [], {
     onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.pump(p, 3, 0); },
   }),
-  cr('R14', '若き 紅蓮術士', 'U', 'R', 2, 2, 2, ['human', 'shaman'], [], {
+  cr('R14', '若（わか）き 紅蓮術士（ぐれんじゅつし）', 'U', 'R', 2, 2, 2, ['human', 'shaman'], [], {
     onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.token(s, 'P', T.elemental); },
   }),
-  sp('R15', 'マグマの 噴流', 'U', 'R', 2, 'instant', { play: (s, E) => { const r = burn(3)(s, E); return r ? { score: r.score + 1, run: () => { r.run(); return E.scry(s, 2); } } : null; }, burnN: 3 }),
-  sp('R16', '火口の 爪', 'R', 'R', 1, 'sorcery', {
+  sp('R15', 'マグマの 噴流（ふんりゅう）', 'U', 'R', 2, 'instant', { play: (s, E) => { const r = burn(3)(s, E); return r ? { score: r.score + 1, run: () => { r.run(); return E.scry(s, 2); } } : null; }, burnN: 3 }),
+  sp('R16', '火口（かこう）の 爪（つめ）', 'R', 'R', 1, 'sorcery', {
     x: true,
     play: (s, E, ctx) => xBurn(s, E, ctx, ferocious(s, E) ? 2 : 0),
   }),
-  cr('R17', '路地裏の 火の子', 'R', 'R', 3, 2, 2, ['goblin', 'shaman'], [], {
+  cr('R17', '路地裏（ろじうら）の 火（ひ）の子（こ）', 'R', 'R', 3, 2, 2, ['goblin', 'shaman'], [], {
     onCast: (s, p, d, E) => { if (d.types.includes('instant') || d.types.includes('sorcery')) E.hitEnemy(s, 2, p); },
   }),
   // 緑赤
-  cr('R18', '山頂の 徘徊者', 'C', 'R', 4, 4, 3, ['troll'], [], { pittari: (s, p, E) => E.addCounters(s, p, 1) }),
-  sp('R19', '引き倒し', 'C', 'R', 4, 'instant', {
+  cr('R18', '山頂（さんちょう）の 徘徊者（はいかいしゃ）', 'C', 'R', 4, 4, 3, ['troll'], [], { pittari: (s, p, E) => E.addCounters(s, p, 1) }),
+  sp('R19', '引（ひ）き倒（たお）し', 'C', 'R', 4, 'instant', {
     play: (s, E) => {
       const b = E.burnTarget(s, 5, { creatureOnly: true, filter: (p) => E.need(s, p) <= (p.ctr > 0 ? 5 : 3) });
       return b ? { score: 6 + b.score, run: () => hit(s, E, b.t, b.t.ctr > 0 ? 5 : 3) } : null;
     },
   }),
-  sp('R20', 'ティムールの 激闘', 'C', 'R', 2, 'instant', { ...single(0, 0, { dbl: true, trample: true }), singleRun: (s, E, q) => E.pump(q, 0, 0, ferocious(s, E) ? ['double', 'trample'] : ['double']) }),
-  sp('R21', '獣の 力', 'C', 'R', 1, 'instant', single(3, 3)),
-  sp('R22', '焼き焦がし', 'U', 'R', 2, 'sorcery', { play: burn(5, { creatureOnly: true, filter: (p) => !p.def.kw?.includes('flying') }) }),
-  cr('R23', 'ドラゴンの 雛', 'U', 'R', 2, 0, 1, ['dragon'], ['flying'], { acts: [{ cost: 1, req: ['R'], pumpP: 1, when: [], play: () => null }] }),
+  sp('R20', 'ティムールの 激闘（げきとう）', 'C', 'R', 2, 'instant', { ...single(0, 0, { dbl: true, trample: true }), singleRun: (s, E, q) => E.pump(q, 0, 0, ferocious(s, E) ? ['double', 'trample'] : ['double']) }),
+  sp('R21', '獣（けもの）の 力（ちから）', 'C', 'R', 1, 'instant', single(3, 3)),
+  sp('R22', '焼（や）き焦（こ）がし', 'U', 'R', 2, 'sorcery', { play: burn(5, { creatureOnly: true, filter: (p) => !p.def.kw?.includes('flying') }) }),
+  cr('R23', 'ドラゴンの 雛（ひな）', 'U', 'R', 2, 0, 1, ['dragon'], ['flying'], { acts: [{ cost: 1, req: ['R'], pumpP: 1, when: [], play: () => null }] }),
   sp('R24', 'どんどん 2ばい', 'R', 'R', 1, 'sorcery', {
     x: true,
     play: (s, E, ctx) => {
@@ -438,7 +438,7 @@ const R = [
       return { score: E.power(s, t) * (2 ** x - 1), x, run: (xx) => { E.target(s, t); const p0 = E.power(s, t); E.pump(t, p0 * (2 ** Math.min(xx, 4) - 1), 0); } };
     },
   }),
-  cr('R25', '炎跡の フェニックス', 'R', 'R', 3, 2, 2, ['phoenix'], ['flying', 'haste'], {
+  cr('R25', '炎跡（えんせき）の フェニックス', 'R', 'R', 3, 2, 2, ['phoenix'], ['flying', 'haste'], {
     mustAttack: true,
     gyCombatStart: (s, c, E) => {
       if (!ferocious(s, E)) return;
@@ -446,29 +446,29 @@ const R = [
       E.pay(s, pl); s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def);
     },
   }),
-  cr('R26', '嵐息吹の ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
+  cr('R26', '嵐息吹（あらしいぶき）の ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
     acts: [{ cost: 6, req: ['R'], monstrosity: true, when: [1, 2], play: (s, p, E) => ({ score: 6 + s.P.hand.length, run: () => { E.addCounters(s, p, 3); E.hitEnemy(s, s.P.hand.length, p); } }) }],
   }),
 ];
 
 // ---- 青（青緑） ----
 const U2 = [
-  cr('U18', '雲ひれの 猛禽', 'C', 'U', 1, 1, 1, ['bird', 'mutant'], ['flying', 'evolve']),
-  sp('U19', '未来の ひらめき', 'C', 'U', 3, 'sorcery', { play: draw(2, 7), suspend: { cost: 1, req: ['U'], turns: 2 }, suspendScore: 6 }),
-  cr('U20', '前兆語り', 'C', 'U', 2, 1, 3, ['human', 'wizard'], [], { etb: (s, p, E) => E.scry(s, 2) }),
+  cr('U18', '雲（くも）ひれの 猛禽（もうきん）', 'C', 'U', 1, 1, 1, ['bird', 'mutant'], ['flying', 'evolve']),
+  sp('U19', '未来（みらい）の ひらめき', 'C', 'U', 3, 'sorcery', { play: draw(2, 7), suspend: { cost: 1, req: ['U'], turns: 2 }, suspendScore: 6 }),
+  cr('U20', '前兆語（ぜんちょうがた）り', 'C', 'U', 2, 1, 3, ['human', 'wizard'], [], { etb: (s, p, E) => E.scry(s, 2) }),
   cr('U21', '空見の 弟子', 'C', 'U', 1, 1, 1, ['human', 'wizard'], [], {
     levels: [{ at: 1, pow: 2, tou: 2, kw: ['flying'] }, { at: 3, pow: 4, tou: 2, kw: ['flying'] }], levelMax: 3,
     acts: [{ cost: 2, req: ['U'], levelUp: true, when: [1, 2], play: (s, p) => ({ score: p.level < 3 ? 7 : 0, run: () => {} }) }],
   }),
   cr('U22', '鳴り羽', 'U', 'U', 2, 1, 1, ['bird', 'horror'], ['flying'], { onCombatHit: (s, p, E) => E.proliferate(s) }),
-  cr('U23', '翼竜の 学者', 'U', 'U', 2, 1, 1, ['lizard'], ['flying'], {
+  cr('U23', '翼竜（よくりゅう）の 学者（がくしゃ）', 'U', 'U', 2, 1, 1, ['lizard'], ['flying'], {
     acts: [{
       cost: (s) => Math.max(1, 7 - s.P.gy.filter((c) => c.def.types.includes('instant') || c.def.types.includes('sorcery')).length),
       req: ['U'], when: [1, 2],
       play: (s, p, E) => (p.ctr === 0 ? { score: 6, run: () => E.addCounters(s, p, 4) } : null),
     }],
   }),
-  pm('U24', '容赦なき 潮流', 'R', 'U', 5, ['enchantment'], { onCast: (s, p, d, E) => E.proliferate(s) }),
+  pm('U24', '容赦（ようしゃ）なき 潮流（ちょうりゅう）', 'R', 'U', 5, ['enchantment'], { onCast: (s, p, d, E) => E.proliferate(s) }),
   cr('U25', 'クローン', 'R', 'U', 4, 0, 0, ['shapeshifter'], [], {
     need: (s, E) => [...mine(s, E), ...theirs(s, E)].some((q) => E.power(s, q) >= 3 && !q.def.noCopy),
     etb: (s, p, E, o) => {
@@ -476,13 +476,13 @@ const U2 = [
       if (t) { const d = t.card || t.def; p.def = { ...d, reward: undefined, noBlock: undefined, attacks: undefined }; }
     },
   }),
-  sp('U26', '研究の 成果', 'R', 'U', 4, 'sorcery', { play: (s, E) => ({ score: 8, run: () => { E.drawCard(s, 2); E.proliferate(s); } }) }),
+  sp('U26', '研究（けんきゅう）の 成果（せいか）', 'R', 'U', 4, 'sorcery', { play: (s, E) => ({ score: 8, run: () => { E.drawCard(s, 2); E.proliferate(s); } }) }),
 ];
 
 // ---- 2色（赤青・緑赤・青緑） ----
 const GOLD2 = [
-  cr('UR01', '嵐追いの 魔道士', 'U', 'UR', 2, 1, 3, ['human', 'monk'], ['flying', 'haste', 'prowess']),
-  cr('UR02', '嵐の神 ケラノス', 'R', 'UR', 6, 6, 5, ['god'], ['indestructible'], {
+  cr('UR01', '嵐追（あらしお）いの 魔道士（まどうし）', 'U', 'UR', 2, 1, 3, ['human', 'monk'], ['flying', 'haste', 'prowess']),
+  cr('UR02', '嵐（あらし）の神（かみ） ケラノス', 'R', 'UR', 6, 6, 5, ['god'], ['indestructible'], {
     upkeep: (s, p, E) => {
       const c = s.P.lib.shift(); if (!c) return;
       const d = c.def;
@@ -491,7 +491,7 @@ const GOLD2 = [
       else s.P.hand.push(c);
     },
   }),
-  cr('RG01', 'ゴーア族の 暴れ者', 'U', 'RG', 4, 4, 4, ['beast'], ['trample'], {
+  cr('RG01', 'ゴーア族（ぞく）の 暴（あば）れ者（もの）', 'U', 'RG', 4, 4, 4, ['beast'], ['trample'], {
     bloodrush: { cost: 2, req: ['R', 'G'] }, singleRun: (s, E, q) => E.pump(q, 4, 4),
   }),
   cr('RG02', '運命の神 クローティス', 'R', 'RG', 3, 4, 5, ['god'], ['indestructible'], {
@@ -518,20 +518,20 @@ const GOLD2 = [
 // ---- 無色 ----
 const art = (x) => ({ ...x, types: ['artifact', ...(x.types.includes('creature') ? ['creature'] : [])] });
 const C = [
-  art(cr('C01', '羽ばたき 飛行機械', 'C', '', 0, 0, 2, ['thopter'], ['flying'], { permScore: () => 3 })),
+  art(cr('C01', '羽（は）ばたき 飛行機械（ひこうきかい）', 'C', '', 0, 0, 2, ['thopter'], ['flying'], { permScore: () => 3 })),
   art(cr('C02', 'ボトルの ノーム', 'C', '', 3, 1, 3, ['gnome'], [], {
     acts: [{ cost: 0, when: [1, 2], play: (s, p, E) => (s.P.life <= 5 ? { score: 9, run: () => { E.leave(s, p, 'gy'); E.gain(s, 3); } } : null) }],
   })),
-  pm('C03', '精神の 石', 'C', '', 2, ['artifact'], {
+  pm('C03', '精神（せいしん）の 石（いし）', 'C', '', 2, ['artifact'], {
     mana: ['C'],
     acts: [{ cost: 1, tap: true, when: [2], play: (s, p, E) => (s.P.mana.length >= 6 && s.P.hand.length <= 1 ? { score: 3, run: () => { E.leave(s, p, 'gy'); E.drawCard(s); } } : null) }],
   }),
-  pm('C04', 'みじかい 剣', 'C', '', 1, ['artifact'], { equip: 1, eqP: 1, eqT: 1 }),
+  pm('C04', 'みじかい 剣（けん）', 'C', '', 1, ['artifact'], { equip: 1, eqP: 1, eqT: 1 }),
   art(cr('C05', 'ジャガーノート', 'U', '', 4, 5, 3, ['juggernaut'], [], { mustAttack: true })),
   pm('C06', '予言の プリズム', 'U', '', 2, ['artifact'], { prism: true, etb: (s, p, E) => E.drawCard(s) }),
-  pm('C07', '骨断ちの 剣', 'U', '', 1, ['artifact'], { equip: 1, eqP: 2, eqT: 0 }),
-  art(cr('C08', 'マイアの 戦闘球', 'R', '', 7, 4, 7, ['construct'], [], { etb: (s, p, E) => E.token(s, 'P', T.myr, 4) })),
-  art(cr('C09', '厳粛な 空身像', 'R', '', 4, 2, 2, ['golem'], [], { etb: () => {}, etbRamp: true, onDie: (s, p, E) => E.drawCard(s) })),
+  pm('C07', '骨断（ほねた）ちの 剣（けん）', 'U', '', 1, ['artifact'], { equip: 1, eqP: 2, eqT: 0 }),
+  art(cr('C08', 'マイアの 戦闘球（せんとうきゅう）', 'R', '', 7, 4, 7, ['construct'], [], { etb: (s, p, E) => E.token(s, 'P', T.myr, 4) })),
+  art(cr('C09', '厳粛（げんしゅく）な 空身像（うつしみぞう）', 'R', '', 4, 2, 2, ['golem'], [], { etb: () => {}, etbRamp: true, onDie: (s, p, E) => E.drawCard(s) })),
   art(cr('C10', 'ワームとぐろ エンジン', 'L', '', 6, 6, 6, ['wurm'], ['deathtouch', 'lifelink'], {
     onDie: (s, p, E) => { E.token(s, 'P', T.wurmDT); E.token(s, 'P', T.wurmLL); },
   })),
@@ -543,7 +543,7 @@ export const BASICS = {
   U: sp('B02', '青の きほんカード', 'B', 'U', 1, 'instant', { basic: true, play: (s, E, ctx) => (ctx.phase === 2 ? { score: 1, run: () => E.scry(s, 1) } : null) }),
   G: sp('B03', '緑の きほんカード', 'B', 'G', 1, 'sorcery', { basic: true, play: (s, E) => ({ score: 2, run: () => E.token(s, 'P', T.saproling) }) }),
   R: sp('B04', '赤の きほんカード', 'B', 'R', 1, 'instant', { basic: true, play: (s, E) => { const b = E.burnTarget(s, 1, { creatureOnly: true }); return b ? { score: 2 + b.score, run: () => hit(s, E, b.t, 1) } : null; } }),
-  C: sp('B05', '無色の きほんカード', 'B', '', 2, 'sorcery', { basic: true, play: (s, E) => ({ score: 2, run: () => E.drawCard(s) }) }),
+  C: sp('B05', '無色（むしょく）の きほんカード', 'B', '', 2, 'sorcery', { basic: true, play: (s, E) => ({ score: 2, run: () => E.drawCard(s) }) }),
 };
 
 // ライブラリーの一番上をマナゾーンに（豊かな成長・カラメトラ・空身像）
@@ -567,25 +567,25 @@ const TARGETS = {
   R15: { tgt: [{ side: 'E', face: true, label: '3点を あたえる 相手' }], apply: (s, E, [[t]]) => { hit(s, E, t, 3); return E.scry(s, 2); } },
   B04: { tgt: [{ side: 'E', label: '1点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 1) },
   R10: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手' }], apply: (s, E, [[t]], x) => { const h = hit(s, E, t, x); if (h?.exact) E.drawCard(s); } },
-  R16: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手（獰猛なら ＋2）' }], apply: (s, E, [[t]], x) => hit(s, E, t, x + (ferocious(s, E) ? 2 : 0)) },
+  R16: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手（どうもうなら ＋2）' }], apply: (s, E, [[t]], x) => hit(s, E, t, x + (ferocious(s, E) ? 2 : 0)) },
   R19: { tgt: [{ side: 'E', label: '3点（カウンターが あれば 5点）を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, t.ctr > 0 ? 5 : 3) },
-  R22: { tgt: [{ side: 'E', filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: '5点を あたえる 飛行のない クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
+  R22: { tgt: [{ side: 'E', filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: '5点を あたえる ひこうのない クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
   // モードを 1つ えらぶ（ui/battle.js の chooseMode）。tgt の side 'mine' は 自分の クリーチャー（攻撃中なら 攻撃している もの）
   RW01: {
     escalate: 2,
     modes: [
-      { label: '敵に 4点の ダメージ', tgt: [{ side: 'E', face: true, label: '4点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 4) },
-      { label: '自分の パーマネントは ターン終了時まで 破壊不能', apply: (s, E) => { for (const p of s.P.bf) E.pump(p, 0, 0, ['indestructible']); } },
-      { label: 'クリーチャー1体に 二段攻撃', tgt: [{ side: 'mine', label: '二段攻撃を あたえる クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 0, 0, ['double']); } },
+      { label: 'てきに 4点の ダメージ', tgt: [{ side: 'E', face: true, label: '4点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 4) },
+      { label: '自分の パーマネントは ターンの おわりまで はかいふのう', apply: (s, E) => { for (const p of s.P.bf) E.pump(p, 0, 0, ['indestructible']); } },
+      { label: 'クリーチャー1体に 二だんこうげき', tgt: [{ side: 'mine', label: '二だんこうげきを あたえる クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 0, 0, ['double']); } },
     ],
   },
-  U05: { tgt: [{ side: 'E', label: '手札に もどす（敵は 墓地へ）クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.drawCard(s); E.sba(s); } },
+  U05: { tgt: [{ side: 'E', label: 'てふだに もどす（てきは ぼちへ）クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.drawCard(s); E.sba(s); } },
   U03: { tgt: [{ side: 'E', max: 9, label: 'タップして 止める クリーチャー' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; t.frozen = true; } } },
   U13: {
     modes: [
-      { label: 'カードを 1枚 引く', apply: (s, E) => E.drawCard(s) },
-      { label: '敵の クリーチャー1体を タップ（つぎの ターン 起きない）', tgt: [{ side: 'E', label: 'タップして 止める クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) { t.tapped = true; t.frozen = true; } } },
-      { label: 'クリーチャー1体を 手札に もどす（敵は 墓地へ）', tgt: [{ side: 'any', label: 'もどす クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) E.bounce(s, t); E.sba(s); } },
+      { label: 'カードを 1まい 引く', apply: (s, E) => E.drawCard(s) },
+      { label: 'てきの クリーチャー1体を タップ（つぎの ターン 起きない）', tgt: [{ side: 'E', label: 'タップして 止める クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) { t.tapped = true; t.frozen = true; } } },
+      { label: 'クリーチャー1体を てふだに もどす（てきは ぼちへ）', tgt: [{ side: 'any', label: 'もどす クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) E.bounce(s, t); E.sba(s); } },
     ],
   },
   G08: {
@@ -593,27 +593,27 @@ const TARGETS = {
     apply: (s, E, [[me], [t]]) => savagePunch(s, E, me, t),
   },
   G19: {
-    tgt: [{ side: 'P', label: '＋1/＋1カウンターを 置いて たたかう クリーチャー' }, { side: 'E', label: 'たたかう 相手' }],
+    tgt: [{ side: 'P', label: '＋1/＋1カウンターを おいて たたかう クリーチャー' }, { side: 'E', label: 'たたかう 相手' }],
     apply: (s, E, [[me], [t]]) => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, t); },
   },
-  G14: { tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2個 置く クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); t.tapped = false; } },
-  W12: { tgt: [{ side: 'P', max: 9, label: '＋1/＋1カウンターを 置く クリーチャー' }], apply: (s, E, [ts]) => { for (const t of ts) { E.target(s, t); E.addCounters(s, t, 1); } } },
-  W15: { tgt: [{ side: 'P', max: 9, label: '＋2/＋2 と 飛行を あたえる クリーチャー' }], apply: (s, E, [ts]) => { for (const t of ts) { E.target(s, t); E.pump(t, 2, 2, ['flying']); } } },
+  G14: { tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); t.tapped = false; } },
+  W12: { tgt: [{ side: 'P', max: 9, label: '＋1/＋1カウンターを おく クリーチャー' }], apply: (s, E, [ts]) => { for (const t of ts) { E.target(s, t); E.addCounters(s, t, 1); } } },
+  W15: { tgt: [{ side: 'P', max: 9, label: '＋2/＋2 と ひこうを あたえる クリーチャー' }], apply: (s, E, [ts]) => { for (const t of ts) { E.target(s, t); E.pump(t, 2, 2, ['flying']); } } },
   R24: { tgt: [{ side: 'P', label: 'パワーを 2倍に する クリーチャー' }], apply: (s, E, [[t]], x) => { E.target(s, t); const p0 = E.power(s, t); E.pump(t, p0 * (2 ** Math.min(x, 4) - 1), 0); } },
   W22: { tgt: [{ side: 'E', label: '追放する クリーチャー' }] },
-  W07: { tgt: [{ side: 'E', perm: true, filter: (s, E, p) => !p.def.factory, label: '追放する 敵の カード' }] },
-  G03: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを 置く クリーチャー' }] },
+  W07: { tgt: [{ side: 'E', perm: true, filter: (s, E, p) => !p.def.factory, label: '追放する てきの カード' }] },
+  G03: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを おく クリーチャー' }] },
   U25: { tgt: [{ side: 'any', filter: (s, E, p) => !p.def.noCopy, label: 'コピーする クリーチャー' }] },
-  W05: { tgt: [{ side: 'atk', label: '追放する 攻撃中の クリーチャー' }], apply: (s, E, [[t]]) => { E.exile(s, t); E.bolster(s, 1); } },
-  W13: { tgt: [{ side: 'atk', max: 9, divide: 4, label: '4点を 割り振る 攻撃中の クリーチャー' }], apply: (s, E, [al]) => arrowRain(s, E, al) },
+  W05: { tgt: [{ side: 'atk', label: '追放する こうげき中の クリーチャー' }], apply: (s, E, [[t]]) => { E.exile(s, t); E.bolster(s, 1); } },
+  W13: { tgt: [{ side: 'atk', max: 9, divide: 4, label: '4点を わりふる こうげき中の クリーチャー' }], apply: (s, E, [al]) => arrowRain(s, E, al) },
 };
 // 起動型能力
 const ACT_TARGETS = {
   U14: { tgt: [{ side: 'E', face: true, label: '1点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, 1) },
   U08: { tgt: [{ side: 'P', label: 'このターン ブロックされない クリーチャー' }], apply: (s, E, [[t]]) => { t.flags.turn.unblockable = true; } },
-  W16: { tgt: [{ side: 'P', max: 2, divide: 2, label: '＋1/＋1カウンター 2個を 割り振る クリーチャー' }], apply: (s, E, [al]) => { for (const d of al) { E.target(s, d.t); E.addCounters(s, d.t, d.n); } } },
-  WU02: { tgt: [{ side: 'P', max: 3, divide: 3, filter: (s, E, p) => E.hasKw(s, p, 'flying'), label: '＋1/＋1カウンター 3個を 割り振る 飛行クリーチャー' }], apply: (s, E, [al]) => { for (const d of al) { E.target(s, d.t); E.addCounters(s, d.t, d.n); } } },
-  G17: { tgt: [{ side: 'E', max: 9, divide: 'x', label: 'X点を 割り振る 敵の クリーチャー' }], apply: (s, E, [al], x, p) => { E.addCounters(s, p, x); for (const d of al) E.damage(s, d.t, d.n, null); E.sba(s); } },
+  W16: { tgt: [{ side: 'P', max: 2, divide: 2, label: '＋1/＋1カウンター 2こを わりふる クリーチャー' }], apply: (s, E, [al]) => { for (const d of al) { E.target(s, d.t); E.addCounters(s, d.t, d.n); } } },
+  WU02: { tgt: [{ side: 'P', max: 3, divide: 3, filter: (s, E, p) => E.hasKw(s, p, 'flying'), label: '＋1/＋1カウンター 3こを わりふる ひこうクリーチャー' }], apply: (s, E, [al]) => { for (const d of al) { E.target(s, d.t); E.addCounters(s, d.t, d.n); } } },
+  G17: { tgt: [{ side: 'E', max: 9, divide: 'x', label: 'X点を わりふる てきの クリーチャー' }], apply: (s, E, [al], x, p) => { E.addCounters(s, p, x); for (const d of al) E.damage(s, d.t, d.n, null); E.sba(s); } },
 };
 for (const [id, h] of Object.entries(TARGETS)) Object.assign(BY_ID[id], h);
 for (const [id, h] of Object.entries(ACT_TARGETS)) Object.assign(BY_ID[id].acts[0], h);

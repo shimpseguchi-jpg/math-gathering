@@ -69,7 +69,7 @@ export function castCard(s, c, pl, o = {}) {
   else if (from === 'gy') P.gy.splice(P.gy.indexOf(c), 1);
   const convoked = pl ? pay(s, pl) : [];
   P.flags.cast++;
-  L(s, `${s.swapped ? '敵：' : ''}唱えた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}`);
+  L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}`);
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
     if (!onBf(s, q)) continue;
@@ -131,14 +131,14 @@ function suspendOption(s, c, phase) {
   if (!sp || phase !== 1 || !plan(s, sp.cost, sp.req || [])) return [];
   const now = plan(s, c.def.cost, colorsOf(c.def));
   const score = (c.def.suspendScore ?? 6) - (now ? 3 : 0);
-  return [{ score, name: `${c.def.name}（待機）`, exec: () => { const pl = plan(s, sp.cost, sp.req || []); if (pl) suspendCard(s, c, pl); } }];
+  return [{ score, name: `${c.def.name}（たいき）`, exec: () => { const pl = plan(s, sp.cost, sp.req || []); if (pl) suspendCard(s, c, pl); } }];
 }
 
 export function suspendCard(s, c, pl) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
   pay(s, pl);
   s.P.suspended.push({ c, n: c.def.suspend.turns });
-  L(s, `待機：${c.def.name}（時間カウンター ${c.def.suspend.turns}）`);
+  L(s, `たいき：${c.def.name}（時間カウンター ${c.def.suspend.turns}）`);
 }
 
 // 待機が おわった 呪文を ただで 唱える（人が 遊ぶときは 画面で 対象を えらぶ）
@@ -146,7 +146,7 @@ function castSuspended(s, c) {
   if (s.ai.castSuspended) return s.ai.castSuspended(s, c);
   const r = c.def.play?.(s, api, { phase: 1, c, manaLeft: 0, free: true });
   if (r) castCard(s, c, null, { run: r.run, from: 'suspend' });
-  else { s.P.gy.push(c); L(s, `待機：${c.def.name} は こうかが なかった`); }
+  else { s.P.gy.push(c); L(s, `たいき：${c.def.name} は こうかが なかった`); }
 }
 
 function permScore(s, def, phase) {
@@ -171,7 +171,7 @@ function actOptions(s, phase) {
     if (!r || r.score <= 0) continue;
     const x = a.x ? Math.min(r.x ?? xMax, xMax) : 0;
     out.push({
-      score: r.score, name: `${p.def.name}の能力`, exec: () => {
+      score: r.score, name: `${p.def.name} の のうりょく`, exec: () => {
         const pl = plan(s, cost + x, a.req || [], o); if (!pl) return;
         pay(s, pl);
         if (a.tap) tapPerm(s, p);
@@ -189,7 +189,7 @@ function actOptions(s, phase) {
     if (host && onBf(s, host)) continue;
     const t = api.bestBuffTarget(s, null, { ready: true });
     if (!t || !plan(s, p.def.equip, [])) continue;
-    out.push({ score: 4, name: `${p.def.name}の装備`, exec: () => { const pl = plan(s, p.def.equip, []); if (!pl) return; pay(s, pl); p.attached = t.uid; } });
+    out.push({ score: 4, name: `${p.def.name} の そうび`, exec: () => { const pl = plan(s, p.def.equip, []); if (!pl) return; pay(s, pl); p.attached = t.uid; } });
   }
   return out;
 }
@@ -509,7 +509,7 @@ Object.assign(api, {
   castSuspended,
   // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {
-    L(s, `占術 ${n}`);
+    L(s, `せんじゅつ ${n}`);
     if (s.ai.scry) return s.ai.scry(s, n);
     const top = s.P.lib.splice(0, n);
     const keepL = [], bottom = [];

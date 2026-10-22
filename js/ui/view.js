@@ -2,11 +2,12 @@
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
 import { colorsOf, pt, hasKw, isCreature } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
+import { mapRuby } from './ruby.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // 「漢字（よみ）」をルビにする
 // 送りがなを はさむ ことば（割り振って（わりふって））も まとめて ルビに
-export const ruby = (t) => esc(t).replace(/((?:[一-龯々ヶ]+[ぁ-ゖ]{0,2})+?)（([ぁ-ゖー]+)）/g, '<ruby>$1<rt>$2</rt></ruby>').replace(/\n/g, '<br>');
+export const ruby = (t) => mapRuby(String(t ?? ''), (b, y) => `<ruby>${esc(b)}<rt>${esc(y)}</rt></ruby>`, esc).replace(/\n/g, '<br>');
 export const noRuby = (t) => String(t ?? '').replace(/（[ぁ-ゖー]+）/g, '');
 
 // 文章の中の ことば（キーワード・用語）に 点線を つける。長おし・2回タップで せつめい（それぞれ 最初の1つだけ）
@@ -58,7 +59,11 @@ export function initTerms() {
   }, true);
   document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('[data-term]')) e.preventDefault(); });
 }
-const kwChip = (k) => `<span ${KW_TERM[k] ? `data-term="${esc(KW_TERM[k])}"` : ''}>${esc(k)}</span>`;
+// キーワードの 札：習わない 漢字には ふりがな（カードの 文章と おなじ）
+const kwChip = (k) => {
+  const yomi = TERM[KW_TERM[k]]?.yomi;
+  return `<span ${KW_TERM[k] ? `data-term="${esc(KW_TERM[k])}"` : ''}>${yomi && /[一-龯]/.test(k) ? ruby(`${k}（${yomi}）`) : esc(k)}</span>`;
+};
 
 export const COLOR_NAME = { W: '白', U: '青', G: '緑', R: '赤' };
 const KW = {
@@ -92,7 +97,7 @@ export function cardFace(def, o = {}) {
   const kws = (def.kw || []).map((k) => KW[k]).filter(Boolean);
   return `<div class="card ${colorClass(def, o.enemy)} ${o.cls || ''}" data-id="${esc(o.dataId ?? '')}">
     <div class="card-top"><span class="cost">${esc(costLabel(def))}</span><span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
-    <div class="card-name">${esc(noRuby(i.name))}</div>
+    <div class="card-name">${ruby(i.name)}</div>
     <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
     ${pts ? `<div class="card-pt">${pts}</div>` : `<div class="card-type">${esc(typeShort(def))}</div>`}
   </div>`;
@@ -116,7 +121,7 @@ export function permFace(s, p, o = {}) {
     const [P, T] = pt(s, p);
     const left = T - p.dmg;
     ptHtml = `<div class="card-pt ${p.dmg ? 'hurt' : ''}">${P}/${left}${p.dmg ? `<small>/${T}</small>` : ''}</div>`;
-  } else if (p.def.factory) ptHtml = `<div class="card-pt key">鍵 ${s.E.key}</div>`;
+  } else if (p.def.factory) ptHtml = `<div class="card-pt key">かぎ ${s.E.key}</div>`;
   else ptHtml = `<div class="card-type">${esc(typeShort(p.def))}</div>`;
   const kws = Object.keys(KW).filter((k) => hasKw(s, p, k) && k !== 'convoke').map((k) => KW[k]);
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
@@ -130,10 +135,10 @@ export function permFace(s, p, o = {}) {
   ].join('');
   return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">
     <div class="card-top">${head}<span class="badges">${badges}</span></div>
-    <div class="card-name">${esc(noRuby(i.name))}</div>
+    <div class="card-name">${ruby(i.name)}</div>
     <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
     ${ptHtml}
-    ${o.label ? `<div class="card-label ${o.label[0] === '!' ? 'warn' : ''}">${esc(o.label.replace(/^!/, ''))}</div>` : ''}
+    ${o.label ? `<div class="card-label ${o.label[0] === '!' ? 'warn' : ''}">${ruby(o.label.replace(/^!/, ''))}</div>` : ''}
   </button>`;
 }
 
@@ -148,8 +153,8 @@ export function detail(def, o = {}) {
       ${enemy ? '' : `<span class="cost big">${esc(costLabel(def))}</span>`}
     </div>
     <div class="detail-type">${richText(i.type)} ${pts}</div>
-    <p class="detail-text">${richText(i.text) || '（とくべつな能力はない）'}</p>
-    ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('英雄（えいゆう）の報酬')}：${richText(i.reward)}</p>` : ''}
+    <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
+    ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
     ${i.math && i.math !== '−' ? `<p class="detail-sub">算数：${ruby(i.math)}</p>` : ''}
     <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
     <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>

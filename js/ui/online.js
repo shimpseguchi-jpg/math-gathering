@@ -21,7 +21,7 @@ export const NAME_B = [
   'ケンタウロス', 'ユニコーン', 'クラーケン', 'ゴーレム', 'ワーム', 'レオニン', 'トリトン', 'ニンフ', 'ナイト', 'まほうつかい',
 ];
 const KEEP_DECKS = 3;
-export const TIER_LABEL = ['', '1階まで', '2階まで', '3階まで', '4階まで', '5階まで', '塔を クリア'];
+export const TIER_LABEL = ['', '1階まで', '2階まで', '3階まで', '4階まで', '5階まで', 'とうを クリア'];
 const RANKS = [[50, 'ニクス'], [25, 'ゴールド'], [10, 'シルバー'], [0, 'ブロンズ']];
 const rankOf = (t) => RANKS.find(([n]) => t >= n)[1];
 
@@ -37,7 +37,7 @@ function state() {
 const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim(); // 「ゆうかんな ドラゴン」「ほのお ドラゴン」
 // 2色は アーキタイプの よびかた（赤白・青白…）に そろえる
 const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑赤', GU: '青緑' };
-const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || '無色'; };
+const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
 
 // ---- サーバー ----
 export const hasServer = () => !!(window.google && window.google.script && window.google.script.run);
@@ -62,10 +62,10 @@ export async function saveGhost(deckDefs, tier) {
   const upload = hasServer() ? call('mtgSubmitGhost', { d, t: tier, n: o.name }).then((r) => r.i, () => null) : Promise.resolve(null);
   let keep = true, drop = -1;
   if (o.decks.length >= KEEP_DECKS) {
-    const v = await sheet(`<p>${esc(deckTitle(rec))} の デッキを 保管する？ 保管できるのは ${KEEP_DECKS}つまで。どれと 入れかえる？</p>`, [
+    const v = await sheet(`<p>${esc(deckTitle(rec))} の デッキを ほかんする？ ほかんできるのは ${KEEP_DECKS}つまで。どれと 入れかえる？</p>`, [
       ...o.decks.map((x, i) => ({ label: `${esc(deckTitle(x))} と 入れかえる<small>${esc(x.date)}</small>`, value: i + 1, kind: 'primary' })),
-      { label: '保管しない', value: 0 },
-    ], { title: 'デッキの 保管', dismiss: false });
+      { label: 'ほかんしない', value: 0 },
+    ], { title: 'デッキの ほかん', dismiss: false });
     if (v) drop = v - 1; else keep = false;
   }
   rec.id = await upload || undefined;
@@ -95,20 +95,20 @@ export async function onlineMenu(app, back) {
     } catch { /* きろくは あとで */ }
   }
   const draw = () => {
-    const deckBtns = o.decks.map((x, i) => [i, deckTitle(x), `${x.date}${x.id ? `　ゴースト ${x.w || 0}勝 ${x.l || 0}敗` : hasServer() ? '　（あずけて いない）' : ''}`]);
+    const deckBtns = o.decks.map((x, i) => [i, deckTitle(x), `${x.date}${x.id ? `　ゴースト ${x.w || 0}かち ${x.l || 0}まけ` : hasServer() ? '　（あずけて いない）' : ''}`]);
     app().innerHTML = `<main class="online">
-      <p class="eyebrow">${hasServer() ? 'オンライン' : 'れんしゅう（オンラインは GAS版で）'}</p>
+      <p class="eyebrow">${hasServer() ? 'オンライン' : 'れんしゅう（オンラインは GASばんで）'}</p>
       <h2>オンライン バトル</h2>
       <div class="ol-me">
         <div class="ol-namebox"><span class="ol-name">${esc(nameOf(o.name))}</span>
           <div class="ol-selects">${[NAME_A, NAME_B].map((ws, k) => `<select data-n="${k}" aria-label="なまえの ${k + 1}つめの ことば">${ws.map((w, i) => `<option value="${i}" ${o.name[k] === i ? 'selected' : ''}>${esc(w)}</option>`).join('')}</select>`).join('')}</div></div>
-        <div class="ol-trophy"><b>${o.trophies}</b><span>トロフィー・${rankOf(o.trophies)}</span><small>${o.wins}勝 ${o.losses}敗</small></div>
+        <div class="ol-trophy"><b>${o.trophies}</b><span>トロフィー・${rankOf(o.trophies)}</span><small>${o.wins}かち ${o.losses}まけ</small></div>
       </div>
       ${news ? `<p class="ol-news">${esc(news)}</p>` : ''}
-      <p class="ol-help">${ruby('冒険（ぼうけん）で くんだ デッキで、ほかの 人の デッキ（ゴースト）と たたかう。どちらも ライフ 20。あいてに 攻撃して ライフを 0に すれば かち。')}</p>
-      <h3 class="ol-h">つかう デッキ（保管 ${o.decks.length}/${KEEP_DECKS}）</h3>
+      <p class="ol-help">${ruby('ぼうけんで くんだ デッキで、ほかの 人の デッキ（ゴースト）と たたかう。どちらも ライフ 20。あいてに こうげきして ライフを 0に すれば かち。')}</p>
+      <h3 class="ol-h">つかう デッキ（ほかん ${o.decks.length}/${KEEP_DECKS}）</h3>
       ${deckBtns.length ? `<div class="ol-decks">${deckBtns.map(([k, a, b]) => `<button type="button" class="ol-deck ${k === pick ? 'on' : ''}" data-deck="${k}" aria-pressed="${k === pick}"><b>${esc(a)}</b><small>${esc(b)}</small></button>`).join('')}</div>`
-        : `<p class="ol-empty">${ruby('まだ デッキが ない。冒険（ぼうけん）を おえると、その デッキを 3つまで 保管（ほかん）できる。')}</p>`}
+        : `<p class="ol-empty">${ruby('まだ デッキが ない。ぼうけんを おえると、その デッキを 3つまで ほかんできる。')}</p>`}
       <div class="row-btns"><button type="button" class="btn" data-o="back">もどる</button><button type="button" class="btn primary" data-o="find" ${deckBtns.length ? '' : 'disabled'}>あいてを さがす</button></div>
     </main>`;
   };
@@ -134,9 +134,9 @@ async function findOpponent(app, back, o, mine) {
   let g = null;
   if (hasServer()) { try { g = await call('mtgRandomGhost', { x: o.decks.map((x) => x.id).filter(Boolean) }); } catch { g = null; } }
   let v;
-  if (g) v = { id: g.i, name: nameOf(g.n), d: g.d, p: pairOf(g.d), t: g.t, rec: `${g.w}勝 ${g.l}敗` };
+  if (g) v = { id: g.i, name: nameOf(g.n), d: g.d, p: pairOf(g.d), t: g.t, rec: `${g.w}かち ${g.l}まけ` };
   else { const k = Object.keys(SAMPLE)[Math.floor(Math.random() * Object.keys(SAMPLE).length)]; v = { name: `れんしゅう あいて（${pairName(k)}）`, d: sampleIds(k), p: k, t: 3, rec: 'CPU' }; }
-  const go = await sheet(`<p class="ol-found">${esc(v.name)}</p><p>${esc(pairName(v.p))}・${esc(v.id ? TIER_LABEL[v.t] : 'れんしゅう用の デッキ')}・${esc(v.rec)}</p>${v.id ? '' : `<p class="ol-help">${esc(hasServer() ? 'まだ ほかの 人の ゴーストが いないので、れんしゅう あいてが 出てきた。' : 'GAS版では ほかの 人の ゴーストと たたかえる。')}</p>`}`,
+  const go = await sheet(`<p class="ol-found">${esc(v.name)}</p><p>${esc(pairName(v.p))}・${esc(v.id ? TIER_LABEL[v.t] : 'れんしゅう用の デッキ')}・${esc(v.rec)}</p>${v.id ? '' : `<p class="ol-help">${esc(hasServer() ? 'まだ ほかの 人の ゴーストが いないので、れんしゅう あいてが 出てきた。' : 'GASばんでは ほかの 人の ゴーストと たたかえる。')}</p>`}`,
     [{ label: 'たたかう', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: v.id ? 'あいてが みつかった！' : 'れんしゅう あいて' });
   if (!go) return onlineMenu(app, back);
   const first = Math.random() < 0.5 ? 'P' : 'E';

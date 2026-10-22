@@ -18,20 +18,20 @@ const sumPow = (s, E, list) => list.reduce((t, p) => t + Math.max(0, E.power(s, 
 const HEAD = ecr('ハイドラの頭', 0, 2, ['head'], [], { head: true, headDmg: 1, noBlock: true, reward: (s, p, E) => E.gain(s, 2) });
 const HYDRA_DECK = [
   [5, HEAD],
-  [1, ecr('貪欲で粗暴な頭', 0, 4, ['head'], [], { head: true, headDmg: 2, noBlock: true, reward: (s, p, E) => E.drawCard(s) })],
-  [1, ecr('野蛮で活力ある頭', 0, 3, ['head'], [], { head: true, headDmg: 2, noBlock: true, anthem: (s, q, p) => (p !== q && p.def.head ? [0, 1] : null), reward: (s, p, E) => E.gain(s, 3) })],
-  [1, ecr('噛み付く牙の頭', 0, 3, ['head'], [], { head: true, headDmg: 2, fang: true, noBlock: true, reward: (s, p, E) => E.drawCard(s) })],
-  [1, ecr('金切り声の巨大な頭', 0, 5, ['head'], [], { head: true, headDmg: 2, taunt: true, noBlock: true, reward: (s, p, E) => { E.gain(s, 3); E.drawCard(s); } })],
-  [2, esp('一斉突進', (s) => { s.E.flags.turn.extra = (s.E.flags.turn.extra || 0) + 1; }, { danger: 3 })],
-  [2, esp('有毒なハイドラの息', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
-  [2, esp('混乱する睨み', (s, E) => { const t = biggest(s, E); if (t) t.tapped = true; })],
-  [2, esp('付け根から新生', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.head); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
-  [1, esp('貫通不能なハイドラの皮', (s, E) => { for (const p of s.E.bf) if (p.def.head) p.flags.indTurns = 2; }, { danger: 3 })],
-  [1, esp('英雄への かみつき', (s, E) => { const t = biggest(s, E, (p) => p.tapped); if (t) E.destroy(s, t); E.sba(s); }, { danger: 4 })],
+  [1, ecr('貪欲（どんよく）で粗暴（そぼう）な頭', 0, 4, ['head'], [], { head: true, headDmg: 2, noBlock: true, reward: (s, p, E) => E.drawCard(s) })],
+  [1, ecr('野蛮（やばん）で活力（かつりょく）ある頭', 0, 3, ['head'], [], { head: true, headDmg: 2, noBlock: true, anthem: (s, q, p) => (p !== q && p.def.head ? [0, 1] : null), reward: (s, p, E) => E.gain(s, 3) })],
+  [1, ecr('噛（か）み付（つ）く牙（きば）の頭', 0, 3, ['head'], [], { head: true, headDmg: 2, fang: true, noBlock: true, reward: (s, p, E) => E.drawCard(s) })],
+  [1, ecr('金切（かなき）り声（ごえ）の巨大（きょだい）な頭', 0, 5, ['head'], [], { head: true, headDmg: 2, taunt: true, noBlock: true, reward: (s, p, E) => { E.gain(s, 3); E.drawCard(s); } })],
+  [2, esp('一斉（いっせい）突進（とっしん）', (s) => { s.E.flags.turn.extra = (s.E.flags.turn.extra || 0) + 1; }, { danger: 3 })],
+  [2, esp('有毒（ゆうどく）なハイドラの息（いき）', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
+  [2, esp('混乱（こんらん）する睨（にら）み', (s, E) => { const t = biggest(s, E); if (t) t.tapped = true; })],
+  [2, esp('付（つ）け根（ね）から新生（しんせい）', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.head); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
+  [1, esp('貫通不能（かんつうふのう）なハイドラの皮（かわ）', (s, E) => { for (const p of s.E.bf) if (p.def.head) p.flags.indTurns = 2; }, { danger: 3 })],
+  [1, esp('英雄（えいゆう）への かみつき', (s, E) => { const t = biggest(s, E, (p) => p.tapped); if (t) E.destroy(s, t); E.sba(s); }, { danger: 4 })],
   [1, esp('頭二つの はさみうち', (s, E) => { const t = weakest(s, E); if (t) E.damage(s, t, 3, null); E.sba(s); }, { danger: 3 })],
-  [1, esp('絡みつく首', (s, E) => { const t = biggest(s, E); if (t) { t.tapped = true; t.frozen = true; } })],
-  [3, esp('ハイドラ陽動作戦', (s) => { s.E.flags.turn.noDmg = true; }, { danger: 0 })],
-  [1, esp('弱点への一撃', (s, E) => { const b = E.burnTarget(s, 3, { creatureOnly: true, mustHit: true }); if (b) E.damage(s, b.t, 3, null); E.sba(s); }, { danger: 0 })],
+  [1, esp('絡（から）みつく首（くび）', (s, E) => { const t = biggest(s, E); if (t) { t.tapped = true; t.frozen = true; } })],
+  [3, esp('ハイドラ陽動（ようどう）作戦（さくせん）', (s) => { s.E.flags.turn.noDmg = true; }, { danger: 0 })],
+  [1, esp('弱点（じゃくてん）への一撃（いちげき）', (s, E) => { const b = E.burnTarget(s, 3, { creatureOnly: true, mustHit: true }); if (b) E.damage(s, b.t, 3, null); E.sba(s); }, { danger: 0 })],
 ];
 
 // 頭の階（1階・5階の段階1）で共通の部品
@@ -93,25 +93,25 @@ export function hydra() {
 const mino = (name, pow, tou, x = {}) => ecr(name, pow, tou, ['minotaur'], ['haste'], { attacks: true, ...x });
 const minos = (s) => s.E.bf.filter((p) => (p.def.sub || []).includes('minotaur'));
 const HORDE_DECK = [
-  [6, mino('ミノタウルスの 若角', 2, 1)],
-  [3, mino('ミノタウルスの 獲物探し', 3, 2)],
-  [3, mino('フォベロスの 暴れ者', 2, 3, { onAttackE: (s, p, E) => E.pump(p, 1, 0) })],
-  [2, mino('モーギスに 選ばれし者', 5, 4)],
-  [1, mino('無謀なミノタウルス', 4, 3, { reckless: true })],
-  [1, esp('有角神の接触', (s) => { s.E.flags.turn.deathtouch = true; }, { danger: 3 })],
-  [1, esp('抑え難い憤怒', (s, E) => { for (const p of minos(s)) E.pump(p, 1, 0); }, { danger: 3 })],
-  [1, esp('獲物への襲撃', (s, E) => { for (const p of minos(s)) E.pump(p, 0, 0, ['first']); }, { danger: 3 })],
-  [1, esp('破壊的な激怒', (s, E) => { const t = minos(s).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; if (t) E.pump(t, 3, 0, ['trample']); }, { danger: 4 })],
-  [1, esp('ケラノスの介入', (s, E) => { for (const p of [...pc(s, E), ...E.creatures(s, 'E')]) E.damage(s, p, 3, null); E.sba(s); }, { danger: 4 })],
-  [1, eart('モーギスの 祭壇', { altar: true, prio: 8, reward: (s, p, E) => { for (const m of minos(s).slice(0, 2)) E.leave(s, m, 'gy'); } })],
-  [1, eart('戦のトーテム像', { totem: true, prio: 4, reward: (s, p, E) => E.gain(s, 3) })],
-  [1, eart('略奪された像', { prio: 4, reward: (s, p, E) => E.drawCard(s) })],
-  [1, eart('清々しい霊薬', { prio: 5, reward: (s, p, E) => E.gain(s, 5) })],
+  [6, mino('ミノタウルスの 若角（わかづの）', 2, 1)],
+  [3, mino('ミノタウルスの 獲物（えもの）探（さが）し', 3, 2)],
+  [3, mino('フォベロスの 暴（あば）れ者（もの）', 2, 3, { onAttackE: (s, p, E) => E.pump(p, 1, 0) })],
+  [2, mino('モーギスに 選（えら）ばれし者（もの）', 5, 4)],
+  [1, mino('無謀（むぼう）なミノタウルス', 4, 3, { reckless: true })],
+  [1, esp('有角神（ゆうかくしん）の接触（せっしょく）', (s) => { s.E.flags.turn.deathtouch = true; }, { danger: 3 })],
+  [1, esp('抑（おさ）え難（がた）い憤怒（ふんぬ）', (s, E) => { for (const p of minos(s)) E.pump(p, 1, 0); }, { danger: 3 })],
+  [1, esp('獲物（えもの）への襲撃（しゅうげき）', (s, E) => { for (const p of minos(s)) E.pump(p, 0, 0, ['first']); }, { danger: 3 })],
+  [1, esp('破壊的（はかいてき）な激怒（げきど）', (s, E) => { const t = minos(s).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; if (t) E.pump(t, 3, 0, ['trample']); }, { danger: 4 })],
+  [1, esp('ケラノスの介入（かいにゅう）', (s, E) => { for (const p of [...pc(s, E), ...E.creatures(s, 'E')]) E.damage(s, p, 3, null); E.sba(s); }, { danger: 4 })],
+  [1, eart('モーギスの 祭壇（さいだん）', { altar: true, prio: 8, reward: (s, p, E) => { for (const m of minos(s).slice(0, 2)) E.leave(s, m, 'gy'); } })],
+  [1, eart('戦（いくさ）のトーテム像（ぞう）', { totem: true, prio: 4, reward: (s, p, E) => E.gain(s, 3) })],
+  [1, eart('略奪（りゃくだつ）された像（ぞう）', { prio: 4, reward: (s, p, E) => E.drawCard(s) })],
+  [1, eart('清々（すがすが）しい霊薬（れいやく）', { prio: 5, reward: (s, p, E) => E.gain(s, 5) })],
 ];
 
 export function horde() {
   return {
-    id: 'horde', name: '2階 大群', faceUnit: 1,
+    id: 'horde', name: '2階 たいぐん', faceUnit: 1,
     setup(s, E) {
       s.E.lib = toLib(s, E, build(HORDE_DECK));
       s.E.extraTurns = DIFF(s, 2, 2, 2);
@@ -161,12 +161,12 @@ const FACTORY_DECK = [
   [5, golem('鉄の ゴーレム', 3, 3, { reward: (s) => { s.E.key = Math.max(2, s.E.key - 1); } })],
   [1, golem('大ゴーレム', 5, 5, { reward: (s) => { s.E.key = Math.max(2, s.E.key - 2); } })],
   [1, golem('歯車の 番人', 0, 5, { attacks: false, guard: true, reward: (s, p, E) => E.gain(s, 2) })],
-  [1, esp('修理の 火花', (s) => { s.E.key = Math.min(9, s.E.key + 1); })],
-  [2, esp('鍵の かけかえ', (s) => { s.E.key = 3 + 1 + Math.floor(s.rng() * 6); })],
-  [2, esp('増産', (s, E) => E.token(s, 'E', GOLEM))],
-  [1, esp('ゴーレムの 突撃', (s) => { s.E.flags.turn.golemPump = 1; })],
-  [2, esp('稼働停止', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
-  [1, esp('点検', (s) => { s.E.flags.inspect = true; }, { danger: 0 })],
+  [1, esp('修理（しゅうり）の 火花（ひばな）', (s) => { s.E.key = Math.min(9, s.E.key + 1); })],
+  [2, esp('鍵（かぎ）の かけかえ', (s) => { s.E.key = 3 + 1 + Math.floor(s.rng() * 6); })],
+  [2, esp('増産（ぞうさん）', (s, E) => E.token(s, 'E', GOLEM))],
+  [1, esp('ゴーレムの 突撃（とつげき）', (s) => { s.E.flags.turn.golemPump = 1; })],
+  [2, esp('稼働（かどう）停止（ていし）', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
+  [1, esp('点検（てんけん）', (s) => { s.E.flags.inspect = true; }, { danger: 0 })],
 ];
 
 export function factory() {
@@ -195,7 +195,7 @@ export function factory() {
     },
     afterCombat(s, E) {
       if (!s.combat.factory) return;
-      E.L(s, `工場に ${s.combat.factory}点（鍵 ${s.combat.key}）`);
+      E.L(s, `工場に ${s.combat.factory}点（かぎ ${s.combat.key}）`);
       if (s.combat.factory === s.combat.key) { s.E.flags.broken = true; s.over = 'win'; }
     },
     face(s, n) { if (exact(s, n)) { s.E.flags.broken = true; s.over = 'win'; } },
@@ -240,9 +240,9 @@ const SLIME_DECK = [
     const [a, b] = sl; const [ap, at] = E.pt(s, a); const [bp, bt] = E.pt(s, b);
     E.exile(s, a); E.exile(s, b); E.token(s, 'E', slimeDef(ap + bp, at + bt));
   }, { danger: 3 })],
-  [3, esp('ねばねばの 床', (s, E) => { const t = biggest(s, E); if (t) t.tapped = true; })],
-  [1, esp('酸の しぶき', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
-  [3, esp('日照り', (s, E) => { for (const p of s.E.bf.filter((q) => q.def.slime)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 0 })],
+  [3, esp('ねばねばの 床（ゆか）', (s, E) => { const t = biggest(s, E); if (t) t.tapped = true; })],
+  [1, esp('酸（さん）の しぶき', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
+  [3, esp('日照（ひで）り', (s, E) => { for (const p of s.E.bf.filter((q) => q.def.slime)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 0 })],
 ];
 
 export function slime() {
@@ -268,24 +268,24 @@ export function slime() {
 }
 
 // ===== 4階：神を討て =====
-const XEN = ecr('覚醒したゼナゴス', 6, 5, ['god'], [], { xenagos: true, noBlock: true, noCopy: true });
+const XEN = ecr('覚醒（かくせい）したゼナゴス', 6, 5, ['god'], [], { xenagos: true, noBlock: true, noCopy: true });
 const rev = (name, pow, tou, kw = [], x = {}) => ecr(name, pow, tou, ['satyr', 'reveler'], kw, { reveler: true, ...x });
-const THRONG = rev('お祭り騒ぎの群れ', 3, 3);
+const THRONG = rev('お祭（まつ）り騒（さわ）ぎの群（む）れ', 3, 3);
 const revelers = (s) => s.E.bf.filter((p) => p.def.reveler);
 const XEN_DECK = [
   [2, THRONG],
-  [5, rev('高揚した笛吹き', 2, 2, [], { etb: (s) => { const x = s.E.bf.find((p) => p.def.xenagos); if (x) x.flags.mustAttack = true; }, reward: (s, p, E) => E.gain(s, 2) })],
-  [2, rev('フィーリーズ団の歓楽者', 3, 3, [], { etb: (s, p, E) => { const t = weakest(s, E); if (t) { E.damage(s, t, 1, null); } }, reward: (s, p, E) => E.drawCard(s) })],
-  [1, rev('怒り狂えるオリアード', 3, 2, [], { attacks: true })],
-  [1, rev('荒ぶるマエナード', 4, 4)],
-  [1, rev('蛇の踊り手', 2, 3, ['deathtouch'])],
-  [3, esp('突発的な突進', (s) => { for (const p of revelers(s)) p.flags.mustAttack = true; }, { danger: 3 })],
-  [2, esp('ゼナゴスの一撃', (s, E) => E.hurt(s, 3), { danger: 3 })],
-  [1, esp('突発的な復活', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.reveler); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
-  [1, esp('力まかせの 一撃', (s, E) => { const t = biggest(s, E); if (t) E.damage(s, t, 4, null); E.sba(s); }, { danger: 4 })],
-  [1, esp('ゼナゴスの嘲笑', (s) => { s.E.flags.scorn = true; })],
-  [1, eart('恐慌の踊り', { panic: true, types: ['enchantment'] })],
-  [1, eart('炎の踊り', { types: ['enchantment'], onOtherLeave: (s, q, p, E, o) => { if (p.def.reveler && o.died) E.hurt(s, 1); } })],
+  [5, rev('高揚（こうよう）した笛吹（ふえふ）き', 2, 2, [], { etb: (s) => { const x = s.E.bf.find((p) => p.def.xenagos); if (x) x.flags.mustAttack = true; }, reward: (s, p, E) => E.gain(s, 2) })],
+  [2, rev('フィーリーズ団（だん）の歓楽（かんらく）者', 3, 3, [], { etb: (s, p, E) => { const t = weakest(s, E); if (t) { E.damage(s, t, 1, null); } }, reward: (s, p, E) => E.drawCard(s) })],
+  [1, rev('怒（いか）り狂（くる）えるオリアード', 3, 2, [], { attacks: true })],
+  [1, rev('荒（あら）ぶるマエナード', 4, 4)],
+  [1, rev('蛇（へび）の踊（おど）り手（て）', 2, 3, ['deathtouch'])],
+  [3, esp('突発的（とっぱつてき）な突進（とっしん）', (s) => { for (const p of revelers(s)) p.flags.mustAttack = true; }, { danger: 3 })],
+  [2, esp('ゼナゴスの一撃（いちげき）', (s, E) => E.hurt(s, 3), { danger: 3 })],
+  [1, esp('突発（とっぱつ）的（てき）な復活（ふっかつ）', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.reveler); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
+  [1, esp('力（ちから）まかせの 一撃（いちげき）', (s, E) => { const t = biggest(s, E); if (t) E.damage(s, t, 4, null); E.sba(s); }, { danger: 4 })],
+  [1, esp('ゼナゴスの嘲笑（ちょうしょう）', (s) => { s.E.flags.scorn = true; })],
+  [1, eart('恐慌（きょうこう）の踊（おど）り', { panic: true, types: ['enchantment'] })],
+  [1, eart('炎（ほのお）の踊（おど）り', { types: ['enchantment'], onOtherLeave: (s, q, p, E, o) => { if (p.def.reveler && o.died) E.hurt(s, 1); } })],
 ];
 
 export function xenagos() {
@@ -327,29 +327,29 @@ export function xenagos() {
 const CERB = ecr('番犬の頭', 0, 3, ['head'], [], { head: true, headDmg: 2, noBlock: true, reward: (s, p, E) => E.gain(s, 2) });
 const P1_DECK = [
   [3, CERB],
-  [2, esp('冥界の遠吠え', (s) => { s.E.flags.turn.extra = (s.E.flags.turn.extra || 0) + 1; }, { danger: 3 })],
-  [2, esp('冥界の炎の息', (s, E) => { const t = biggest(s, E); if (t) E.damage(s, t, 3, null); E.sba(s); }, { danger: 3 })],
-  [1, esp('黄泉の門', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.head); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
-  [2, esp('眠りの歌', (s) => { s.E.flags.turn.noDmg = true; }, { danger: 0 })],
+  [2, esp('冥界（めいかい）の遠吠（とおぼ）え', (s) => { s.E.flags.turn.extra = (s.E.flags.turn.extra || 0) + 1; }, { danger: 3 })],
+  [2, esp('冥界の炎（ほのお）の息（いき）', (s, E) => { const t = biggest(s, E); if (t) E.damage(s, t, 3, null); E.sba(s); }, { danger: 3 })],
+  [1, esp('黄泉（よみ）の門（もん）', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.head); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
+  [2, esp('眠（ねむ）りの歌', (s) => { s.E.flags.turn.noDmg = true; }, { danger: 0 })],
 ];
 const EREBOS = ecr('死者の神 エレボス', 5, 7, ['god'], ['indestructible'], { erebos: true, noBlock: true, noCopy: true });
 const minion = (name, pow, tou, x = {}) => ecr(name, pow, tou, ['zombie'], [], { minion: true, ...x });
-const PHALANX = minion('帰還したファランクス', 0, 4, { attacks: false });
+const PHALANX = minion('帰還（きかん）したファランクス', 0, 4, { attacks: false });
 const minions = (s) => s.E.bf.filter((p) => p.def.minion);
 const P2_DECK = [
   [2, PHALANX],
-  [2, minion('アスフォデルの 灰色商人', 2, 4, { etb: (s, p, E) => E.hurt(s, minions(s).length), reward: (s, p, E) => E.drawCard(s) })],
-  [3, minion('冥界の 兵', 2, 2, { attacks: true, reward: (s, p, E) => E.gain(s, 2) })],
-  [2, esp('死者の招集', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.minion); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
-  [1, esp('冥界の霧', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
-  [1, esp('眠りの歌', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
+  [2, minion('アスフォデルの 灰色（はいいろ）商人（しょうにん）', 2, 4, { etb: (s, p, E) => E.hurt(s, minions(s).length), reward: (s, p, E) => E.drawCard(s) })],
+  [3, minion('冥界（めいかい）の 兵（へい）', 2, 2, { attacks: true, reward: (s, p, E) => E.gain(s, 2) })],
+  [2, esp('死者（ししゃ）の招集（しょうしゅう）', (s, E) => { const i = s.E.gy.findIndex((c) => c.def.minion); if (i >= 0) { const [c] = s.E.gy.splice(i, 1); E.enter(s, 'E', c.def); } }, { danger: 4 })],
+  [1, esp('冥界（めいかい）の霧（きり）', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
+  [1, esp('眠（ねむ）りの歌', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
 ];
 const P3_DECK = [
-  [3, ecr('冥界の 兵', 2, 2, ['zombie'], [], { attacks: true })],
-  [1, ecr('エレボスの 巨人', 5, 5, ['giant'], [], { attacks: true })],
-  [2, esp('エレボスの 裁き', (s, E) => { const t = biggest(s, E); if (t) E.destroy(s, t); E.sba(s); }, { danger: 5 })],
-  [2, esp('命の 代価', (s, E) => E.hurt(s, 3), { danger: 3 })],
-  [2, esp('墓地からの 呼び声', (s, E) => {
+  [3, ecr('冥界（めいかい）の 兵（へい）', 2, 2, ['zombie'], [], { attacks: true })],
+  [1, ecr('エレボスの 巨人（きょじん）', 5, 5, ['giant'], [], { attacks: true })],
+  [2, esp('エレボスの 裁（さば）き', (s, E) => { const t = biggest(s, E); if (t) E.destroy(s, t); E.sba(s); }, { danger: 5 })],
+  [2, esp('命（いのち）の 代価（だいか）', (s, E) => E.hurt(s, 3), { danger: 3 })],
+  [2, esp('墓地（ぼち）からの 呼（よ）び声（ごえ）', (s, E) => {
     const cs = s.P.gy.filter((c) => c.def.types.includes('creature') && typeof c.def.pow === 'number').sort((a, b) => b.def.pow - a.def.pow);
     if (!cs.length) return;
     s.P.gy.splice(s.P.gy.indexOf(cs[0]), 1);
@@ -444,8 +444,8 @@ export function erebos() {
 
 // ===== チュートリアル：メレティスの 訓練場 =====
 // 「訓練の まと」（タフネス 10）を たおせば かち。わらの 兵士は 2回めの 敵の ターンから 攻撃する
-const DUMMY = ecr('訓練の まと', 0, 10, ['wall'], [], { id: 'tut_dummy', dummy: true, noBlock: true, noCopy: true });
-const STRAW = ecr('わらの 兵士', 3, 3, ['scarecrow'], [], { id: 'tut_straw', straw: true, noBlock: true });
+const DUMMY = ecr('訓練（くんれん）の まと', 0, 10, ['wall'], [], { id: 'tut_dummy', dummy: true, noBlock: true, noCopy: true });
+const STRAW = ecr('わらの 兵士（へいし）', 3, 3, ['scarecrow'], [], { id: 'tut_straw', straw: true, noBlock: true });
 
 export function tutorial() {
   return {
@@ -491,7 +491,7 @@ export function pvp(g) {
       if (!s.over) E.combatStart(s);
       if (!s.over) {
         atk = AI.attack(s).filter((a) => a.t);
-        if (atk.length) { E.L(s, `敵の攻撃：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
+        if (atk.length) { E.L(s, `てきの こうげき：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
       }
       back();
       if (!s.over && atk.length) await E.enemyAttack(s, atk.map((a) => a.p));
@@ -519,7 +519,7 @@ export const nyxLoss = (turns) => Math.max(0, turns - NYX_FROM + 1);
 function nyxStorm(s, E) {
   const n = nyxLoss(s.stats.playerTurns);
   if (!n) return;
-  E.L(s, `ニクスの 嵐：${s.swapped ? '敵の ' : ''}ライフ −${n}`);
+  E.L(s, `ニクスの あらし：${s.swapped ? 'てきの ' : ''}ライフ −${n}`);
   E.hurt(s, n);
 }
 
