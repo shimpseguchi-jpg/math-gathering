@@ -1,10 +1,12 @@
 // カード一覧（第1弾＋第2弾）を 1つの ファイルに まとめる
 // つかいかた：node mathtcg/tools/gen_cardlist.mjs   → mathtcg/docs/CARDLIST.md
+//             node mathtcg/tools/gen_cardlist.mjs --html=<ファイル>   → 色ごとに 見る ウェブページ（カードずかん）も 書く
 // 文章は docs/cards/*.md の表から（gen_texts.py と おなじ）。どの弾かは js/data/cards.js の SET2 で きめる
 import { readFileSync, readdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { SET2 } from '../js/data/cards.js';
+import { mapRuby } from '../js/ui/ruby.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(ROOT, 'docs', 'cards');
@@ -117,3 +119,35 @@ out.push('');
 
 writeFileSync(join(ROOT, 'docs', 'CARDLIST.md'), out.join('\n'));
 console.log(`docs/CARDLIST.md：${all.length}種 ＋ きほん ${basics.length} ＋ トークン ${tokens.size}`);
+
+// ---- ウェブページ（tools/cardlist_page.html に データを 入れる）----
+const htmlArg = process.argv.find((a) => a.startsWith('--html='));
+if (htmlArg) {
+  const h = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // 「漢字（よみ）」→ ルビ。<br> は 改行、*…* は ななめ（フレーバー）
+  const rb = (x) => String(x ?? '').replace(/\*\*/g, '').split('<br>')
+    .map((part) => mapRuby(part, (b, y) => `<ruby>${h(b)}<rt>${h(y)}</rt></ruby>`, h).replace(/\*([^*]+)\*/g, '<em>$1</em>')).join('<br>');
+  const costHtml = (c) => {
+    const parts = String(c).replace(/\*\*/g, '').split(/\s+/).filter(Boolean);
+    const nums = parts.filter((x) => /^[\dX]+$/.test(x)), cols = parts.filter((x) => /^[WUGR]+$/.test(x)).join('');
+    const n = nums.join(' ') === 'X X' ? 'XX' : nums.join('+');
+    return h(n) + [...cols].map((k) => `<i class="pip p-${k}"></i>`).join('');
+  };
+  const BASIC_COLOR = { B01: 'W', B02: 'U', B03: 'G', B04: 'R', B05: 'C' };
+  const card = (r, basic = false) => ({
+    id: r.ID, set: basic ? 0 : setOf(r.ID), group: basic ? BASIC_COLOR[r.ID] || 'C' : prefix(r.ID),
+    rar: basic ? '' : r['レアリティ'], rarName: basic ? '' : `${RAR_NAME[r['レアリティ']]}（${{ C: 1, U: 2, R: 3, L: 4 }[r['レアリティ']]}点）`,
+    cost: costHtml(r['コスト']), name: rb(r['名前']), type: rb(r['タイプ']), pt: h(r['P/T'] || ''), text: rb(r['テキスト']),
+    math: rb(r['算数'] || ''), motif: h(r['元のカード'] || ''),
+    plain: [r['名前'], r['タイプ'], r['テキスト'], r['算数'], r['元のカード'], r.ID].join(' ').replace(/\*\*/g, ''),
+  });
+  const data = {
+    cards: sortCards([...all]).map((r) => card(r)),
+    basics: [...basics].sort((a, b) => a.ID.localeCompare(b.ID)).map((r) => card(r, true)),
+    tokens: [...tokens.values()].sort((a, b) => a['名前'].localeCompare(b['名前'], 'ja')).map((t) => ({ name: rb(t['名前']), color: h(t['色']), pt: h(t['P/T']), text: rb(t['能力']), from: h([...t.from].sort().join('・')) })),
+  };
+  const page = readFileSync(join(ROOT, 'tools', 'cardlist_page.html'), 'utf8').replace('/*DATA*/null', () => JSON.stringify(data).replace(/</g, '\\u003c'));
+  const out2 = htmlArg.slice('--html='.length);
+  writeFileSync(out2, page);
+  console.log(`${out2}：${data.cards.length}種（${(Buffer.byteLength(page) / 1024).toFixed(0)}KB）`);
+}
