@@ -3,17 +3,16 @@
 //   node mathtcg/tools/sim.mjs runs     … パックからの冒険を N回
 //   node mathtcg/tools/sim.mjs floors  … 各階を、その階でのパックの数（1階は3パック〜ボスは7パック）で組んだデッキで N回
 //   node mathtcg/tools/sim.mjs log RG hydra … 1戦のログ
-// 環境変数：N（回数）DIFF（easy/normal/hard）MATH（けいさんの正解率 0〜1）RESHUFFLE（0 で山札切れ負け）SEED
+// 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED
 import { BY_ID } from '../js/data/cards.js';
 import { fight, runAdventure, openPack, buildDeck } from '../js/engine/run.js';
 import { seeded } from '../js/engine/rng.js';
 
 const N = Number(process.env.N ?? 200);
 const DIFF = process.env.DIFF ?? 'normal';
-const MATH = Number(process.env.MATH ?? 0.7);
 const RESHUFFLE = process.env.RESHUFFLE !== '0';
 const SEED = Number(process.env.SEED ?? 1);
-const opts = { diff: DIFF, mathRate: MATH, reshuffle: RESHUFFLE };
+const opts = { diff: DIFF, reshuffle: RESHUFFLE };
 
 // docs/cards/*.md の見本デッキ（20枚・30点）
 const SAMPLE = {
@@ -32,7 +31,7 @@ const avg = (a) => (a.length ? a.reduce((t, x) => t + x, 0) / a.length : 0);
 const mode = process.argv[2] || 'fights';
 
 if (mode === 'fights') {
-  console.log(`見本デッキ × 各階（${N}回ずつ・${DIFF}・けいさん正解率 ${MATH}・山札切れは${RESHUFFLE ? '墓地をもどす' : '負け'}）`);
+  console.log(`見本デッキ × 各階（${N}回ずつ・${DIFF}・山札切れは${RESHUFFLE ? '墓地をもどす' : '負け'}）`);
   console.log('勝率／平均ターン（勝ったとき）');
   console.log('      ' + FLOOR_IDS.map((f) => f.padEnd(12)).join(''));
   for (const k of Object.keys(SAMPLE)) {
@@ -55,7 +54,7 @@ if (mode === 'runs') {
   const res = [];
   for (let i = 0; i < N; i++) res.push(await runAdventure({ ...opts, seed: SEED * 100000 + i }));
   const cleared = res.filter((r) => r.cleared).length;
-  console.log(`冒険 ${N}回（${DIFF}・けいさん正解率 ${MATH}）：クリア ${pct(cleared / N)}`);
+  console.log(`冒険 ${N}回（${DIFF}）：クリア ${pct(cleared / N)}`);
   const lost = [0, 0, 0, 0, 0, 0];
   for (const r of res) if (!r.cleared) lost[r.lostAt]++;
   console.log('どこで終わったか：' + [1, 2, 3, 4, 5].map((f) => `${f}階 ${lost[f]}`).join('、'));
@@ -85,7 +84,7 @@ if (mode === 'log') {
 
 if (mode === 'floors') {
   const plan = [['hydra', 3], ['horde', 4], ['factory', 5], ['slime', 5], ['xenagos', 6], ['erebos', 7]];
-  console.log(`各階 × その階で組めるデッキ（${N}回ずつ・${DIFF}・けいさん正解率 ${MATH}）：1回目で勝つ率・勝ったときの平均ターン・山札切れ`);
+  console.log(`各階 × その階で組めるデッキ（${N}回ずつ・${DIFF}）：1回目で勝つ率・勝ったときの平均ターン・山札切れ`);
   for (const [f, packs] of plan) {
     if (process.env.FLOOR && !process.env.FLOOR.split(',').includes(f)) continue;
     let win = 0, resh = 0; const turns = []; const ph = [];

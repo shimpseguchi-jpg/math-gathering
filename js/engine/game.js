@@ -13,14 +13,14 @@ export const card = (def) => ({ uid: UID++, def });
 // カードの効果・各階のルールから使う関数をまとめたもの（ai.js がAI用の関数を足す）
 export const api = {};
 
-export function newGame({ deck, floor, diff = 'normal', seed = 1, mathRate = 0.7, reshuffle = true, ai, log = false }) {
+export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false }) {
   const rng = seeded(seed);
   const s = {
-    rng, diff, mathRate, reshuffle, ai, logOn: log, logs: [],
-    turn: 0, active: 'P', over: null, floor, phase: 1, combat: null,
-    P: { side: 'P', life: 20, lib: shuffle(rng, deck.map((d) => card(d))), hand: [], mana: [], bf: [], gy: [], exile: [], noLifeGain: false, flags: {} },
+    rng, diff, reshuffle, ai, logOn: log, logs: [],
+    turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
+    P: { side: 'P', life: 20, lib: shuffle(rng, deck.map((d) => card(d))), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {} },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {} },
-    stats: { asked: 0, ok: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
+    stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
   floor.setup(s, api);
   for (let i = 0; i < 5; i++) drawCard(s);
@@ -61,9 +61,15 @@ export function beginPlayerTurn(s) {
   s.floor.playerUpkeep?.(s, api);
   const waits = [];
   for (const p of [...P.bf]) if (onBf(s, p) && p.def.upkeep) { const r = p.def.upkeep(s, p, api); if (r && r.then) waits.push(r); }
+  // 待機：時間カウンターを1個とって、0になったら コストを払わずに唱える
+  const ready = [];
+  for (const x of P.suspended) { x.n--; if (x.n <= 0) ready.push(x); }
+  P.suspended = P.suspended.filter((x) => x.n > 0);
   const rest = () => { sba(s); if (s.over) return; if (s.stats.playerTurns > 1) drawCard(s); };
-  // 占術（海の神タッサ）を画面で聞くときは、答えを待ってから引く
-  if (waits.length) return Promise.all(waits).then(rest);
+  const castReady = () => ready.reduce((w, x) => w.then(() => api.castSuspended(s, x.c)), Promise.resolve());
+  // 占術（海の神タッサ）や 待機の 対象を 画面で聞くときは、答えを待ってから引く
+  if (waits.length || (ready.length && s.ai.castSuspended)) return Promise.all(waits).then(castReady).then(rest);
+  for (const x of ready) api.castSuspended(s, x.c);
   rest();
 }
 
@@ -83,7 +89,7 @@ export async function enemyTurn(s) {
 function endTurn(s) {
   s.floor.endTurn?.(s, api);
   for (const side of ['P', 'E']) for (const p of s[side].bf) {
-    p.dmg = 0; p.dt = false; p.mP = 0; p.mT = 0; p.kwT.clear(); p.base2 = false; p.flags.mustAttack = false;
+    p.dmg = 0; p.dt = false; p.dmgBy = []; p.mP = 0; p.mT = 0; p.kwT.clear(); p.base2 = false; p.flags.mustAttack = false;
   }
   sba(s);
   if (!s.over) s.floor.check?.(s, api, 'end');
@@ -117,7 +123,7 @@ export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
 // ---- パーマネント ----
 function makePerm(side, def, o = {}) {
   return {
-    uid: UID++, def, card: o.card || def, side, tapped: !!o.tapped, sick: true, ctr: o.ctr || 0, dmg: 0, dt: false,
+    uid: UID++, def, card: o.card || def, side, tapped: !!o.tapped, sick: true, ctr: o.ctr || 0, level: 0, dmg: 0, dt: false, dmgBy: [],
     mP: 0, mT: 0, kwT: new Set(), frozen: false, token: !!o.token, monstrous: false, attached: null, links: [], flags: { turn: {} },
   };
 }
@@ -150,8 +156,11 @@ export function token(s, side, def, n = 1, o = {}) {
   return out;
 }
 
+// Lvアップ：いまの レベルで 使う 段（なければ null）
+export const levelRow = (p) => (p.def.levels ? [...p.def.levels].reverse().find((r) => p.level >= r.at) || null : null);
+
 export function pt(s, p) {
-  const d = p.def;
+  const d = levelRow(p) || p.def;
   let P = typeof d.pow === 'function' ? d.pow(s, p, api) : (d.pow ?? 0);
   let T = typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
   if (p.base2) P = 2;
@@ -166,7 +175,7 @@ export const power = (s, p) => pt(s, p)[0];
 export const need = (s, p) => (hasKw(s, p, 'indestructible') || s.floor.cantLeave?.(s, p)) ? Infinity : Math.max(0, pt(s, p)[1] - p.dmg);
 
 export function hasKw(s, p, k) {
-  if (p.def.kw?.includes(k) || p.kwT.has(k)) return true;
+  if (p.def.kw?.includes(k) || p.kwT.has(k) || levelRow(p)?.kw?.includes(k)) return true;
   if (p.def.kwFn?.(s, p, api)?.includes(k)) return true;
   for (const q of s[p.side].bf) if (q.def.grant) { const g = q.def.grant(s, q, p, api); if (g && g.includes(k)) return true; }
   return false;
@@ -187,21 +196,38 @@ export function addCounters(s, p, n) {
 export function proliferate(s) {
   for (const p of s.P.bf) {
     if (p.ctr > 0) addCounters(s, p, 1);
+    if (p.level > 0) p.level++;
     if (p.flags.muster) p.flags.muster++;
   }
 }
 
 export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); }
 
+// 鼓舞 N：タフネスが いちばん小さい 自分の クリーチャー（同じなら 先に 出た ほう）に ＋1/＋1カウンターを N個
+export function bolster(s, n) {
+  const t = s.P.bf.filter(isCreature).sort((a, b) => pt(s, a)[1] - pt(s, b)[1])[0];
+  if (!t) return null;
+  L(s, `鼓舞${n}：${t.def.name}（タフネス ${pt(s, t)[1]}）`);
+  target(s, t);
+  addCounters(s, t, n);
+  return t;
+}
+
+// 圧倒：自分の クリーチャーの パワーの 合計が 8 いじょう
+export const totalPower = (s, list) => list.reduce((t, p) => t + Math.max(0, power(s, p)), 0);
+export const formidable = (s) => totalPower(s, s.P.bf.filter(isCreature)) >= 8;
+
 // プレイヤーの呪文が自分のクリーチャーを対象にしたとき（勇壮）
 export function target(s, p) { if (p.side === 'P' && onBf(s, p) && p.def.heroic) p.def.heroic(s, p, api); }
 
 // ---- ダメージ・ライフ ----
-export function damage(s, p, n, src) {
+// o.spell：呪文の ぴったり（{ pittari() }）
+export function damage(s, p, n, src, o = {}) {
   if (n <= 0 || !onBf(s, p)) return 0;
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
   if (p.side === 'P' && p.attacking && s.P.bf.some((q) => q.def.protectAttackers)) return 0;
-  if (isCreature(p)) { p.dmg += n; if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
+  if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
+  if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: p, n });
   L(s, `${src ? `${src.def.name} → ` : ''}${p.side === 'E' ? '敵：' : ''}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
@@ -210,7 +236,6 @@ export function damage(s, p, n, src) {
 
 export function hurt(s, n, src) {
   if (n <= 0 || s.over) return;
-  if (s.combat?.reduce) { const r = Math.min(n, s.combat.reduce); n -= r; s.combat.reduce -= r; }
   s.P.life -= n; s.stats.lifeLost += n;
   L(s, `プレイヤーに ${n}点（のこり ${s.P.life}）`);
   if (s.P.life <= 0) s.over = 'lose';
@@ -230,6 +255,7 @@ export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
   if (t === 'player') return hurt(s, n, src);
   if (t === 'face') {
+    if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
     L(s, `${src ? `${src.def.name} → ` : ''}敵の本体に ${n}点`);
     s.floor.face(s, n, api);
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
@@ -259,9 +285,14 @@ export function sba(s) {
   }
 }
 
+// ぴったり：敵の クリーチャーが、タフネスと ちょうど 同じ ダメージで 倒れた（あまりが 0）
+const isExact = (s, p) => p.side === 'E' && isCreature(p) && !p.dt && p.dmg > 0 && p.dmg === pt(s, p)[1];
+
 export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
+  const exact = o.died && isExact(s, p);
+  if (isCreature(p)) p.diedT = pt(s, p)[1]; // 画面の「攻撃の けっか」で 見せる
   const side = s[p.side];
   side.bf.splice(side.bf.indexOf(p), 1);
   for (const q of side.bf) if (q.attached === p.uid) q.attached = null;
@@ -271,6 +302,14 @@ export function leave(s, p, to = 'gy', o = {}) {
     if (to === 'hand') s.P.hand.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
   }
   L(s, `${p.side === 'P' ? '' : '敵：'}${p.def.name} が戦場を離れた（${to}）`);
+  if (exact) {
+    s.stats.exact++; p.exact = true;
+    L(s, `ぴったり！ ${p.def.name}（タフネス ${p.dmg}）`);
+    for (const by of new Set(p.dmgBy)) {
+      if (by?.pittari) by.pittari(s, api, p);
+      else if (by?.def?.pittari && onBf(s, by)) by.def.pittari(s, by, api, p);
+    }
+  }
   for (const l of p.links) returnLinked(s, l);
   if (o.died && p.def.onDie) p.def.onDie(s, p, api);
   if (p.def.reward) p.def.reward(s, p, api);
@@ -351,8 +390,7 @@ function combatAI(s) {
   if (!atk.length) return;
   const blocks = declareAttack(s, atk);
   s.ai.tricks(s, atk, blocks);
-  const q = attackSumQuestion(s, atk, blocks);
-  finishCombat(s, atk, blocks, !!q && ask(s, q));
+  finishCombat(s, atk, blocks);
 }
 
 // 戦闘のはじめ（ゴブリンの大将・スーラク など）
@@ -367,22 +405,25 @@ export function declareAttack(s, atk) {
   for (const a of atk) { a.p.attacking = true; if (!hasKw(s, a.p, 'vigilance')) tapPerm(s, a.p); }
   L(s, `攻撃：${atk.map((a) => `${a.p.def.name}→${a.t === 'face' ? '本体' : a.t.def?.name}`).join('、')}`);
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
+  attackCounters(s, atk);
   return enemyBlocks(s, atk);
 }
 
-// 3体以上で攻撃したときの「ダメージの合計は？」
-export function attackSumQuestion(s, atk, blocks) {
-  const u = atk.filter((a) => !blocks.has(a.p.uid) && onBf(s, a.p) && !a.t?.def?.factory);
-  if (atk.length < 3 || !u.length) return null;
-  const ps = u.map((a) => Math.max(0, power(s, a.p)));
-  return { hint: 'ブロックされなかった クリーチャーの ダメージの ごうけいは？', text: `${ps.join(' ＋ ')} ＝ □`, answer: ps.reduce((t, x) => t + x, 0), reward: '1体の パワーが ＋1' };
+// 訓練：自分より パワーが 大きい クリーチャーと 攻撃すると ＋1/＋1カウンター
+// 教導：自分より パワーが 小さい 攻撃クリーチャー1体（いちばん大きいもの）に ＋1/＋1カウンター
+function attackCounters(s, atk) {
+  const live = () => atk.map((a) => a.p).filter((q) => onBf(s, q));
+  for (const p of live()) {
+    if (hasKw(s, p, 'training') && live().some((q) => q !== p && power(s, q) > power(s, p))) { addCounters(s, p, 1); L(s, `訓練：${p.def.name}`); }
+  }
+  for (const p of live()) {
+    if (!hasKw(s, p, 'mentor')) continue;
+    const t = live().filter((q) => q !== p && power(s, q) < power(s, p)).sort((a, b) => power(s, b) - power(s, a))[0];
+    if (t) { addCounters(s, t, 1); L(s, `教導：${p.def.name} → ${t.def.name}`); }
+  }
 }
 
-export function finishCombat(s, atk, blocks, bonus) {
-  if (bonus) {
-    const u = atk.filter((a) => !blocks.has(a.p.uid) && onBf(s, a.p) && !a.t?.def?.factory);
-    if (u.length) u[0].p.mP += 1;
-  }
+export function finishCombat(s, atk, blocks) {
   resolveCombat(s, atk, blocks);
   for (const a of atk) a.p.attacking = false;
 }
@@ -397,14 +438,11 @@ export async function enemyAttack(s, attackers) {
   const blocks = await s.ai.blocks(s, attackers);
   await s.ai.duringBlocks(s, attackers, blocks);
   attackers = attackers.filter((p) => onBf(s, p));
-  const ps = attackers.filter((p) => !blocks.has(p.uid)).map((p) => Math.max(0, power(s, p)));
-  const unblocked = ps.reduce((t, x) => t + x, 0);
-  const reduce = unblocked > 0 && await askAsync(s, { hint: 'ブロックしなかった 敵の こうげき。うける ダメージは？', text: `${ps.join(' ＋ ')} ＝ □`, answer: unblocked, reward: 'ダメージが 1 へる' }) ? 1 : 0;
-  resolveCombat(s, attackers.map((p) => ({ p, t: 'player' })), blocks, reduce);
+  resolveCombat(s, attackers.map((p) => ({ p, t: 'player' })), blocks);
 }
 
-export function resolveCombat(s, atk, blocks, reduce = 0) {
-  s.combat = { atk, blocks, factory: 0, reduce, key: s.E.key };
+export function resolveCombat(s, atk, blocks) {
+  s.combat = { atk, blocks, factory: 0, key: s.E.key, events: [] };
   for (const step of ['first', 'normal']) {
     const strikes = (x) => {
       const fs = hasKw(s, x, 'first') || hasKw(s, x, 'double');
@@ -435,35 +473,15 @@ export function resolveCombat(s, atk, blocks, reduce = 0) {
   }
   if (!s.over) s.floor.afterCombat?.(s, api);
   for (const a of atk) a.p.attacking = false;
+  s.lastCombat = s.combat.events;
   s.combat = null;
   sba(s);
-}
-
-// ---- けいさんボーナス ----
-// q = { text, answer, hint, reward }。人が遊ぶときは ui が先に聞いた答えを s.mathQueue に入れておく
-export function ask(s, q) {
-  let ok;
-  if (s.mathQueue?.length) ok = s.mathQueue.shift();
-  else if (s.ai.askSync) { ok = s.ai.askSync(s, q); if (ok == null) return false; }
-  else ok = s.rng() < s.mathRate;
-  s.stats.asked++;
-  if (ok) s.stats.ok++;
-  return ok;
-}
-
-// 相手のターンの問題（人が遊ぶときは画面で答えを待つ）
-export async function askAsync(s, q) {
-  if (!s.ai.ask) return ask(s, q);
-  s.stats.asked++;
-  const ok = await s.ai.ask(s, q);
-  if (ok) s.stats.ok++;
-  return ok;
 }
 
 Object.assign(api, {
   L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
-  enemyAttack, enemyBlocks, canBlock, blockFacts, ask, askAsync, is, isCreature, onBf, colorsOf, card,
+  enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
 });

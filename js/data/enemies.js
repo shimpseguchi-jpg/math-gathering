@@ -43,8 +43,7 @@ const headsFloor = {
       ds.push(p.def.headDmg + dmgBonus + (s.E.flags.turn.extra || 0));
       if (p.def.fang) { const t = biggest(s, E); if (t) E.damage(s, t, 1, null); }
     }
-    let total = s.E.flags.turn.noDmg ? 0 : ds.reduce((t, x) => t + x, 0);
-    if (total > 0 && await E.askAsync(s, { hint: '頭が ダメージを あたえる。うける ダメージは？', text: `${ds.join(' ＋ ')} ＝ □`, answer: total, reward: 'ダメージが 1 へる' })) total -= 1; // 「つぎに うける ダメージは？」
+    const total = s.E.flags.turn.noDmg ? 0 : ds.reduce((t, x) => t + x, 0);
     E.hurt(s, total);
     E.sba(s);
   },
@@ -371,7 +370,7 @@ export function erebos() {
       for (let i = 0; i < DIFF(s, 1, 2, 3); i++) E.enter(s, 'E', PHALANX);
       s.E.lib = toLib(s, E, build(P2_DECK));
     } else {
-      s.E.life = DIFF(s, 15, 30, 35);
+      s.E.life = DIFF(s, 15, 26, 35);
       s.P.noLifeGain = true;
       s.E.lib = toLib(s, E, build(P3_DECK));
     }
@@ -396,7 +395,7 @@ export function erebos() {
         await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
         return;
       }
-      E.hurt(s, DIFF(s, 2, 3, 3)); // エレボス：死者の神のターンのはじめに ライフを失う
+      E.hurt(s, DIFF(s, 2, 2, 3)); // エレボス：死者の神のターンのはじめに ライフを失う
       if (s.over) return;
       await E.reveal(s, DIFF(s, 1, 2, 2));
       if (s.over) return;

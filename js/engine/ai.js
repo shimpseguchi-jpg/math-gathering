@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, ask, canBlock, blockFacts, card,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -12,9 +12,10 @@ function sources(s, o = {}) {
   const out = [];
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); out.push({ kind: 'mana', ref: m, colors: c.length ? c : ['C'], pri: 0 }); }
   for (const p of s.P.bf) {
-    if (p.tapped || !p.def.mana || p === o.exclude || p.attacking) continue;
+    const m = manaOf(p);
+    if (p.tapped || !m || p === o.exclude || p.attacking) continue;
     if (isCreature(p) && p.sick) continue;
-    out.push({ kind: 'ability', ref: p, colors: p.def.mana === 'any' ? COLORS : p.def.mana, pri: 1 });
+    for (let i = 0; i < m.n; i++) out.push({ kind: 'ability', ref: p, colors: m.colors === 'any' ? COLORS : m.colors, pri: 1 });
   }
   if (o.convoke) for (const p of s.P.bf) {
     if (!isCreature(p) || p.tapped || p === o.exclude || out.some((x) => x.ref === p)) continue;
@@ -25,6 +26,9 @@ function sources(s, o = {}) {
   }
   return out.sort((a, b) => a.pri - b.pri);
 }
+
+// タップで 出せる マナ（Lvアップで ふえる ものも ある）
+const manaOf = (p) => { const r = levelRow(p); const m = r?.mana ?? p.def.mana; return m ? { colors: m, n: r?.manaN ?? p.def.manaN ?? 1 } : null; };
 
 export function plan(s, cost, req = [], o = {}) {
   const src = sources(s, o);
@@ -53,18 +57,10 @@ export function pay(s, pl) {
     else { tapPerm(s, x.ref); if (x.kind === 'convoke') convoked.push(x.ref); }
   }
   if (pl.prism) pl.prism.tapped = true;
-  // 召集のけいさんボーナス：正解でタップしたクリーチャー1体がアンタップ
-  if (convoked.length && ask(s, convokeQuestion(pl))) convoked[0].tapped = false;
-  return convoked;
+  return [...new Set(convoked)];
 }
 
-const manaCount = (s, o = {}) => sources(s, o).length;
-
-export function convokeQuestion(pl) {
-  const n = pl.srcs.length, c = pl.srcs.filter((x) => x.kind === 'convoke').length;
-  return { hint: '召集：マナの たりない ぶんを クリーチャーで はらう。なんたい タップする？', text: `コスト ${n} ＝ マナ ${n - c} ＋ なかま □`, answer: c, reward: 'タップした クリーチャー1体が アンタップ' };
-}
-export const xQuestion = (total, base) => ({ hint: 'X呪文：つかえる マナで X を きめる', text: `マナ ${total} ＝ X ＋ ${base}　X ＝ □`, answer: total - base, reward: 'X が ＋1' });
+export const manaCount = (s, o = {}) => sources(s, o).length;
 
 // ---- 唱える ----
 export function castCard(s, c, pl, o = {}) {
@@ -108,22 +104,49 @@ function optionsFor(s, c, phase, from) {
     return [{
       score: r.score, name: def.name, exec: () => {
         const pl = plan(s, cost + x, req, o); if (!pl) return;
-        const xx = x + (ask(s, xQuestion(cost + x, cost)) ? 1 : 0); // X のけいさんボーナス
-        castCard(s, c, pl, { x: xx, ctr: xx, run: () => r.run(xx), from });
+        castCard(s, c, pl, { x, ctr: x, run: () => r.run(x), from });
       },
     }];
   }
-  if (!plan(s, cost, req, o)) return [];
+  const out = from === 'hand' ? suspendOption(s, c, phase) : [];
+  if (!plan(s, cost, req, o)) return out;
   if (isPermDef(def)) {
     const sc = def.permScore ? def.permScore(s, api, { phase }) : permScore(s, def, phase);
-    if (sc == null || sc <= 0) return [];
-    return [{ score: sc, name: def.name, exec: () => { const pl = plan(s, cost, req, o); if (pl) castCard(s, c, pl, { from }); } }];
+    if (sc == null || sc <= 0) return out;
+    return [...out, { score: sc, name: def.name, exec: () => { const pl = plan(s, cost, req, o); if (pl) castCard(s, c, pl, { from }); } }];
   }
-  if (!def.play || (def.reactive && phase !== 'react')) return [];
-  if (def.types.includes('sorcery') && phase === 'react') return [];
-  const r = def.play(s, api, { phase, c });
-  if (!r || r.score <= 0) return [];
-  return [{ score: r.score, name: def.name, exec: () => { const pl = plan(s, cost, req, o); if (pl) castCard(s, c, pl, { run: r.run, from }); } }];
+  if (!def.play || (def.reactive && phase !== 'react')) return out;
+  if (def.types.includes('sorcery') && phase === 'react') return out;
+  // r.extra：激励・キッカー・増呪で ふえる マナ（ctx.manaLeft を見て 払える ぶんだけ）
+  const r = def.play(s, api, { phase, c, manaLeft: manaCount(s, o) - cost });
+  if (!r || r.score <= 0) return out;
+  const extra = r.extra || 0;
+  if (extra && !plan(s, cost + extra, req, o)) return out;
+  return [...out, { score: r.score, name: def.name, exec: () => { const pl = plan(s, cost + extra, req, o); if (pl) castCard(s, c, pl, { run: r.run, from }); } }];
+}
+
+// 待機：いま 少しの マナで、時間カウンターが なくなったら ただで 唱える
+function suspendOption(s, c, phase) {
+  const sp = c.def.suspend;
+  if (!sp || phase !== 1 || !plan(s, sp.cost, sp.req || [])) return [];
+  const now = plan(s, c.def.cost, colorsOf(c.def));
+  const score = (c.def.suspendScore ?? 6) - (now ? 3 : 0);
+  return [{ score, name: `${c.def.name}（待機）`, exec: () => { const pl = plan(s, sp.cost, sp.req || []); if (pl) suspendCard(s, c, pl); } }];
+}
+
+export function suspendCard(s, c, pl) {
+  s.P.hand.splice(s.P.hand.indexOf(c), 1);
+  pay(s, pl);
+  s.P.suspended.push({ c, n: c.def.suspend.turns });
+  L(s, `待機：${c.def.name}（時間カウンター ${c.def.suspend.turns}）`);
+}
+
+// 待機が おわった 呪文を ただで 唱える（人が 遊ぶときは 画面で 対象を えらぶ）
+function castSuspended(s, c) {
+  if (s.ai.castSuspended) return s.ai.castSuspended(s, c);
+  const r = c.def.play?.(s, api, { phase: 1, c, manaLeft: 0, free: true });
+  if (r) castCard(s, c, null, { run: r.run, from: 'suspend' });
+  else { s.P.gy.push(c); L(s, `待機：${c.def.name} は こうかが なかった`); }
 }
 
 function permScore(s, def, phase) {
@@ -138,6 +161,7 @@ function actOptions(s, phase) {
     if (a.when && !a.when.includes(phase)) continue;
     if (a.tap && (p.tapped || (isCreature(p) && p.sick))) continue;
     if (a.monstrosity && p.monstrous) continue;
+    if (a.levelUp && p.def.levelMax && p.level >= p.def.levelMax) continue;
     const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
     const o = { exclude: a.tap || a.sac ? p : null };
     let xMax = 0;
@@ -152,6 +176,7 @@ function actOptions(s, phase) {
         pay(s, pl);
         if (a.tap) tapPerm(s, p);
         if (a.monstrosity) p.monstrous = true;
+        if (a.levelUp) levelUp(s, p);
         r.run(x);
         sba(s);
       },
@@ -168,6 +193,8 @@ function actOptions(s, phase) {
   }
   return out;
 }
+
+export function levelUp(s, p) { p.level++; L(s, `Lvアップ：${p.def.name}（レベル ${p.level}）`); }
 
 // ---- メイン・フェイズ ----
 function main(s, phase) {
@@ -377,8 +404,8 @@ function reactLoop(s, ctx) {
       if (!d.react || c.locked) continue;
       const o = { convoke: d.kw?.includes('convoke') };
       if (!plan(s, d.cost, colorsOf(d), o)) continue;
-      const r = d.react(s, api, ctx);
-      if (r && r.score > 0) opts.push({ score: r.score, exec: () => { const pl = plan(s, d.cost, colorsOf(d), o); if (pl) castCard(s, c, pl, { run: r.run }); } });
+      const r = d.react(s, api, { ...ctx, manaLeft: manaCount(s, o) - d.cost });
+      if (r && r.score > 0) opts.push({ score: r.score, exec: () => { const pl = plan(s, d.cost + (r.extra || 0), colorsOf(d), o); if (pl) castCard(s, c, pl, { run: r.run }); } });
     }
     if (!opts.length) break;
     opts.sort((a, b) => b.score - a.score);
@@ -452,8 +479,6 @@ function divide(s, n, cands) {
     .filter((x) => x.need !== Infinity).sort((a, b) => (a.need - b.need) || (b.v - a.v));
   const out = [];
   let left = n;
-  const k = Math.max(1, Math.min(list.length, n));
-  if (left > 1 && ask(s, { hint: '割り振る：おなじ数ずつ わけると？（あまりは きりすて）', text: `${n} ÷ ${k} ＝ □`, answer: Math.floor(n / k), reward: '割り振る数が ＋1' })) left++; // 割り振るのけいさんボーナス
   for (const x of list) { if (x.need <= left) { out.push({ t: x.p, n: x.need }); left -= x.need; } }
   if (left > 0 && (out.length || list.length)) {
     const tgt = out.length ? out[out.length - 1] : { t: list[0].p, n: 0 };
@@ -481,6 +506,7 @@ Object.assign(api, {
     return best;
   },
   castFree: (s, c, r) => { castCard(s, c, null, { run: r.run, from: 'gy', free: true, x: r.x }); },
+  castSuspended,
   // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {
     L(s, `占術 ${n}`);

@@ -88,7 +88,7 @@ export function buildDeck(pool, o = {}) {
 }
 
 export async function fight(deck, floorId, o = {}) {
-  const s = newGame({ deck, floor: FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, mathRate: o.mathRate ?? 0.7, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log });
+  const s = newGame({ deck, floor: FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log });
   await play(s, o.maxTurns || 40);
   return s;
 }
@@ -106,7 +106,7 @@ export async function runAdventure(o = {}) {
     for (;;) {
       const s = await fight(b.deck, floors[i], { ...o, seed: Math.floor(rng() * 1e9), log: o.logFloor === floors[i] });
       if (s.logOn) (log.fightLogs ||= []).push(s.logs.join('\n'));
-      log.floors.push({ floor: floors[i], result: s.over, turns: s.stats.playerTurns, life: s.P.life, phase: s.stats.phase, asked: s.stats.asked, ok: s.stats.ok, reshuffled: s.stats.reshuffled });
+      log.floors.push({ floor: floors[i], result: s.over, turns: s.stats.playerTurns, life: s.P.life, phase: s.stats.phase, exact: s.stats.exact, reshuffled: s.stats.reshuffled });
       if (s.over === 'win') break;
       if (continues > 0) { continues--; continue; }
       log.lostAt = i + 1;

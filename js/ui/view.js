@@ -1,4 +1,4 @@
-// 画面の部品：カードの見た目・ルビ・下から出るシート・けいさんの問題
+// 画面の部品：カードの見た目・ルビ・下から出るシート
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
 import { colorsOf, pt, hasKw, isCreature } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
@@ -64,6 +64,7 @@ export const COLOR_NAME = { W: '白', U: '青', G: '緑', R: '赤' };
 const KW = {
   flying: '飛行', reach: '到達', haste: '速攻', vigilance: '警戒', first: '先制攻撃', double: '二段攻撃', trample: 'トランプル',
   defender: '防衛', lifelink: '絆魂', deathtouch: '接死', flash: '瞬速', indestructible: '破壊不能', convoke: '召集', prowess: '果敢', evolve: '進化',
+  mentor: '教導', training: '訓練',
 };
 export const RAR = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド', B: 'きほん' };
 
@@ -121,6 +122,7 @@ export function permFace(s, p, o = {}) {
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
+    p.def.levels ? `<span class="b lv">Lv${p.level}</span>` : '',
     p.tapped ? '<span class="b tap">タップ</span>' : '',
     p.sick && !enemy && isCreature(p) && !hasKw(s, p, 'haste') ? '<span class="b zz">zz</span>' : '',
     p.frozen ? '<span class="b ice">こおり</span>' : '',
@@ -240,53 +242,29 @@ function openSheet(html, choices, o) {
   });
 }
 
-// ---- けいさんの問題（テンキー） ----
-export function quiz(q) {
-  return new Promise((resolve) => {
-    const el = document.getElementById('quiz');
-    let input = '';
-    const parts = q.text.split('□');
-    el.innerHTML = `<div class="quiz-body" role="dialog" aria-modal="true">
-      <p class="quiz-tag">けいさんチャレンジ</p>
-      <p class="quiz-hint">${ruby(q.hint || '')}</p>
-      <p class="quiz-q">${esc(parts[0])}<span class="quiz-box" id="quizBox">？</span>${esc(parts[1] || '')}</p>
-      <p class="quiz-reward">せいかいすると：${ruby(q.reward || 'いいことが ある')}</p>
-      <div class="pad">${[7, 8, 9, 4, 5, 6, 1, 2, 3].map((n) => `<button type="button" data-n="${n}">${n}</button>`).join('')}
-        <button type="button" data-c="del">けす</button><button type="button" data-n="0">0</button><button type="button" data-c="ok" class="ok">こたえる</button></div>
-      <button type="button" class="btn ghost" data-c="skip">わからない</button>
-      <p class="quiz-result" id="quizRes" aria-live="polite"></p>
-    </div>`;
+// ---- 数を えらぶ（X など）：−／＋で きめる。やめたら null ----
+export function numberSheet(title, { min = 0, max = 9, value = min, note = '' } = {}) {
+  return enqueue(() => new Promise((resolve) => {
+    const el = root();
+    let v = value;
+    const draw = () => {
+      el.innerHTML = `<div class="sheet-back"></div><div class="sheet-body ${el.innerHTML ? 'still' : ''}" role="dialog" aria-modal="true">
+        <h3 class="sheet-title">${title}</h3>
+        <p class="pick-note">${ruby(note)}</p>
+        <div class="num-row"><button type="button" class="step" data-d="-1" ${v <= min ? 'disabled' : ''} aria-label="へらす">−</button><b class="num-val">${v}</b>
+          <button type="button" class="step" data-d="1" ${v >= max ? 'disabled' : ''} aria-label="ふやす">＋</button></div>
+        <div class="sheet-actions"><button type="button" class="btn primary" data-ok="1">けってい</button><button type="button" class="btn" data-no="1">やめる</button></div>
+      </div>`;
+    };
+    draw();
     el.hidden = false;
-    const box = el.querySelector('#quizBox');
-    let locked = false;
-    const finish = (ok, msg) => {
-      locked = true;
-      el.querySelector('#quizRes').innerHTML = msg;
-      el.querySelector('.quiz-body').classList.add(ok ? 'good' : 'bad');
-      setTimeout(() => { el.hidden = true; el.innerHTML = ''; resolve(ok); }, ok ? 900 : 1700);
-    };
+    const done = (r) => { el.hidden = true; el.innerHTML = ''; el.onclick = null; resolve(r); };
     el.onclick = (e) => {
-      const b = e.target.closest('button'); if (!b || locked) return;
-      if (b.dataset.n != null) { if (input.length < 3) input += b.dataset.n; }
-      else if (b.dataset.c === 'del') input = input.slice(0, -1);
-      else if (b.dataset.c === 'skip') return finish(false, `こたえは <b>${q.answer}</b>`);
-      else if (b.dataset.c === 'ok' && input) {
-        const ok = Number(input) === q.answer;
-        return finish(ok, ok ? 'せいかい！ ひらめき！' : `ざんねん。こたえは <b>${q.answer}</b>`);
-      }
-      box.textContent = input || '？';
+      if (!el.contains(e.target)) return;
+      const b = e.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.ok) return done(v);
+      if (b.dataset.no) return done(null);
+      v = Math.max(min, Math.min(max, v + +b.dataset.d)); draw();
     };
-  });
+  }));
 }
-
-// 学年べつの「抜き打ちテスト」
-export function quizFor(grade) {
-  const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-  if (grade <= 1) { const a = r(2, 9), b = r(1, 9); return Math.random() < 0.5 || a < b ? { text: `${a} ＋ ${b} ＝ □`, answer: a + b } : { text: `${a} − ${b} ＝ □`, answer: a - b }; }
-  if (grade === 2) { const a = r(2, 9), b = r(2, 9); return { text: `${a} × ${b} ＝ □`, answer: a * b }; }
-  if (grade === 3) { const b = r(2, 9), a = b * r(2, 9); return { text: `${a} ÷ ${b} ＝ □`, answer: a / b }; }
-  if (grade === 4) { const a = r(11, 49), b = r(2, 9); return { text: `${a} × ${b} ＝ □`, answer: a * b }; }
-  const a = r(2, 12), b = r(2, 12); return { text: `${a} と ${b} の さいしょうこうばいすう ＝ □`, answer: lcm(a, b) };
-}
-const gcd = (a, b) => (b ? gcd(b, a % b) : a);
-const lcm = (a, b) => (a * b) / gcd(a, b);

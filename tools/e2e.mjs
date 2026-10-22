@@ -29,7 +29,7 @@ if (process.env.START) {
   await page.evaluate(async ([start, f3]) => {
     const { openPack } = await import('./js/engine/run.js');
     const pool = []; for (let i = 0; i < 7; i++) pool.push(...openPack(Math.random).map((d) => d.id));
-    localStorage.setItem('mtg-adventure-v1', JSON.stringify({ diff: 'easy', grade: 2, pool, deck: null, floors: ['hydra', 'horde', f3, 'xenagos', 'erebos'], idx: start, continues: 9, toOpen: 0, opened: 7, asked: 0, ok: 0 }));
+    localStorage.setItem('mtg-adventure-v1', JSON.stringify({ diff: 'easy', pool, deck: null, floors: ['hydra', 'horde', f3, 'xenagos', 'erebos'], idx: start, continues: 9, toOpen: 0, opened: 7, exact: 0 }));
   }, [Number(process.env.START), process.env.FLOOR3 || 'factory']);
   await page.reload();
   await page.click('[data-go=cont]');
@@ -37,16 +37,18 @@ if (process.env.START) {
 let ended = false, battles = 0;
 for (let i = 0; i < STEPS && !ended; i++) {
   await page.waitForTimeout(30);
-  if (await page.locator('#quiz:not([hidden]) [data-c=ok]').count()) {
-    await shot('quiz');
-    // 問題の答えは画面から計算できないので、正解・まちがいを まぜる
-    if (Math.random() < 0.5) await page.click('#quiz [data-c=skip]'); else { await page.click('#quiz [data-n="3"]'); await page.click('#quiz [data-c=ok]'); }
-    await page.waitForTimeout(1800);
-    continue;
-  }
   if (await page.locator('#sheet:not([hidden]) .pick-list').count()) {
     await shot(`pick${battles}`);
-    await page.locator('#sheet .pick').first().click();
+    const picks = page.locator('#sheet .pick');
+    await picks.first().click();
+    // 激励・増呪・割り振る：ときどき 2つ えらぶ（マナが たりなければ「マナが たりない」が 出る）
+    if (await picks.count() > 1 && Math.random() < 0.3) await picks.nth(1).click();
+    if (await page.locator('#sheet [data-ok]:not([disabled])').count()) await page.click('#sheet [data-ok]'); else await page.click('#sheet [data-no]');
+    continue;
+  }
+  if (await page.locator('#sheet:not([hidden]) .num-row').count()) {
+    await shot('number');
+    if (Math.random() < 0.5 && await page.locator('#sheet .step[data-d="-1"]:not([disabled])').count()) await page.click('#sheet .step[data-d="-1"]');
     await page.click('#sheet [data-ok]');
     continue;
   }

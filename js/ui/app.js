@@ -26,25 +26,23 @@ const nm = (d) => noRuby(info(d).name);
 // ---- タイトル ----
 export function title() {
   const old = load();
-  const pref = old || { diff: 'normal', grade: 3 };
+  const pref = old || { diff: 'normal' };
   app().innerHTML = `<main class="title">
     <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
     <h1>マスマティック・<br>ザ・ギャザリング</h1>
     <p class="title-sub">算数の デッキ構築 ローグライク。パックを あけて デッキを くみ、5階だての 塔を のぼろう。</p>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
-    <fieldset class="seg"><legend>学年（抜き打ちテストの もんだい）</legend>${[1, 2, 3, 4, 5].map((g) => `<label><input type="radio" name="grade" id="grade-${g}" value="${g}" ${+pref.grade === g ? 'checked' : ''}><span>${g}年</span></label>`).join('')}</fieldset>
     <div class="title-btns">
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.idx + 1}階）</button>` : ''}
       <button type="button" class="btn ${old && !old.over ? '' : 'primary'}" data-go="new">あたらしい 冒険</button>
     </div>
-    <p class="fine">試作版。カードの対象（ねらう相手）は いまは 自動で えらばれます。</p>
+    <p class="fine">試作版。敵を タフネスと ちょうど 同じ ダメージで 倒すと「ぴったり！」。</p>
   </main>`;
   app().onclick = (e) => {
     const b = e.target.closest('[data-go]'); if (!b) return;
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     const diff = app().querySelector('input[name=diff]:checked').value;
-    const grade = +app().querySelector('input[name=grade]:checked').value;
-    A = { diff, grade, pool: [], deck: null, floors: ['hydra', 'horde', Math.random() < 0.5 ? 'factory' : 'slime', 'xenagos', 'erebos'], idx: 0, continues: 1, toOpen: 3, opened: 0, asked: 0, ok: 0 };
+    A = { diff, pool: [], deck: null, floors: ['hydra', 'horde', Math.random() < 0.5 ? 'factory' : 'slime', 'xenagos', 'erebos'], idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
     packs();
   };
@@ -267,9 +265,9 @@ function tower() {
 function fight() {
   const f = A.floors[A.idx];
   startBattle({
-    deck: finalDeck(), floorId: f, diff: A.diff, grade: A.grade, floorName: FLOOR_NAMES[f],
+    deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f],
     onEnd: async (r) => {
-      A.asked += r.asked; A.ok += r.ok;
+      A.exact = (A.exact || 0) + r.exact;
       if (r.win) {
         A.idx++;
         if (A.idx >= A.floors.length) { A.over = 'clear'; save(); return ending(true); }
@@ -294,7 +292,7 @@ function ending(win) {
     <h2>${win ? 'エレボスを たおした！' : 'ぼうけん おわり'}</h2>
     <dl class="stats">
       <div><dt>とどいた 階</dt><dd>${reached}<small>/5</small></dd></div>
-      <div><dt>けいさんチャレンジ</dt><dd>${A.ok}<small>/${A.asked} せいかい</small></dd></div>
+      <div><dt>ぴったり</dt><dd>${A.exact || 0}<small>回</small></dd></div>
       <div><dt>あけた パック</dt><dd>${A.opened}</dd></div>
     </dl>
     <button type="button" class="btn primary" data-a="t">タイトルへ</button>

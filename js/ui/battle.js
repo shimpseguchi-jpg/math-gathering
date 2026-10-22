@@ -1,11 +1,11 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
-  api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, attackSumQuestion, finishCombat,
+  api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat,
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm,
 } from '../engine/game.js';
-import { AI, plan, castCard, pay, convokeQuestion, xQuestion, readyAttackers } from '../engine/ai.js';
+import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS } from '../data/enemies.js';
-import { permFace, cardFace, detail, sheet, quiz, quizFor, esc, info, noRuby, pickMany, divideSheet } from './view.js';
+import { permFace, cardFace, detail, sheet, esc, info, noRuby, pickMany, divideSheet, numberSheet } from './view.js';
 
 let B = null; // いまのたたかい
 const app = () => document.getElementById('app');
@@ -14,8 +14,8 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 
 export function startBattle(o) {
   const floor = FLOORS[o.floorId]();
-  B = { mode: 'main', phase: 1, combatDone: false, busy: false, grade: o.grade, onEnd: o.onEnd, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
-  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), mathRate: 0, ai: humanAI(), log: true });
+  B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
+  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true });
   app().onclick = onClick;
   initSwipe();
   startTurn();
@@ -24,8 +24,20 @@ export function startBattle(o) {
 // ---- 敵のターン中にプレイヤーに聞くこと ----
 function humanAI() {
   return {
-    askSync: () => null,
-    ask: (s, q) => { render(); return quiz(q); },
+    // 待機が おわった 呪文：対象を えらんで ただで 唱える
+    castSuspended: async (s, c) => {
+      const d = c.def;
+      render();
+      await sheet(detail(d), [{ label: 'つかう', value: 1, kind: 'primary' }], { title: '待機（たいき）が おわった！ ただで 唱える', dismiss: false });
+      let run = null;
+      if (d.tgt && d.apply) {
+        const picks = needsTargets(d.tgt, {}) ? await pickAll(d.tgt, {}) : null;
+        if (picks) run = () => d.apply(s, api, picks, 0);
+      } else { const r = d.play?.(s, api, { phase: 1, c, human: true, manaLeft: 0 }); if (r) run = r.run; }
+      if (run) await castCard(s, c, null, { run, from: 'suspend' });
+      else { s.P.gy.push(c); s.logs.push(`[${s.turn}P] 待機：${d.name} は こうかが なかった`); }
+      render();
+    },
     // 敵が めくった カードを 見せる（打ち消せるときは counter が 見せる）
     revealed: async (s, c) => {
       if (s.P.hand.some((h) => h.def.counter && (h.def.counter === 'any' || c.def.types.includes('creature')) && plan(s, h.def.cost, colorsOf(h.def), { req2: h.def.req2 }))) return;
@@ -79,6 +91,7 @@ function humanAI() {
           const pl = plan(s, c.def.cost, colorsOf(c.def), o);
           if (!pl) continue;
           if (c.def.modes) { if (c.def.modes.some((m) => modeOk(m, { attackers }))) opts.push({ c, pl, modes: true }); continue; }
+          if (c.def.strive) continue;
           if (c.def.tgt) { if (cands(c.def.tgt[0], { attackers }).length) opts.push({ c, pl, tgt: true }); continue; }
           const r = c.def.react(s, api, { attackers, blocks });
           if (r) opts.push({ c, pl, r });
@@ -91,9 +104,10 @@ function humanAI() {
         ], { title: 'ブロックの あとで', dismiss: false });
         if (!v) return;
         if (v.modes) {
-          const run = await chooseMode(v.c.def, { attackers });
-          if (!run) continue;
-          castCard(s, v.c, plan(s, v.c.def.cost, colorsOf(v.c.def)) || v.pl, { run });
+          const m = await chooseMode(v.c.def, { attackers });
+          if (!m) continue;
+          const pl = await payable(v.c.def.cost + m.extra, colorsOf(v.c.def), {});
+          if (pl) castCard(s, v.c, pl, { run: m.run });
         } else if (v.tgt) {
           const picks = await pickAll(v.c.def.tgt, { attackers });
           if (!picks) continue;
@@ -147,9 +161,9 @@ function checkOver(lines) {
   if (!s.over) return false;
   render();
   const win = s.over === 'win';
-  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : 'lose'}">${win ? 'かった！' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　けいさん ${s.stats.ok}/${s.stats.asked} せいかい</p>`,
+  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : 'lose'}">${win ? 'かった！' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
-    .then(() => B.onEnd({ win, turns: s.stats.playerTurns, asked: s.stats.asked, ok: s.stats.ok, phase: s.stats.phase }));
+    .then(() => B.onEnd({ win, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase }));
   return true;
 }
 
@@ -199,12 +213,11 @@ async function pickAll(tgt, ctx = {}) {
     if (list.length < min) return null;
     if (!list.length) { picks.push([]); continue; }
     render();
-    let chosen = await pickMany(esc(spec.label), list.map((t) => ({ label: targetLabel(t), value: t })), { min, max: Math.max(max, 1) });
+    let chosen = await pickMany(esc(spec.label), list.map((t) => ({ label: targetLabel(t), value: t })), { min, max: Math.max(max, 1), note: ctx.note });
     if (!chosen) return null;
     if (spec.divide) {
-      let n = spec.divide === 'x' ? ctx.x : spec.divide;
+      const n = spec.divide === 'x' ? ctx.x : spec.divide;
       const k = chosen.length;
-      if (k >= 2 && n > 1 && await quiz({ hint: '割り振る：おなじ数ずつ わけると？（あまりは きりすて）', text: `${n} ÷ ${k} ＝ □`, answer: Math.floor(n / k), reward: '割り振る数が ＋1' })) n++;
       chosen = k === 1 ? [{ t: chosen[0], n }] : await divideSheet(`${n}を 割り振る`, n, chosen.map((t) => ({ label: targetLabel(t), value: t })));
     }
     picks.push(chosen);
@@ -214,19 +227,39 @@ async function pickAll(tgt, ctx = {}) {
 const needsTargets = (tgt, ctx) => tgt.every((spec) => cands(spec, ctx).length >= (spec.min ?? 1));
 const tName = (t) => (t === 'face' ? faceName() : nm(t));
 
-// ---- モードを えらぶ 呪文（ボロスの 魔除け など）：1つ えらんで、対象も えらぶ。やめたら null ----
+// ---- モードを えらぶ 呪文（ボロスの 魔除け など）。増呪は いくつでも えらべて、2つめから 1つにつき マナが ふえる ----
+// { run, extra }。やめたら null
 const modeOk = (m, ctx) => !m.tgt || needsTargets(m.tgt, ctx);
+const manaNote = () => `（いま つかえる マナ ${manaCount(B.s)}）`;
 async function chooseMode(d, ctx = {}) {
   for (;;) {
     render();
-    const m = await sheet(`<p>つぎの うち 1つを えらぶ。</p>`, [
-      ...d.modes.map((m) => ({ label: m.label, value: m, kind: 'primary', disabled: !modeOk(m, ctx), note: modeOk(m, ctx) ? '' : 'ねらえる 相手が いない' })),
-      { label: 'やめる', value: null },
-    ], { title: noRuby(info(d).name) });
-    if (!m) return null;
-    const picks = m.tgt ? await pickAll(m.tgt, ctx) : [];
-    if (picks) return () => m.apply(B.s, api, picks);
+    const ok = d.modes.filter((m) => modeOk(m, ctx));
+    let ms;
+    if (d.escalate) {
+      ms = await pickMany(`${esc(noRuby(info(d).name))}：モードを えらぶ`, ok.map((m) => ({ label: esc(m.label), value: m })), {
+        min: 1, max: ok.length, note: `増呪（ぞうじゅ）：2つめから 1つ ふえるごとに ＋${d.escalate}マナ${manaNote()}`,
+      });
+    } else {
+      const m = await sheet('<p>つぎの うち 1つを えらぶ。</p>', [
+        ...d.modes.map((m) => ({ label: m.label, value: m, kind: 'primary', disabled: !modeOk(m, ctx), note: modeOk(m, ctx) ? '' : 'ねらえる 相手が いない' })),
+        { label: 'やめる', value: null },
+      ], { title: noRuby(info(d).name) });
+      ms = m && [m];
+    }
+    if (!ms) return null;
+    const all = [];
+    for (const m of ms) { const picks = m.tgt ? await pickAll(m.tgt, ctx) : []; if (!picks) break; all.push([m, picks]); }
+    if (all.length < ms.length) continue;
+    return { run: () => { for (const [m, picks] of all) m.apply(B.s, api, picks); }, extra: (d.escalate || 0) * (ms.length - 1) };
   }
+}
+
+// マナが たりるか。たりなければ しらせて null（コストの けいさんは 子どもが する）
+async function payable(cost, req, o) {
+  const pl = plan(B.s, cost, req, o);
+  if (!pl) await sheet(`<p>マナが たりない！ ${manaNote()}</p>`, [{ label: 'もどる', value: 0 }], { title: 'マナが たりない' });
+  return pl;
 }
 
 // ---- 呪文を唱えられるか ----
@@ -237,6 +270,7 @@ function castInfo(c, from = 'hand') {
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
   const perm = !isSpell(d);
   if (d.counter) return { why: '敵が 呪文を 唱えたときに 使う' };
+  if (from === 'hand' && d.suspend && !plan(s, cost, req, o) && s.active === 'P' && B.mode === 'main') return { why: 'マナが たりない（待機なら 使える かも）' };
   if (d.react && !d.play) return { why: '敵が 攻撃してきたときに 使う' };
   if (!perm && !d.play && (d.trick || d.bloodrush)) return { why: '攻撃の とちゅう（ブロックの あと）に 使う' };
   if (s.active !== 'P' || !['main'].includes(B.mode)) return { why: 'いまは 使えない' };
@@ -265,24 +299,34 @@ async function doCast(c, from = 'hand') {
   const ci = castInfo(c, from);
   if (!ci.ok) return;
   B.busy = true;
-  let picks, modeRun;
-  if (d.modes && !(modeRun = await chooseMode(d))) { B.busy = false; return render(); }
+  const stop = () => { B.busy = false; render(); };
+  const base = from === 'gy' ? d.flashback.cost : d.cost;
+  const req = from === 'gy' ? d.flashback.req : colorsOf(d);
+  const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
+  // X：いくつに するかは 自分で きめる
+  let x = ci.x;
+  if (d.x) { x = await numberSheet(`${esc(noRuby(info(d).name))}：X を きめる`, { min: 1, max: ci.x, value: 1, note: `コストは X ＋ ${base}${manaNote()}` }); if (x == null) return stop(); }
+  // キッカー：マナを 多く はらうと 強く なる
+  let kicked = false;
+  if (d.kicker && plan(s, base + d.kicker, req, o)) {
+    const v = await sheet(detail(d), [{ label: `ふつうに 使う（${base}マナ）`, value: 'n', kind: 'primary' }, { label: `キッカーで 使う（${base}マナ ＋ ${d.kicker}マナ）`, value: 'k', kind: 'primary' }, { label: 'やめる', value: null }], { title: `キッカー${manaNote()}` });
+    if (!v) return stop();
+    kicked = v === 'k';
+  }
+  let picks, mode, extra = kicked ? d.kicker : 0;
+  if (d.modes) { if (!(mode = await chooseMode(d))) return stop(); extra += mode.extra; }
   if (d.tgt) {
     if (needsTargets(d.tgt, {})) {
-      picks = await pickAll(d.tgt, { x: ci.x });
-      if (!picks) { B.busy = false; return render(); }
-    } else if (d.apply) { B.busy = false; return render(); }
+      picks = await pickAll(d.tgt, { x, note: d.strive ? `激励（げきれい）：2つめから 1つ ふえるごとに ＋${d.strive}マナ${manaNote()}` : '' });
+      if (!picks) return stop();
+      if (d.strive) extra += d.strive * (picks[0].length - 1);
+    } else if (d.apply) return stop();
     else picks = d.tgt.map(() => []); // ねらえる相手が いない パーマネントは、出すだけ
   }
-  s.mathQueue = [];
-  if (ci.pl.srcs.some((x) => x.kind === 'convoke')) s.mathQueue.push(await quiz(convokeQuestion(ci.pl)));
-  let x = ci.x;
-  const base = from === 'gy' ? d.flashback.cost : d.cost;
-  if (d.x && await quiz(xQuestion(base + x, base))) x++;
-  if (d.quiz) s.mathQueue.push(await quiz({ ...quizFor(B.grade), hint: '抜き打ち テスト！', reward: 'カードを もう1枚 引く' }));
-  const run = modeRun || (d.apply && picks ? () => d.apply(s, api, picks, x) : ci.r ? () => ci.r.run(x) : undefined);
-  await castCard(s, c, ci.pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined });
-  s.mathQueue = [];
+  const pl = (extra || x !== ci.x) ? await payable(base + x + extra, req, o) : plan(s, base + x, req, o);
+  if (!pl) return stop();
+  const run = mode ? mode.run : (d.apply && picks ? () => d.apply(s, api, picks, x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined);
+  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined });
   B.busy = false;
   if (!checkOver()) render();
 }
@@ -326,12 +370,10 @@ async function action(a) {
   }
   if (a === 'damage') {
     B.busy = true;
-    const q = attackSumQuestion(s, B.atk, B.blocks);
-    const ok = q ? await quiz(q) : false;
-    finishCombat(s, B.atk, B.blocks, ok);
-    B.busy = false;
+    finishCombat(s, B.atk, B.blocks);
     B.mode = 'main'; B.phase = 2; B.atk = [];
-    if (!checkOver()) render();
+    if (!checkOver()) { render(); await combatResult(s); }
+    B.busy = false;
     return;
   }
   if (a === 'blockdone') {
@@ -345,12 +387,32 @@ async function action(a) {
   if (a === 'log') return sheet(`<ol class="elog">${s.logs.slice(-40).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`, [{ label: 'とじる', value: 0 }], { title: 'これまでの できごと' });
 }
 
+// 攻撃の けっか：あいてごとに「3 ＋ 2 ＝ 5点」。ちょうど 倒したら ぴったり！
+function combatResult(s) {
+  const by = new Map();
+  for (const e of s.lastCombat) {
+    const k = e.t === 'face' ? 'face' : e.t.uid;
+    if (!by.has(k)) by.set(k, { t: e.t, ns: [] });
+    by.get(k).ns.push(e.n);
+  }
+  if (!by.size) return;
+  const rows = [...by.values()].map(({ t, ns }) => {
+    const name = t === 'face' ? faceName() : `敵：${nm(t)}`;
+    const sum = ns.reduce((a, b) => a + b, 0);
+    const tough = t !== 'face' && !onBf(s, t) && t.diedT ? `（タフネス ${t.diedT}）` : '';
+    const res = t === 'face' ? '' : t.exact ? `<b class="exact">ぴったり！</b>${tough}` : !onBf(s, t) ? `<b>たおした</b>${tough}` : isCreature(t) ? `のこり ${pt(s, t)[1] - t.dmg}` : '';
+    return `<li><span>${esc(name)}</span><span class="eq">${ns.length > 1 ? `${ns.join(' ＋ ')} ＝ ` : ''}${sum}点</span>${res}</li>`;
+  });
+  return sheet(`<ul class="cres">${rows.join('')}</ul>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: '攻撃の けっか' });
+}
+
 async function tapHand(c) {
   const s = B.s, d = c.def;
   const choices = [];
   if (B.mode === 'main') {
     const ci = castInfo(c);
     choices.push({ label: d.types.includes('creature') ? '戦場に 出す' : '使う', value: 'cast', kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
+    if (d.suspend && s.active === 'P') { const ok = !!plan(s, d.suspend.cost, d.suspend.req || []); choices.push({ label: `待機する（${d.suspend.cost}マナ・${d.suspend.turns}ターン あとに ただで 使う）`, value: 'suspend', kind: 'primary', disabled: !ok, note: ok ? '' : 'マナが たりない' }); }
     if (!s.P.flags.charged) choices.push({ label: 'マナゾーンに 置く', value: 'charge', note: '1ターンに 1枚まで' });
   }
   if (B.mode === 'tricks') {
@@ -365,6 +427,7 @@ async function tapHand(c) {
   const v = await sheet(detail(d), choices);
   if (v === 'cast') return doCast(c);
   if (v === 'charge') { api.charge(s, c); s.P.flags.charged = true; return render(); }
+  if (v === 'suspend') { const pl = plan(s, d.suspend.cost, d.suspend.req || []); if (pl) suspendCard(s, c, pl); return render(); }
   if (v === 'trick') return useTrick(c);
 }
 
@@ -372,22 +435,19 @@ async function useTrick(c) {
   const s = B.s, d = c.def;
   const tr = d.trick || { kind: 'single' };
   const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
-  let target = null, modeRun = null;
-  if (d.modes) { if (!(modeRun = await chooseMode(d))) return; }
+  let target = null, mode = null;
+  if (d.modes) { if (!(mode = await chooseMode(d))) return; }
   else if (tr.kind !== 'mass') {
     const live = B.atk.filter((a) => onBf(s, a.p));
     target = await sheet('<p>どの クリーチャーに 使う？</p>', [...live.map((a) => ({ label: `${esc(nm(a.p))}（${power(s, a.p)}/${pt(s, a.p)[1]}）`, value: a.p })), { label: 'やめる', value: null }]);
     if (!target) return;
   }
-  const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke') });
+  const pl = await payable(cost + (mode?.extra || 0), req, { convoke: d.kw?.includes('convoke') });
   if (!pl) return;
   B.busy = true;
-  s.mathQueue = [];
-  if (pl.srcs.some((x) => x.kind === 'convoke')) s.mathQueue.push(await quiz(convokeQuestion(pl)));
-  const run = modeRun || (target ? () => { api.target(s, target); d.singleRun(s, api, target); } : () => d.massRun(s, api));
+  const run = mode ? mode.run : (target ? () => { api.target(s, target); d.singleRun(s, api, target); } : () => d.massRun(s, api));
   if (d.bloodrush) { s.P.hand.splice(s.P.hand.indexOf(c), 1); s.P.gy.push(c); pay(s, pl); run(); }
   else castCard(s, c, pl, { run });
-  s.mathQueue = [];
   B.busy = false;
   render();
 }
@@ -425,9 +485,10 @@ async function tapPerm_(p) {
       const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
       const o = { exclude: a.tap || a.sac ? p : null };
       let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
-      const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう 怪物' : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
-      const r = blocked ? null : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x });
-      choices.push({ label: `能力を 使う（${a.x ? `X+${cost}` : cost}マナ${a.tap ? '・タップ' : ''}）`, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
+      const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう 怪物' : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
+      const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x });
+      const label = a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `能力を 使う（${a.x ? `X+${cost}` : cost}マナ${a.tap ? '・タップ' : ''}）`;
+      choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip) choices.push({ label: `装備する（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
   }
@@ -447,6 +508,7 @@ async function tapPerm_(p) {
   pay(s, pl);
   if (v.a.tap) tapPerm(s, p);
   if (v.a.monstrosity) p.monstrous = true;
+  if (v.a.levelUp) levelUp(s, p);
   if (picks) v.a.apply(s, api, picks, v.x, p); else v.r.run(v.x);
   sba(s);
   if (!checkOver()) render();
@@ -496,13 +558,13 @@ function arrow(x0, y0, x1, y1, ok) {
     svg.innerHTML = '<defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs><line marker-end="url(#ah)"/>';
     document.body.append(svg);
   }
-  svg.hidden = false;
+  svg.style.display = 'block'; // SVG は hidden が きかない
   const l = svg.querySelector('line');
   l.setAttribute('x1', x0); l.setAttribute('y1', y0); l.setAttribute('x2', x1); l.setAttribute('y2', y1);
   svg.classList.toggle('ok', ok); svg.classList.toggle('block', B.mode === 'block');
 }
 function clearDrag() {
-  const svg = document.getElementById('arrow'); if (svg) svg.hidden = true;
+  const svg = document.getElementById('arrow'); if (svg) svg.style.display = 'none';
   document.querySelectorAll('.drop-ok').forEach((x) => x.classList.remove('drop-ok'));
 }
 function toast(msg) {
@@ -586,12 +648,12 @@ function intent() {
   const heads = cr.filter((p) => p.def.head);
   if (heads.length) {
     const live = heads.filter((p) => !p.frozen);
-    out.push(`頭の ダメージ ${live.reduce((t, p) => t + p.def.headDmg, 0)}点${live.length < heads.length ? '（こおった頭は なし）' : ''}`);
+    if (live.length) out.push(`頭が ダメージ（${live.map((p) => p.def.headDmg).join('・')}）${live.length < heads.length ? '（こおった頭は なし）' : ''}`);
   }
-  if (s.floor.id === 'erebos' && s.phase === 3) out.push(`はじめに ライフ −${{ easy: 2, normal: 3, hard: 3 }[s.diff]}`);
+  if (s.floor.id === 'erebos' && s.phase === 3) out.push(`はじめに ライフ −${{ easy: 2, normal: 2, hard: 3 }[s.diff]}`);
   if (s.floor.id === 'factory' && !s.E.flags.inspect && s.E.bf.filter((p) => p.def.golem).length < 2) out.push('ゴーレムを 1体 作る');
   const atk = cr.filter(willAttack).filter((p) => !p.frozen);
-  if (atk.length) out.push(`${atk.length}体で 攻撃（パワー ${atk.reduce((t, p) => t + Math.max(0, power(s, p)), 0)}）`);
+  if (atk.length) out.push(`${atk.length}体で 攻撃（パワー ${atk.map((p) => Math.max(0, power(s, p))).join('・')}）`);
   if (s.floor.id === 'slime' && !s.E.flags.started) out.push('さいしょの ターンは 攻撃しない');
   if (s.floor.id === 'xenagos') out.push('ゼナゴスは 笛吹きが 出たときだけ 攻撃');
   const n = { horde: { easy: 1, normal: 1, hard: 2 }, xenagos: 1 }[s.floor.id];
@@ -634,6 +696,7 @@ function permLabel(p) {
 
 function render() {
   const s = B.s;
+  if (!drag) clearDrag();
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];
   const perms = (side) => s[side].bf.map((p) => permFace(s, p, {
     label: permLabel(p),
@@ -666,7 +729,11 @@ function render() {
       <span class="pile">山札 ${s.P.lib.length}</span>
       <button type="button" class="pile" data-act="gy">墓地 ${s.P.gy.length}</button>
     </div>
+    ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">待機：${esc(noRuby(info(x.c.def).name))}　あと ${x.n}</span>`).join('')}</div>` : ''}
     <div class="hand" aria-label="手札">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot" data-hand="${i}">${cardFace(c.def)}</button>`).join('') || '<p class="empty">手札は ない</p>'}</div>
     <footer class="actions">${btns}</footer>
   </div>`;
 }
+
+// テスト用：いまの たたかいを さわってから 描きなおす（ブラウザの しらべで 場を つくる）
+export function debugBattle(fn) { if (B) { fn(B, api); render(); } }
