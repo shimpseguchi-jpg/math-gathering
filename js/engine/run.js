@@ -63,9 +63,18 @@ export const cardValue = (d) => VALUE[d.rar] + (colorsOf(d).length === 2 ? 0.5 :
 export function buildDeck(pool, o = {}) {
   const cap = o.capacity ?? CAPACITY;
   let best = null;
-  for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
-    const pair = [COLORS[i], COLORS[j]];
-    const items = pool.filter((d) => colorsOf(d).every((c) => pair.includes(c)));
+  // o.colors：使える 色の 数（ふつうは 2。3色デッキの しらべで 3）
+  const k = o.colors ?? 2;
+  const combos = (from, n) => (n === 0 ? [[]] : from.flatMap((c, i) => combos(from.slice(i + 1), n - 1).map((rest) => [c, ...rest])));
+  const inside = (pair) => pool.filter((d) => colorsOf(d).every((c) => pair.includes(c)));
+  const tries = combos(COLORS, k).map((pair) => ({ pair, items: inside(pair) }));
+  // o.splash：2色 ＋ 3色めは この まいすうまで（タッチ）
+  if (o.splash) for (const two of combos(COLORS, 2)) for (const t of COLORS.filter((c) => !two.includes(c))) {
+    const pair = [...two, t];
+    const extra = inside(pair).filter((d) => colorsOf(d).includes(t)).sort((a, b) => cardValue(b) - cardValue(a)).slice(0, o.splash);
+    tries.push({ pair, items: [...inside(two), ...extra] });
+  }
+  for (const { pair, items } of tries) {
     // dp[n][pts] = { v, pick }
     const dp = Array.from({ length: DECK_SIZE + 1 }, () => Array(cap + 1).fill(null));
     dp[0][0] = { v: 0, pick: [] };
@@ -80,10 +89,10 @@ export function buildDeck(pool, o = {}) {
     for (const row of dp) for (const c of row) if (c && (!best || c.v > best.v)) best = { ...c, pair };
   }
   const deck = [...best.pick];
-  // きほんカード：色の多いほうから交互に
+  // きほんカード：色の多いほうから じゅんばんに
   const cnt = Object.fromEntries(best.pair.map((c) => [c, deck.filter((d) => colorsOf(d).includes(c)).length]));
   const order = [...best.pair].sort((a, b) => cnt[b] - cnt[a]);
-  for (let k = 0; deck.length < DECK_SIZE; k++) deck.push(BASICS[order[k % 2]]);
+  for (let n = 0; deck.length < DECK_SIZE; n++) deck.push(BASICS[order[n % order.length]]);
   return { deck, pair: best.pair.join(''), points: best.pick.reduce((t, d) => t + RARITY_PTS[d.rar], 0), real: best.pick.length };
 }
 
