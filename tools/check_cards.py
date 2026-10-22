@@ -1,4 +1,4 @@
-# カードリスト（mathtcg/docs/cards/*.md）の枚数とレアリティを数える
+# カードリスト（mathtcg/docs/cards/*.md・第1弾＋第2弾）の枚数とレアリティを数える
 # python3 mathtcg/tools/check_cards.py
 import re, glob, os, collections
 
@@ -16,9 +16,10 @@ for f in sorted(glob.glob(os.path.join(here, '..', 'docs', 'cards', '*.md'))):
 
 dups = [i for i, n in collections.Counter(ids).items() if n > 1]
 print('全部', len(ids), '種', '（重複ID: ' + ', '.join(dups) + '）' if dups else '')
-expect = {'W': (12, 7, 5, 2), 'U': (12, 7, 5, 2), 'G': (12, 7, 5, 2), 'R': (12, 7, 5, 2),
-          'C': (4, 3, 2, 1), 'gold': (0, 6, 6, 0)}
-ok = not dups and len(ids) == 126
+# 第1弾 126種 ＋ 第2弾 62種
+expect = {'W': (17, 10, 7, 3), 'U': (17, 10, 7, 3), 'G': (17, 10, 7, 3), 'R': (17, 10, 7, 3),
+          'C': (6, 5, 3, 2), 'gold': (0, 12, 12, 0)}
+ok = not dups and len(ids) == 188
 for c, want in expect.items():
     got = tuple(count[(c, r)] for r in 'CURL')
     ok &= got == want

@@ -206,6 +206,11 @@ span.pile { cursor: default; }
 .cres b.exact { color: var(--gold); font-family: var(--display); font-weight: 400; font-size: 20px; }
 .susp { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; }
 .b.lv { background: var(--U); color: var(--paper-ink); }
+.b.lore { background: var(--gold); color: var(--paper-ink); }
+.b.time { background: var(--table-3); color: var(--ink); border: 1px solid var(--line); }
+.b.mark { background: var(--U); color: var(--paper-ink); }
+.b.hell { background: var(--R); color: var(--paper-ink); }
+.big-result.dice { color: var(--gold); }
 
 /* ---- おわり ---- */
 .ending { min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding-block: 24px; }

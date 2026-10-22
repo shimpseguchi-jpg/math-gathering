@@ -69,7 +69,7 @@ export const COLOR_NAME = { W: '白', U: '青', G: '緑', R: '赤' };
 const KW = {
   flying: '飛行', reach: '到達', haste: '速攻', vigilance: '警戒', first: '先制攻撃', double: '二段攻撃', trample: 'トランプル',
   defender: '防衛', lifelink: '絆魂', deathtouch: '接死', flash: '瞬速', indestructible: '破壊不能', convoke: '召集', prowess: '果敢', evolve: '進化',
-  mentor: '教導', training: '訓練',
+  mentor: '教導', training: '訓練', battlecry: '喊声',
 };
 export const RAR = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド', B: 'きほん' };
 
@@ -128,6 +128,10 @@ export function permFace(s, p, o = {}) {
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
     p.def.levels ? `<span class="b lv">Lv${p.level}</span>` : '',
+    p.def.saga ? `<span class="b lore">${['', 'I', 'II', 'III'][p.lore] || ''}/${['', 'I', 'II', 'III'][p.def.saga.length]}</span>` : '',
+    p.def.vanishing ? `<span class="b time">じかん ${p.time || 0}</span>` : '',
+    p.marks ? `<span class="b mark">しるし ${p.marks}</span>` : '',
+    p.def.hellbent && !(s[p.side].hand || [1]).length ? '<span class="b hell">ぼうゆう</span>' : '',
     p.tapped ? '<span class="b tap">タップ</span>' : '',
     p.sick && !enemy && isCreature(p) && !hasKw(s, p, 'haste') ? '<span class="b zz">zz</span>' : '',
     p.frozen ? '<span class="b ice">こおり</span>' : '',

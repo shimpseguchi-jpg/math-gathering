@@ -71,7 +71,7 @@ export function beginPlayerTurn(s) {
   P.flags.enteredLastTurn = P.flags.enteredThisTurn; P.flags.enteredThisTurn = false;
   P.flags.cast = 0; P.flags.charged = false;
   for (const c of P.hand) c.locked = false;
-  for (const p of P.bf) { if (p.frozen) p.frozen = false; else p.tapped = false; p.sick = false; p.flags.turn = {}; }
+  for (const p of P.bf) { untap(s, p); p.sick = false; p.flags.turn = {}; }
   for (const m of P.mana) m.tapped = false;
   s.floor.playerUpkeep?.(s, api);
   const waits = [];
@@ -95,16 +95,22 @@ export function endPlayerTurn(s) {
 
 export async function enemyTurn(s) {
   s.turn++; s.active = 'E';
-  for (const p of s.E.bf) { if (p.frozen) p.frozen = false; else p.tapped = false; p.sick = false; }
+  for (const p of s.E.bf) { untap(s, p); p.sick = false; }
   s.E.flags.turn = {};
   await s.floor.enemyTurn(s, api);
   if (!s.over) endTurn(s);
 }
 
+// ターンの はじめの アンタップ。こおり（つぎの 1回 起きない）と、氷の時代（それが 戦場に あるあいだ 起きない）
+export function untap(s, p) {
+  if (p.iceBy && onBf(s, p.iceBy)) return;
+  if (p.frozen) p.frozen = false; else p.tapped = false;
+}
+
 function endTurn(s) {
   s.floor.endTurn?.(s, api);
   for (const side of ['P', 'E']) for (const p of s[side].bf) {
-    p.dmg = 0; p.dt = false; p.dmgBy = []; p.mP = 0; p.mT = 0; p.kwT.clear(); p.base2 = false; p.flags.mustAttack = false;
+    p.dmg = 0; p.dt = false; p.dmgBy = []; p.mP = 0; p.mT = 0; p.kwT.clear(); p.base2 = false; p.setPT = null; p.flags.mustAttack = false;
   }
   sba(s);
   if (!s.over) s.floor.check?.(s, api, 'end');
@@ -126,6 +132,7 @@ export function drawCard(s, n = 1) {
       else return;
     }
     P.hand.push(P.lib.shift());
+    for (const q of [...P.bf]) if (q.def.onDraw && onBf(s, q)) q.def.onDraw(s, q, api);
   }
 }
 
@@ -135,10 +142,11 @@ export const LOW_LIBRARY = 5; // 山札が これより 少ないと、画面で
 // ぼちを まぜて もどす ときに 失う ライフ（1回め 2、2回め 4、3回め 6…）。next は つぎに まぜたときの 数
 export const reshuffleCost = (P, next = false) => 2 * ((P.reshuffles || 0) + (next ? 1 : 0));
 export function refill(s) {
-  const n = HAND_SIZE - s.P.hand.length;
+  const size = s.P.flags.refill7 === s.stats.playerTurns ? 7 : HAND_SIZE;
+  const n = size - s.P.hand.length;
   if (n <= 0) return;
   drawCard(s, n);
-  L(s, `${foe(s, 'P')}てふだを ${HAND_SIZE}まいに した（${n}まい 引いた）`);
+  L(s, `${foe(s, 'P')}てふだを ${size}まいに した（${n}まい 引いた）`);
 }
 
 // 手札を 捨てる（怪物化などの コスト）。捨てた カードは 墓地へ
@@ -203,6 +211,7 @@ export function pt(s, p) {
   let P = typeof d.pow === 'function' ? d.pow(s, p, api) : (d.pow ?? 0);
   let T = typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
   if (p.base2) P = 2;
+  if (p.setPT) [P, T] = p.setPT;
   P += p.ctr + p.mP; T += p.ctr + p.mT;
   for (const q of s[p.side].bf) {
     if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
@@ -230,6 +239,7 @@ export function addCounters(s, p, n) {
   if (!onBf(s, p) || n <= 0) return;
   n += s[p.side].bf.filter((q) => q.def.scales).length;
   p.ctr += n;
+  p.def.onCounters?.(s, p, api, n);
 }
 
 export function proliferate(s) {
@@ -255,6 +265,12 @@ export function bolster(s, n) {
 // 圧倒：自分の クリーチャーの パワーの 合計が 8 いじょう
 export const totalPower = (s, list) => list.reduce((t, p) => t + Math.max(0, power(s, p)), 0);
 export const formidable = (s) => totalPower(s, s.P.bf.filter(isCreature)) >= 8;
+// 集会：パワーが ちがう クリーチャーが 3体 いじょう（2・2・3 は 2しゅるい）
+export const coven = (s, side = 'P') => new Set(s[side].bf.filter(isCreature).map((p) => power(s, p))).size >= 3;
+// 暴勇：手札が 0まい
+export const hellbent = (s, side = 'P') => (s[side].hand || []).length === 0;
+// サイコロ（6面）
+export function rollDie(s) { const n = 1 + Math.floor(s.rng() * 6); L(s, `サイコロ：${n}`); return n; }
 
 // プレイヤーの呪文が自分のクリーチャーを対象にしたとき（勇壮）
 export function target(s, p) { if (p.side === 'P' && onBf(s, p) && p.def.heroic) p.def.heroic(s, p, api); }
@@ -265,7 +281,8 @@ export function damage(s, p, n, src, o = {}) {
   if (n <= 0 || !onBf(s, p)) return 0;
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
   if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
-  if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
+  if (p.def.dmgToCounters) { const k = Math.min(n, p.ctr); p.ctr -= k; L(s, `${foe(s, p.side)}${p.def.name} の ＋1/＋1カウンターが ${k}こ へった`); }
+  else if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
   if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: p, n });
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
@@ -353,6 +370,7 @@ export function leave(s, p, to = 'gy', o = {}) {
   }
   for (const l of p.links) returnLinked(s, l);
   if (o.died && p.def.onDie) p.def.onDie(s, p, api);
+  p.def.onLeaveSelf?.(s, p, api);
   if (p.def.reward) p.def.reward(s, p, api);
   for (const q of [...s.P.bf, ...s.E.bf]) if (q.def.onOtherLeave) q.def.onOtherLeave(s, q, p, api, o);
   s.floor.onLeave?.(s, p, api, o);
@@ -399,6 +417,9 @@ export async function enemyCast(s, c) {
 // ---- 戦闘 ----
 export function canBlock(s, b, a) {
   if (a.flags.turn?.unblockable) return false;
+  if (b.def.cantBlock) return false;
+  if (a.flags.turn?.hasteOnly && !hasKw(s, b, 'haste')) return false;
+  if (s.smallCantBlock === s.turn && power(s, b) <= 1) return false;
   if (hasKw(s, a, 'flying') && !hasKw(s, b, 'flying') && !hasKw(s, b, 'reach')) return false;
   return true;
 }
@@ -452,7 +473,18 @@ export function declareAttack(s, atk) {
 // 攻撃したときの 能力（ブリマーズ・大隊・集団戦術・訓練・教導 など）
 export function attackTriggers(s, atk) {
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
+  battleCry(s, atk);
   attackCounters(s, atk);
+}
+
+// 喊声：これが 攻撃するたび、ほかの 攻撃している クリーチャーは みんな ＋1/＋0
+function battleCry(s, atk) {
+  for (const a of atk) {
+    if (!onBf(s, a.p) || !hasKw(s, a.p, 'battlecry')) continue;
+    const others = atk.filter((b) => b.p !== a.p && onBf(s, b.p));
+    for (const b of others) pump(b.p, 1, 0);
+    if (others.length) L(s, `かんせい：${a.p.def.name}（ほかの ${others.length}体が ＋1）`);
+  }
 }
 
 // 訓練：自分より パワーが 大きい クリーチャーと 攻撃すると ＋1/＋1カウンター
@@ -527,7 +559,8 @@ export function resolveCombat(s, atk, blocks) {
 Object.assign(api, {
   L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
-  refill, discard, enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
+  refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
+  shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),

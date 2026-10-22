@@ -5,7 +5,7 @@ import {
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
-import { permFace, cardFace, detail, sheet, esc, ruby, info, pickMany, divideSheet, numberSheet } from './view.js';
+import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
 let B = null; // いまのたたかい
@@ -77,6 +77,18 @@ function humanAI() {
       }
     },
     blocks: (s, attackers) => chooseBlocks(attackers),
+    // 英雄譚の 章（自分の ターンの はじめ）：対象が いる 章は えらぶ、ない 章は 見せるだけ
+    chapter: async (s, p, ch, roman) => {
+      render();
+      let picks;
+      if (ch.tgt) {
+        picks = needsTargets(ch.tgt, {}) ? await pickAll(ch.tgt, { note: `えいゆうたん「${noRuby(info(p.def).name)}」の ${roman}` }) : null;
+        if (!picks) picks = ch.tgt.map(() => []);
+      } else await sheet(detail(p.def), [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: `えいゆうたん：${roman} が おきる`, dismiss: false });
+      ch.run(s, api, p, picks);
+      render();
+    },
+    dice: (rolls) => sheet(`<p class="big-result dice">サイコロ：${rolls.join(' ＋ ')}${rolls.length > 1 ? ` ＝ ${rolls.reduce((a, b) => a + b, 0)}` : ''}</p>${rolls.length > 1 ? '<p>6が 出たので もう1回 ふった！</p>' : ''}`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'サイコロ', dismiss: false }),
     // 占術：上から1まいずつ「上に のこす／いちばん下へ」
     scry: async (s, n) => {
       const top = s.P.lib.splice(0, n);
@@ -232,6 +244,7 @@ async function pickAll(tgt, ctx = {}) {
     render();
     let chosen = await pickMany(esc(spec.label), list.map((t) => ({ label: targetLabel(t), value: t })), { min, max: Math.max(max, 1), note: ctx.note });
     if (!chosen) return null;
+    if (spec.divide && !chosen.length) { picks.push([]); continue; }
     if (spec.divide) {
       const n = spec.divide === 'x' ? ctx.x : spec.divide;
       const k = chosen.length;
@@ -282,10 +295,13 @@ async function payable(cost, req, o) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
-  const cost = from === 'gy' ? d.flashback.cost : d.cost;
-  const req = from === 'gy' ? d.flashback.req : colorsOf(d);
+  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : d.cost;
+  const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
   const perm = !isSpell(d);
+  const mul = d.xMul || 1;
+  if (from === 'escape' && s.P.gy.length - 1 < d.escape.exile) return { why: `ぼちに ほかの カードが ${d.escape.exile}まい いる（いま ${s.P.gy.length - 1}まい）` };
+  if (d.discardCost && from === 'hand' && s.P.hand.length - 1 < d.discardCost) return { why: `ほかに すてる てふだが ${d.discardCost}まい いる` };
   if (d.counter) return { why: 'てきが じゅもんを となえたときに 使う' };
   if (from === 'hand' && d.suspend && !plan(s, cost, req, o) && s.active === 'P' && B.mode === 'main') return { why: 'マナが たりない（たいきなら 使える かも）' };
   if (d.react && !d.play) return { why: 'てきが こうげきしてきたときに 使う' };
@@ -293,11 +309,11 @@ function castInfo(c, from = 'hand') {
   if (s.active !== 'P' || !['main'].includes(B.mode)) return { why: 'いまは 使えない' };
   let x = 0;
   if (d.x) {
-    while (plan(s, cost + x + 1, req, o)) x++;
+    while (plan(s, cost + (x + 1) * mul, req, o)) x++;
     if (x < 1) return { why: 'マナが たりない' };
   }
-  const pl = plan(s, cost + x, req, o);
-  if (!pl) return { why: colorsOf(d).length && plan(s, cost + x, [], o) ? `${colorsOf(d).map((k) => ({ W: '白', U: '青', G: '緑', R: '赤' })[k]).join('か')}の マナが いる` : 'マナが たりない' };
+  const pl = plan(s, cost + x * mul, req, o);
+  if (!pl) return { why: colorsOf(d).length && plan(s, cost + x * mul, [], o) ? `${colorsOf(d).map((k) => ({ W: '白', U: '青', G: '緑', R: '赤' })[k]).join('か')}の マナが いる` : 'マナが たりない' };
   if (perm) {
     if (d.need && !d.need(s, api)) return { why: 'いまは 出しても こうかが ない' };
     return { ok: true, pl, x };
@@ -308,7 +324,7 @@ function castInfo(c, from = 'hand') {
   const r = d.play(s, api, ctx) || d.play(s, api, { ...ctx, phase: 3 - B.phase });
   if (!r) return { why: 'いまは こうかが ない（ねらう 相手が いない など）' };
   if (d.x && r.x) x = Math.min(r.x, x);
-  return { ok: true, pl: plan(s, cost + x, req, o), r, x };
+  return { ok: true, pl: plan(s, cost + x * mul, req, o), r, x };
 }
 
 async function doCast(c, from = 'hand') {
@@ -317,12 +333,24 @@ async function doCast(c, from = 'hand') {
   if (!ci.ok) return;
   B.busy = true;
   const stop = () => { B.busy = false; render(); };
-  const base = from === 'gy' ? d.flashback.cost : d.cost;
-  const req = from === 'gy' ? d.flashback.req : colorsOf(d);
+  const base = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : d.cost;
+  const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
+  const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
   let x = ci.x;
-  if (d.x) { x = await numberSheet(`${ruby(info(d).name)}：X を きめる`, { min: 1, max: ci.x, value: 1, note: `コストは X ＋ ${base}${manaNote()}` }); if (x == null) return stop(); }
+  if (d.x) { x = await numberSheet(`${ruby(info(d).name)}：X を きめる`, { min: 1, max: ci.x, value: 1, note: `コストは ${mul > 1 ? `X × ${mul}` : 'X'} ＋ ${base}${manaNote()}` }); if (x == null) return stop(); }
+  // 脱出：墓地の ほかの カードを 追放する（古い ものから）
+  if (from === 'escape') {
+    const v = await sheet(`<p>ぼちの ほかの カード ${d.escape.exile}まいを ついほうして、${base}マナで となえる。ぼちは ${s.P.gy.length}まい − ${d.escape.exile + 1}まい ＝ のこり ${s.P.gy.length - d.escape.exile - 1}まい に なる。</p>`, [{ label: 'だっしゅつで となえる', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'だっしゅつ' });
+    if (!v) return stop();
+  }
+  // 追加で 手札を 捨てる（稲妻の 斧）
+  let drop = [];
+  if (d.discardCost && from === 'hand') {
+    drop = await pickMany(`すてる カードを ${d.discardCost}まい えらぶ`, s.P.hand.filter((h) => h !== c).map((h) => ({ label: ruby(info(h.def).name), value: h })), { min: d.discardCost, max: d.discardCost });
+    if (!drop) return stop();
+  }
   // キッカー：マナを 多く はらうと 強く なる
   let kicked = false;
   if (d.kicker && plan(s, base + d.kicker, req, o)) {
@@ -340,8 +368,9 @@ async function doCast(c, from = 'hand') {
     } else if (d.apply) return stop();
     else picks = d.tgt.map(() => []); // ねらえる相手が いない パーマネントは、出すだけ
   }
-  const pl = (extra || x !== ci.x) ? await payable(base + x + extra, req, o) : plan(s, base + x, req, o);
+  const pl = (extra || x !== ci.x) ? await payable(base + x * mul + extra, req, o) : plan(s, base + x * mul, req, o);
   if (!pl) return stop();
+  discard(s, drop);
   const run = mode ? mode.run : (d.apply && picks ? () => d.apply(s, api, picks, x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined);
   await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined });
   B.busy = false;
@@ -519,12 +548,12 @@ async function tapPerm_(p) {
       let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
       const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
       const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x });
-      const label = a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `のうりょくを 使う（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
+      const label = a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label || (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip) choices.push({ label: `そうびする（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
   }
-  if (p.side === 'P' && B.mode === 'tricks') for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（1マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !p.attacking });
+  if (p.side === 'P' && B.mode === 'tricks') for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !p.attacking });
   choices.push({ label: 'とじる', value: null });
   const v = await sheet(detail(p.def, { enemy: p.side === 'E' }), choices);
   if (!v) return;
@@ -557,11 +586,17 @@ async function showGy() {
   const choices = [];
   for (const c of s.P.gy) if (c.def.flashback && B.mode === 'main') {
     const ci = castInfo(c, 'gy');
-    choices.push({ label: `${ruby(info(c.def).name)} を フラッシュバック`, value: c, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
+    choices.push({ label: `${ruby(info(c.def).name)} を フラッシュバック`, value: { c, from: 'gy' }, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
+  }
+  const seen = new Set();
+  for (const c of s.P.gy) if (c.def.escape && B.mode === 'main' && !seen.has(c.def.id)) {
+    seen.add(c.def.id);
+    const ci = castInfo(c, 'escape');
+    choices.push({ label: `${ruby(info(c.def).name)} を だっしゅつで となえる（${c.def.escape.cost}マナ・ほかの ぼち ${c.def.escape.exile}まい）`, value: { c, from: 'escape' }, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
   }
   choices.push({ label: 'とじる', value: null });
   const v = await sheet(`<div class="mini-list">${s.P.gy.map((c) => cardFace(c.def)).join('') || '<p>ぼちは からっぽ</p>'}</div>`, choices, { title: `ぼち（${s.P.gy.length}まい）` });
-  if (v) doCast(v, 'gy');
+  if (v) doCast(v.c, v.from);
 }
 
 // ---- スワイプ：自分の クリーチャーから 敵へ ひっぱると 攻撃先・ブロックを きめる ----
@@ -779,7 +814,8 @@ function render() {
       <span class="life ${s.P.life <= 5 ? 'low' : ''}">ライフ <b>${s.P.life}</b></span>
       <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
       <span class="pile ${s.P.lib.length < LOW_LIBRARY ? 'low' : ''}" title="${s.P.lib.length < LOW_LIBRARY ? `なくなったら ぼちを まぜて もどす。そのとき ライフ −${reshuffleCost(s.P, true)}` : ''}">やまふだ ${s.P.lib.length}${s.P.lib.length < LOW_LIBRARY ? `<small>もうすぐ なくなる（まぜると ライフ −${reshuffleCost(s.P, true)}）</small>` : ''}</span>
-      <button type="button" class="pile" data-act="gy">ぼち ${s.P.gy.length}</button>
+      <button type="button" class="pile" data-act="gy">ぼち ${s.P.gy.length}${s.P.gy.some((c) => c.def.escape) ? '<small>だっしゅつ</small>' : ''}</button>
+      ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
     <div class="hand" aria-label="てふだ">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>

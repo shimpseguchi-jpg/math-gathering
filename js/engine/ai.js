@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -12,10 +12,11 @@ function sources(s, o = {}) {
   const out = [];
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); out.push({ kind: 'mana', ref: m, colors: c.length ? c : ['C'], pri: 0 }); }
   for (const p of s.P.bf) {
-    const m = manaOf(p);
+    const m = manaOf(s, p);
     if (p.tapped || !m || p === o.exclude || p.attacking) continue;
     if (isCreature(p) && p.sick) continue;
-    for (let i = 0; i < m.n; i++) out.push({ kind: 'ability', ref: p, colors: m.colors === 'any' ? COLORS : m.colors, pri: 1 });
+    // 宝物は さいごに 使う（とっておける）
+    for (let i = 0; i < m.n; i++) out.push({ kind: 'ability', ref: p, colors: m.colors === 'any' ? COLORS : m.colors, pri: p.def.treasure ? 4 : 1 });
   }
   if (o.convoke) for (const p of s.P.bf) {
     if (!isCreature(p) || p.tapped || p === o.exclude || out.some((x) => x.ref === p)) continue;
@@ -28,7 +29,14 @@ function sources(s, o = {}) {
 }
 
 // タップで 出せる マナ（Lvアップで ふえる ものも ある）
-const manaOf = (p) => { const r = levelRow(p); const m = r?.mana ?? p.def.mana; return m ? { colors: m, n: r?.manaN ?? p.def.manaN ?? 1 } : null; };
+// 宝物：好きな 色 1つ（金づかいの ドラゴンが いれば 2つ）。フレイアリーズの 歌：クリーチャーが 好きな 色 1つ
+function manaOf(s, p) {
+  if (p.def.treasure) return { colors: 'any', n: s[p.side].bf.some((q) => q.def.richTreasure) ? 2 : 1 };
+  const r = levelRow(p); const m = r?.mana ?? p.def.mana;
+  if (m) return { colors: m, n: r?.manaN ?? (typeof p.def.manaN === 'function' ? p.def.manaN(p) : p.def.manaN) ?? 1 };
+  if (isCreature(p) && p.side === 'P' && (s.P.flags.anyManaUntil || 0) >= s.stats.playerTurns) return { colors: 'any', n: 1 };
+  return null;
+}
 
 export function plan(s, cost, req = [], o = {}) {
   const src = sources(s, o);
@@ -55,6 +63,7 @@ export function pay(s, pl) {
   for (const x of pl.srcs) {
     if (x.kind === 'mana') x.ref.tapped = true;
     else { tapPerm(s, x.ref); if (x.kind === 'convoke') convoked.push(x.ref); }
+    if (x.ref.def?.treasure && onBf(s, x.ref)) leave(s, x.ref, 'gy');
   }
   if (pl.prism) pl.prism.tapped = true;
   return [...new Set(convoked)];
@@ -66,44 +75,53 @@ export const manaCount = (s, o = {}) => sources(s, o).length;
 export function castCard(s, c, pl, o = {}) {
   const P = s.P, def = c.def, from = o.from || 'hand';
   if (from === 'hand') P.hand.splice(P.hand.indexOf(c), 1);
-  else if (from === 'gy') P.gy.splice(P.gy.indexOf(c), 1);
+  else if (from === 'gy' || from === 'escape') P.gy.splice(P.gy.indexOf(c), 1);
+  // 脱出：墓地の ほかの カードを N まい 追放する（古い ものから）
+  if (from === 'escape') { const ex = P.gy.splice(0, def.escape.exile); P.exile.push(...ex); L(s, `${s.swapped ? 'てき：' : ''}だっしゅつ：ぼちの ${ex.length}まいを ついほう`); }
   const convoked = pl ? pay(s, pl) : [];
   P.flags.cast++;
-  L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}`);
+  L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}${from === 'escape' ? '（だっしゅつ）' : ''}`);
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
     if (!onBf(s, q)) continue;
     if (noncreature && hasKw(s, q, 'prowess')) api.pump(q, 1, 1);
-    q.def.onCast?.(s, q, def, api);
+    q.def.onCast?.(s, q, def, api, { x: o.x || 0 });
     q.def.onAnyCast?.(s, q, def, 'P', api);
   }
-  if (isPermDef(def)) { enter(s, 'P', def, { ctr: o.ctr || 0, convoked, card: def, chosen: o.chosen }); sba(s); return; }
+  if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: def, chosen: o.chosen, escaped: from === 'escape' }); sba(s); return; }
   const done = () => {
-    if (from === 'gy' || o.free) P.exile.push(c);
+    if (from === 'escape') P.gy.push(c);
+    else if (from === 'gy' || o.free) P.exile.push(c);
     else if (def.backToHand) { c.locked = true; P.hand.push(c); }
     else P.gy.push(c);
     sba(s);
   };
   // 効果が 画面の答えを待つ（占術など）ときだけ Promise を返す。シミュレーションでは そのまま進む
-  const r = o.run?.(o.x);
+  // ミラーリの 予想（III）：この ターンは インスタント・ソーサリーを コピーする
+  const copy = P.flags.copySpells === s.turn;
+  const r0 = o.run?.(o.x);
+  const r = copy ? api.then(r0, () => { L(s, `コピー：${def.name}`); return o.run?.(o.x); }) : r0;
   if (r && r.then) return r.then(done);
   done();
 }
 
 function optionsFor(s, c, phase, from) {
   const def = c.def;
-  const cost = from === 'gy' ? def.flashback.cost : def.cost;
-  const req = from === 'gy' ? def.flashback.req : colorsOf(def);
+  const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? def.escape.cost : def.cost;
+  const req = from === 'gy' ? def.flashback.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
   const o = { convoke: def.kw?.includes('convoke'), sickOnly: phase === 1, req2: def.req2 };
+  if (from === 'escape' && s.P.gy.length - 1 < def.escape.exile) return [];
+  if (def.discardCost && from === 'hand' && s.P.hand.length - 1 < def.discardCost) return [];
+  const mul = def.xMul || 1;
   if (def.x) {
-    const xMax = manaCount(s, o) - cost;
-    if (xMax < 1 || !plan(s, cost + 1, req, o)) return [];
+    const xMax = Math.floor((manaCount(s, o) - cost) / mul);
+    if (xMax < 1 || !plan(s, cost + mul, req, o)) return [];
     const r = def.play(s, api, { phase, xMax, c });
     if (!r || r.score <= 0) return [];
     const x = Math.min(r.x ?? xMax, xMax);
     return [{
       score: r.score, name: def.name, exec: () => {
-        const pl = plan(s, cost + x, req, o); if (!pl) return;
+        const pl = plan(s, cost + x * mul, req, o); if (!pl) return;
         castCard(s, c, pl, { x, ctr: x, run: () => r.run(x), from });
       },
     }];
@@ -113,7 +131,7 @@ function optionsFor(s, c, phase, from) {
   if (isPermDef(def)) {
     const sc = def.permScore ? def.permScore(s, api, { phase }) : permScore(s, def, phase);
     if (sc == null || sc <= 0) return out;
-    return [...out, { score: sc, name: def.name, exec: () => { const pl = plan(s, cost, req, o); if (pl) castCard(s, c, pl, { from }); } }];
+    return [...out, { score: sc + (from === 'escape' ? -2 : 0), name: def.name, exec: () => { const pl = plan(s, cost, req, o); if (pl) castCard(s, c, pl, { from }); } }];
   }
   if (!def.play || (def.reactive && phase !== 'react')) return out;
   if (def.types.includes('sorcery') && phase === 'react') return out;
@@ -122,7 +140,11 @@ function optionsFor(s, c, phase, from) {
   if (!r || r.score <= 0) return out;
   const extra = r.extra || 0;
   if (extra && !plan(s, cost + extra, req, o)) return out;
-  return [...out, { score: r.score, name: def.name, exec: () => { const pl = plan(s, cost + extra, req, o); if (pl) castCard(s, c, pl, { run: r.run, from }); } }];
+  return [...out, { score: r.score, name: def.name, exec: () => {
+    const pl = plan(s, cost + extra, req, o); if (!pl) return;
+    if (def.discardCost && from === 'hand') discard(s, discardPick(s, def.discardCost, cost + extra, c));
+    castCard(s, c, pl, { run: r.run, from });
+  } }];
 }
 
 // 待機：いま 少しの マナで、時間カウンターが なくなったら ただで 唱える
@@ -156,10 +178,10 @@ function permScore(s, def, phase) {
 }
 
 // 捨てる カードを えらぶ：きほんカード、つぎに いま 唱えられない 重い カードから
-export function discardPick(s, n, spend = 0) {
+export function discardPick(s, n, spend = 0, exclude = null) {
   const left = manaCount(s) - spend;
   const key = (c) => (c.def.rar === 'B' ? 0 : c.def.cost > left ? 100 - c.def.cost : 200 - c.def.cost);
-  return [...s.P.hand].sort((a, b) => key(a) - key(b)).slice(0, n);
+  return s.P.hand.filter((c) => c !== exclude).sort((a, b) => key(a) - key(b)).slice(0, n);
 }
 
 function actOptions(s, phase) {
@@ -212,6 +234,7 @@ function main(s, phase) {
     const opts = [];
     for (const c of [...s.P.hand]) if (!c.locked) opts.push(...optionsFor(s, c, phase, 'hand'));
     for (const c of s.P.gy) if (c.def.flashback) opts.push(...optionsFor(s, c, phase, 'gy'));
+    for (const c of s.P.gy) if (c.def.escape) opts.push(...optionsFor(s, c, phase, 'escape'));
     opts.push(...actOptions(s, phase));
     if (!opts.length) break;
     opts.sort((a, b) => b.score - a.score);
@@ -344,7 +367,8 @@ function tricks(s, atk, blocks) {
     const consider = (gain, exec) => { if (gain >= 3 && (!best || gain > best.gain)) best = { gain, exec }; };
     for (const c of s.P.hand) {
       const d = c.def;
-      const tr = d.trick || (d.bloodrush ? { kind: 'single', p: 4, t: 4, cost: d.bloodrush.cost, req: d.bloodrush.req, bloodrush: true } : null);
+      const br = d.bloodrush, bv = (v) => (typeof v === 'function' ? v(s, api) : v);
+      const tr = d.trick || (br ? { kind: 'single', p: bv(br.p) ?? 4, t: bv(br.t) ?? 4, cost: br.cost, req: br.req, bloodrush: true } : null);
       if (!tr || c.locked) continue;
       const cost = tr.cost ?? d.cost, req = tr.req ?? colorsOf(d);
       const o = { convoke: d.kw?.includes('convoke') };
@@ -501,7 +525,7 @@ function enemyThreatOf(s, p) { return power(s, p) * 2 + (s.floor.priority(s, p, 
 
 Object.assign(api, {
   then: (r, f) => (r && r.then ? r.then(f) : f()),
-  plan, pay, castCard, assignKill, killTargets, burnTarget, bestBuffTarget, divide, readyAttackers, enemyThreatOf, keepValue,
+  plan, pay, castCard, assignKill, killTargets, burnTarget, bestBuffTarget, divide, readyAttackers, enemyThreatOf, keepValue, discardPick,
   attackersReady: readyAttackers,
   manaCount: (s) => manaCount(s, {}),
   // 自分の墓地のインスタントで、いちばん価値が高いもの（機械巨人）
