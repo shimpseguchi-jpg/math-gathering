@@ -18,7 +18,6 @@ var CARDS = /*CARDS*/{};
 var NAME_A = 20, NAME_B = 20; // なまえの 定型語の 数（js/ui/online.js の NAME_A・NAME_B）
 var DECK_SIZE = 20, CAPACITY = 30;
 var KEEP = 30;   // 階ごとに のこす ゴーストの 数（ふるい ものから けす。1件 9KB に おさまる）
-var SHOW = 3;    // いちどに みせる あいての 数
 
 function key_(tier) { return 'ghosts:' + tier; }
 function loadTier_(props, tier) { var v = props.getProperty(key_(tier)); return v ? JSON.parse(v) : []; }
@@ -68,19 +67,14 @@ function mtgSubmitGhost(g) {
   return { i: ghost.i };
 }
 
-// あいてを さがす：おなじ 階の ゴーストを 中心に、となりの 階からも。{ t: 階, x: [じぶんの ゴーストID] }
-function mtgFindGhosts(q) {
-  var tier = Math.max(1, Math.min(6, Math.floor(Number(q && q.t)) || 1));
+// あいてを さがす：あずかっている ゴースト ぜんぶから ランダムに 1人（じぶんの ゴーストは のぞく）。いなければ null
+// { x: [じぶんの ゴーストID] }
+function mtgRandomGhost(q) {
   var mine = (q && Array.isArray(q.x)) ? q.x.map(String) : [];
   var props = PropertiesService.getScriptProperties();
   var pool = [];
-  [tier, tier - 1, tier + 1].forEach(function (t, k) {
-    if (t < 1 || t > 6 || pool.length >= 12) return;
-    loadTier_(props, t).forEach(function (g) { if (mine.indexOf(g.i) < 0) pool.push({ g: g, near: k === 0 ? 0 : 1 }); });
-  });
-  // おなじ 階を 先に、あとは ランダム
-  pool.sort(function (a, b) { return a.near - b.near || Math.random() - 0.5; });
-  return pool.slice(0, SHOW).map(function (x) { return x.g; });
+  for (var t = 1; t <= 6; t++) loadTier_(props, t).forEach(function (g) { if (mine.indexOf(g.i) < 0) pool.push(g); });
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
 }
 
 // たたかいの けっか：{ i: ゴーストID, w: ゴーストが かったか }

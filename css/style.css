@@ -357,3 +357,4 @@ span.pile { cursor: default; }
 .ol-selects { display: flex; flex-wrap: wrap; gap: 6px; }
 .ol-selects select { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font: inherit; font-weight: 700; padding: 4px 8px; }
 .ol-empty { margin: 0; padding: 12px; border-radius: 12px; border: 2px dashed var(--line); color: var(--ink-dim); font-size: 13px; line-height: 1.9; }
+.ol-found { font-family: var(--display); font-size: 22px; color: var(--gold); margin: 0 0 4px; }

@@ -130,18 +130,15 @@ export async function onlineMenu(app, back) {
 }
 
 async function findOpponent(app, back, o, mine) {
-  let list = [];
-  if (hasServer()) {
-    try { list = (await call('mtgFindGhosts', { t: mine.t, x: o.decks.map((x) => x.id).filter(Boolean) })) || []; } catch { list = []; }
-  }
-  const opps = list.map((g) => ({ id: g.i, name: nameOf(g.n), d: g.d, p: pairOf(g.d), t: g.t, rec: `${g.w}勝 ${g.l}敗` }));
-  // サーバーに だれも いない とき・つながらない ときは 見本デッキ
-  if (opps.length < 3) for (const k of Object.keys(SAMPLE).sort(() => Math.random() - 0.5).slice(0, 3 - opps.length)) opps.push({ name: `れんしゅう あいて（${pairName(k)}）`, d: sampleIds(k), p: k, t: 3, rec: 'CPU' });
-  const v = await sheet('<p>たたかう あいてを えらぶ。</p>', [
-    ...opps.map((g) => ({ label: `${esc(g.name)}<small>${esc(pairName(g.p))}・${esc(TIER_LABEL[g.t] || '')}・${esc(g.rec)}</small>`, value: g, kind: 'primary' })),
-    { label: 'やめる', value: null },
-  ], { title: 'あいて' });
-  if (!v) return onlineMenu(app, back);
+  // あいては ランダム：サーバーに あずけられた ゴーストから 1人。いなければ（つながらない ときも）見本デッキの れんしゅう あいて
+  let g = null;
+  if (hasServer()) { try { g = await call('mtgRandomGhost', { x: o.decks.map((x) => x.id).filter(Boolean) }); } catch { g = null; } }
+  let v;
+  if (g) v = { id: g.i, name: nameOf(g.n), d: g.d, p: pairOf(g.d), t: g.t, rec: `${g.w}勝 ${g.l}敗` };
+  else { const k = Object.keys(SAMPLE)[Math.floor(Math.random() * Object.keys(SAMPLE).length)]; v = { name: `れんしゅう あいて（${pairName(k)}）`, d: sampleIds(k), p: k, t: 3, rec: 'CPU' }; }
+  const go = await sheet(`<p class="ol-found">${esc(v.name)}</p><p>${esc(pairName(v.p))}・${esc(v.id ? TIER_LABEL[v.t] : 'れんしゅう用の デッキ')}・${esc(v.rec)}</p>${v.id ? '' : `<p class="ol-help">${esc(hasServer() ? 'まだ ほかの 人の ゴーストが いないので、れんしゅう あいてが 出てきた。' : 'GAS版では ほかの 人の ゴーストと たたかえる。')}</p>`}`,
+    [{ label: 'たたかう', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: v.id ? 'あいてが みつかった！' : 'れんしゅう あいて' });
+  if (!go) return onlineMenu(app, back);
   const first = Math.random() < 0.5 ? 'P' : 'E';
   startBattle({
     deck: mine.d.map((id) => BY_ID[id]), floor: pvp({ deck: v.d.map((id) => BY_ID[id]).filter(Boolean), name: v.name, first }), floorName: v.name, diff: 'normal',
