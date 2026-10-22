@@ -1,6 +1,6 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
-  api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat,
+  api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY,
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
@@ -759,7 +759,7 @@ function render() {
     <div class="me-bar">
       <span class="life ${s.P.life <= 5 ? 'low' : ''}">ライフ <b>${s.P.life}</b></span>
       <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
-      <span class="pile">やまふだ ${s.P.lib.length}</span>
+      <span class="pile ${s.P.lib.length < LOW_LIBRARY ? 'low' : ''}" title="${s.P.lib.length < LOW_LIBRARY ? 'なくなったら ぼちを まぜて もどす' : ''}">やまふだ ${s.P.lib.length}${s.P.lib.length < LOW_LIBRARY ? '<small>もうすぐ なくなる</small>' : ''}</span>
       <button type="button" class="pile" data-act="gy">ぼち ${s.P.gy.length}</button>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}

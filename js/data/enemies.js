@@ -67,7 +67,7 @@ export function hydra() {
   return {
     id: 'hydra', name: '1階 ハイドラ',
     setup(s, E) {
-      const n = DIFF(s, 1, 2, 2);
+      const n = DIFF(s, 2, 2, 3);
       const defs = build(HYDRA_DECK);
       for (let i = 0; i < n; i++) { defs.splice(defs.indexOf(HEAD), 1); E.enter(s, 'E', HEAD); }
       for (const p of s.E.bf) p.sick = false;
@@ -79,7 +79,7 @@ export function hydra() {
       await headsFloor.headTurn(s, E);
     },
     onEnter(s, p) { if (p.def.head) p.def = { ...p.def, kwFn: headIndestructible }; },
-    onLeave(s, p, E) { if (p.def.head) headsFloor.regrow(s, E, DIFF(s, 1, 1, 2)); },
+    onLeave(s, p, E) { if (p.def.head) headsFloor.regrow(s, E, DIFF(s, 2, 2, 2)); },
     check(s, E, when) { if (when === 'end' && !s.E.bf.some((p) => p.def.head)) s.over = 'win'; },
     priority: headsFloor.priority,
     assign: headsFloor.assign,
@@ -114,7 +114,7 @@ export function horde() {
     id: 'horde', name: '2階 たいぐん', faceUnit: 1,
     setup(s, E) {
       s.E.lib = toLib(s, E, build(HORDE_DECK));
-      s.E.extraTurns = DIFF(s, 2, 2, 2);
+      s.E.extraTurns = DIFF(s, 1, 1, 1);
     },
     async enemyTurn(s, E) {
       for (const p of s.E.bf) if (p.def.totem) { const t = weakest(s, E); if (t) { E.damage(s, t, 1, null); E.sba(s); } }
@@ -155,6 +155,8 @@ export function horde() {
 
 // ===== 3階A：ゴーレムの工場 =====
 const GOLEM = ecr('ゴーレム', 1, 1, ['golem'], [], { attacks: true, golem: 1, types: ['artifact', 'creature'], reward: (s) => { s.E.key = Math.max(2, s.E.key - 1); } });
+const GOLEM2 = { ...GOLEM, pow: 2, tou: 2 }; // ふつう・むずかしい の 工場の ゴーレム
+const golemOf = (s) => (s.diff === 'easy' ? GOLEM : GOLEM2);
 const golem = (name, pow, tou, x = {}) => ({ ...ecr(name, pow, tou, ['golem'], [], { attacks: true, ...x }), types: ['artifact', 'creature'] });
 const FACTORY = eart('ゴーレム工場', { factory: true });
 const FACTORY_DECK = [
@@ -163,7 +165,7 @@ const FACTORY_DECK = [
   [1, golem('歯車の 番人', 0, 5, { attacks: false, guard: true, reward: (s, p, E) => E.gain(s, 2) })],
   [1, esp('修理（しゅうり）の 火花（ひばな）', (s) => { s.E.key = Math.min(9, s.E.key + 1); })],
   [2, esp('鍵（かぎ）の かけかえ', (s) => { s.E.key = 3 + 1 + Math.floor(s.rng() * 6); })],
-  [2, esp('増産（ぞうさん）', (s, E) => E.token(s, 'E', GOLEM))],
+  [2, esp('増産（ぞうさん）', (s, E) => E.token(s, 'E', golemOf(s)))],
   [1, esp('ゴーレムの 突撃（とつげき）', (s) => { s.E.flags.turn.golemPump = 1; })],
   [2, esp('稼働（かどう）停止（ていし）', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
   [1, esp('点検（てんけん）', (s) => { s.E.flags.inspect = true; }, { danger: 0 })],
@@ -175,12 +177,12 @@ export function factory() {
     id: 'factory', name: '3階 ゴーレム工場',
     setup(s, E) {
       E.enter(s, 'E', FACTORY);
-      s.E.key = DIFF(s, 4, 6, 7);
+      s.E.key = DIFF(s, 5, 7, 8);
       s.E.lib = toLib(s, E, build(FACTORY_DECK));
     },
     async enemyTurn(s, E) {
       if (s.E.flags.inspect) s.E.flags.inspect = false;
-      else if (s.E.bf.filter((p) => p.def.golem).length < 2) E.token(s, 'E', GOLEM);
+      else if (s.E.bf.filter((p) => p.def.golem).length < DIFF(s, 2, 2, 3)) E.token(s, 'E', golemOf(s));
       await E.reveal(s, 1);
       if (s.over || s.E.flags.turn.halt) return;
       const atk = attackers(s, E, (p) => p.def.attacks);
@@ -249,7 +251,7 @@ export function slime() {
   return {
     id: 'slime', name: '3階 ふえるスライム',
     setup(s, E) {
-      const n = DIFF(s, 3, 4, 5);
+      const n = DIFF(s, 5, 6, 8);
       E.enter(s, 'E', slimeDef(n)); // 最初のターンは攻撃しない
       s.E.lib = toLib(s, E, build(SLIME_DECK));
     },
@@ -293,7 +295,7 @@ export function xenagos() {
     id: 'xenagos', name: '4階 ゼナゴス',
     setup(s, E) {
       E.enter(s, 'E', XEN);
-      for (let i = 0; i < DIFF(s, 1, 2, 3); i++) E.enter(s, 'E', THRONG);
+      for (let i = 0; i < DIFF(s, 3, 3, 5); i++) E.enter(s, 'E', THRONG);
       for (const p of s.E.bf) p.sick = false;
       s.E.lib = toLib(s, E, build(XEN_DECK));
     },
@@ -370,7 +372,7 @@ export function erebos() {
       for (let i = 0; i < DIFF(s, 1, 2, 3); i++) E.enter(s, 'E', PHALANX);
       s.E.lib = toLib(s, E, build(P2_DECK));
     } else {
-      s.E.life = DIFF(s, 15, 26, 35);
+      s.E.life = DIFF(s, 30, 44, 52);
       s.P.noLifeGain = true;
       s.E.lib = toLib(s, E, build(P3_DECK));
     }
@@ -395,7 +397,7 @@ export function erebos() {
         await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
         return;
       }
-      E.hurt(s, DIFF(s, 2, 2, 3)); // エレボス：死者の神のターンのはじめに ライフを失う
+      E.hurt(s, DIFF(s, 2, 3, 3)); // エレボス：死者の神のターンのはじめに ライフを失う
       if (s.over) return;
       await E.reveal(s, DIFF(s, 1, 2, 2));
       if (s.over) return;
@@ -540,7 +542,7 @@ function ghostBegin(s, E) {
   P.suspended = P.suspended.filter((x) => x.n > 0);
   for (const x of ready) E.castSuspended(s, x.c);
   E.sba(s);
-  if (!s.over && (s.stats.playerTurns > 1 || s.floor.first === 'P')) E.drawCard(s);
+  if (!s.over) E.refill(s);
 }
 
 export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, tutorial };

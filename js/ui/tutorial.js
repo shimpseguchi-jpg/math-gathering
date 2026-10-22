@@ -45,7 +45,7 @@ const STEPS = [
     hl: '[data-act=end]', acts: ['end'], done: (s) => s.stats.playerTurns >= 2,
   },
   {
-    text: 'カードを 1まい 引いた。「白（しろ）の きほんカード」を マナゾーンに おこう。',
+    text: 'ターンの はじめに、てふだが 5まいに なるまで カードを 引ける。「白（しろ）の きほんカード」を マナゾーンに おこう。',
     hl: hand('B01'), hand: { B01: ['charge'] }, done: (s) => s.P.mana.length >= 4,
   },
   {
@@ -61,7 +61,7 @@ const STEPS = [
     hl: perm('G05'), acts: ['blockdone'], drag: ['G05'], perms: ['G05'], done: (s) => s.stats.playerTurns >= 3,
   },
   {
-    text: 'カードを 引いたら マナゾーンに おこう（マナ 5）。',
+    text: 'また てふだが 5まいに なった。きほんカードを マナゾーンに おこう（マナ 5）。',
     hl: hand('B03'), hand: { B03: ['charge'] }, done: (s) => s.P.mana.length >= 5,
   },
   {

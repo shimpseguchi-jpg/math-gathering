@@ -80,8 +80,7 @@ export function beginPlayerTurn(s) {
   const ready = [];
   for (const x of P.suspended) { x.n--; if (x.n <= 0) ready.push(x); }
   P.suspended = P.suspended.filter((x) => x.n > 0);
-  // 先に うごいた ほうは 1ターンめに 引かない（あいてが 先なら 1ターンめから 引く）
-  const rest = () => { sba(s); if (s.over) return; if (s.stats.playerTurns > 1 || s.floor.first === 'E') drawCard(s); };
+  const rest = () => { sba(s); if (s.over) return; refill(s); };
   const castReady = () => ready.reduce((w, x) => w.then(() => api.castSuspended(s, x.c)), Promise.resolve());
   // 占術（海の神タッサ）や 待機の 対象を 画面で聞くときは、答えを待ってから引く
   if (waits.length || (ready.length && s.ai.castSuspended)) return Promise.all(waits).then(castReady).then(rest);
@@ -122,6 +121,16 @@ export function drawCard(s, n = 1) {
     }
     P.hand.push(P.lib.shift());
   }
+}
+
+// 手札の 補充（遊戯王ラッシュデュエルと おなじ）：ターンの はじめに、手札が HAND_SIZE まいに なるまで 引く
+export const HAND_SIZE = 5;
+export const LOW_LIBRARY = 5; // 山札が これより 少ないと、画面で「もうすぐ なくなる」
+export function refill(s) {
+  const n = HAND_SIZE - s.P.hand.length;
+  if (n <= 0) return;
+  drawCard(s, n);
+  L(s, `${foe(s, 'P')}てふだを ${HAND_SIZE}まいに した（${n}まい 引いた）`);
 }
 
 export function rampTop(s) {
@@ -502,7 +511,7 @@ export function resolveCombat(s, atk, blocks) {
 Object.assign(api, {
   L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
-  enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
+  refill, enemyAttack, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
