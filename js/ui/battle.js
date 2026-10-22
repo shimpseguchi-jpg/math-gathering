@@ -444,6 +444,9 @@ async function action(a) {
   }
   if (a === 'blockauto') { B.blockMap = AI.blocks(s, B.blockAttackers); return render(); }
   if (a === 'gy') return showGy();
+  if (a === 'lib') return sheet(`<p>やまふだは のこり <b>${s.P.lib.length}まい</b>。ターンの はじめに、てふだが 5まいに なるまで ここから 引く。</p><p>なくなったら ぼちを まぜて もどす。そのとき ライフが へる（つぎは −${reshuffleCost(s.P, true)}。1回ごとに 2・4・6…）。</p>`, [{ label: 'とじる', value: 0 }], { title: 'やまふだ' });
+  if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
+  if (a === 'egy') return sheet(`<div class="mini-list">${s.E.gy.map((c) => cardFace(c.def, { enemy: s.floor.id !== 'pvp' })).join('') || '<p>ぼちは からっぽ</p>'}</div>`, [{ label: 'とじる', value: 0 }], { title: `てきの ぼち（${s.E.gy.length}まい）` });
   if (a === 'mana') return sheet(`<div class="mana-list">${s.P.mana.map((m) => `<span class="mchip ${colorsOf(m.def)[0] ? `m-${colorsOf(m.def).join('')}` : 'm-C'} ${m.tapped ? 'used' : ''}">${ruby(info(m.def).name)}</span>`).join('')}</div>`, [{ label: 'とじる', value: 0 }], { title: `マナゾーン（${s.P.mana.filter((m) => !m.tapped).length}/${s.P.mana.length} 使える）` });
   if (a === 'log') return sheet(`<ol class="elog">${s.logs.slice(-40).map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>`, [{ label: 'とじる', value: 0 }], { title: 'これまでの できごと' });
 }
@@ -695,7 +698,7 @@ function initSwipe() {
 // ---- 描く ----
 function enemyStatus() {
   const s = B.s, cr = s.E.bf.filter(isCreature);
-  const lib = `<span class="chip">やまふだ ${s.E.lib.length}</span>`;
+  const lib = ''; // てきの やまふだの 数は、右の カードの 山に 出る
   switch (s.floor.id) {
     case 'hydra': return `<span class="chip hot">頭 ${cr.filter((p) => p.def.head).length}本</span>${lib}`;
     case 'horde': return `<span class="chip hot">たいぐんの やまふだ のこり ${s.E.lib.length}まい</span>`;
@@ -778,21 +781,52 @@ function permLabel(p) {
   return '';
 }
 
+// ---- 卓の 部品（デュエプレ・マスターデュエルの ように、やまふだ・ぼち・マナゾーンを カードの 山で 見せる）----
+// 色の 帯（2色の カードは 左右で 2色）
+const band = (d) => { const c = colorsOf(d); const a = c[0] || 'C'; return `b1-${a} b2-${c[1] || a}`; };
+// やまふだ：カードの 裏の 山。のこりが 多いほど あつく 見える
+function deckPile(side) {
+  const s = B.s, n = s[side].lib.length;
+  const th = n >= 15 ? 4 : n >= 8 ? 3 : n >= 3 ? 2 : n ? 1 : 0;
+  const low = side === 'P' && n < LOW_LIBRARY;
+  return `<button type="button" class="pile2 deck ${side === 'E' ? 'foe' : ''} ${low ? 'low' : ''}" data-act="${side === 'P' ? 'lib' : 'elib'}" aria-label="${side === 'P' ? '' : 'てきの '}やまふだ ${n}まい">
+    <span class="cb th${th} ${n ? '' : 'none'}"><b>${n}</b></span>
+    <small>${low ? `まぜると −${reshuffleCost(s.P, true)}` : 'やまふだ'}</small></button>`;
+}
+// ぼち：いちばん 上の カードが 見える 山
+function gravePile(side) {
+  const s = B.s, gy = s[side].gy, top = gy[gy.length - 1];
+  const esc2 = side === 'P' && gy.some((c) => c.def.escape);
+  return `<button type="button" class="pile2 grave ${side === 'E' ? 'foe' : ''}" data-act="${side === 'P' ? 'gy' : 'egy'}" aria-label="${side === 'P' ? '' : 'てきの '}ぼち ${gy.length}まい">
+    <span class="gyc ${top ? (side === 'E' && s.floor.id !== 'pvp' ? 'b1-E b2-E' : band(top.def)) : 'none'} ${gy.length > 1 ? 'stack' : ''}">${top ? `<i>${ruby(info(top.def).name)}</i>` : ''}<b>${gy.length}</b></span>
+    <small>${esc2 ? 'だっしゅつ' : 'ぼち'}</small></button>`;
+}
+// マナゾーン：小さい カードを ならべる（タップした ものは よこむき）
+function manaZone() {
+  const s = B.s, ms = s.P.mana, untapped = ms.filter((m) => !m.tapped).length;
+  const tr = s.P.bf.filter((p) => p.def.treasure).length;
+  return `<button type="button" class="manazone ${ms.length > 7 ? 'tight' : ''}" data-act="mana" aria-label="マナ ${untapped} / ${ms.length}">
+    <span class="mz-cards">${ms.map((m) => `<i class="mz ${band(m.def)} ${m.tapped ? 't' : ''}"></i>`).join('') || '<em>マナゾーン</em>'}</span>
+    <span class="mz-num"><b>${untapped}</b>/${ms.length}${tr ? `<small>＋たからもの ${tr}</small>` : ''}</span>
+  </button>`;
+}
+
 function render() {
   if (B.left) return; // メニューへ もどった あと
   const s = B.s;
   if (!drag) clearDrag();
   B.tut?.update(s, B);
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];
+  const isNewPerm = (p) => B.prev?.perms && !B.prev.perms.has(p.uid);
   const perms = (side) => s[side].bf.map((p) => permFace(s, p, {
     label: permLabel(p),
-    cls: [B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
+    cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
   const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : `ライフ ${s.E.life}`}</b></div>` : '';
-  const untapped = s.P.mana.filter((m) => !m.tapped).length;
-  const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
-  for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }
   const last = s.logs.slice(-2).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
+  // まえに 描いた ときから ふえた カード・かわった ライフに 印を つけて うごかす
+  const pv = B.prev || { perms: null, hand: null, life: s.P.life, elife: s.E.life, gy: s.P.gy.length };
+  const isNew = (set, uid) => set && !set.has(uid);
   let btns = '';
   if (B.mode === 'main') btns = `${B.phase === 1 && !B.combatDone ? '<button type="button" class="btn primary" data-act="attack">こうげきする</button>' : ''}<button type="button" class="btn" data-act="end">ターン おわり</button>`;
   if (B.mode === 'attack') btns = `<button type="button" class="btn" data-act="cancel">こうげきしない</button><button type="button" class="btn" data-act="auto">おまかせ</button><button type="button" class="btn primary" data-act="declare">こうげき！（${B.sel.size}体）</button>`;
@@ -801,27 +835,29 @@ function render() {
   if (B.mode === 'enemy') btns = `<span class="wait">${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ターン…</span>`;
   app().innerHTML = `<div class="battle">
     <header class="bt-head">
-      <div><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
+      <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
+      <div class="bt-title"><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
       <div class="chips">${enemyStatus()}</div>
-      <button type="button" class="btn small menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー">≡ メニュー</button>
     </header>
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの てき'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
-    <section class="zone enemy" aria-label="てきの せんじょう">${face}${perms('E')}</section>
+    <div class="erow">
+      <section class="zone enemy" aria-label="てきの せんじょう">${face}${perms('E')}</section>
+      <div class="piles foe">${deckPile('E')}${gravePile('E')}</div>
+    </div>
     <button type="button" class="logline" data-act="log">${last.map((l) => `<span>${ruby(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
     ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}
     <section class="zone mine" aria-label="わたしの せんじょう">${perms('P')}</section>
     <div class="me-bar">
-      <span class="life ${s.P.life <= 5 ? 'low' : ''}">ライフ <b>${s.P.life}</b></span>
-      <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
-      <span class="pile ${s.P.lib.length < LOW_LIBRARY ? 'low' : ''}" title="${s.P.lib.length < LOW_LIBRARY ? `なくなったら ぼちを まぜて もどす。そのとき ライフ −${reshuffleCost(s.P, true)}` : ''}">やまふだ ${s.P.lib.length}${s.P.lib.length < LOW_LIBRARY ? `<small>もうすぐ なくなる（まぜると ライフ −${reshuffleCost(s.P, true)}）</small>` : ''}</span>
-      <button type="button" class="pile" data-act="gy">ぼち ${s.P.gy.length}${s.P.gy.some((c) => c.def.escape) ? '<small>だっしゅつ</small>' : ''}</button>
-      ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
+      <span class="life ${s.P.life <= 5 ? 'low' : ''} ${s.P.life < pv.life ? 'hit' : s.P.life > pv.life ? 'heal' : ''}" role="status"><small>ライフ</small><b>${s.P.life}</b></span>
+      ${manaZone()}
+      <div class="piles">${deckPile('P')}${gravePile('P')}</div>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
-    <div class="hand" aria-label="てふだ">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
+    <div class="hand" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
     <footer class="actions">${btns}</footer>
   </div>`;
   B.tut?.highlight(app());
+  B.prev = { perms: new Set([...s.P.bf, ...s.E.bf].map((p) => p.uid)), hand: new Set(s.P.hand.map((c) => c.uid)), life: s.P.life, elife: s.E.life, gy: s.P.gy.length };
 }
 
 // テスト用：いまの たたかいを さわってから 描きなおす（ブラウザの しらべで 場を つくる）
