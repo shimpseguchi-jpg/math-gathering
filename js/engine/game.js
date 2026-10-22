@@ -354,12 +354,13 @@ export function leave(s, p, to = 'gy', o = {}) {
   const side = s[p.side];
   side.bf.splice(side.bf.indexOf(p), 1);
   for (const q of side.bf) if (q.attached === p.uid) q.attached = null;
-  if (p.side === 'E' && (to === 'hand' || to === 'lib')) to = 'gy';
+  // 手札に もどす：手札の ない 塔の 敵は、かわりに やまふだの 一番上へ（つぎの ターンに また めくられて 出てくる）。トークンは きえる
+  if ((to === 'hand' && !side.hand) || to === 'lib') to = 'lib';
   if (!p.token) {
     const c = { uid: p.uid, def: p.card };
-    if (to === 'hand') s.P.hand.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
+    if (to === 'hand') side.hand.push(c); else if (to === 'lib') side.lib.unshift(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
   }
-  L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${{ gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだへ' }[to] || to}）`);
+  L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${p.token && to !== 'gy' ? 'きえた' : { gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだの 上へ' }[to] || to}）`);
   if (exact) {
     s.stats.exact++; p.exact = true;
     L(s, `ぴったり！ ${p.def.name}（タフネス ${p.dmg}）`);

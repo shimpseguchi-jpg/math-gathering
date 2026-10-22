@@ -313,7 +313,7 @@ const U = [
   sp('U05', 'ゼロで わる', 'U', 'U', 3, 'instant', {
     play: (s, E) => {
       const b = E.burnTarget(s, 99, { creatureOnly: true, mustHit: true });
-      return b ? { score: 7 + b.score, run: () => { E.bounce(s, b.t); E.drawCard(s); E.sba(s); } } : null;
+      return b ? { score: 4 + b.score * 0.5, run: () => { E.bounce(s, b.t); E.drawCard(s); E.sba(s); } } : null;
     },
   }),
   sp('U06', '二つの 山', 'U', 'U', 4, 'instant', {
@@ -352,7 +352,7 @@ const U = [
       const f = theirs(s, E).filter((p) => !p.tapped && (p.def.attacks || p.def.headDmg) && !s.floor.untargetable?.(s, p, E)).sort((a, b) => (b.def.headDmg || E.power(s, b)) - (a.def.headDmg || E.power(s, a)))[0];
       if (f && ctx.phase === 2) ms.push({ v: (f.def.headDmg || E.power(s, f)) * 2, run: () => { if (E.onBf(s, f)) { f.tapped = true; f.frozen = true; } } });
       const b = E.burnTarget(s, 99, { creatureOnly: true, mustHit: true });
-      if (b && b.score >= 4) ms.push({ v: 5 + b.score, run: () => { if (E.onBf(s, b.t)) E.bounce(s, b.t); E.sba(s); } });
+      if (b && b.score >= 4) ms.push({ v: 3 + b.score * 0.5, run: () => { if (E.onBf(s, b.t)) E.bounce(s, b.t); E.sba(s); } });
       ms.sort((a, b2) => b2.v - a.v);
       const use = ms.slice(0, 1 + Math.max(0, ctx.manaLeft ?? 0));
       return { score: use.reduce((t, m) => t + m.v, 0) - use.length, extra: use.length - 1, run: () => { for (const m of use) m.run(); } };
@@ -958,13 +958,13 @@ const TARGETS = {
       { label: 'クリーチャー1体に 二だんこうげき', tgt: [{ side: 'mine', label: '二だんこうげきを あたえる クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 0, 0, ['double']); } },
     ],
   },
-  U05: { tgt: [{ side: 'E', label: 'てふだに もどす（てきは ぼちへ）クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.drawCard(s); E.sba(s); } },
+  U05: { tgt: [{ side: 'E', label: 'てふだに もどす（てきは やまふだの 上へ）クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.drawCard(s); E.sba(s); } },
   U03: { tgt: [{ side: 'E', max: 9, label: 'タップして 止める クリーチャー' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; t.frozen = true; } } },
   U13: {
     modes: [
       { label: 'カードを 1まい 引く', apply: (s, E) => E.drawCard(s) },
       { label: 'てきの クリーチャー1体を タップ（つぎの ターン 起きない）', tgt: [{ side: 'E', label: 'タップして 止める クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) { t.tapped = true; t.frozen = true; } } },
-      { label: 'クリーチャー1体を てふだに もどす（てきは ぼちへ）', tgt: [{ side: 'any', label: 'もどす クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) E.bounce(s, t); E.sba(s); } },
+      { label: 'クリーチャー1体を てふだに もどす（てきは やまふだの 上へ）', tgt: [{ side: 'any', label: 'もどす クリーチャー' }], apply: (s, E, [[t]]) => { if (E.onBf(s, t)) E.bounce(s, t); E.sba(s); } },
     ],
   },
   G08: {
