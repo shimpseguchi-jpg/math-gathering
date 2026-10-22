@@ -92,7 +92,8 @@ export async function onlineMenu(app, back) {
       <p class="eyebrow">${hasServer() ? 'オンライン' : 'れんしゅう（オンラインは GAS版で）'}</p>
       <h2>オンライン バトル</h2>
       <div class="ol-me">
-        <div><span class="ol-name">${esc(nameOf(o.name))}</span><button type="button" class="btn ghost small" data-o="name">なまえを かえる</button></div>
+        <div class="ol-namebox"><span class="ol-name">${esc(nameOf(o.name))}</span>
+          <div class="ol-selects">${[NAME_A, NAME_B].map((ws, k) => `<select data-n="${k}" aria-label="なまえの ${k + 1}つめの ことば">${ws.map((w, i) => `<option value="${i}" ${o.name[k] === i ? 'selected' : ''}>${esc(w)}</option>`).join('')}</select>`).join('')}</div></div>
         <div class="ol-trophy"><b>${o.trophies}</b><span>トロフィー・${rankOf(o.trophies)}</span><small>${o.wins}勝 ${o.losses}敗</small></div>
       </div>
       ${news ? `<p class="ol-news">${esc(news)}</p>` : ''}
@@ -103,21 +104,20 @@ export async function onlineMenu(app, back) {
     </main>`;
   };
   draw();
+  // なまえ：プルダウン 2つから えらぶ（えらんだら すぐ 保存）
+  app().onchange = (e) => {
+    const sel = e.target.closest('select[data-n]'); if (!sel) return;
+    o.name[+sel.dataset.n] = +sel.value;
+    save(o);
+    app().querySelector('.ol-name').textContent = nameOf(o.name);
+  };
   app().onclick = async (e) => {
     const d = e.target.closest('[data-deck]');
     if (d) { pick = d.dataset.deck; return draw(); }
     const b = e.target.closest('[data-o]'); if (!b) return;
     if (b.dataset.o === 'back') return back();
-    if (b.dataset.o === 'name') { await chooseName(o); save(o); return draw(); }
     if (b.dataset.o === 'find') return findOpponent(app, back, o, deckOf(pick));
   };
-}
-
-async function chooseName(o) {
-  const a = await sheet('<p>1つめの ことばを えらぶ</p>', NAME_A.map((w, i) => ({ label: `${esc(w)}…`, value: i + 1 })), { title: 'なまえ（1/2）', cols: true });
-  if (!a) return;
-  const b = await sheet(`<p>${esc(NAME_A[a - 1])} ……？ 2つめの ことばを えらぶ</p>`, NAME_B.map((w, i) => ({ label: `${esc(NAME_A[a - 1])} ${esc(w)}`, value: i + 1 })), { title: 'なまえ（2/2）', cols: true });
-  if (b) o.name = [a - 1, b - 1];
 }
 
 async function findOpponent(app, back, o, mine) {
