@@ -442,4 +442,31 @@ export function erebos() {
   };
 }
 
-export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos };
+// ===== チュートリアル：メレティスの 訓練場 =====
+// 「訓練の まと」（タフネス 10）を たおせば かち。わらの 兵士は 2回めの 敵の ターンから 攻撃する
+const DUMMY = ecr('訓練の まと', 0, 10, ['wall'], [], { id: 'tut_dummy', dummy: true, noBlock: true, noCopy: true });
+const STRAW = ecr('わらの 兵士', 3, 3, ['scarecrow'], [], { id: 'tut_straw', straw: true, noBlock: true });
+
+export function tutorial() {
+  return {
+    id: 'tutorial', name: 'チュートリアル',
+    setup(s, E) {
+      E.enter(s, 'E', DUMMY); E.enter(s, 'E', STRAW);
+      for (const p of s.E.bf) p.sick = false;
+      s.E.lib = [];
+    },
+    async enemyTurn(s, E) {
+      s.E.flags.n = (s.E.flags.n || 0) + 1;
+      if (s.E.flags.n < 2) return;
+      await E.enemyAttack(s, s.E.bf.filter((p) => p.def.straw && !p.tapped));
+    },
+    check(s) { if (!s.E.bf.some((p) => p.def.dummy)) s.over = 'win'; },
+    priority(s, p) { return p.def.dummy ? 10 : 2; },
+    assign(s, atkers, E) { const d = s.E.bf.find((p) => p.def.dummy); return d ? atkers.map((p) => ({ p, t: d })) : []; },
+    threat(s, E) { const a = s.E.bf.filter((p) => p.def.straw); return { damage: a.length * 3, attackers: a.length }; },
+    anyTarget(s) { return s.E.bf.find((p) => p.def.dummy) || null; },
+    castThreat() { return 0; },
+  };
+}
+
+export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, tutorial };

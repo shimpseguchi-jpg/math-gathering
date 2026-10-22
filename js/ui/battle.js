@@ -5,7 +5,8 @@ import {
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS } from '../data/enemies.js';
-import { permFace, cardFace, detail, sheet, esc, info, noRuby, pickMany, divideSheet, numberSheet } from './view.js';
+import { permFace, cardFace, detail, sheet, esc, ruby, info, noRuby, pickMany, divideSheet, numberSheet } from './view.js';
+import { makeTutorial } from './tutorial.js';
 
 let B = null; // いまのたたかい
 const app = () => document.getElementById('app');
@@ -16,6 +17,7 @@ export function startBattle(o) {
   const floor = FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true });
+  if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
   startTurn();
@@ -337,16 +339,18 @@ async function onClick(e) {
   const b = e.target.closest('[data-act],[data-uid],[data-hand]');
   if (!b || (B.busy && B.mode !== 'block') || document.getElementById('sheet').hidden === false) return;
   const s = B.s;
-  if (b.dataset.act) return action(b.dataset.act);
-  if (b.dataset.hand != null) return tapHand(s.P.hand[+b.dataset.hand]);
+  const t = B.tut;
+  if (b.dataset.act) return t && !t.allowAct(b.dataset.act) ? toast(t.hint()) : action(b.dataset.act);
+  if (b.dataset.hand != null) { const c = s.P.hand[+b.dataset.hand]; return t && !t.allowHand(c) ? toast(t.hint()) : tapHand(c); }
   const uid = +b.dataset.uid;
   const p = [...s.P.bf, ...s.E.bf].find((q) => q.uid === uid);
-  if (p) return tapPerm_(p);
+  if (p) return t && !t.allowPerm(p) ? toast(t.hint()) : tapPerm_(p);
 }
 
 async function action(a) {
   const s = B.s;
   if (a === 'end') return endTurn();
+  if (a === 'tutnext') { B.tut?.next(); return render(); }
   if (a === 'attack') {
     combatStart(s); B.combatDone = true;
     if (checkOver()) return;
@@ -372,8 +376,10 @@ async function action(a) {
     B.busy = true;
     finishCombat(s, B.atk, B.blocks);
     B.mode = 'main'; B.phase = 2; B.atk = [];
-    if (!checkOver()) { render(); await combatResult(s); }
+    render();
+    await combatResult(s); // かった 攻撃も、けっかを 見せてから
     B.busy = false;
+    if (!checkOver()) render();
     return;
   }
   if (a === 'blockdone') {
@@ -424,7 +430,7 @@ async function tapHand(c) {
     }
   }
   choices.push({ label: 'とじる', value: null });
-  const v = await sheet(detail(d), choices);
+  const v = await sheet(detail(d), B.tut ? B.tut.filterChoices(c, choices) : choices);
   if (v === 'cast') return doCast(c);
   if (v === 'charge') { api.charge(s, c); s.P.flags.charged = true; return render(); }
   if (v === 'suspend') { const pl = plan(s, d.suspend.cost, d.suspend.req || []); if (pl) suspendCard(s, c, pl); return render(); }
@@ -531,7 +537,7 @@ async function showGy() {
 const attackFace = () => ['horde', 'erebos'].includes(B.s.floor.id) && attackTargets().includes('face');
 function canDrag(p) {
   const s = B.s;
-  if (!isCreature(p)) return false;
+  if (!isCreature(p) || (B.tut && !B.tut.allowDrag(p))) return false;
   if (B.mode === 'block') return !p.tapped;
   if (B.mode === 'attack' || (B.mode === 'main' && B.phase === 1 && !B.combatDone && s.active === 'P')) return readyAttackers(s).includes(p);
   return false;
@@ -629,6 +635,7 @@ function enemyStatus() {
     case 'factory': return `<span class="chip hot">工場の 鍵 ${s.E.key}</span>${lib}`;
     case 'slime': return `<span class="chip hot">スライム ${cr.filter((p) => p.def.slime).length}体</span>${lib}`;
     case 'xenagos': return `<span class="chip hot">歓楽者 ${cr.filter((p) => p.def.reveler).length}体</span>${lib}`;
+    case 'tutorial': return '';
     case 'erebos': return `<span class="chip">段階 ${s.phase}/3</span>${s.phase === 3 ? `<span class="chip hot">エレボスの ライフ ${s.E.life}</span>` : ''}${lib}`;
     default: return lib;
   }
@@ -637,6 +644,7 @@ function enemyStatus() {
 // ---- 敵の つぎの ターン ----
 function willAttack(p) {
   const s = B.s;
+  if (s.floor.id === 'tutorial') return !!p.def.straw && (s.E.flags.n || 0) >= 1;
   if (!isCreature(p) || p.def.head) return false;
   if (s.floor.id === 'slime' && !s.E.flags.started) return false;
   if (s.floor.id === 'erebos' && s.phase === 3 && p.def.erebos) return !s.E.flags.erebosRest;
@@ -660,7 +668,7 @@ function intent() {
   const reveal = s.floor.id === 'horde' ? n[s.diff] + s.E.bf.filter((p) => p.def.altar).length : s.floor.id === 'erebos' && s.phase > 1 ? (s.diff === 'easy' ? 1 : 2) : 1;
   if (s.E.lib.length) out.push(`山札を ${Math.min(reveal, s.E.lib.length)}まい めくって 使う`);
   if (s.E.extraTurns > 0) out.push(`まだ 来ない（あと ${s.E.extraTurns}ターン）`);
-  return out;
+  return out.length ? out : ['なにも しない'];
 }
 function revealNote(d) {
   if (d.types.includes('creature')) return 'このクリーチャーが 敵の 戦場に 出る。';
@@ -697,6 +705,7 @@ function permLabel(p) {
 function render() {
   const s = B.s;
   if (!drag) clearDrag();
+  B.tut?.update(s, B);
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];
   const perms = (side) => s[side].bf.map((p) => permFace(s, p, {
     label: permLabel(p),
@@ -721,7 +730,7 @@ function render() {
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>つぎの 敵</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
     <section class="zone enemy" aria-label="敵の 戦場">${face}${perms('E')}</section>
     <button type="button" class="logline" data-act="log">${last.map((l) => `<span>${esc(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
-    <p class="banner">${esc(banner())}</p>
+    ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}
     <section class="zone mine" aria-label="わたしの 戦場">${perms('P')}</section>
     <div class="me-bar">
       <span class="life ${s.P.life <= 5 ? 'low' : ''}">ライフ <b>${s.P.life}</b></span>
@@ -730,9 +739,10 @@ function render() {
       <button type="button" class="pile" data-act="gy">墓地 ${s.P.gy.length}</button>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">待機：${esc(noRuby(info(x.c.def).name))}　あと ${x.n}</span>`).join('')}</div>` : ''}
-    <div class="hand" aria-label="手札">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot" data-hand="${i}">${cardFace(c.def)}</button>`).join('') || '<p class="empty">手札は ない</p>'}</div>
+    <div class="hand" aria-label="手札">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}</button>`).join('') || '<p class="empty">手札は ない</p>'}</div>
     <footer class="actions">${btns}</footer>
   </div>`;
+  B.tut?.highlight(app());
 }
 
 // テスト用：いまの たたかいを さわってから 描きなおす（ブラウザの しらべで 場を つくる）

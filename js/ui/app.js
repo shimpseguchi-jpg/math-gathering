@@ -4,6 +4,7 @@ import { BY_ID, BASICS } from '../data/cards.js';
 import { colorsOf } from '../engine/game.js';
 import { RARITY_PTS } from '../engine/ai.js';
 import { startBattle } from './battle.js';
+import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { cardFace, detail, sheet, esc, ruby, noRuby, info, COLOR_NAME, initTerms } from './view.js';
 
@@ -24,8 +25,11 @@ const defs = (ids) => ids.map((id) => BY_ID[id]);
 const nm = (d) => noRuby(info(d).name);
 
 // ---- タイトル ----
+const tutorialDone = () => { try { return !!localStorage.getItem(TUTORIAL_DONE); } catch { return true; } };
+
 export function title() {
   const old = load();
+  const first = !tutorialDone() && !old;
   const pref = old || { diff: 'normal' };
   app().innerHTML = `<main class="title">
     <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
@@ -33,19 +37,37 @@ export function title() {
     <p class="title-sub">算数の デッキ構築 ローグライク。パックを あけて デッキを くみ、5階だての 塔を のぼろう。</p>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <div class="title-btns">
+      ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.idx + 1}階）</button>` : ''}
-      <button type="button" class="btn ${old && !old.over ? '' : 'primary'}" data-go="new">あたらしい 冒険</button>
+      <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい 冒険</button>
+      ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
     </div>
     <p class="fine">試作版。敵を タフネスと ちょうど 同じ ダメージで 倒すと「ぴったり！」。</p>
   </main>`;
   app().onclick = (e) => {
     const b = e.target.closest('[data-go]'); if (!b) return;
     if (b.dataset.go === 'cont') { A = old; return resume(); }
+    if (b.dataset.go === 'tut') return tutorial();
     const diff = app().querySelector('input[name=diff]:checked').value;
     A = { diff, pool: [], deck: null, floors: ['hydra', 'horde', Math.random() < 0.5 ? 'factory' : 'slime', 'xenagos', 'erebos'], idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
     packs();
   };
+}
+
+// ---- チュートリアル（メレティスの 訓練場）----
+function tutorial() {
+  startBattle({
+    deck: tutorialDeck(), floorId: 'tutorial', diff: 'easy', floorName: 'メレティスの 訓練場', tutorial: true, setup: tutorialSetup,
+    onEnd: async (r) => {
+      if (r.win) {
+        try { localStorage.setItem(TUTORIAL_DONE, '1'); } catch { /* 保存できなくても よい */ }
+        await sheet(`<p>${ruby(r.exact ? 'ぴったり 10点で まとを たおした！ マナの 置きかた、召集（しょうしゅう）、ブロック、圧倒（あっとう）、ぴったり。これで 塔に いどめるよ。' : 'まとを たおした！ つぎは ぴったりを ねらってみよう。これで 塔に いどめるよ。')}</p>`,
+          [{ label: 'タイトルへ', value: 1, kind: 'primary' }], { title: 'チュートリアル クリア！', dismiss: false });
+      }
+      title();
+    },
+  });
 }
 
 function resume() { if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
