@@ -2,6 +2,7 @@
 // つかいかた：node mathtcg/tools/gen_cardlist.mjs   → mathtcg/docs/CARDLIST.md
 //             node mathtcg/tools/gen_cardlist.mjs --html=<ファイル>   → 色ごとに 見る ウェブページ（カードずかん）も 書く
 // 文章は docs/cards/*.md の表から（gen_texts.py と おなじ）。どの弾かは js/data/cards.js の SET2 で きめる
+// ウェブページには、まだ データに なって いない 案（第3弾〜第6弾・アルケミー・プロモ）も「案」として 入れる
 import { readFileSync, readdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -12,18 +13,18 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(ROOT, 'docs', 'cards');
 const set2 = new Set(SET2.map((d) => d.id));
 
-// docs/cards/*.md の 表を 読む
+// 表を 読む：カード（ID の 列から）と トークン（「出すカード」の 列が ある 表）
 const cards = {}, tokens = new Map();
 const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
-for (const f of readdirSync(DIR).filter((f) => f.endsWith('.md')).sort()) {
+function readTables(path, into) {
   let head = null;
-  for (const line of readFileSync(join(DIR, f), 'utf8').split('\n')) {
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (!line.startsWith('|')) { head = null; continue; }
     const c = cells(line);
-    if (c[0] === 'ID' || (c[0] === '名前' && c.includes('出すカード'))) { head = c; continue; }
+    if ((c[0] === 'ID' && c.includes('名前')) || (c[0] === '名前' && c.includes('出すカード'))) { head = c; continue; }
     if (!head || /^[-: ]+$/.test(c[0])) continue;
     const r = Object.fromEntries(head.map((h, i) => [h, c[i] ?? '']));
-    if (head[0] === 'ID' && /^[A-Z]{1,2}\d\d$/.test(r.ID)) cards[r.ID] = r;
+    if (head[0] === 'ID' && /^[A-Z]{1,2}\d\d$/.test(r.ID)) into[r.ID] = r;
     if (head[0] === '名前') {
       // トークン：名前・P/T・能力が おなじ ものは 1つに まとめる
       const k = `${r['名前']}|${r['P/T']}|${r['能力']}`;
@@ -33,6 +34,7 @@ for (const f of readdirSync(DIR).filter((f) => f.endsWith('.md')).sort()) {
     }
   }
 }
+for (const f of readdirSync(DIR).filter((f) => f.endsWith('.md')).sort()) readTables(join(DIR, f), cards);
 
 const COLORS = [['W', '白'], ['U', '青'], ['G', '緑'], ['R', '赤']];
 const GOLD = [['WG', '白緑'], ['WU', '青白'], ['RW', '赤白'], ['UR', '赤青'], ['RG', '緑赤'], ['GU', '青緑']];
@@ -123,31 +125,69 @@ console.log(`docs/CARDLIST.md：${all.length}種 ＋ きほん ${basics.length} 
 // ---- ウェブページ（tools/cardlist_page.html に データを 入れる）----
 const htmlArg = process.argv.find((a) => a.startsWith('--html='));
 if (htmlArg) {
+  // 案の 弾（まだ データに なって いない）。B06 は 第3弾の 黒の きほんカード、LS は 第5弾の レッスン、YT は アルケミーの 創出だけの カード
+  const DRAFTS = [['SET3.md', '3'], ['SET4.md', '4'], ['SET5.md', '5'], ['SET6.md', '6'], ['ALCHEMY.md', 'A'], ['PROMO.md', 'P']];
+  const SET_LABEL = { 1: '第1弾', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: '第6弾', A: 'アルケミー', P: 'プロモ' };
+  const draftSet = {}, drafts = {};
+  for (const [f, k] of DRAFTS) {
+    const got = {};
+    readTables(join(ROOT, 'docs', f), got);
+    for (const id of Object.keys(got)) { drafts[id] = got[id]; draftSet[id] = k; }
+  }
+  const CLANS = ['AB', 'JE', 'SU', 'MA', 'TE', 'BA', 'ES', 'GX', 'JU', 'NA'];
+  const PAIR_KEYS = ['WG', 'WU', 'RW', 'UR', 'RG', 'GU', 'WK', 'UK', 'KR', 'KG'];
+  // 色の なかま：ふつうは ID の 頭（W・WK・AB…）。アルケミー（Y）・レッスン（LS）・プロモ（P）は コストの 色で
+  const groupOf = (id, cost) => {
+    const p = prefix(id);
+    if (CLANS.includes(p) || PAIR_KEYS.includes(p) || ['W', 'U', 'K', 'R', 'G', 'C'].includes(p)) return p;
+    const cols = [...new Set(String(cost).match(/[WUKRG]/g) || [])];
+    if (!cols.length) return 'C';
+    if (cols.length === 1) return cols[0];
+    return PAIR_KEYS.find((k) => [...k].every((x) => cols.includes(x)) && cols.length === 2) || cols.join('');
+  };
   const h = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   // 「漢字（よみ）」→ ルビ。<br> は 改行、*…* は ななめ（フレーバー）
   const rb = (x) => String(x ?? '').replace(/\*\*/g, '').split('<br>')
     .map((part) => mapRuby(part, (b, y) => `<ruby>${h(b)}<rt>${h(y)}</rt></ruby>`, h).replace(/\*([^*]+)\*/g, '<em>$1</em>')).join('<br>');
   const costHtml = (c) => {
     const parts = String(c).replace(/\*\*/g, '').split(/\s+/).filter(Boolean);
-    const nums = parts.filter((x) => /^[\dX]+$/.test(x)), cols = parts.filter((x) => /^[WUGR]+$/.test(x)).join('');
+    const nums = parts.filter((x) => /^[\dX]+$/.test(x)), cols = parts.filter((x) => /^[WUKGR]+$/.test(x)).join('');
     const n = nums.join(' ') === 'X X' ? 'XX' : nums.join('+');
     return h(n) + [...cols].map((k) => `<i class="pip p-${k}"></i>`).join('');
   };
-  const BASIC_COLOR = { B01: 'W', B02: 'U', B03: 'G', B04: 'R', B05: 'C' };
-  const card = (r, basic = false) => ({
-    id: r.ID, set: basic ? 0 : setOf(r.ID), group: basic ? BASIC_COLOR[r.ID] || 'C' : prefix(r.ID),
-    rar: basic ? '' : r['レアリティ'], rarName: basic ? '' : `${RAR_NAME[r['レアリティ']]}（${{ C: 1, U: 2, R: 3, L: 4 }[r['レアリティ']]}点）`,
-    cost: costHtml(r['コスト']), name: rb(r['名前']), type: rb(r['タイプ']), pt: h(r['P/T'] || ''), text: rb(r['テキスト']),
-    math: rb(r['算数'] || ''), motif: h(r['元のカード'] || ''),
-    plain: [r['名前'], r['タイプ'], r['テキスト'], r['算数'], r['元のカード'], r.ID].join(' ').replace(/\*\*/g, ''),
-  });
+  const BASIC_COLOR = { B01: 'W', B02: 'U', B03: 'G', B04: 'R', B05: 'C', B06: 'K' };
+  const RAR_PTS = { C: 1, U: 2, R: 3, L: 4, P: 2 };
+  const RAR_NAMES = { ...RAR_NAME, P: 'プロモ' };
+  const card = (r, basic = false) => {
+    const set = draftSet[r.ID] || String(setOf(r.ID)), rar = basic ? '' : (r['レアリティ'] || (set === 'P' ? 'P' : ''));
+    const extra = prefix(r.ID) === 'LS' ? 'レッスン' : prefix(r.ID) === 'YT' ? '創出だけ' : '';
+    const text = r['テキスト'] ?? r['テキスト（案）'] ?? '';
+    const motif = r['元のカード'] || (r['手に 入れる'] ? `手に 入れる：${r['手に 入れる']}` : '');
+    return {
+      id: r.ID, set, setLabel: SET_LABEL[set], draft: !!draftSet[r.ID], extra,
+      group: basic ? BASIC_COLOR[r.ID] || 'C' : groupOf(r.ID, r['コスト']),
+      rar, rarName: rar ? `${RAR_NAMES[rar]}（${RAR_PTS[rar]}点）` : '',
+      cost: costHtml(r['コスト']), name: rb(r['名前']), type: rb(r['タイプ']), pt: h(r['P/T'] || ''), text: rb(text),
+      math: rb(r['算数'] || ''), motif: h(motif),
+      plain: [r['名前'], r['タイプ'], text, r['算数'], motif, r.ID, SET_LABEL[set], extra].join(' ').replace(/\*\*/g, ''),
+    };
+  };
+  const SET_ORDER = Object.keys(SET_LABEL);
+  const bySet = (a, b) => SET_ORDER.indexOf(a.set) - SET_ORDER.indexOf(b.set);
+  const isBasic = (r) => !(r['レアリティ'] in RAR_NAME) && !(draftSet[r.ID] === 'P');
+  const everything = [...Object.values(cards), ...Object.values(drafts)];
+  const playable = new Set(Object.keys(cards));
   const data = {
-    cards: sortCards([...all]).map((r) => card(r)),
-    basics: [...basics].sort((a, b) => a.ID.localeCompare(b.ID)).map((r) => card(r, true)),
-    tokens: [...tokens.values()].sort((a, b) => a['名前'].localeCompare(b['名前'], 'ja')).map((t) => ({ name: rb(t['名前']), color: h(t['色']), pt: h(t['P/T']), text: rb(t['能力']), from: h([...t.from].sort().join('・')) })),
+    cards: sortCards(everything.filter((r) => !isBasic(r))).map((r) => card(r)).sort(bySet),
+    basics: everything.filter(isBasic).sort((a, b) => a.ID.localeCompare(b.ID)).map((r) => card(r, true)),
+    tokens: [...tokens.values()].sort((a, b) => a['名前'].localeCompare(b['名前'], 'ja')).map((t) => ({
+      name: rb(t['名前']), color: h(t['色']), pt: h(t['P/T']), text: rb(t['能力']), from: h([...t.from].sort().join('・')),
+      draft: ![...t.from].some((id) => playable.has(id)),
+    })),
   };
   const page = readFileSync(join(ROOT, 'tools', 'cardlist_page.html'), 'utf8').replace('/*DATA*/null', () => JSON.stringify(data).replace(/</g, '\\u003c'));
   const out2 = htmlArg.slice('--html='.length);
   writeFileSync(out2, page);
-  console.log(`${out2}：${data.cards.length}種（${(Buffer.byteLength(page) / 1024).toFixed(0)}KB）`);
+  const nDraft = data.cards.filter((c) => c.draft).length;
+  console.log(`${out2}：遊べる ${data.cards.length - nDraft}種 ＋ 案 ${nDraft}種、きほん ${data.basics.length}、トークン ${data.tokens.length}（${(Buffer.byteLength(page) / 1024).toFixed(0)}KB）`);
 }
