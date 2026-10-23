@@ -108,6 +108,38 @@ export function cardFace(def, o = {}) {
   </div>`;
 }
 
+// 色の マーク（MTG の マナ記号の ように）：白＝太陽・青＝しずく・緑＝木・赤＝ほのお・無色＝ひし形
+const EMBLEM = {
+  W: '<circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  U: '<path d="M12 2.5C9 7 6 10.5 6 14.5a6 6 0 0 0 12 0C18 10.5 15 7 12 2.5z"/>',
+  G: '<path d="M12 2a6 6 0 0 0-5.6 8.2A5 5 0 0 0 9 19.5h2V22h2v-2.5h2a5 5 0 0 0 2.6-9.3A6 6 0 0 0 12 2z"/>',
+  R: '<path d="M13 2c.5 3.5-2 5-3.5 7S7 12.5 7 15a5 5 0 0 0 10 0c0-2-1-3.5-2-4.5.2 1.6-.4 2.7-1.4 3.2.6-3.4-.2-7.6-.6-11.7z"/>',
+  C: '<path d="M12 2l8 10-8 10-8-10z"/>',
+};
+const emblem = (c) => `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${EMBLEM[c]}</svg>`;
+
+// 本物の カードの ような 大きい 表（パックを あけた とき）：名前・コスト・絵の わく・タイプ・文・算数・P/T
+// 文が 長い カードは 字を 小さく する（それでも 入らなければ 文の ところだけ スクロール）
+export function fullCard(def) {
+  const i = info(def);
+  const cs = colorsOf(def);
+  const len = noRuby(i.text).replace(/\*/g, '').length;
+  const size = len > 105 ? 'xs' : len > 70 ? 's' : len > 40 ? 'm' : 'l';
+  const isCr = def.types?.includes('creature');
+  const pts = isCr ? (typeof def.pow === 'number' ? `${def.pow}/${def.tou}` : '＊/＊') : '';
+  return `<div class="fcard ${colorClass(def)}">
+    <div class="fc-head"><span class="fc-name">${ruby(i.name)}</span><span class="cost">${esc(costLabel(def))}</span></div>
+    <div class="fc-art">${(cs.length ? cs : ['C']).map(emblem).join('')}</div>
+    <div class="fc-type"><span>${ruby(i.type)}</span><span class="fc-rar r-${def.rar}">${esc(def.rar || '')}</span></div>
+    <div class="fc-text ${size}">
+      <p>${richText(i.text) || '（とくべつな のうりょくは ない）'}</p>
+      ${i.reward && i.reward !== '−' ? `<p>${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
+      ${i.math && i.math !== '−' ? `<p class="fc-math">算数：${ruby(i.math.replace(/\*\*/g, ''))}</p>` : ''}
+    </div>
+    <div class="fc-foot"><small>${esc(RAR[def.rar] || '')}${i.motif && i.motif !== '−' ? ` ・ ${esc(i.motif)}` : ''}</small>${pts ? `<b class="fc-pt">${pts}</b>` : ''}</div>
+  </div>`;
+}
+
 const typeShort = (def) => {
   const t = def.types || [];
   if (t.includes('instant')) return 'インスタント';

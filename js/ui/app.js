@@ -7,7 +7,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
 const FLOOR_NAMES = {
@@ -115,15 +115,14 @@ function packs() {
       const isNew = !owned.has(ids[i]);
       app().innerHTML = `<main class="gacha">${top()}
         <div class="stage ${flipped ? `shown s-${d.rar}` : ''}">
-          ${flipped ? `<div class="big-card ${d.rar === 'L' ? 'legend' : ''}">${cardFace(d)}${isNew ? '<span class="new">NEW</span>' : ''}${isSurprise ? '<span class="wow">！？</span>' : ''}</div>`
+          ${flipped ? `<div class="big-card ${d.rar === 'L' ? 'legend' : ''}">${fullCard(d)}${isNew ? '<span class="new">NEW</span>' : ''}${isSurprise ? '<span class="wow">！？</span>' : ''}</div>`
             : `<button type="button" class="big-back ${GLOW[rar]} ${isSurprise && cracked ? 'crack' : ''}" data-flip="1" aria-label="めくる"><span>${isSurprise && cracked ? '！？' : '?'}</span></button>`}
           ${flipped && (d.rar === 'R' || d.rar === 'L') ? `<div class="burst ${d.rar === 'L' ? 'b-L' : ''}" aria-hidden="true">${burst(d.rar === 'L' ? 36 : 20)}</div>` : ''}
-          ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? 'しょうかく！ ' : ''}LEGEND!!</p>` : ''}
+          ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? '<small>しょうかく！</small>' : ''}LEGEND!!</p>` : ''}
         </div>
-        ${flipped ? `<div class="reveal-text">${detail(d)}</div>` : ''}
         <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${ruby(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
         <ol class="dots">${ORDER.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
-        <p class="tap-next">${flipped ? (k < 7 ? 'カードを タップで つぎへ（せつめいの 中は 読む ところ）' : 'カードを タップで まとめへ') : ''}</p>
+        <p class="tap-next">${flipped ? `カードを タップで ${k < 7 ? 'つぎへ' : 'まとめへ'}（点線の ことばは 長おしで せつめい）` : ''}</p>
         <div class="row-btns"><button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
       </main>`;
       return;
@@ -139,8 +138,8 @@ function packs() {
   let flippedAt = 0;
   const next = () => { if (k < 7) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); draw(); };
   app().onclick = async (e) => {
-    // めくった あとは、せつめい欄・音・スキップ 以外の どこを タップしても つぎへ
-    if (stage === 'reveal' && flipped && !e.target.closest('.reveal-text, [data-snd], [data-skip]')) {
+    // めくった あとは、点線の ことば（長おし・2回タップで せつめい）・音・スキップ 以外の どこを タップしても つぎへ
+    if (stage === 'reveal' && flipped && !e.target.closest('[data-term], [data-snd], [data-skip]')) {
       if (Date.now() - flippedAt > 350) next();
       return;
     }
