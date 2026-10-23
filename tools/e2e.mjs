@@ -24,13 +24,14 @@ async function swipe(from, to) {
 const tag = process.env.START ? `s${process.env.START}${process.env.FLOOR3 || ''}_` : '';
 const shot = async (name) => { if (shots.has(name)) return; shots.add(name); await page.screenshot({ path: `${out}/mtg_${tag}${name}.png` }); };
 await shot('title');
-// START=0〜4 で、その階から はじめる（7パックぶんの カードを 持った セーブを つくる）。FLOOR3=factory|slime
+// START=0〜4 で、その階から はじめる（7パックぶんの カードを 持った セーブを つくる）。FLOOR3=factory|slime|twins
+// FLOORS=clock,dragon,twins,gorgon,erebos のように 5つの 階を ぜんぶ きめても よい
 if (process.env.START) {
-  await page.evaluate(async ([start, f3]) => {
+  await page.evaluate(async ([start, f3, floors]) => {
     const { openPack } = await import('./js/engine/run.js');
     const pool = []; for (let i = 0; i < 7; i++) pool.push(...openPack(Math.random).map((d) => d.id));
-    localStorage.setItem('mtg-adventure-v1', JSON.stringify({ diff: 'easy', pool, deck: null, floors: ['hydra', 'horde', f3, 'xenagos', 'erebos'], idx: start, continues: 9, toOpen: 0, opened: 7, exact: 0 }));
-  }, [Number(process.env.START), process.env.FLOOR3 || 'factory']);
+    localStorage.setItem('mtg-adventure-v1', JSON.stringify({ diff: 'easy', pool, deck: null, floors: floors ? floors.split(',') : ['hydra', 'horde', f3, 'xenagos', 'erebos'], idx: start, continues: 9, toOpen: 0, opened: 7, exact: 0 }));
+  }, [Number(process.env.START), process.env.FLOOR3 || 'factory', process.env.FLOORS || '']);
   await page.reload();
   await page.click('[data-go=cont]');
 } else await page.click('[data-go=new]');

@@ -152,6 +152,14 @@ const typeShort = (def) => {
   return '';
 };
 
+// からくり時計の 文字盤（はりは 時の 数）
+const clockFace = (h) => {
+  const at = (n, r) => [Math.sin((n * Math.PI) / 6) * r, -Math.cos((n * Math.PI) / 6) * r].map((v) => v.toFixed(2));
+  const ticks = Array.from({ length: 12 }, (_, i) => { const [x1, y1] = at(i + 1, 7.2), [x2, y2] = at(i + 1, 8.6); return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${i === 11 ? ' class="top"' : ''}/>`; }).join('');
+  const [hx, hy] = at(h, 5.6);
+  return `<svg class="clock-face" viewBox="-10 -10 20 20" aria-hidden="true"><circle r="9.3"/>${ticks}<text y="-3.4">12</text><line class="hand" x1="0" y1="0" x2="${hx}" y2="${hy}"/><circle class="pin" r="0.9"/></svg>`;
+};
+
 // 戦場のパーマネント
 export function permFace(s, p, o = {}) {
   const enemy = p.side === 'E';
@@ -162,7 +170,9 @@ export function permFace(s, p, o = {}) {
     const left = T - p.dmg;
     ptHtml = `<div class="card-pt ${p.dmg ? 'hurt' : ''}">${P}/${left}${p.dmg ? `<small>/${T}</small>` : ''}</div>`;
   } else if (p.def.factory) ptHtml = `<div class="card-pt key">かぎ ${s.E.key}</div>`;
+  else if (p.def.clock) ptHtml = `${clockFace(s.E.hour)}<div class="card-pt key">${s.E.hour}時</div>`;
   else ptHtml = `<div class="card-type">${esc(typeShort(p.def))}</div>`;
+  if (p.def.medusa) ptHtml = `<div class="card-pt key">ライフ ${s.E.life}</div>`;
   const kws = Object.keys(KW).filter((k) => hasKw(s, p, k) && k !== 'convoke').map((k) => KW[k]);
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
@@ -175,6 +185,8 @@ export function permFace(s, p, o = {}) {
     p.tapped ? '<span class="b tap">タップ</span>' : '',
     p.sick && !enemy && isCreature(p) && !hasKw(s, p, 'haste') ? '<span class="b zz">zz</span>' : '',
     p.frozen ? '<span class="b ice">こおり</span>' : '',
+    p.stone ? '<span class="b stone">石</span>' : '',
+    p.def.dragon && !s.E.flags.awake ? '<span class="b zz">ねている</span>' : '',
     p.token ? '<span class="b tok">トークン</span>' : '',
   ].join('');
   return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">

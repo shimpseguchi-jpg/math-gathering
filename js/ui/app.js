@@ -1,6 +1,7 @@
 // 冒険の流れ：タイトル → パック開封 → デッキ構築 → 塔 → たたかい → …
 import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance } from '../engine/run.js';
 import { BY_ID, BASICS } from '../data/cards.js';
+import { pickFloors } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
 import { RARITY_PTS } from '../engine/ai.js';
 import { startBattle } from './battle.js';
@@ -14,6 +15,7 @@ const TAP_MODE = 'mtg-build-tap'; // デッキ構築で タップしたとき：
 const FLOOR_NAMES = {
   hydra: '1階 ハイドラとの たいじ', horde: '2階 たいぐんとの たたかい', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
   xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
+  clock: '1階 からくり とけいとう', dragon: '2階 ドラゴンの たからの 山', twins: '3階 ふたごの きょじん', gorgon: '4階 メドゥーサの 石の 庭',
 };
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
 
@@ -52,7 +54,7 @@ export function title() {
     if (b.dataset.go === 'tut') return tutorial();
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
-    A = { diff, pool: [], deck: null, floors: ['hydra', 'horde', Math.random() < 0.5 ? 'factory' : 'slime', 'xenagos', 'erebos'], idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
+    A = { diff, pool: [], deck: null, floors: pickFloors(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
     packs();
   };

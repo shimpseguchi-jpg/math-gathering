@@ -1,7 +1,7 @@
 # マスマティック・ザ・ギャザリング
 
 小学1〜5年生むけの **算数のデジタルTCG・デッキ構築型ローグライク**（試作版）。
-パックを開けてデッキを組み、MTG のチャレンジ・デッキをもとにした5階だての塔を登る。マナは DM ベース。
+パックを開けてデッキを組み、MTG のチャレンジ・デッキをもとにした5階だての塔を登る（1〜4階の 敵は 2〜3種から ランダム）。マナは DM ベース。
 
 - 遊ぶ：`mathtcg/index.html` をブラウザで開く（HTTPS か `npx http-server -p 8124 -c-1 .` などで配信。ファイルを直接開くと動かない）
 - スマホの縦向きが基準。iPad・PC でも動く
@@ -23,7 +23,7 @@ js/ui/glossary.js   ことばの せつめい（キーワード能力・用語 �
 js/engine/          ルール（game.js）・シミュレーション用AI（ai.js）・冒険（run.js）
 js/data/            カード（cards.js）・敵（enemies.js）・カードの文章（texts.js：docs から自動生成）
 docs/               要件定義・カードリスト・敵・シミュレーションの結果
-tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・gen_texts.py・check_cards.py・packsim.py
+tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・kanji_drafts.mjs（案の カード表の ふりがな）・gen_texts.py・check_cards.py・packsim.py
 ```
 
 ## GAS（Google Apps Script）版とオンライン バトル

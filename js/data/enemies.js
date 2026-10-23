@@ -66,6 +66,7 @@ const headIndestructible = (s, p) => (p.flags.indTurns > 0 ? ['indestructible'] 
 export function hydra() {
   return {
     id: 'hydra', name: '1階 ハイドラ',
+    goal: () => 'ハイドラの 頭を ぜんぶ たおす。頭が たおれると、新しい 頭が 出てくる ことが ある。',
     setup(s, E) {
       const n = DIFF(s, 2, 2, 3);
       const defs = build(HYDRA_DECK);
@@ -112,6 +113,7 @@ const HORDE_DECK = [
 export function horde() {
   return {
     id: 'horde', name: '2階 たいぐん', faceUnit: 1,
+    goal: () => 'たいぐんの やまふだを 0まいに して、ミノタウルスも ぜんぶ たおす。こうげきの ダメージ 1点で、やまふだが 1まい へる。',
     setup(s, E) {
       s.E.lib = toLib(s, E, build(HORDE_DECK));
       s.E.extraTurns = DIFF(s, 2, 1, 1);
@@ -175,6 +177,7 @@ export function factory() {
   const exact = (s, n) => n === s.E.key;
   return {
     id: 'factory', name: '3階 ゴーレム工場',
+    goal: (s) => `ゴーレム工場に、かぎの 数（いまは ${s.E.key}）と ちょうど 同じ ダメージを 1回で あたえて こわす。`,
     setup(s, E) {
       E.enter(s, 'E', FACTORY);
       s.E.key = DIFF(s, 5, 6, 8);
@@ -250,6 +253,7 @@ const SLIME_DECK = [
 export function slime() {
   return {
     id: 'slime', name: '3階 ふえるスライム',
+    goal: () => 'スライムを ぜんぶ たおす。スライムは たおれると、半分の 大きさの 2体に わかれる。',
     setup(s, E) {
       const n = DIFF(s, 4, 6, 7);
       E.enter(s, 'E', slimeDef(n)); // 最初のターンは攻撃しない
@@ -293,6 +297,7 @@ const XEN_DECK = [
 export function xenagos() {
   return {
     id: 'xenagos', name: '4階 ゼナゴス',
+    goal: () => 'かんらくしゃを ぜんぶ たおしてから、ゼナゴスを たおす。かんらくしゃが いる あいだ、ゼナゴスは たおれない。',
     setup(s, E) {
       E.enter(s, 'E', XEN);
       for (let i = 0; i < DIFF(s, 2, 2, 3); i++) E.enter(s, 'E', THRONG);
@@ -380,6 +385,7 @@ export function erebos() {
   };
   return {
     id: 'erebos', name: '5階 エレボス',
+    goal: () => '3つの だんかいを こえて、死者の神 エレボスの ライフを 0に する。',
     get faceUnit() { return 1.5; },
     setup(s, E) {
       s.phase = 1; s.stats.phase = 1;
@@ -441,6 +447,355 @@ export function erebos() {
       return s.E.bf.find((p) => p.def.head || p.def.minion) || null;
     },
     castThreat(s, d) { return d.head ? 7 : d.minion ? 5 : d.types.includes('creature') ? d.pow : d.danger ?? 2; },
+  };
+}
+
+// ===== 新しい 階で 使う 部品 =====
+// 攻撃する クリーチャーの えらびかたを ぜんぶ ためす（f が 何か かえしたら そこで おわり）。list は 10体まで
+function eachSubset(list, f) {
+  for (let m = 1; m < (1 << list.length); m++) {
+    const r = f(list.filter((_, i) => (m >> i) & 1));
+    if (r) return r;
+  }
+  return null;
+}
+// 数の 組み合わせで 作れる 合計（0 を ふくむ）
+const sumsOf = (vals) => vals.reduce((set, v) => new Set([...set, ...[...set].map((x) => x + v)]), new Set([0]));
+const strongest = (s, E, list, n = 10) => [...list].sort((a, b) => E.power(s, b) - E.power(s, a)).slice(0, n);
+
+// ===== 1階B：からくり 時計塔 =====
+// 時計の はり（s.E.hour：1〜12）。プレイヤーの ダメージで はりが ちょうど 12に とまれば かち。12を こえると かねが なる
+const CLOCK = eart('からくり時計', { clock: true });
+const cog = (name, pow, tou, x = {}) => ({ ...ecr(name, pow, tou, ['construct'], [], { attacks: true, cog: true, ...x }), types: ['artifact', 'creature'] });
+const COG = cog('ぜんまい兵（へい）', 2, 2);
+const SPRING = cog('ちびぜんまい', 1, 1); // かねが なると 出てくる トークン
+function moveHand(s, E, n, byPlayer) {
+  if (n <= 0 || s.over) return;
+  const from = s.E.hour, to = from + n;
+  s.E.hour = ((to - 1) % 12) + 1;
+  s.E.flags.lastMove = { from, to: s.E.hour };
+  E.L(s, `時計の はりが ${n} すすんだ（${from}時 → ${s.E.hour}時）`);
+  if (byPlayer && to % 12 === 0) { s.E.flags.lastMove.stop = true; E.L(s, '12時で 時計が とまった！'); s.over = 'win'; return; }
+  for (let i = Math.floor(from / 12); i < Math.floor(to / 12) && !s.over; i++) {
+    E.L(s, 'ゴーン！ 12時の かねが なった');
+    E.hurt(s, 2);
+    E.token(s, 'E', SPRING);
+  }
+}
+function rewind(s, E, n) {
+  const from = s.E.hour;
+  s.E.hour = ((((from - n - 1) % 12) + 12) % 12) + 1;
+  E.L(s, `時計の はりが ${n} もどった（${from}時 → ${s.E.hour}時）`);
+}
+const CLOCK_DECK = [
+  [4, COG],
+  [2, ecr('はと時計の はと', 1, 1, ['bird'], ['flying'], { attacks: true, reward: (s, p, E) => E.drawCard(s) })],
+  [1, cog('ふりこの 番人', 0, 4, { attacks: false, guard: true, reward: (s, p, E) => E.gain(s, 2) })],
+  [1, cog('大（おお）時計の 番兵（ばんぺい）', 3, 3)],
+  [2, esp('時計の くるい', (s, E) => moveHand(s, E, 2, false))],
+  [1, esp('まきもどし', (s, E) => rewind(s, E, 3))],
+  [1, esp('ねじまき', (s) => { s.E.flags.turn.cogPump = true; }, { danger: 3 })],
+  [1, esp('かねの ひびき', (s, E) => { const t = biggest(s, E); if (t) t.tapped = true; })],
+  [2, esp('油さし', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
+  [1, esp('お昼休み', (s) => { s.E.flags.turn.noTick = true; }, { danger: 0 })],
+];
+
+export function clock() {
+  const need = (s) => 12 - (s.E.hour % 12); // 12時の ときは 12
+  return {
+    id: 'clock', name: '1階 からくり時計塔（とう）', faceLabel: '時計',
+    goal: () => '時計の はりを、ちょうど 12に とめる。ダメージの 数だけ はりが すすむ。12を こえて しまうと、かねが なる。',
+    setup(s, E) {
+      E.enter(s, 'E', CLOCK);
+      s.E.hour = DIFF(s, 5, 4, 3);
+      const defs = build(CLOCK_DECK);
+      for (let i = 0; i < DIFF(s, 0, 1, 3); i++) { defs.splice(defs.indexOf(COG), 1); E.enter(s, 'E', COG); }
+      E.token(s, 'E', SPRING, DIFF(s, 0, 1, 0));
+      for (const p of s.E.bf) p.sick = false;
+      s.E.lib = toLib(s, E, defs);
+    },
+    async enemyTurn(s, E) {
+      await E.reveal(s, 1);
+      if (s.over) return;
+      if (!s.E.flags.turn.noTick) moveHand(s, E, 1, false); // チクタク
+      if (s.over || s.E.flags.turn.halt) return;
+      const atk = attackers(s, E, (p) => p.def.attacks);
+      if (s.E.flags.turn.cogPump) for (const p of atk) if (p.def.cog) E.pump(p, 1, 0);
+      await E.enemyAttack(s, atk);
+    },
+    cantLeave: (s, p) => !!p.def.clock,
+    untargetable: (s, p) => !!p.def.clock,
+    // 戦闘の ダメージは 合計して いっぺんに すすめる。呪文の ダメージは 1回ずつ
+    onDamaged(s, p, n, src, E) {
+      if (!p.def.clock) return;
+      if (s.combat) s.combat.clock = (s.combat.clock || 0) + n;
+      else moveHand(s, E, n, true);
+    },
+    afterCombat(s, E) { if (s.combat.clock) moveHand(s, E, s.combat.clock, true); },
+    face(s, n, E) { moveHand(s, E, n, true); },
+    faceValue: (s, n) => (n === need(s) ? 100 : 0),
+    priority(s, p, E) { return p.def.guard ? 9 : E.power(s, p) * 2 + 2; },
+    assign(s, atkers, E) {
+      const clk = s.E.bf.find((p) => p.def.clock);
+      const kill = E.killTargets(s, E.creatures(s, 'E'));
+      if (!clk || s.E.bf.some((p) => p.def.guard)) return E.assignKill(s, atkers, kill, null);
+      const n = need(s), list = strongest(s, E, atkers);
+      const plan = (toC) => [...toC.map((p) => ({ p, t: clk })), ...E.assignKill(s, atkers.filter((p) => !toC.includes(p)), kill, null)];
+      const through = (pl, toC) => { const bl = E.enemyBlocks(s, pl); return sumPow(s, E, toC.filter((p) => !bl.has(p.uid))); };
+      const exact = eachSubset(list, (toC) => {
+        if (sumPow(s, E, toC) !== n) return null;
+        const pl = plan(toC);
+        return through(pl, toC) === n ? pl : null;
+      });
+      if (exact) return exact;
+      // とどかない ときは すすめておく：敵の ターンに 1 すすんだ あとの のこりが、いまの クリーチャーで 作れる 数に なるように（12は こえない）
+      const can = sumsOf(E.creatures(s, 'P').filter((p) => !E.hasKw(s, p, 'defender') && !p.def.cantAttack).map((p) => Math.max(0, E.power(s, p))));
+      let best = null;
+      eachSubset(list, (toC) => {
+        const a = sumPow(s, E, toC);
+        if (a <= n - 2 && can.has(n - a - 1) && (!best || a > best.a)) best = { a, toC };
+        return null;
+      });
+      if (best) { const pl = plan(best.toC); if (through(pl, best.toC) <= n - 2) return pl; }
+      return E.assignKill(s, atkers, kill, null);
+    },
+    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks); return { damage: sumPow(s, E, a) + (s.E.hour === 11 ? 2 : 0), attackers: a.length }; },
+    anyTarget(s, E) { return E.creatures(s, 'E')[0] || null; },
+    castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 + (d.guard ? 4 : 0) : d.danger ?? 2; },
+  };
+}
+
+// ===== 2階B：ドラゴンの 宝の 山 =====
+// 宝の 山（本体）に あたえた ダメージ 1点で 金貨 1まいを とりかえす。宝の 山を 攻撃した クリーチャー 1体ごとに、ドラゴンの ねむけが 1 へる
+const DRAGON = ecr('宝（たから）の 山の ドラゴン', 5, 5, ['dragon'], ['flying'], { dragon: true, noBlock: true, noCopy: true, reward: (s, p, E) => addGold(s, E, 5) });
+const kobold = (name, pow, tou, x = {}) => ecr(name, pow, tou, ['kobold'], [], { attacks: true, kobold: true, ...x });
+const SPEAR = kobold('コボルドの やり兵（へい）', 2, 1);
+function addGold(s, E, n) {
+  if (s.over || n <= 0) return;
+  s.E.gold += n;
+  E.L(s, `金貨（きんか） ＋${n}（${s.E.gold}/${s.E.goal}まい）`);
+  if (s.E.gold >= s.E.goal) s.over = 'win';
+}
+function wake(s, E, n) {
+  if (s.E.flags.awake || n <= 0) return;
+  s.E.sleep = Math.max(0, s.E.sleep - n);
+  E.L(s, `ドラゴンの ねむけ −${n}（のこり ${s.E.sleep}）`);
+  if (!s.E.sleep) { s.E.flags.awake = true; E.L(s, 'ドラゴンが 目を さました！'); }
+}
+const DRAGON_DECK = [
+  [5, SPEAR],
+  [2, kobold('コボルドの 見はり', 1, 2, { attacks: false, etb: (s, p, E) => wake(s, E, 1), reward: (s, p, E) => E.drawCard(s) })],
+  [1, kobold('コボルドの 親分', 3, 3)],
+  [2, esp('ドラゴンの ねごと', (s, E) => { if (!s.E.flags.awake) return; for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); })],
+  [2, esp('金貨（きんか）の わな', (s, E) => { const t = biggest(s, E); if (t) t.tapped = true; })],
+  [1, esp('コボルドの 号令（ごうれい）', (s) => { s.E.flags.turn.koboldPump = true; }, { danger: 3 })],
+  [1, esp('ドラゴンの あくび', (s, E) => wake(s, E, 2), { danger: 3 })],
+  [1, esp('ころがる 金貨（きんか）', (s, E) => addGold(s, E, 2), { danger: 0 })],
+];
+
+export function dragon() {
+  const left = (s) => s.E.goal - s.E.gold;
+  return {
+    id: 'dragon', name: '2階 ドラゴンの 宝（たから）の 山', faceUnit: 1, faceLabel: '宝（たから）の 山',
+    goal: (s) => `たからの 山から きんかを ${s.E.goal}まい とりかえす。たからの 山を こうげきする 足音で、ドラゴンが 目を さます。`,
+    setup(s, E) {
+      Object.assign(s.E, { gold: 0, goal: DIFF(s, 15, 20, 25), sleep: DIFF(s, 6, 4, 4) });
+      const n = DIFF(s, 4, 5, 6);
+      E.enter(s, 'E', { ...DRAGON, pow: n, tou: n });
+      const defs = build(DRAGON_DECK);
+      for (let i = 0; i < DIFF(s, 0, 1, 2); i++) { defs.splice(defs.indexOf(SPEAR), 1); E.enter(s, 'E', SPEAR); }
+      for (const p of s.E.bf) p.sick = false;
+      s.E.lib = toLib(s, E, defs);
+    },
+    async enemyTurn(s, E) {
+      await E.reveal(s, 1);
+      if (s.over) return;
+      const atk = attackers(s, E, (p) => p.def.attacks || (p.def.dragon && s.E.flags.awake));
+      if (s.E.flags.turn.koboldPump) for (const p of atk) if (p.def.kobold) E.pump(p, 1, 0);
+      await E.enemyAttack(s, atk);
+    },
+    face(s, n, E) { addGold(s, E, n); },
+    faceValue: (s, n) => (n >= left(s) ? 200 : n * 1.2),
+    afterCombat(s, E) { wake(s, E, s.combat.atk.filter((a) => a.t === 'face').length); },
+    untargetable: (s, p) => !!p.def.dragon && !s.E.flags.awake,
+    preventDamage: (s, p) => !!p.def.dragon && !s.E.flags.awake, // ねている ドラゴンには とどかない
+    check(s) { if (s.E.gold >= s.E.goal) s.over = 'win'; },
+    priority(s, p, E) { return p.def.dragon ? (s.E.flags.awake ? 14 : 0) : E.power(s, p) * 2 + 1; },
+    assign(s, atkers, E) {
+      if (sumPow(s, E, atkers) >= left(s)) return atkers.map((p) => ({ p, t: 'face' }));
+      const kill = E.killTargets(s, E.creatures(s, 'E'));
+      if (s.E.flags.awake || s.E.sleep <= 1) return E.assignKill(s, atkers, kill, 'face');
+      // ねている あいだは、足音が ねむけに とどかない 数だけ（パワーの 大きい じゅんに）宝の 山へ
+      const list = strongest(s, E, atkers, atkers.length), k = s.E.sleep - 1;
+      return [...list.slice(0, k).map((p) => ({ p, t: 'face' })), ...E.assignKill(s, list.slice(k), kill, null)];
+    },
+    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks || (p.def.dragon && s.E.flags.awake)); return { damage: sumPow(s, E, a), attackers: a.length }; },
+    anyTarget() { return 'face'; },
+    castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
+  };
+}
+
+// ===== 3階C：ふたごの 巨人 =====
+// 兄と 弟を 同じ ターンに 2体とも たおせば かち。片方だけ たおれると、ターンの おわりに もう片方が つれもどす。巨人は こうたいで 攻撃する
+const giant = (twin, name, pow, tou) => ecr(name, pow, tou, ['giant'], [], { twin, noBlock: true, noCopy: true });
+const TWIN_DECK = [
+  [3, ecr('山の オオカミ', 2, 2, ['wolf'], [], { attacks: true })],
+  [1, ecr('巨人（きょじん）の 番犬', 3, 2, ['dog'], [], { attacks: true })],
+  [1, ecr('岩の 番人', 0, 5, ['golem'], [], { attacks: false, reward: (s, p, E) => E.gain(s, 2) })],
+  [2, esp('岩なげ', (s, E) => { const t = weakest(s, E); if (t) E.damage(s, t, 3, null); E.sba(s); }, { danger: 3 })],
+  [1, esp('ふたごの 合図', (s) => { s.E.flags.turn.both = true; }, { danger: 3 })],
+  [1, esp('ふたごの ちかい', (s, E) => { for (const p of s.E.bf.filter((q) => q.def.twin)) E.addCounters(s, p, 1); }, { danger: 3 })],
+  [1, esp('地ひびき', (s, E) => { for (const p of pc(s, E)) E.damage(s, p, 1, null); E.sba(s); }, { danger: 3 })],
+  [2, esp('星の ひかり', (s) => { s.E.flags.turn.halt = true; }, { danger: 0 })],
+  [1, esp('ふたごの けんか', (s, E) => { s.E.flags.turn.halt = true; E.gain(s, 2); }, { danger: 0 })],
+];
+// 2体を 同じ ターンに たおす わけかた：兄へ 行く 組を ぜんぶ ためし、のこりから 弟に とどく 組を パワーの 大きい じゅんに 作る
+function splitTwins(s, E, atkers, [a, b], kill) {
+  const list = strongest(s, E, atkers);
+  const na = E.need(s, a), nb = E.need(s, b);
+  const dt = (p) => E.hasKw(s, p, 'deathtouch');
+  const enough = (g, n) => g.some(dt) || sumPow(s, E, g) >= n;
+  if (sumPow(s, E, list) < na + nb && !list.some(dt)) return null;
+  let best = null;
+  eachSubset(list, (ga) => {
+    if (!enough(ga, na)) return null;
+    const gb = [];
+    for (const p of list) { if (enough(gb, nb)) break; if (!ga.includes(p)) gb.push(p); }
+    if (!gb.length || !enough(gb, nb)) return null;
+    const used = ga.length + gb.length;
+    if (best && used >= best.used) return null;
+    const rest = atkers.filter((p) => !ga.includes(p) && !gb.includes(p));
+    const plan = [...ga.map((p) => ({ p, t: a })), ...gb.map((p) => ({ p, t: b })), ...E.assignKill(s, rest, kill, null)];
+    const bl = E.enemyBlocks(s, plan);
+    const thru = (g) => g.filter((p) => !bl.has(p.uid));
+    if (enough(thru(ga), na) && enough(thru(gb), nb)) best = { used, plan };
+    return null;
+  });
+  return best?.plan || null;
+}
+
+export function twins() {
+  let pair = [];
+  const on = (s) => s.E.bf.filter((p) => p.def.twin);
+  return {
+    id: 'twins', name: '3階 ふたごの 巨人（きょじん）',
+    goal: () => 'ふたごの きょじんを、同じ ターンに 2体とも たおす。1体だけ たおすと、ターンの おわりに もう1体が つれもどして しまう。',
+    setup(s, E) {
+      const [a, b] = DIFF(s, [[2, 4], [3, 2]], [[2, 5], [4, 3]], [[3, 6], [5, 4]]);
+      pair = [giant('ani', '兄 カストル', ...a), giant('oto', '弟 ポルックス', ...b)];
+      for (const d of pair) E.enter(s, 'E', d);
+      for (const p of s.E.bf) p.sick = false;
+      s.E.flags.nextTwin = 'ani';
+      s.E.lib = toLib(s, E, build(TWIN_DECK));
+    },
+    async enemyTurn(s, E) {
+      await E.reveal(s, 1);
+      if (s.over) return;
+      const who = s.E.flags.nextTwin;
+      s.E.flags.nextTwin = who === 'ani' ? 'oto' : 'ani';
+      if (s.E.flags.turn.halt) return;
+      await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks || (p.def.twin && (s.E.flags.turn.both || p.def.twin === who))));
+    },
+    endTurn(s, E) {
+      const live = on(s);
+      if (live.length !== 1) return;
+      const d = pair.find((x) => x.twin !== live[0].def.twin);
+      for (const z of ['gy', 'lib', 'exile']) { const i = s.E[z].findIndex((c) => c.def.twin === d.twin); if (i >= 0) s.E[z].splice(i, 1); }
+      E.L(s, `${live[0].def.name} が ${d.name} を つれもどした`);
+      E.enter(s, 'E', d);
+    },
+    check(s) { if (!on(s).length) s.over = 'win'; },
+    priority(s, p, E) { return p.def.twin ? (on(s).length === 1 ? 50 : 0) : E.power(s, p) * 2 + 2; },
+    assign(s, atkers, E) {
+      const tw = on(s);
+      const kill = E.killTargets(s, E.creatures(s, 'E').filter((p) => !p.def.twin));
+      if (tw.length === 1) return E.assignKill(s, atkers, [{ t: tw[0], need: E.need(s, tw[0]), v: 50, creature: true }, ...kill], null);
+      return (tw.length === 2 && splitTwins(s, E, atkers, tw, kill)) || E.assignKill(s, atkers, kill, null);
+    },
+    threat(s, E) {
+      const a = E.creatures(s, 'E').filter((p) => p.def.attacks || p.def.twin === s.E.flags.nextTwin);
+      return { damage: sumPow(s, E, a) + 2, attackers: a.length + 1 };
+    },
+    anyTarget(s, E) { return E.creatures(s, 'E').find((p) => !p.def.twin) || null; },
+    castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
+  };
+}
+
+// ===== 4階B：メドゥーサの 石の 庭 =====
+// メドゥーサの ライフ（s.E.life）を 0に すれば かち。パワーが STONE いじょうの クリーチャーが メドゥーサを 攻撃すると、ダメージを あたえずに 石に なる
+export const STONE = 4;
+const MEDUSA = ecr('ゴルゴンの メドゥーサ', 0, 1, ['gorgon'], [], { medusa: true, noBlock: true, noCopy: true });
+const SNAKE = ecr('へび', 1, 1, ['snake'], [], { attacks: true });
+const VIPER = ecr('ゴルゴンの へび', 2, 1, ['snake'], [], { attacks: true });
+// 石に なった クリーチャーは、メドゥーサが いる あいだ アンタップしない（氷の時代と おなじ しくみ）
+function petrify(s, E, p) {
+  const m = s.E.bf.find((q) => q.def.medusa);
+  if (!m || !E.onBf(s, p) || p.stone) return;
+  p.tapped = true; p.iceBy = m; p.stone = true;
+  E.L(s, `${p.def.name} が 石に なった`);
+}
+function hitMedusa(s, E, n, src) {
+  if (n <= 0 || s.over) return;
+  s.E.life -= n;
+  if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
+  E.L(s, `メドゥーサに ${n}点（のこり ${Math.max(0, s.E.life)}）`);
+  if (s.E.life <= 0) s.over = 'win';
+}
+const MEDUSA_DECK = [
+  [4, VIPER],
+  [2, ecr('石の 兵士（へいし）', 0, 4, ['soldier'], [], { attacks: false, reward: (s, p, E) => E.gain(s, 2) })],
+  [2, ecr('コカトリス', 1, 2, ['cockatrice'], ['flying'], { attacks: true })],
+  [1, ecr('バジリスク', 3, 3, ['basilisk'], [], { attacks: true })],
+  [2, esp('石の まなざし', (s, E) => { const t = biggest(s, E, (p) => !p.stone && E.power(s, p) >= STONE); if (t) petrify(s, E, t); }, { danger: 4 })],
+  [1, esp('へびの かみの毛', (s, E) => E.token(s, 'E', SNAKE, 2), { danger: 3 })],
+  [2, esp('メドゥーサの いかり', (s, E) => E.hurt(s, 3), { danger: 3 })],
+  [2, esp('かがみの たて', (s, E) => {
+    const t = pc(s, E).filter((p) => p.stone).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+    if (!t) return hitMedusa(s, E, 3, null);
+    t.stone = false; t.iceBy = null; t.tapped = false;
+    E.L(s, `${t.def.name} が もとに もどった`);
+  }, { danger: 0 })],
+  [1, esp('ペガサスの 羽', (s, E) => { E.drawCard(s); E.gain(s, 2); }, { danger: 0 })],
+];
+
+export function gorgon() {
+  return {
+    id: 'gorgon', name: '4階 メドゥーサの 石の 庭', faceLabel: 'メドゥーサ',
+    goal: (s) => `メドゥーサの ライフ ${s.E.life}を 0に する。パワー ${STONE} いじょうの クリーチャーで メドゥーサを こうげきすると、石に なって うごけなくなる。`,
+    setup(s, E) {
+      s.E.life = DIFF(s, 14, 18, 20);
+      E.enter(s, 'E', MEDUSA);
+      const defs = build(MEDUSA_DECK);
+      for (let i = 0; i < DIFF(s, 1, 2, 2); i++) { defs.splice(defs.indexOf(VIPER), 1); E.enter(s, 'E', VIPER); }
+      for (const p of s.E.bf) p.sick = false;
+      s.E.lib = toLib(s, E, defs);
+    },
+    async enemyTurn(s, E) {
+      await E.reveal(s, 1);
+      if (s.over) return;
+      await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
+    },
+    cantLeave: (s, p) => !!p.def.medusa,
+    untargetable: (s, p) => !!p.def.medusa, // 呪文は「メドゥーサ（ライフ）」を ねらう
+    preventDamage(s, p, n, src, E) {
+      if (!p.def.medusa) return false;
+      if (src?.side === 'P' && src.attacking && E.power(s, src) >= STONE) petrify(s, E, src);
+      else hitMedusa(s, E, n, src?.def ? src : null);
+      return true;
+    },
+    face(s, n, E) { hitMedusa(s, E, n, null); },
+    faceValue: (s, n) => (n >= s.E.life ? 200 : n * 2),
+    check(s) { if (s.E.life <= 0) s.over = 'win'; },
+    priority(s, p, E) { return p.def.medusa ? 0 : E.power(s, p) * 2 + 2; },
+    assign(s, atkers, E) {
+      const m = s.E.bf.find((p) => p.def.medusa);
+      const kill = E.killTargets(s, E.creatures(s, 'E').filter((p) => !p.def.medusa));
+      const big = atkers.filter((p) => E.power(s, p) >= STONE);
+      return [...E.assignKill(s, big, kill, null), ...atkers.filter((p) => !big.includes(p)).map((p) => ({ p, t: m }))];
+    },
+    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks); return { damage: sumPow(s, E, a) + 2, attackers: a.length }; },
+    anyTarget(s, E) { return E.creatures(s, 'E').find((p) => !p.def.medusa) || null; },
+    castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
   };
 }
 
@@ -547,4 +902,7 @@ function ghostBegin(s, E) {
   if (!s.over) E.refill(s);
 }
 
-export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, tutorial };
+export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, clock, dragon, twins, gorgon, tutorial };
+// 冒険の 5つの 階：それぞれ この 中から ランダムに 1つ
+export const SLOTS = [['hydra', 'clock'], ['horde', 'dragon'], ['factory', 'slime', 'twins'], ['xenagos', 'gorgon'], ['erebos']];
+export const pickFloors = (rng) => SLOTS.map((ids) => ids[Math.floor(rng() * ids.length)]);

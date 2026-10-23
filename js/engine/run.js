@@ -3,7 +3,7 @@ import { seeded, shuffle, pick } from './rng.js';
 import { newGame, play, colorsOf, COLORS } from './game.js';
 import { AI, RARITY_PTS } from './ai.js';
 import { ALL, BASICS, bindEngine } from '../data/cards.js';
-import { FLOORS } from '../data/enemies.js';
+import { FLOORS, pickFloors } from '../data/enemies.js';
 import { api } from './game.js';
 
 bindEngine(api);
@@ -107,7 +107,7 @@ export async function runAdventure(o = {}) {
   const pool = [];
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng));
   let b = buildDeck(pool, o);
-  const floors = ['hydra', 'horde', rng() < 0.5 ? 'factory' : 'slime', 'xenagos', 'erebos'];
+  const floors = o.floors || pickFloors(rng);
   let continues = o.continues ?? 1;
   const log = { floors: [], cleared: false, decks: [] };
   for (let i = 0; i < floors.length; i++) {

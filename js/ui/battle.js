@@ -4,7 +4,7 @@ import {
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
-import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
+import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
 import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
@@ -22,7 +22,10 @@ export function startBattle(o) {
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
-  if (floor.first === 'E') enemyFirst(); else startTurn();
+  const go = () => (floor.first === 'E' ? enemyFirst() : startTurn());
+  if (!floor.goal || o.tutorial) return go();
+  render();
+  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${esc(o.floorName)}：かちかた`, dismiss: false }).then(go);
 }
 
 // オンラインバトルで あいてが 先に うごく とき
@@ -202,6 +205,8 @@ function attackTargets() {
     case 'hydra': { const h = cr.filter((p) => p.def.head); const t = h.filter((p) => p.def.taunt); return t.length ? t : h; }
     case 'horde': return [...(s.E.lib.length ? ['face'] : []), ...s.E.bf.filter((p) => p.def.types.includes('artifact'))];
     case 'factory': { const f = s.E.bf.find((p) => p.def.factory); return cr.some((p) => p.def.guard) || !f ? cr : [f, ...cr]; }
+    case 'clock': { const c = s.E.bf.find((p) => p.def.clock); return cr.some((p) => p.def.guard) || !c ? cr : [c, ...cr]; }
+    case 'dragon': return ['face', ...cr.filter((p) => !p.def.dragon || s.E.flags.awake)];
     case 'xenagos': { const r = cr.filter((p) => p.def.reveler); return r.length ? r : cr.filter((p) => p.def.xenagos); }
     case 'pvp': return ['face'];
     case 'erebos':
@@ -211,12 +216,15 @@ function attackTargets() {
     default: return cr;
   }
 }
-const faceName = () => (B.s.floor.id === 'pvp' ? `${B.s.floor.name}（ライフ ${B.s.E.life}）` : null) || ({ horde: 'たいぐん（やまふだを けずる）', erebos: 'エレボス（ライフを へらす）', factory: `ゴーレム工場（かぎ ${B.s.E.key}：ちょうど 同じ数で こわれる）` })[B.s.floor.id] || 'てき';
+const faceName = () => (B.s.floor.id === 'pvp' ? `${B.s.floor.name}（ライフ ${B.s.E.life}）` : null) || ({
+  horde: 'たいぐん（やまふだを けずる）', erebos: 'エレボス（ライフを へらす）', factory: `ゴーレム工場（かぎ ${B.s.E.key}：ちょうど 同じ数で こわれる）`,
+  clock: `からくり時計（はり ${B.s.E.hour}時：ちょうど 12で とまる）`, dragon: `たからの 山（きんか ${B.s.E.gold}/${B.s.E.goal}まい）`, gorgon: `メドゥーサ（ライフ ${B.s.E.life}）`,
+})[B.s.floor.id] || 'てき';
 
 // ---- 対象を えらぶ ----
 function faceAvailable() {
   const s = B.s;
-  return { horde: s.E.lib.length > 0, erebos: s.phase === 3, factory: true, pvp: true }[s.floor.id] || false;
+  return { horde: s.E.lib.length > 0, erebos: s.phase === 3, factory: true, pvp: true, clock: true, dragon: true, gorgon: true }[s.floor.id] || false;
 }
 function cands(spec, ctx = {}) {
   const s = B.s;
@@ -464,7 +472,8 @@ function combatResult(s) {
     const name = t === 'face' ? faceName() : `てき：${nmText(t)}`;
     const sum = ns.reduce((a, b) => a + b, 0);
     const tough = t !== 'face' && !onBf(s, t) && t.diedT ? `（タフネス ${t.diedT}）` : '';
-    const res = t === 'face' ? '' : t.exact ? `<b class="exact">ぴったり！</b>${tough}` : !onBf(s, t) ? `<b>たおした</b>${tough}` : isCreature(t) ? `のこり ${pt(s, t)[1] - t.dmg}` : '';
+    const mv = t !== 'face' && t.def.clock && s.E.flags.lastMove;
+    const res = mv ? (mv.stop ? '<b class="exact">12時で とまった！</b>' : `はり ${mv.from}時 → ${mv.to}時`) : t === 'face' ? '' : t.exact ? `<b class="exact">ぴったり！</b>${tough}` : !onBf(s, t) ? `<b>たおした</b>${tough}` : isCreature(t) ? `のこり ${pt(s, t)[1] - t.dmg}` : '';
     return `<li><span>${ruby(name)}</span><span class="eq">${ns.length > 1 ? `${ns.join(' ＋ ')} ＝ ` : ''}${sum}点</span>${res}</li>`;
   });
   return sheet(`<ul class="cres">${rows.join('')}</ul>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'こうげきの けっか' });
@@ -523,8 +532,10 @@ async function tapPerm_(p) {
     if (B.sel.has(p.uid) && !p.def.mustAttack) { B.sel.delete(p.uid); return render(); }
     const ts = attackTargets();
     if (!ts.length) return sheet('<p>こうげきできる 相手が いない。</p>', [{ label: 'とじる', value: 0 }]);
-    const t = ts.length === 1 ? ts[0] : await sheet(`<p>${(nm(p))}（パワー ${power(s, p)}）で どこを こうげきする？</p>`, [
-      ...ts.map((t) => ({ label: t === 'face' ? faceName() : `${(nm(t))}${isCreature(t) ? `（のこり ${pt(s, t)[1] - t.dmg}）` : t.def.factory ? `（かぎ ${s.E.key}）` : ''}`, value: t })),
+    const fixed = { factory: '工場', clock: '時計' }[s.floor.id];
+    const why = fixed && s.E.bf.some((q) => q.def.guard) ? `<p class="pile-note">番人が いる あいだは、${fixed}を こうげきできない。</p>` : '';
+    const t = ts.length === 1 ? ts[0] : await sheet(`<p>${(nm(p))}（パワー ${power(s, p)}）で どこを こうげきする？</p>${why}`, [
+      ...ts.map((t) => ({ label: t === 'face' ? faceName() : `${(nm(t))}${t.def.medusa ? `（ライフ ${s.E.life}・パワー ${STONE} いじょうは 石に なる）` : isCreature(t) ? `（のこり ${pt(s, t)[1] - t.dmg}）` : t.def.factory ? `（かぎ ${s.E.key}）` : t.def.clock ? `（はり ${s.E.hour}時）` : ''}`, value: t })),
       { label: 'やめる', value: null },
     ]);
     if (t) B.sel.set(p.uid, t);
@@ -604,7 +615,7 @@ async function showGy() {
 
 // ---- スワイプ：自分の クリーチャーから 敵へ ひっぱると 攻撃先・ブロックを きめる ----
 // 本体（大群の山札・エレボスのライフ）を ねらえる 階は、敵の 戦場に「本体」の 札を 出す
-const attackFace = () => ['horde', 'erebos', 'pvp'].includes(B.s.floor.id) && attackTargets().includes('face');
+const attackFace = () => ['horde', 'erebos', 'pvp', 'dragon'].includes(B.s.floor.id) && attackTargets().includes('face');
 function canDrag(p) {
   const s = B.s;
   if (!isCreature(p) || (B.tut && !B.tut.allowDrag(p))) return false;
@@ -702,6 +713,10 @@ function enemyStatus() {
     case 'tutorial': return '';
     case 'pvp': return `<span class="chip hot">あいての ライフ ${s.E.life}</span><span class="chip">てふだ ${s.E.hand.length}</span><span class="chip">マナ ${s.E.mana.length}</span>${lib}`;
     case 'erebos': return `<span class="chip">だんかい ${s.phase}/3</span>${s.phase === 3 ? `<span class="chip hot">エレボスの ライフ ${s.E.life}</span>` : ''}${lib}`;
+    case 'clock': return `<span class="chip hot">時計の はり ${s.E.hour}時</span>`;
+    case 'dragon': return `<span class="chip hot">きんか ${s.E.gold}/${s.E.goal}まい</span><span class="chip">${s.E.flags.awake ? 'ドラゴンが おきている！' : `ドラゴンの ねむけ ${s.E.sleep}`}</span>`;
+    case 'twins': return `<span class="chip hot">きょじん ${cr.filter((p) => p.def.twin).length}体</span>`;
+    case 'gorgon': return `<span class="chip hot">メドゥーサの ライフ ${s.E.life}</span>`;
     default: return lib;
   }
 }
@@ -714,6 +729,8 @@ function willAttack(p) {
   if (!isCreature(p) || p.def.head) return false;
   if (s.floor.id === 'slime' && !s.E.flags.started) return false;
   if (s.floor.id === 'erebos' && s.phase === 3 && p.def.erebos) return !s.E.flags.erebosRest;
+  if (p.def.dragon) return !!s.E.flags.awake;
+  if (p.def.twin) return p.def.twin === s.E.flags.nextTwin;
   return !!(p.def.attacks || p.flags.mustAttack);
 }
 function intent() {
@@ -733,6 +750,8 @@ function intent() {
   }
   if (s.floor.id === 'erebos' && s.phase === 3) out.push(`はじめに ライフ −${{ easy: 2, normal: 2, hard: 3 }[s.diff]}`);
   if (s.floor.id === 'factory' && !s.E.flags.inspect && s.E.bf.filter((p) => p.def.golem).length < 2) out.push('ゴーレムを 1体 作る');
+  if (s.floor.id === 'clock') out.push(`チクタク：はりが 1 すすむ（いま ${s.E.hour}時）`);
+  if (s.floor.id === 'dragon' && !s.E.flags.awake) out.push(`ドラゴンは ねている（ねむけ ${s.E.sleep}）`);
   const atk = cr.filter(willAttack).filter((p) => !p.frozen);
   if (atk.length) out.push(`${atk.length}体で こうげき（パワー ${atk.map((p) => Math.max(0, power(s, p))).join('・')}）`);
   if (s.floor.id === 'slime' && !s.E.flags.started) out.push('さいしょの ターンは こうげきしない');
@@ -761,7 +780,7 @@ function banner() {
 
 function permLabel(p) {
   const s = B.s;
-  if (B.mode === 'attack' && B.sel.has(p.uid)) return `→ ${tName(B.sel.get(p.uid))}`;
+  if (B.mode === 'attack' && B.sel.has(p.uid)) return B.sel.get(p.uid).def?.medusa && power(s, p) >= STONE ? '!石に なる！' : `→ ${tName(B.sel.get(p.uid))}`;
   if (B.mode === 'main' && p.side === 'E' && willAttack(p) && !p.frozen) return '!つぎに こうげき';
   if (B.mode === 'tricks') {
     const a = B.atk.find((x) => x.p === p);
@@ -815,7 +834,7 @@ function render() {
     label: permLabel(p),
     cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
-  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : `ライフ ${s.E.life}`}</b></div>` : '';
+  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : s.floor.id === 'dragon' ? 'たからの 山' : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : s.floor.id === 'dragon' ? `きんか ${s.E.gold}/${s.E.goal}` : `ライフ ${s.E.life}`}</b></div>` : '';
   const untapped = s.P.mana.filter((m) => !m.tapped).length;
   const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }

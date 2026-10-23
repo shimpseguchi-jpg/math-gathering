@@ -18,7 +18,7 @@ const SEED = Number(process.env.SEED ?? 1);
 const opts = { diff: DIFF, reshuffle: RESHUFFLE };
 
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);
-const FLOOR_IDS = ['hydra', 'horde', 'factory', 'slime', 'xenagos', 'erebos'];
+const FLOOR_IDS = ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];
 const pct = (x) => `${Math.round(x * 100)}%`.padStart(4);
 const avg = (a) => (a.length ? a.reduce((t, x) => t + x, 0) / a.length : 0);
 
@@ -77,7 +77,7 @@ if (mode === 'log') {
 }
 
 if (mode === 'floors') {
-  const plan = [['hydra', 3], ['horde', 4], ['factory', 5], ['slime', 5], ['xenagos', 6], ['erebos', 7]];
+  const plan = [['hydra', 3], ['clock', 3], ['horde', 4], ['dragon', 4], ['factory', 5], ['slime', 5], ['twins', 5], ['xenagos', 6], ['gorgon', 6], ['erebos', 7]];
   console.log(`各階 × その階で組めるデッキ（${N}回ずつ・${DIFF}）：1回目で勝つ率・勝ったときの平均ターン・山札切れ`);
   for (const [f, packs] of plan) {
     if (process.env.FLOOR && !process.env.FLOOR.split(',').includes(f)) continue;
