@@ -5,7 +5,7 @@ import {
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
-import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost } from './view.js';
+import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
 let B = null; // いまのたたかい
@@ -642,12 +642,6 @@ function arrow(x0, y0, x1, y1, ok) {
 function clearDrag() {
   const svg = document.getElementById('arrow'); if (svg) svg.style.display = 'none';
   document.querySelectorAll('.drop-ok').forEach((x) => x.classList.remove('drop-ok'));
-}
-function toast(msg) {
-  let t = document.getElementById('toast');
-  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.append(t); }
-  t.textContent = msg; t.hidden = false;
-  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 1600);
 }
 let swipeReady = false;
 function initSwipe() {

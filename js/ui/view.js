@@ -93,12 +93,15 @@ const COLOR_ORDER = ['W', 'U', 'G', 'R'];
 const colorKey = (d) => { const c = colorsOf(d); return c.length === 0 ? 9 : c.length === 2 ? 5 + COLOR_ORDER.indexOf(c[0]) / 10 : COLOR_ORDER.indexOf(c[0]); };
 export const byColorCost = (a, b) => !!a.basic - !!b.basic || colorKey(a) - colorKey(b) || (a.cost ?? 0) - (b.cost ?? 0) || String(a.id ?? a.name).localeCompare(String(b.id ?? b.name));
 
+// もとの P/T。数で ない もの（ダクソスの タフネス＝白の パーマネントの 数 など）は ＊
+const basePT = (def) => [def.pow, def.tou].map((v) => (typeof v === 'number' ? v : '＊')).join('/');
+
 const costLabel = (def) => (def.x ? `X+${def.cost}` : String(def.cost ?? 0));
 
 // 手札・プールのカード（def だけ）
 export function cardFace(def, o = {}) {
   const i = info(def);
-  const pts = def.types?.includes('creature') && typeof def.pow === 'number' ? `${def.pow}/${def.tou}` : (def.types?.includes('creature') ? '＊/＊' : '');
+  const pts = def.types?.includes('creature') ? basePT(def) : '';
   const kws = (def.kw || []).map((k) => KW[k]).filter(Boolean);
   return `<div class="card ${colorClass(def, o.enemy)} ${o.cls || ''}" data-id="${esc(o.dataId ?? '')}">
     <div class="card-top"><span class="cost">${esc(costLabel(def))}</span><span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
@@ -125,8 +128,7 @@ export function fullCard(def) {
   const cs = colorsOf(def);
   const len = noRuby(i.text).replace(/\*/g, '').length;
   const size = len > 105 ? 'xs' : len > 70 ? 's' : len > 40 ? 'm' : 'l';
-  const isCr = def.types?.includes('creature');
-  const pts = isCr ? (typeof def.pow === 'number' ? `${def.pow}/${def.tou}` : '＊/＊') : '';
+  const pts = def.types?.includes('creature') ? basePT(def) : '';
   return `<div class="fcard ${colorClass(def)}">
     <div class="fc-head"><span class="fc-name">${ruby(i.name)}</span><span class="cost">${esc(costLabel(def))}</span></div>
     <div class="fc-art">${(cs.length ? cs : ['C']).map(emblem).join('')}</div>
@@ -187,7 +189,7 @@ export function permFace(s, p, o = {}) {
 export function detail(def, o = {}) {
   const i = info(def);
   const enemy = o.enemy;
-  const pts = typeof def.pow === 'number' && def.types?.includes('creature') ? `<span class="pt-big">${def.pow}/${def.tou}</span>` : '';
+  const pts = def.types?.includes('creature') ? `<span class="pt-big">${basePT(def)}</span>` : '';
   return `<div class="detail ${colorClass(def, enemy)}">
     <div class="detail-head">
       <h2>${ruby(i.name)}</h2>
@@ -200,6 +202,14 @@ export function detail(def, o = {}) {
     <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
     <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>
   </div>`;
+}
+
+// 画面の 下に 少しだけ 出る おしらせ
+export function toast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.append(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 1600);
 }
 
 // ---- 下から出るシート（選択肢を待つ） ----

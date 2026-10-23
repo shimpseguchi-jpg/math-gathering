@@ -7,9 +7,10 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
+const TAP_MODE = 'mtg-build-tap'; // デッキ構築で タップしたとき：'detail'（せつめい）か 'quick'（すぐ 入れる・はずす）
 const FLOOR_NAMES = {
   hydra: '1階 ハイドラとの たいじ', horde: '2階 たいぐんとの たたかい', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
   xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
@@ -219,6 +220,7 @@ function whyNot(sel, i) {
 function deckBuilder() {
   if (!A.deck) { A.deck = autoDeck(); save(); }
   const order = A.pool.map((id, i) => i).sort((a, b) => byColorCost(BY_ID[A.pool[a]], BY_ID[A.pool[b]]));
+  let mode = (() => { try { return localStorage.getItem(TAP_MODE) === 'quick' ? 'quick' : 'detail'; } catch { return 'detail'; } })();
   const draw = () => {
     const st = deckStats(A.deck);
     const left = CAPACITY - st.points;
@@ -230,9 +232,14 @@ function deckBuilder() {
           <div class="meter"><span>カード</span><b>${st.count}<small>まい</small></b><i style="--v:${st.count / DECK_SIZE}"></i><em>きほんカード ${DECK_SIZE - st.count}まい</em></div>
           <div class="meter"><span>色（2色まで）</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
         </div>
-        <p class="hint">タップで 入れる・はずす。点数は コモン1・アンコモン2・レア3・レジェンド4。</p>
+        <div class="tapmode" role="group" aria-label="カードを タップしたとき">
+          <span>タップで</span>
+          <button type="button" data-mode="detail" aria-pressed="${mode === 'detail'}">せつめいを 見る</button>
+          <button type="button" data-mode="quick" aria-pressed="${mode === 'quick'}">すぐ 入れる・はずす</button>
+        </div>
+        <p class="hint">${mode === 'quick' ? 'タップで 入れる ⇔ はずす。長おしで せつめい。' : 'タップで せつめい → 入れる・はずす。'}点数は コモン1・アンコモン2・レア3・レジェンド4。</p>
       </header>
-      <div class="pool">${order.map((i) => {
+      <div class="pool ${mode}">${order.map((i) => {
         const inDeck = A.deck.includes(i);
         const no = !inDeck && whyNot(A.deck, i);
         return `<button type="button" class="pool-item ${inDeck ? 'in' : ''} ${no ? 'no' : ''}" data-i="${i}">${cardFace(BY_ID[A.pool[i]])}<span class="pts">${RARITY_PTS[BY_ID[A.pool[i]].rar]}点</span></button>`;
@@ -241,15 +248,7 @@ function deckBuilder() {
     </main>`;
   };
   draw();
-  app().onclick = async (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.a === 'auto') { A.deck = autoDeck(); save(); return draw(); }
-    if (b.dataset.a === 'clear') { A.deck = []; save(); return draw(); }
-    if (b.dataset.a === 'ok') {
-      if (!A.deck.length) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
-      save(); return tower();
-    }
-    const i = +b.dataset.i;
+  const showDetail = async (i) => {
     const inDeck = A.deck.includes(i);
     const no = !inDeck && whyNot(A.deck, i);
     const v = await sheet(detail(BY_ID[A.pool[i]]), [
@@ -259,6 +258,36 @@ function deckBuilder() {
     if (v === 'out') A.deck = A.deck.filter((k) => k !== i);
     if (v === 'in') A.deck.push(i);
     save(); draw();
+  };
+  // すぐ 入れる・はずす モード：長おしで せつめい（点線の ことばの 長おしは ことばの せつめいに まかせる）
+  let press = null, pressed = false;
+  app().onpointerdown = (e) => {
+    clearTimeout(press); pressed = false;
+    const el = mode === 'quick' && e.target.closest('.pool-item');
+    if (!el || e.target.closest('[data-term]')) return;
+    press = setTimeout(() => { pressed = true; showDetail(+el.dataset.i); }, 450);
+  };
+  app().onpointerup = app().onpointercancel = () => clearTimeout(press);
+  app().onclick = async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.mode) { mode = b.dataset.mode; try { localStorage.setItem(TAP_MODE, mode); } catch { /* 保存できなくても 切りかえられる */ } return draw(); }
+    if (b.dataset.a === 'auto') { A.deck = autoDeck(); save(); return draw(); }
+    if (b.dataset.a === 'clear') { A.deck = []; save(); return draw(); }
+    if (b.dataset.a === 'ok') {
+      if (!A.deck.length) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
+      save(); return tower();
+    }
+    if (b.dataset.i == null) return;
+    const i = +b.dataset.i;
+    if (mode === 'detail') return showDetail(i);
+    if (pressed) { pressed = false; return; } // 長おしで せつめいを 出した あとの タップ
+    if (A.deck.includes(i)) A.deck = A.deck.filter((k) => k !== i);
+    else {
+      const no = whyNot(A.deck, i);
+      if (no) { toast(`入れられない：${no}`); b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); return; }
+      A.deck.push(i);
+    }
+    sfx.tap(); save(); draw();
   };
 }
 
