@@ -1,4 +1,4 @@
-// カード（第1弾 126種＋第2弾 62種＋きほんカード5種＋トークン）。文章は docs/cards/*.md、ここはルールエンジン用のデータ
+// カード（第1弾 126種＋第2弾 74種＋きほんカード5種＋トークン）。文章は docs/cards/*.md、ここはルールエンジン用のデータ
 // cost は合計マナ。color は色（2色は 'WG' など）。play / react / trick は AI の使いどころ（シミュレーション用）
 
 const cr = (id, name, rar, color, cost, pow, tou, sub, kw = [], x = {}) => ({ id, name, rar, color, cost, types: ['creature'], pow, tou, sub, kw, ...x });
@@ -69,7 +69,13 @@ export const T = {
   illusion: cr('t_illusion', 'イリュージョン', null, 'U', 0, 2, 2, ['illusion'], ['flying']),
   kraken: cr('t_kraken', 'クラーケン', null, 'U', 0, 8, 8, ['kraken']),
   satyr: cr('t_satyr', 'サテュロス', null, 'R', 0, 1, 1, ['satyr'], [], { cantBlock: true }),
+  pegasus: cr('t_pegasus', 'ペガサス', null, 'W', 0, 2, 2, ['pegasus'], ['flying']),
+  human: cr('t_human', '人間', null, 'W', 0, 1, 1, ['human']),
+  shark: cr('t_shark', 'サメ', null, 'U', 0, 0, 0, ['shark'], ['flying']), // X/X は 出すときに きめる
+  beast: cr('t_beast', 'ビースト', null, 'G', 0, 3, 3, ['beast']),
 };
+// プルフォロスの 介入：X/1 の エレメンタル（ターン終了時に 墓地へ）
+const elemX = (x) => ({ ...cr('t_elemX', 'エレメンタル', null, 'R', 0, x, 1, ['elemental'], ['trample', 'haste']), endStep: (s, p, E) => E.leave(s, p, 'gy') });
 
 // ---- 緑 ----
 const G = [
@@ -604,6 +610,15 @@ const ramThrough = (s, E, me, t) => {
   if (E.hasKw(s, me, 'trample') && n > left) E.hitEnemy(s, n - left, me);
   E.sba(s);
 };
+// 業火の タイタン：3点を 割り振る。ちょうど たおせる てきから じゅんに、のこりは てきへ
+const titanSplit = (s, E, p) => {
+  let n = 3;
+  const foes = E.creatures(s, p.side === 'P' ? 'E' : 'P').filter((q) => !s.floor.untargetable?.(s, q, E)).sort((a, b) => E.need(s, a) - E.need(s, b));
+  for (const q of foes) { const k = E.need(s, q); if (k > 0 && k <= n) { E.damage(s, q, k, p); n -= k; } }
+  E.sba(s);
+  if (n > 0) E.hitEnemy(s, n, p);
+  E.sba(s);
+};
 // 唱えた 呪文の コスト（X は X × かける数 を たす）
 const spellCost = (d, o) => d.cost + (o?.x || 0) * (d.xMul || 1);
 
@@ -665,6 +680,17 @@ const W2 = [
       E.L(s, `タラニカ：${t.def.name} は もとの パワーと タフネスが 4/4`);
     },
   }),
+  // 第2弾の 追加（レア・レジェンド）
+  { ...cr('W38', '太陽（たいよう）の めぐみの アルコン', 'R', 'W', 4, 3, 4, ['archon'], ['flying', 'lifelink'], {
+    etb: (s, p, E) => E.token(s, p.side, T.pegasus),
+    onOtherEnter: (s, p, q, E) => { if (q.side === p.side && q.def.types.includes('enchantment')) E.token(s, p.side, T.pegasus); },
+  }), types: ['enchantment', 'creature'] },
+  cr('W39', 'かがやく 聖戦士（せいせんし） エーデリン', 'R', 'W', 3, (s, p, E) => E.creatures(s, p.side).length, 4, ['human', 'knight'], ['vigilance'], {
+    onAttack: (s, p, E, atk, a) => { const [t] = E.token(s, p.side, T.human, 1, { tapped: true }); if (t) { t.attacking = true; atk.push({ p: t, t: a.t }); } },
+  }),
+  cr('W40', 'フェリダーの 君主（くんしゅ）', 'L', 'W', 6, 4, 6, ['cat', 'beast'], ['vigilance', 'lifelink'], {
+    upkeep: (s, p, E) => { if (p.side === 'P' && s.P.life >= 40) { E.L(s, `フェリダーの 君主：ライフ ${s.P.life}（40 いじょう）で かち！`); s.over = 'win'; } },
+  }),
 ];
 
 const U3 = [
@@ -715,6 +741,25 @@ const U3 = [
       run: (s, E, p, picks) => { const t = picks ? picks[0]?.[0] : E.burnTarget(s, 99, { creatureOnly: true, mustHit: true })?.t; if (t && t !== 'face' && E.onBf(s, t)) E.exile(s, t); },
     },
   ]) }),
+  // 第2弾の 追加（レア・レジェンド）
+  sp('U38', 'サメの 大（おお）あらし', 'R', 'U', 2, 'instant', {
+    x: true,
+    play: (s, E, ctx) => (ctx.xMax >= 2 || ctx.human ? { score: 5 + ctx.xMax * 3, x: ctx.xMax, run: (xx) => { E.token(s, 'P', { ...T.shark, pow: xx, tou: xx }); E.drawCard(s); } } : null),
+  }),
+  cr('U39', 'なぞかけの スフィンクス', 'R', 'U', 5, 4, 4, ['sphinx'], ['flying'], {
+    etb: (s, p, E, o) => {
+      const foes = E.creatures(s, p.side === 'P' ? 'E' : 'P').filter((q) => E.power(s, q) <= 4 && !s.floor.untargetable?.(s, q, E));
+      const t = o.chosen ? o.chosen[0]?.[0] : foes.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+      if (t && E.onBf(s, t)) { E.bounce(s, t); E.sba(s); }
+    },
+  }),
+  cr('U40', '大（おお）だこの 王（おう） ロートス', 'L', 'U', 7, 8, 8, ['octopus'], [], {
+    onAttack: (s, p, E) => {
+      const ts = E.creatures(s, p.side === 'P' ? 'E' : 'P').sort((a, b) => E.power(s, b) - E.power(s, a)).slice(0, 8);
+      for (const q of ts) { q.tapped = true; q.frozen = true; }
+      if (ts.length) E.L(s, `ロートス：${ts.length}体を タップした（つぎの ターン 起きない）`);
+    },
+  }),
 ];
 
 const G2 = [
@@ -776,6 +821,15 @@ const G2 = [
       play: (s, p, E) => { const t = E.readyAttackers(s).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; return t ? { score: 3, run: () => { E.target(s, t); E.pump(t, 2, 2); } } : null; },
     }],
   }),
+  // 第2弾の 追加（レア・レジェンド）
+  cr('G38', 'スラーグ牙（きば）', 'R', 'G', 5, 5, 3, ['beast'], [], {
+    etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 5); },
+    onLeaveSelf: (s, p, E) => E.token(s, p.side, T.beast),
+  }),
+  cr('G39', 'はがね葉（ば）の チャンピオン', 'R', 'G', 3, 5, 4, ['elf', 'knight'], [], { minBlockPow: 3 }),
+  cr('G40', '原初（げんしょ）の 飢（う）え ガルタ', 'L', 'G', 12, 12, 12, ['dinosaur'], ['trample'], {
+    costLess: (s, E) => E.totalPower(s, E.creatures(s, 'P')), costMin: 2,
+  }),
 ];
 
 const R2 = [
@@ -807,6 +861,36 @@ const R2 = [
     richTreasure: true,
     onAttack: (s, p, E) => E.token(s, p.side, T.treasure),
     heroic: (s, p, E) => E.token(s, p.side, T.treasure),
+  }),
+  // 第2弾の 追加（レア・レジェンド）
+  sp('R38', 'プルフォロスの 介入（かいにゅう）', 'R', 'R', 1, 'sorcery', {
+    x: true,
+    // てきの クリーチャーを たおせる いちばん 小さい X（2X 点）。いなければ 攻撃の 前に X/1 を 出す
+    play: (s, E, ctx) => {
+      for (let x = 1; x <= ctx.xMax; x++) {
+        const b = E.burnTarget(s, 2 * x, { creatureOnly: true });
+        if (b && b.t !== 'face') return { score: 6 + b.score, x, run: (xx) => hit(s, E, b.t, 2 * xx) };
+      }
+      return ctx.phase === 1 && ctx.xMax >= 2 ? { score: 3 + ctx.xMax * 2, x: ctx.xMax, run: (xx) => E.token(s, 'P', elemX(xx)) } : null;
+    },
+  }),
+  cr('R39', '業火（ごうか）の タイタン', 'R', 'R', 6, 6, 6, ['giant'], [], {
+    acts: [{ cost: 1, req: ['R'], pumpP: 1, when: [], play: () => null }],
+    etb: (s, p, E, o) => {
+      const list = o.chosen?.[0];
+      if (list?.length) { for (const d of list) if (E.onBf(s, d.t)) E.damage(s, d.t, d.n, p); E.sba(s); return; }
+      titanSplit(s, E, p);
+    },
+    onAttack: (s, p, E) => titanSplit(s, E, p),
+  }),
+  cr('R40', 'ゴブリンの 親分（おやぶん） クレンコ', 'L', 'R', 4, 3, 3, ['goblin', 'warrior'], [], {
+    acts: [{
+      cost: 0, tap: true, when: [1], label: 'ゴブリンを ふやす',
+      play: (s, p, E) => {
+        const n = s[p.side].bf.filter((q) => isSub(q, 'goblin')).length;
+        return { score: 3 + n * 2, run: () => { E.token(s, p.side, T.goblin, n); E.L(s, `クレンコ：ゴブリンが ${n}体 ふえた`); } };
+      },
+    }],
   }),
 ];
 
@@ -994,6 +1078,14 @@ const TARGETS = {
   R30: { tgt: [{ side: 'E', label: '5点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
   R31: { tgt: [{ side: 'E', face: true, label: 'サイコロの 目の 点を あたえる 相手' }], apply: (s, E, [[t]]) => diceBolt(s, E, t) },
   UR04: { tgt: [{ side: 'E', face: true, label: 'X点（ぼうゆうなら 2ばい）を あたえる 相手' }], apply: (s, E, [[t]], x) => hit(s, E, t, x * (E.hellbent(s) ? 2 : 1)) },
+  U39: { tgt: [{ side: 'E', min: 0, filter: (s, E, p) => E.power(s, p) <= 4, label: 'てふだに もどす パワー4いかの てきの クリーチャー（てきは やまふだの 上へ）' }] },
+  R38: {
+    modes: [
+      { label: 'X/1 の エレメンタル（トランプル・そっこう）を 出す', apply: (s, E, picks, x) => E.token(s, 'P', elemX(x)) },
+      { label: 'クリーチャー1体に X の 2ばいの ダメージ', tgt: [{ side: 'E', label: 'X の 2ばいの ダメージを あたえる クリーチャー' }], apply: (s, E, [[t]], x) => hit(s, E, t, 2 * x) },
+    ],
+  },
+  R39: { tgt: [{ side: 'E', max: 3, divide: 3, label: '3点を わりふる てきの クリーチャー' }] },
 };
 // 起動型能力
 const ACT_TARGETS = {

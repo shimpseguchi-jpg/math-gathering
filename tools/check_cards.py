@@ -16,10 +16,10 @@ for f in sorted(glob.glob(os.path.join(here, '..', 'docs', 'cards', '*.md'))):
 
 dups = [i for i, n in collections.Counter(ids).items() if n > 1]
 print('全部', len(ids), '種', '（重複ID: ' + ', '.join(dups) + '）' if dups else '')
-# 第1弾 126種 ＋ 第2弾 62種
-expect = {'W': (17, 10, 7, 3), 'U': (17, 10, 7, 3), 'G': (17, 10, 7, 3), 'R': (17, 10, 7, 3),
+# 第1弾 126種 ＋ 第2弾 74種
+expect = {'W': (17, 10, 9, 4), 'U': (17, 10, 9, 4), 'G': (17, 10, 9, 4), 'R': (17, 10, 9, 4),
           'C': (6, 5, 3, 2), 'gold': (0, 12, 12, 0)}
-ok = not dups and len(ids) == 188
+ok = not dups and len(ids) == 200
 for c, want in expect.items():
     got = tuple(count[(c, r)] for r in 'CURL')
     ok &= got == want

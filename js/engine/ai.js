@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -107,7 +107,7 @@ export function castCard(s, c, pl, o = {}) {
 
 function optionsFor(s, c, phase, from) {
   const def = c.def;
-  const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? def.escape.cost : def.cost;
+  const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? def.escape.cost : costOf(s, def);
   const req = from === 'gy' ? def.flashback.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
   const o = { convoke: def.kw?.includes('convoke'), sickOnly: phase === 1, req2: def.req2 };
   if (from === 'escape' && s.P.gy.length - 1 < def.escape.exile) return [];
@@ -459,7 +459,7 @@ function beforeBlocks(s, attackers) {
 function duringBlocks(s, attackers, bl) { reactLoop(s, { attackers, blocks: bl, when: 'blocks' }); }
 
 function counter(s, c) {
-  const threat = s.floor.castThreat?.(s, c.def, api) ?? (c.def.types.includes('creature') ? (c.def.pow || 0) + 1 : (c.def.danger ?? 2));
+  const threat = s.floor.castThreat?.(s, c.def, api) ?? (c.def.types.includes('creature') ? (typeof c.def.pow === 'number' ? c.def.pow : 3) + 1 : (c.def.danger ?? 2));
   if (threat < 4) return false;
   for (const h of s.P.hand) {
     const d = h.def;

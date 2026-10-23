@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount } from '../engine/ai.js';
 import { FLOORS, nyxLoss, PVP_TURNS } from '../data/enemies.js';
@@ -281,7 +281,7 @@ async function chooseMode(d, ctx = {}) {
     const all = [];
     for (const m of ms) { const picks = m.tgt ? await pickAll(m.tgt, ctx) : []; if (!picks) break; all.push([m, picks]); }
     if (all.length < ms.length) continue;
-    return { run: () => { for (const [m, picks] of all) m.apply(B.s, api, picks); }, extra: (d.escalate || 0) * (ms.length - 1) };
+    return { run: (x) => { for (const [m, picks] of all) m.apply(B.s, api, picks, x); }, extra: (d.escalate || 0) * (ms.length - 1) };
   }
 }
 
@@ -295,7 +295,7 @@ async function payable(cost, req, o) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
-  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : d.cost;
+  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
   const perm = !isSpell(d);
@@ -333,7 +333,7 @@ async function doCast(c, from = 'hand') {
   if (!ci.ok) return;
   B.busy = true;
   const stop = () => { B.busy = false; render(); };
-  const base = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : d.cost;
+  const base = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
   const mul = d.xMul || 1;
@@ -481,7 +481,7 @@ async function tapHand(c) {
   }
   if (B.mode === 'tricks') {
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
-    if (tr || d.modes) {
+    if (tr || (d.modes && d.types.includes('instant'))) { // モードの ある ソーサリー（プルフォロスの 介入）は たたかいの とちゅうには 使えない
       const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
       const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke') });
       choices.push({ label: d.bloodrush ? 'ゆうけつで 使う' : '使う', value: 'trick', kind: 'primary', disabled: !pl, note: pl ? '' : 'マナが たりない' });

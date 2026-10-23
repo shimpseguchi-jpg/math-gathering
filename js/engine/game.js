@@ -263,6 +263,8 @@ export function bolster(s, n) {
 }
 
 // 圧倒：自分の クリーチャーの パワーの 合計が 8 いじょう
+// 唱える コスト（ガルタ：あなたの クリーチャーの パワーの 合計だけ 安く なる。costMin より 下には ならない）
+export const costOf = (s, d) => (d.costLess ? Math.max(d.costMin ?? 0, d.cost - d.costLess(s, api)) : d.cost);
 export const totalPower = (s, list) => list.reduce((t, p) => t + Math.max(0, power(s, p)), 0);
 export const formidable = (s) => totalPower(s, s.P.bf.filter(isCreature)) >= 8;
 // 集会：パワーが ちがう クリーチャーが 3体 いじょう（2・2・3 は 2しゅるい）
@@ -421,6 +423,7 @@ export function canBlock(s, b, a) {
   if (b.def.cantBlock) return false;
   if (a.flags.turn?.hasteOnly && !hasKw(s, b, 'haste')) return false;
   if (s.smallCantBlock === s.turn && power(s, b) <= 1) return false;
+  if (a.def.minBlockPow && power(s, b) < a.def.minBlockPow) return false; // はがね葉の チャンピオン：パワー 2 いかには ブロックされない
   if (hasKw(s, a, 'flying') && !hasKw(s, b, 'flying') && !hasKw(s, b, 'reach')) return false;
   return true;
 }

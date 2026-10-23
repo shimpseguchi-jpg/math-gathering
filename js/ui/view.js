@@ -22,7 +22,8 @@ export function richText(raw) {
     out += ruby(t.slice(last, m.index)) + `<span class="term" data-term="${esc(g.key)}">${ruby(m[0])}</span>`;
     last = m.index + m[0].length;
   }
-  return out + ruby(t.slice(last));
+  // *…* は フレーバー（ななめの 小さい 文）
+  return (out + ruby(t.slice(last))).replace(/\*([^*]+)\*/g, '<em class="flavor">$1</em>');
 }
 
 export function showTerm(key) {

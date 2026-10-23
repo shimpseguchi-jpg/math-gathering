@@ -139,8 +139,8 @@ function packs() {
   let flippedAt = 0;
   const next = () => { if (k < 7) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); draw(); };
   app().onclick = async (e) => {
-    // めくった あとは、点線の ことば（長おし・2回タップで せつめい）・音・スキップ 以外の どこを タップしても つぎへ
-    if (stage === 'reveal' && flipped && !e.target.closest('[data-term], [data-snd], [data-skip]')) {
+    // めくった あとは、音・スキップ 以外の どこを タップしても つぎへ（点線の ことばの 長おしは せつめいが 出て、つぎへは いかない）
+    if (stage === 'reveal' && flipped && !e.target.closest('[data-snd], [data-skip]')) {
       if (Date.now() - flippedAt > 350) next();
       return;
     }
