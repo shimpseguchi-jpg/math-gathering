@@ -55,6 +55,24 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .seg input:checked + span { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
 .title-btns { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
 .fine { font-size: 12px; color: var(--ink-dim); margin: 0; }
+.dev-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--bad); color: var(--gold-ink); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; vertical-align: 1px; }
+
+/* ---- せってい（開発モードでは パックに 入る 弾を えらぶ） ---- */
+.settings { min-height: 100%; display: flex; flex-direction: column; gap: 14px; padding-block: 20px; max-width: 560px; }
+.settings h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); }
+.st-sec { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; background: var(--table-2); border-radius: 14px; padding: 12px; }
+.st-sec h3 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
+.st-sets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
+.st-sets label { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--line); cursor: pointer; }
+.st-sets input { width: 22px; height: 22px; flex: none; accent-color: var(--gold); }
+.st-sets input:checked + span { color: var(--gold); }
+.st-sets span { display: flex; flex-direction: column; min-width: 0; }
+.st-sets b { font-weight: 700; }
+.st-sets small { font-weight: 500; font-size: 12px; color: var(--ink-dim); }
+.st-sets .planned label { border-style: dashed; opacity: 0.55; cursor: default; }
+.st-pool { margin: 0; font-size: 13px; }
+.st-pool b { color: var(--gold); }
 
 /* ---- カード ---- */
 .card { --band: var(--C); position: relative; box-sizing: border-box; width: 100%; aspect-ratio: 5 / 7; max-width: 100%; border-radius: 9px; background: var(--paper); color: var(--paper-ink); border: 0; border-top: 7px solid var(--band); padding: 4px 5px 5px; display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: hidden; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); font-size: 11px; line-height: 1.25; }

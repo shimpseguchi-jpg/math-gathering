@@ -2,7 +2,7 @@
 import { seeded, shuffle, pick } from './rng.js';
 import { newGame, play, colorsOf, COLORS } from './game.js';
 import { AI, RARITY_PTS } from './ai.js';
-import { ALL, BASICS, bindEngine } from '../data/cards.js';
+import { ALL, BASICS, SET_OF, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
 import { api } from './game.js';
 
@@ -12,8 +12,16 @@ export const DECK_SIZE = 20;
 export const CAPACITY = 30;
 export const PACK = { C: 4, U: 3, R: 1, legendFromRare: 1 / 8, legendFromCommon: 1 / 20 };
 
-const byRar = (r) => ALL.filter((d) => d.rar === r);
-const POOL = { C: byRar('C'), U: byRar('U'), R: byRar('R'), L: byRar('L') };
+const poolOf = (list) => Object.fromEntries(['C', 'U', 'R', 'L'].map((r) => [r, list.filter((d) => d.rar === r)]));
+const POOL = poolOf(ALL);
+// パックに 入る カード。sets は 収録する 弾（開発モードの せってい。なければ ぜんぶ）
+const POOLS = new Map();
+export function packPool(sets) {
+  if (!sets) return POOL;
+  const key = [...sets].sort().join(',');
+  if (!POOLS.has(key)) POOLS.set(key, poolOf(ALL.filter((d) => sets.includes(SET_OF[d.id]))));
+  return POOLS.get(key);
+}
 
 // ごほうびパック：クリアした階の数（cleared）だけ 上のレアリティが 少し出やすくなり、favor の色が 出やすくなる
 export const REWARD = { cToU: 0.05, uToR: 0.04, rToL: 0.04, surprise: 0.01, favor: 2 };
@@ -43,7 +51,8 @@ function pickFavored(rng, list, favor) {
 
 export function openPack(rng, o = {}) {
   const odds = packOdds(o.cleared || 0);
-  const take = (r) => pickFavored(rng, POOL[r], o.favor);
+  const pool = packPool(o.sets);
+  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor);
   for (let tries = 0; ; tries++) {
     const cards = [];
     for (let i = 0; i < PACK.C; i++) cards.push(take(rng() < odds.cToU ? 'U' : 'C'));
@@ -105,7 +114,7 @@ export async function fight(deck, floorId, o = {}) {
 export async function runAdventure(o = {}) {
   const rng = seeded(o.seed || 1);
   const pool = [];
-  for (let i = 0; i < 3; i++) pool.push(...openPack(rng));
+  for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets }));
   let b = buildDeck(pool, o);
   const floors = o.floors || pickFloors(rng);
   let continues = o.continues ?? 1;
@@ -121,7 +130,7 @@ export async function runAdventure(o = {}) {
       log.lostAt = i + 1;
       return log;
     }
-    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? {} : { cleared: i + 1, favor: favorColor(b.deck) })); b = buildDeck(pool, o); }
+    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? { sets: o.sets } : { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets })); b = buildDeck(pool, o); }
   }
   log.cleared = true;
   return log;

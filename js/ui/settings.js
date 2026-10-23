@@ -1,0 +1,72 @@
+// せってい画面（タイトルから）。WEB版は 開発モード：パックに 入る 弾（収録する 弾）を えらべる
+import { SETS } from '../data/cards.js';
+import { packPool } from '../engine/run.js';
+import { soundOn, setSound } from './sfx.js';
+import { ruby } from './view.js';
+
+// WEB版は 開発モード。false に すると 開発用の 項目が かくれて、ぜんぶの 弾が パックに 入る
+export const DEV = true;
+const KEY = 'mtg-sets';
+// まだ データに なって いない 弾（えらべない。作ったら cards.js の SETS に うつす）
+const PLANNED = [
+  ['第3弾（だん）「冥界（めいかい）の 門（もん）」', 81],
+  ['第4弾（だん）「星（ほし）めぐりの 夜（よる）」', 74],
+  ['第5弾（だん）「大きな 数の 塔（とう）」', 94],
+  ['第6弾（だん）「三つの 旗（はた）」', 45],
+  ['アルケミー（デジタル 限定（げんてい））', 31],
+];
+
+const ALL_SETS = SETS.map((x) => x.id);
+let sets = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || 'null');
+    const ok = Array.isArray(v) ? v.filter((x) => ALL_SETS.includes(x)) : [];
+    return ok.length ? ok : ALL_SETS;
+  } catch { return ALL_SETS; }
+})();
+
+// パックに 入れる 弾（開発モードで ないときは ぜんぶ）
+export const enabledSets = () => (DEV ? sets : ALL_SETS);
+const setSets = (v) => {
+  sets = v;
+  try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* 保存できなくても この あいだは つかえる */ }
+};
+// タイトルに 出す みじかい 説明（ぜんぶの ときは なし）
+export const setsNote = () => (enabledSets().length === ALL_SETS.length ? '' : SETS.filter((x) => sets.includes(x.id)).map((x) => x.name.replace(/「.*$/, '')).join('・'));
+
+export function settingsScreen(app, back) {
+  const draw = () => {
+    const on = enabledSets();
+    const pool = packPool(on);
+    const n = (r) => pool[r].length;
+    app().innerHTML = `<main class="settings">
+      <h2>せってい</h2>
+      <section class="st-sec">
+        <h3>おと</h3>
+        <button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button>
+      </section>
+      ${DEV ? `<section class="st-sec">
+        <h3><span class="dev-badge">開発モード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
+        <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
+        <ul class="st-sets">
+          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${on.length === 1 && on.includes(x.id) ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.length}しゅるい</small></span></label></li>`).join('')}
+          ${PLANNED.map(([name, k], i) => `<li class="planned"><label><input type="checkbox" id="plan-${i}" disabled><span><b>${ruby(name)}</b><small>じゅんびちゅう（あんは ${k}しゅるい）</small></span></label></li>`).join('')}
+        </ul>
+        <p class="st-pool">パックに 出る カード：<b>${n('C') + n('U') + n('R') + n('L')}しゅるい</b>（コモン ${n('C')}・アンコモン ${n('U')}・レア ${n('R')}・レジェンド ${n('L')}）</p>
+      </section>` : ''}
+      <button type="button" class="btn primary" data-back="1">タイトルへ もどる</button>
+    </main>`;
+  };
+  draw();
+  app().onclick = (e) => {
+    if (e.target.closest('[data-back]')) { app().onchange = null; return back(); }
+    if (e.target.closest('[data-snd]')) { setSound(!soundOn()); draw(); }
+  };
+  app().onchange = (e) => {
+    const b = e.target.closest('[data-set]'); if (!b) return;
+    const id = +b.dataset.set, on = enabledSets();
+    const next = b.checked ? ALL_SETS.filter((x) => x === id || on.includes(x)) : on.filter((x) => x !== id);
+    if (next.length) setSets(next);
+    draw();
+  };
+}

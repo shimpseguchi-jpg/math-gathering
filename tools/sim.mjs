@@ -4,7 +4,7 @@
 //   node mathtcg/tools/sim.mjs floors  … 各階を、その階でのパックの数（1階は3パック〜ボスは7パック）で組んだデッキで N回
 //   node mathtcg/tools/sim.mjs log RG hydra … 1戦のログ
 //   node mathtcg/tools/sim.mjs pvp     … オンラインバトル：見本デッキどうし（どちらも AI）
-// 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED
+// 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED SETS（パックに 入れる 弾。例 SETS=1 で 第1弾だけ）
 import { BY_ID } from '../js/data/cards.js';
 import { SAMPLE } from '../js/data/samples.js';
 import { pvp } from '../js/data/enemies.js';
@@ -15,7 +15,8 @@ const N = Number(process.env.N ?? 200);
 const DIFF = process.env.DIFF ?? 'normal';
 const RESHUFFLE = process.env.RESHUFFLE !== '0';
 const SEED = Number(process.env.SEED ?? 1);
-const opts = { diff: DIFF, reshuffle: RESHUFFLE };
+const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : undefined;
+const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS };
 
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);
 const FLOOR_IDS = ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];
@@ -84,7 +85,7 @@ if (mode === 'floors') {
     let win = 0, resh = 0; const turns = []; const ph = [];
     for (let i = 0; i < N; i++) {
       const rng = seeded(SEED * 100000 + i);
-      const pool = []; for (let k = 0; k < packs; k++) pool.push(...openPack(rng));
+      const pool = []; for (let k = 0; k < packs; k++) pool.push(...openPack(rng, { sets: SETS }));
       const s = await fight(buildDeck(pool).deck, f, { ...opts, seed: SEED * 7919 + i });
       if (s.over === 'win') { win++; turns.push(s.stats.playerTurns); } else if (s.stats.phase) ph.push(s.stats.phase);
       if (s.stats.reshuffled) resh++;

@@ -1019,6 +1019,12 @@ export const SET1 = [...W, ...U, ...U2, ...G, ...R, ...GOLD1, ...GOLD2, ...C];
 export const SET2 = [...W2, ...U3, ...G2, ...R2, ...GOLD3, ...C2];
 export const ALL = [...SET1, ...SET2];
 export const BY_ID = Object.fromEntries([...ALL, ...Object.values(BASICS)].map((d) => [d.id, d]));
+// 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ
+export const SETS = [
+  { id: 1, name: '第1弾（だん）', cards: SET1 },
+  { id: 2, name: '第2弾（だん）「英雄譚（えいゆうたん）の 時代（じだい）」', cards: SET2 },
+];
+export const SET_OF = Object.fromEntries(SETS.flatMap((x) => x.cards.map((d) => [d.id, x.id])));
 
 // ---- 人が遊ぶとき：対象を自分で選ぶカード（ui/battle.js が使う） ----
 // tgt：選ぶものの並び。side は E（敵）・P（自分）・any（両方）・atk（攻撃してきた敵）。face は敵の本体も選べる。

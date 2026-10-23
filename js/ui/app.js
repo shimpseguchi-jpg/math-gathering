@@ -8,6 +8,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
+import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -45,7 +46,9 @@ export function title() {
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
+      <button type="button" class="btn ghost" data-go="settings">せってい</button>
     </div>
+    ${DEV ? `<p class="fine"><span class="dev-badge">開発モード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
     <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
   </main>`;
   app().onclick = (e) => {
@@ -53,6 +56,7 @@ export function title() {
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     if (b.dataset.go === 'tut') return tutorial();
     if (b.dataset.go === 'online') return onlineMenu(app, title);
+    if (b.dataset.go === 'settings') return settingsScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     A = { diff, pool: [], deck: null, floors: pickFloors(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
@@ -86,7 +90,7 @@ function packs() {
   // ごほうびパック：登った階が 多いほど レア以上が 出やすく、デッキで いちばん使う色が 出やすい
   const cleared = A.idx;
   const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
-  const cards = openPack(Math.random, { cleared, favor });
+  const cards = openPack(Math.random, { cleared, favor, sets: enabledSets() });
   const surprise = !!cards.surprise;
   const ids = cards.map((d) => d.id);
   const owned = new Set(A.pool);
