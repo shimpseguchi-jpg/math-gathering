@@ -232,10 +232,11 @@ export const S3 = {
     play: (s, E, ctx) => {
       const fl = theirs(s, E).filter((p) => E.hasKw(s, p, 'flying'));
       if (fl.length && ctx.phase === 1) return { score: 4 + 3 * fl.length, x: ctx.xMax, run: (x) => { for (const d of E.divide(s, 2 * x, theirs(s, E).filter((p) => E.hasKw(s, p, 'flying')))) E.damage(s, d.t, d.n, null); E.sba(s); } };
-      return ctx.phase === 1 ? { score: 3 + 2 * ctx.xMax, x: ctx.xMax, run: (x) => { for (let i = 0; i < x; i++) E.rampTop(s); } } : null;
+      const nb = E.basicsInLib(s);
+      return ctx.phase === 1 && nb ? { score: 3 + 2 * Math.min(ctx.xMax, nb), x: Math.min(ctx.xMax, nb), run: (x) => E.rampBasic(s, x) } : null;
     },
     modes: [
-      { label: 'やまふだの 上から X まいを マナゾーンに（タップ）', apply: (s, E, picks, x) => { for (let i = 0; i < x; i++) E.rampTop(s); } },
+      { label: 'やまふだから きほんカードを X まい さがして マナゾーンに（タップ）', apply: (s, E, picks, x) => E.rampBasic(s, x) },
       { label: 'X の 2ばいの ダメージを ひこうの ある てきに わりふる', apply: (s, E, picks, x) => { for (const d of E.divide(s, 2 * x, theirs(s, E).filter((p) => E.hasKw(s, p, 'flying')))) E.damage(s, d.t, d.n, null); E.sba(s); } },
     ],
   },

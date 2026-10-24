@@ -145,7 +145,7 @@ export const S5 = {
   },
   G65: { upkeep: (s, p, E) => { if (p.side !== 'P') return; const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, crCount(s, E)); } },
   G66: { tokenMult: 2, counterMult: 2 },
-  G67: titan((s, p, E) => { E.rampTop(s); E.rampTop(s); }),
+  G67: titan((s, p, E) => { E.rampBasic(s, 2); }),
   G68: {
     play: (s, E, ctx) => { const t = E.bestBuffTarget(s, null); return t ? { score: 10, run: () => { E.target(s, t); E.addCounters(s, t, upTo(5)(s, E, ctx)); } } : null; },
     ...fb(7, ['G']),
@@ -241,7 +241,7 @@ export const S5 = {
   LS02: { noPack: true, play: (s, E) => ({ score: 4, run: () => E.then(E.scry(s, 2), () => E.drawCard(s)) }) },
   LS03: { noPack: true, play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.pest, 2) }) },
   LS04: { noPack: true, play: (s, E, ctx) => ({ score: 4 + 2 * ctx.xMax, x: ctx.xMax, run: (x) => fractal(s, E, x) }) },
-  LS05: { noPack: true, play: (s, E) => ({ score: 4, run: () => { E.rampTop(s); E.gain(s, 2); } }) },
+  LS05: { noPack: true, play: (s, E) => ({ score: E.basicsInLib(s) ? 4 : 1, run: () => { E.rampBasic(s, 1); E.gain(s, 2); } }) },
   LS06: {
     noPack: true, play: (s, E) => { const t = E.bestBuffTarget(s, null); return t ? { score: 5, run: () => { E.target(s, t); E.addCounters(s, t, 2); E.pump(t, 0, 0, ['vigilance']); } } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); E.pump(t, 0, 0, ['vigilance']); },

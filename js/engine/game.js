@@ -171,6 +171,20 @@ export function rampTop(s) {
   s.P.mana.push({ ...c, tapped: true });
 }
 
+// やまふだから きほんカードを n まい さがして、タップ状態で マナゾーンに（MTG の「基本土地を さがす」。強い カードを マナに しない）
+export function rampBasic(s, n = 1) {
+  let k = 0;
+  for (; k < n; k++) {
+    const i = s.P.lib.findIndex((c) => c.def.basic);
+    if (i < 0) break;
+    const [c] = s.P.lib.splice(i, 1);
+    s.P.mana.push({ ...c, tapped: true });
+  }
+  if (k) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}きほんカードを ${k}まい さがして マナゾーンへ`); }
+  return k;
+}
+export const basicsInLib = (s) => s.P.lib.filter((c) => c.def.basic).length;
+
 export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
   s.P.mana.push({ ...c, tapped });
@@ -686,7 +700,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  L, drawCard, rampTop, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

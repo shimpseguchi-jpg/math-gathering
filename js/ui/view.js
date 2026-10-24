@@ -203,6 +203,15 @@ export function permFace(s, p, o = {}) {
 }
 
 // カードの説明（シートの中身）
+// せつめいの 色：色の まると 名前（むしょく・旗の 3色も）
+function colorRow(def) {
+  const cs = colorsOf(def);
+  const chip = (c, name) => `<span class="dc"><i class="m-${c}"></i>${name}</span>`;
+  const chips = cs.length ? cs.map((c) => chip(c, COLOR_NAME[c])).join('') : chip('C', 'むしょく');
+  const flag = def.banner ? `<span class="dc-note">はたが あれば ${[...def.banner].map((c) => COLOR_NAME[c]).join('・')}の 3色デッキに できる</span>` : '';
+  return `<p class="detail-colors"><span class="dc-label">色</span>${chips}${flag}</p>`;
+}
+
 export function detail(def, o = {}) {
   const i = info(def);
   const enemy = o.enemy;
@@ -212,6 +221,7 @@ export function detail(def, o = {}) {
       <h2>${ruby(i.name)}</h2>
       ${enemy ? '' : `<span class="cost big">${esc(costLabel(def))}</span>`}
     </div>
+    ${enemy ? '' : colorRow(def)}
     <div class="detail-type">${richText(i.type)} ${pts}</div>
     <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
     ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
