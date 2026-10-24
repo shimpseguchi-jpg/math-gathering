@@ -11,6 +11,7 @@ import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
+import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints } from './emblem.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -46,6 +47,7 @@ export function title() {
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.idx + 1}階）</button>` : ''}
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
+      <button type="button" class="btn tro-btn em-btn" data-go="emblem"><span aria-hidden="true">✦</span>もんしょう<small>${activeIds().length ? `${activeIds().length}こ ついて いる` : 'しゅぎょうで てに いれる'}・ポイント ${emblemPoints()}</small></button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
       <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
@@ -63,6 +65,7 @@ export function title() {
     if (b.dataset.go === 'settings') return settingsScreen(app, title);
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
+    if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     A = { diff, pool: [], deck: null, floors: pickFloors(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
@@ -334,6 +337,7 @@ function tower() {
     <h2>とう</h2>
     <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${esc(FLOOR_NAMES[f])}</span><em>${i < A.idx ? 'クリア' : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
     <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
+    ${emblemLine() ? `<p class="em-line">もんしょう：${esc(emblemLine())}</p>` : ''}
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${esc(FLOOR_NAMES[A.floors[A.idx]])}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
   </main>`;
@@ -348,7 +352,7 @@ function tower() {
 function fight() {
   const f = A.floors[A.idx];
   startBattle({
-    deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f],
+    deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f], emblem: activeEffects(), emblemNote: emblemLine(),
     quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
@@ -362,7 +366,7 @@ function fight() {
         return packs();
       }
       if (A.continues > 0) {
-        const v = await sheet(`<p>コンティニューすると、${esc(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは 20 に もどる）。デッキを なおしてから いどんでも いい。</p>`,
+        const v = await sheet(`<p>コンティニューすると、${esc(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは はじめの 数に もどる）。デッキを なおしてから いどんでも いい。</p>`,
           [{ label: 'コンティニュー（のこり1回）', value: 'c', kind: 'primary' }, { label: 'あきらめる', value: 'x' }], { title: 'まけてしまった', dismiss: false });
         if (v === 'c') { A.continues--; save(); return tower(); }
       }

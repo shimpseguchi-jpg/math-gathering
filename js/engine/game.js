@@ -15,17 +15,23 @@ export const cant = (s, p, k) => { const v = p.def[k]; return typeof v === 'func
 // カードの効果・各階のルールから使う関数をまとめたもの（ai.js がAI用の関数を足す）
 export const api = {};
 
-export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false }) {
+// emblem：もんしょう（data/emblems.js の emblemEffects。REQUIREMENTS 12章）。ぼうけんの たたかい だけ
+export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null }) {
+  const em = emblem || {};
+  if (em.swap) deck = deck.map((d) => em.swap[d.id] || d);
   const rng = seeded(seed);
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {} },
+    P: { side: 'P', life: 20 + (em.life || 0), lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {} },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
   floor.setup(s, api);
   for (let i = 0; i < 5; i++) drawCard(s);
+  // はじまりの もんしょう：はじめの てふだに たいようの ゆびわ（6まいめ）・さいしょから マナゾーンに きほんカード
+  for (const d of em.hand || []) { s.P.hand.push(card(d)); L(s, `もんしょう：${d.name} を てふだに`); }
+  if (em.startMana) rampBasic(s, em.startMana);
   return s;
 }
 
@@ -189,6 +195,11 @@ export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
   s.P.mana.push({ ...c, tapped });
   L(s, `${foe(s, 'P')}マナ：${c.def.name}`);
+  // きほんの もんしょう レベル2：きほんカードを マナに おくと、その こうかも おきる（あいては じどうで えらぶ。占術は 人が えらぶ ので Promise を かえす）
+  if (c.def.basic && s.P.emblem?.basicCharge) {
+    const r = c.def.play?.(s, api, { phase: 2, c, charge: true });
+    if (r) { L(s, `もんしょう：${c.def.name} の こうか`); return r.run(); }
+  }
 }
 
 // ---- パーマネント ----
@@ -468,6 +479,9 @@ export function leave(s, p, to = 'gy', o = {}) {
       else if (by?.def?.pittari && onBf(s, by)) by.def.pittari(s, by, api, p);
     }
     for (const q of [...s.P.bf]) if (q.def.onExact && onBf(s, q)) q.def.onExact(s, q, api, p); // ぴったりで たおすたび（YM03）
+    // ぴったりの もんしょう：ライフ ＋1（レベル2 は ＋2）。カードを 引く 案は 山札が 早く へって 弱く なった（docs/EMBLEMS.md）
+    const em = s.P.emblem;
+    if (em?.exactLife) { gainLife(s, em.exactLife); L(s, `もんしょう：ぴったりで ライフ ＋${em.exactLife}`); }
   }
   for (const l of p.links) returnLinked(s, l);
   const twice = o.died && s[p.side].bf.some((q) => q.def.doubleDeath) ? 2 : 1; // テイサ：死亡したときの 能力が 2回

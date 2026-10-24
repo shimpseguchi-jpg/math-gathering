@@ -10,7 +10,7 @@ import { S4 } from './set4.js';
 import { S5 } from './set5.js';
 import { S6 } from './set6.js';
 import { SY } from './alchemy.js';
-import { LESSONS, REG } from './kit.js';
+import { LESSONS, REG, foe1, shrink } from './kit.js';
 
 // ---- 緑 ----
 const G = [
@@ -1038,3 +1038,38 @@ for (const [id, h] of Object.entries(TARGETS)) Object.assign(BY_ID[id], h);
 for (const [id, h] of Object.entries(ACT_TARGETS)) Object.assign(BY_ID[id].acts[0], h);
 // 歩く バリスタ：2つめの のうりょく（カウンターを とって 1点）
 Object.assign(BY_ID.C15.acts[1], { tgt: [{ side: 'E', face: true, label: '1点を あたえる 相手' }], apply: (s, E, [[t]], x, p) => { p.ctr--; hit(s, E, t, 1); } });
+
+// ---- もんしょう（REQUIREMENTS 12章・data/emblems.js） ----
+// たいようの ゆびわ：はじまりの もんしょうで はじめの てふだに 入る（パックには 入らない）
+export const SUN_RING = pm('MS01', '太陽（たいよう）の 指輪（ゆびわ）', 'R', '', 1, ['artifact'], {
+  mana: ['C'], manaN: 2, noPack: true, permScore: () => 40,
+  typeOver: 'アーティファクト', textOver: 'タップ：無色（むしょく）のマナを2つ出す。（もんしょうの カード）',
+});
+BY_ID.MS01 = SUN_RING;
+// きほんの もんしょう：きほんカードが k だけ 強く なる（白 ライフ・青 占術・緑 苗木・赤 ダメージ・黒 −N/−N・無色 コストと 引く 数）
+const sapling = (k) => ({ ...T.saproling, pow: k >= 2 ? 2 : 1, tou: 2 });
+const mark = (k) => `（もんしょう ＋${k}）`;
+export function boostBasic(d, k) {
+  if (!k || !d.basic) return d;
+  const n = { ...d, boost: k };
+  if (d.id === 'B01') Object.assign(n, { play: (s, E) => ({ score: 1, run: () => E.gain(s, 2 + k) }), textOver: `あなたは${2 + k}点のライフを得（え）る。${mark(k)}` });
+  if (d.id === 'B02') Object.assign(n, { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 1, run: () => E.scry(s, 1 + k) } : null), textOver: `占術（せんじゅつ）${1 + k} を行う。${mark(k)}` });
+  if (d.id === 'B03') {
+    const t = sapling(k);
+    Object.assign(n, { play: (s, E) => ({ score: 2, run: () => E.token(s, 'P', t) }), textOver: `緑の ${t.pow}/${t.tou} の苗木（なえぎ）・クリーチャー・トークンを1体出す。${mark(k)}` });
+  }
+  if (d.id === 'B04') {
+    Object.assign(n, {
+      play: (s, E) => { const b = E.burnTarget(s, 1 + k, { creatureOnly: true }); return b ? { score: 2 + b.score, run: () => hit(s, E, b.t, 1 + k) } : null; },
+      tgt: [{ side: 'E', label: `${1 + k}点を あたえる クリーチャー` }], apply: (s, E, [[t]]) => hit(s, E, t, 1 + k),
+      textOver: `クリーチャー1体を対象（たいしょう）とする。それに${1 + k}点のダメージを与（あた）える。${mark(k)}`,
+    });
+  }
+  if (d.id === 'B05') Object.assign(n, { cost: 1, play: (s, E) => ({ score: 2, run: () => E.drawCard(s, k >= 2 ? 2 : 1) }), textOver: `カードを${k >= 2 ? 2 : 1}枚（まい）引く。${mark(k)}` });
+  if (d.id === 'B06') {
+    Object.assign(n, foe1(`−${1 + k}/−${1 + k} する クリーチャー`, (s, E, t) => shrink(s, E, t, 1 + k), { n: 1 + k, score: 1 }), {
+      textOver: `クリーチャー1体を対象（たいしょう）とする。それはターン終了（しゅうりょう）時まで −${1 + k}/−${1 + k} の修整（しゅうせい）を受ける。${mark(k)}`,
+    });
+  }
+  return n;
+}

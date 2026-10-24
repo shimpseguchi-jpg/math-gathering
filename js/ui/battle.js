@@ -19,14 +19,14 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
-  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true });
+  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem });
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
   const go = () => (floor.first === 'E' ? enemyFirst() : startTurn());
   if (!floor.goal || o.tutorial) return go();
   render();
-  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${esc(o.floorName)}：かちかた`, dismiss: false }).then(go);
+  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${esc(o.floorName)}：かちかた`, dismiss: false }).then(go);
 }
 
 // オンラインバトルで あいてが 先に うごく とき
@@ -535,7 +535,7 @@ async function tapHand(c) {
   choices.push({ label: 'とじる', value: null });
   const v = await sheet(detail(d), B.tut ? B.tut.filterChoices(c, choices) : choices);
   if (v === 'cast') return doCast(c);
-  if (v === 'charge') { api.charge(s, c); s.P.flags.charged = true; return render(); }
+  if (v === 'charge') { s.P.flags.charged = true; B.busy = true; await api.charge(s, c); B.busy = false; return checkOver() || render(); }
   if (v === 'suspend') { const pl = plan(s, d.suspend.cost, d.suspend.req || []); if (pl) suspendCard(s, c, pl); return render(); }
   if (v === 'trick') return useTrick(c);
   if (v === 'adv') return doAdventure(c);

@@ -8,6 +8,7 @@
 - 冒険の途中（たたかいの合間）はブラウザに自動で保存され、「つづきから」で再開できる
 - **ずかん**：パックから 出た カード・たおした てき・クリアした 2色・さいこう スコア（とどいた 階 × 100 ＋ ぴったり × 10）。タイトルの「ずかん」で 見る（`docs/REQUIREMENTS.md` 8.1）
 - **トロフィー**：あそんで できた こと（ぴったり・ちょうど 12時・ライフ ちょうど 1 で かつ など）で もらえる 23こ（ブロンズ〜プラチナ）。タイトルの「トロフィー」で 見る（`docs/REQUIREMENTS.md` 8.3）
+- **しゅぎょうと もんしょう**：タイトルの「もんしょう」で、3分で 1年生の 問題（くりあがり・くりさがり・3つの 数・10の まとまり・とけい・漢字の 読み・てにをは）を とく。7割より 多く 正解すると もんしょうポイント。ポイントで スキルツリーの もんしょうを えらぶと 12時間 冒険で つよく なる（[`docs/EMBLEMS.md`](docs/EMBLEMS.md)、`docs/REQUIREMENTS.md` 12章）
 - WEB版は **開発モード**：タイトルの「せってい」で、パックに 入る 弾を えらべる（`js/ui/settings.js` の `DEV`）。第1弾・第2弾の ほかに、開発中の 第3弾〜第6弾・アルケミー（325種）も えらべる（[`docs/ROADMAP.md`](docs/ROADMAP.md) 6章）
 
 ## つくり
@@ -22,6 +23,8 @@ js/ui/online.js     オンライン バトル（ゴースト・あいて さが�
 js/ui/settings.js   せってい（おと。開発モードでは パックに 入る 弾を えらぶ。DEV で きりかえ）
 js/ui/trophies.js   トロフィー（23こ。もらう しらべと 一覧の 画面。REQUIREMENTS 8.3）
 js/ui/zukan.js      ずかん（カード・てき・アーキタイプ・きろく。冒険を またいで のこる。REQUIREMENTS 8.1）
+js/ui/emblem.js     もんしょう（ポイント・スキルツリー・12時間。REQUIREMENTS 12章）
+js/ui/study.js      しゅぎょう（3分の 問題・とけいの 絵・けっか）
 gas/                GAS 版（Code.gs：ゴーストの サーバー、index.html：1ファイル版）
 js/ui/view.js       カードの見た目・ルビ・シート（対象・割り振り・数）
 js/ui/sfx.js        効果音（WebAudio で合成）
@@ -29,8 +32,9 @@ js/ui/glossary.js   ことばの せつめい（キーワード能力・用語 �
 js/engine/          ルール（game.js）・シミュレーション用AI（ai.js）・冒険（run.js）
 js/data/            カード（cards.js）・敵（enemies.js）・カードの文章（texts.js：docs から自動生成）
                     第3弾から：土台（skel.js：docs から自動生成）・うごき（set3.js〜set6.js・alchemy.js）・道具（kit.js）
+                    しゅぎょうの 問題（quiz.js）・もんしょうの ツリーと こうか（emblems.js）
 docs/               要件定義・カードリスト・敵・シミュレーションの結果
-tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・kanji_drafts.mjs（案の カード表の ふりがな）・gen_texts.py・check_cards.py・packsim.py
+tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・kanji_drafts.mjs（案の カード表の ふりがな）・gen_texts.py・check_cards.py・check_quiz.mjs（しゅぎょうの 問題）・packsim.py
 ```
 
 ## GAS（Google Apps Script）版とオンライン バトル
@@ -53,7 +57,7 @@ node mathtcg/tools/build_gas.mjs   # mathtcg/gas/ の 1ファイル版を つく
 
 - はじめての人は タイトルの「チュートリアル」（メレティスの 訓練場）から。白緑の きまった 手札で、マナ・召集・ブロック・圧倒・ぴったりを 1つずつ 案内する
 
-- **計算問題は出ない**。勝つために考えると 自然に計算する（REQUIREMENTS 5章）。攻撃の あとに「3 ＋ 2 ＝ 5点」と けっかが出て、敵を タフネスと ちょうど同じ ダメージで 倒すと「ぴったり！」
+- **たたかいの中に 計算問題は出ない**。勝つために考えると 自然に計算する（REQUIREMENTS 5章。問題を とくのは たたかいの そとの しゅぎょう だけ）。攻撃の あとに「3 ＋ 2 ＝ 5点」と けっかが出て、敵を タフネスと ちょうど同じ ダメージで 倒すと「ぴったり！」
 - X は −／＋ で 自分で きめる。キッカー・増呪・激励は、使うときに マナを 多く はらうか えらぶ。待機は 手札から「待機する」、Lvアップは 戦場の カードを タップ
 
 - 対象を選ぶカード（ダメージ・除去・強化・格闘・割り振る）は、使うときに相手を選ぶ。割り振るは ＋／− で分ける

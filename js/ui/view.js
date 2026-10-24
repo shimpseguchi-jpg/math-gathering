@@ -76,8 +76,9 @@ export const RAR = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レ�
 
 export function info(def) {
   const t = CARD_TEXT[def.id] || ENEMY_TEXT[plainName(def.name || '')];
+  // textOver・typeOver：もんしょうで かわった きほんカード・もんしょうの カード（data/cards.js の boostBasic・SUN_RING）
   return {
-    name: t?.name || def.name, type: t?.type || (def.types || []).join('・'), text: t?.text && t.text !== '−' ? t.text : '', motif: t?.motif || '',
+    name: t?.name || def.name, type: def.typeOver || t?.type || (def.types || []).join('・'), text: def.textOver || (t?.text && t.text !== '−' ? t.text : ''), motif: t?.motif || '',
     math: t?.math || '', reward: t?.reward || '',
   };
 }
