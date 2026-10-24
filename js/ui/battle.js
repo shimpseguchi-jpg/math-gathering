@@ -130,6 +130,21 @@ function humanAI() {
       s.logs.push(`[${s.turn}P] せんじゅつ：上に ${keep.length}まい、下に ${bottom.length}まい`);
       if (B) render();
     },
+    // 諜報：上から1まいずつ「上に のこす／ぼちへ」
+    surveil: async (s, n) => {
+      const top = s.P.lib.splice(0, n);
+      const keep = [];
+      for (let i = 0; i < top.length; i++) {
+        if (B) render();
+        const v = await sheet(`<p>ライブラリーの 上から ${i + 1}まいめ。つぎに 引く カードに するなら「上に のこす」。</p>${detail(top[i].def)}`, [
+          { label: '上に のこす', value: 'keep', kind: 'primary' }, { label: 'ぼちへ', value: 'gy' },
+        ], { title: `ちょうほう${i + 1}/${top.length}`, dismiss: false });
+        (v === 'gy' ? s.P.gy : keep).push(top[i]);
+      }
+      s.P.lib.unshift(...keep);
+      s.logs.push(`[${s.turn}P] ちょうほう：上に ${keep.length}まい、ぼちへ ${top.length - keep.length}まい`);
+      if (B) render();
+    },
     duringBlocks: async (s, attackers, blocks) => {
       for (let guard = 0; guard < 5; guard++) {
         const opts = [];
@@ -419,6 +434,12 @@ async function doCast(c, from = 'hand') {
       if (d.strive) extra += d.strive * (picks[0].length - 1);
     } else if (d.apply) return stop();
     else picks = d.tgt.map(() => []); // ねらえる相手が いない パーマネントは、出すだけ
+  }
+  // 暴動（第7弾）：出す 前に えらぶ
+  if (d.riot) {
+    const v = await sheet(detail(d), [{ label: 'そっこう（この ターンから こうげき）', value: 'haste', kind: 'primary' }, { label: '＋1/＋1カウンターを 1こ', value: 'ctr', kind: 'primary' }, { label: 'やめる', value: null }], { title: 'ぼうどう：どちらに する？' });
+    if (!v) return stop();
+    picks = [[v]];
   }
   const pl = (extra || x !== ci.x) ? await payable(base + x * mul + extra, req, o) : plan(s, base + x * mul, req, o);
   if (!pl) return stop();

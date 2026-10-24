@@ -126,10 +126,10 @@ console.log(`docs/CARDLIST.md：${all.length}種 ＋ きほん ${basics.length} 
 const htmlArg = process.argv.find((a) => a.startsWith('--html='));
 if (htmlArg) {
   // 開発中の 弾（開発モードで 遊べる）と 案（プロモ）。B06 は 第3弾の 黒の きほんカード、LS は 第5弾の レッスン、YT は アルケミーの 創出だけの カード
-  const DRAFTS = [['SET3.md', '3'], ['SET4.md', '4'], ['SET5.md', '5'], ['SET6.md', '6'], ['ALCHEMY.md', 'A'], ['PROMO.md', 'P']];
-  const SET_LABEL = { 1: '第1弾', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: '第6弾', A: 'アルケミー', P: 'プロモ' };
+  const DRAFTS = [['SET3.md', '3'], ['SET4.md', '4'], ['SET5.md', '5'], ['SET6.md', '6'], ['SET7.md', '7'], ['ALCHEMY.md', 'A'], ['PLANESWALKERS.md', 'W'], ['PROMO.md', 'P']];
+  const SET_LABEL = { 1: '第1弾', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: '第6弾', 7: '第7弾', A: 'アルケミー', W: 'プレインズウォーカー', P: 'プロモ' };
   const draftSet = {}, drafts = {};
-  const DEV = new Set(['3', '4', '5', '6', 'A']);
+  const DEV = new Set(['3', '4', '5', '6', '7', 'A', 'W']);
   for (const [f, k] of DRAFTS) {
     const got = {};
     readTables(join(ROOT, 'docs', f), got);

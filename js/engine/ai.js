@@ -695,6 +695,15 @@ Object.assign(api, {
   },
   ninjutsu, castAdventure, castBestow, stealable, copySpell, unearth,
   castSuspended,
+  // 諜報（第7弾）：占術と 同じ きじゅんで、のこさない カードは ぼちへ。人は s.ai.surveil が 画面で 聞く
+  surveil: (s, n) => {
+    L(s, `ちょうほう ${n}`);
+    if (s.ai.surveil) return s.ai.surveil(s, n);
+    const top = s.P.lib.splice(0, n);
+    const keepL = [];
+    for (const c of top) (scryKeep(s, c) ? keepL : s.P.gy).push(c);
+    s.P.lib.unshift(...keepL);
+  },
   // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {
     L(s, `せんじゅつ ${n}`);

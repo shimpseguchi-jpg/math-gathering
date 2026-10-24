@@ -126,7 +126,7 @@ export async function runAdventure(o = {}) {
   let continues = o.continues ?? 1;
   const log = { floors: [], cleared: false, decks: [] };
   for (let i = 0; i < floors.length; i++) {
-    log.decks.push({ pair: b.pair, real: b.real, points: b.points });
+    log.decks.push({ pair: b.pair, real: b.real, points: b.points }); log.deckIds = b.deck.map((d) => d.id);
     for (;;) {
       const s = await fight(b.deck, floors[i], { ...o, seed: Math.floor(rng() * 1e9), log: o.logFloor === floors[i] });
       if (s.logOn) (log.fightLogs ||= []).push(s.logs.join('\n'));

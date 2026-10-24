@@ -117,7 +117,7 @@ main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; ga
       <label><span class="flab">弾</span><select class="sel" id="f-set">
         <option value="all">すべて</option><option value="play">遊べる（第1・2弾）</option><option value="dev">開発中（第3弾から・開発モード）</option><option value="draft">案（プロモ）</option>
         <option value="1">第1弾</option><option value="2">第2弾</option><option value="3">第3弾（開発中）</option><option value="4">第4弾（開発中）</option>
-        <option value="5">第5弾（開発中）</option><option value="6">第6弾（開発中）</option><option value="A">アルケミー（開発中）</option><option value="P">プロモ（案）</option>
+        <option value="5">第5弾（開発中）</option><option value="6">第6弾（開発中）</option><option value="7">第7弾 ラヴニカ（開発中）</option><option value="A">アルケミー（開発中）</option><option value="W">プレインズウォーカー（開発中）</option><option value="P">プロモ（案）</option>
       </select></label>
       <span><span class="flab">レア</span><span class="seg" id="f-rar"><button type="button" data-v="C" aria-pressed="true">C</button><button type="button" data-v="U" aria-pressed="true">U</button><button type="button" data-v="R" aria-pressed="true">R</button><button type="button" data-v="L" aria-pressed="true">L</button><button type="button" data-v="P" aria-pressed="true" title="プロモ">P</button></span></span>
       <input class="search" id="q" type="search" placeholder="なまえ・ことばで さがす（例：ぴったり、飛行）" aria-label="さがす">
@@ -146,7 +146,7 @@ const TRIS = [
   ['AB', 'アブザン', 'W', 'K', 'G'], ['JE', 'ジェスカイ', 'U', 'R', 'W'], ['SU', 'スゥルタイ', 'K', 'G', 'U'], ['MA', 'マルドゥ', 'R', 'W', 'K'], ['TE', 'ティムール', 'G', 'U', 'R'],
   ['BA', 'バント', 'G', 'W', 'U'], ['ES', 'エスパー', 'W', 'U', 'K'], ['GX', 'グリクシス', 'U', 'K', 'R'], ['JU', 'ジャンド', 'K', 'R', 'G'], ['NA', 'ナヤ', 'R', 'G', 'W'],
 ];
-const SETS = [['1', '第1弾'], ['2', '第2弾'], ['3', '第3弾（開発中）'], ['4', '第4弾（開発中）'], ['5', '第5弾（開発中）'], ['6', '第6弾（開発中）'], ['A', 'アルケミー（開発中）'], ['P', 'プロモ（案）']];
+const SETS = [['1', '第1弾'], ['2', '第2弾'], ['3', '第3弾（開発中）'], ['4', '第4弾（開発中）'], ['5', '第5弾（開発中）'], ['6', '第6弾（開発中）'], ['7', '第7弾 ラヴニカ（開発中）'], ['A', 'アルケミー（開発中）'], ['W', 'プレインズウォーカー（開発中）'], ['P', 'プロモ（案）']];
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* なくても うごく */ } } };
 const st = { tab: 'W', set: 'all', rars: new Set(['C', 'U', 'R', 'L', 'P']), q: '' };
 const hash = location.hash.slice(1);

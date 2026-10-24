@@ -20,7 +20,7 @@ for f in sorted(glob.glob(os.path.join(docs, 'cards', '*.md'))):
             cards[row['ID']] = {'name': row['名前'], 'type': row.get('タイプ', ''), 'text': row.get('テキスト', '').replace('<br>', '\n'), 'motif': row.get('元のカード', ''), 'math': row.get('算数', '')}
 
 # 第3弾から あと（案の 表）：画面の 文と、エンジン用の 土台（js/data/skel.js）
-DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8)]
+DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8), ('SET7.md', 9)]
 TYPES = {'プレインズウォーカー': 'planeswalker', 'クリーチャー': 'creature', 'インスタント': 'instant', 'ソーサリー': 'sorcery', 'アーティファクト': 'artifact', 'エンチャント': 'enchantment'}
 KW = {'飛行': 'flying', '速攻': 'haste', '警戒': 'vigilance', '到達': 'reach', '接死': 'deathtouch', '絆魂': 'lifelink', 'トランプル': 'trample',
       '先制攻撃': 'first', '二段攻撃': 'double', '防衛': 'defender', '破壊不能': 'indestructible', '召集': 'convoke', '果敢': 'prowess'}
