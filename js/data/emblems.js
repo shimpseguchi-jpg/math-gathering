@@ -1,6 +1,6 @@
 // もんしょう（REQUIREMENTS 12章・docs/EMBLEMS.md）：しゅぎょうで ためた ポイントで えらぶ。どれも えらんでから 12じかん
 // こうかは ぼうけん（とうの たたかい）だけ。オンライン バトルと チュートリアルには つかない
-import { BASICS, boostBasic, SUN_RING } from './cards.js';
+import { BASICS, boostBasic, SUN_RING, ALL_DEV } from './cards.js';
 
 export const EMBLEM_HOURS = 12;
 export const BRANCHES = [
@@ -9,7 +9,13 @@ export const BRANCHES = [
   { id: 'start', name: 'はじまりの もんしょう', mark: '☀' },
   { id: 'exact', name: 'ぴったりの もんしょう', mark: '✦' },
   { id: 'leader', name: 'ヴァンガード', mark: '♛', one: true }, // 1つだけ えらぶ（MTG の ヴァンガード：ライフと てふだの 数が かわる ＋ のうりょく）
+  // パックと いろ（2026-10-24）：パックから 出る カードを かえる。2色の カードが ばらけて デッキが くみにくい ときに
+  { id: 'pack', name: 'パックの もんしょう', mark: '🎴', named: true },
+  { id: 'color', name: 'いろの もんしょう', mark: '◆', named: true, max: 2 }, // 2つまで（2色 ＝ ギルドや 2色の デッキ）
 ];
+// 旗（第6弾）：「はじめの 旗」で えらべる 10まい
+export const BANNERS = ALL_DEV.filter((d) => d.banner);
+const COLOR_JA = { W: '白', U: '青', K: '黒', R: '赤', G: '緑' };
 // need：さきに もって いる ひつようが ある もんしょう（スキルツリー）。つよさは シミュレーションで きめた（docs/EMBLEMS.md 5章）
 export const EMBLEMS = [
   { id: 'basic1', branch: 'basic', lv: 1, cost: 1, text: 'きほんカードが 1つ つよく なる', detail: '白 ライフ 2 → 3・青 うらない 1 → 2・黒 −1/−1 → −2/−2・赤 1てん → 2てん・緑 1/1 → 1/2', fx: { basic: 1 } },
@@ -27,6 +33,16 @@ export const EMBLEMS = [
   { id: 'vThassa', branch: 'leader', lv: 1, cost: 2, name: 'うみの タッサ', text: 'ターンの はじめに てきの いちばん つよい クリーチャーを タップ（ブロックできない）、ライフ 20 ＋ 2 ＝ 22', fx: { vLife: 2, turnTap: 1 } },
   { id: 'vPurphoros', branch: 'leader', lv: 1, cost: 2, name: 'かじやの パーフォロス', text: 'ターンの はじめに てきに 1てん、ライフ 20 − 2 ＝ 18', fx: { vLife: -2, turnPing: 1 } },
   { id: 'vNylea', branch: 'leader', lv: 1, cost: 2, name: 'かりの ナイレア', text: 'ターンの はじめに じぶんの クリーチャーに ＋1/＋1カウンター（こぶ1）、ライフ 20 − 2 ＝ 18', fx: { vLife: -2, turnBolster: 1 } },
+  // パック：ぼうけんの パック（はじめの 3つと ごほうび）が かわる
+  { id: 'pRand', branch: 'pack', lv: 1, cost: 1, name: 'きまぐれな いろ', text: 'ぼうけんの はじめに 1色 きまり、その 色の カードが 3ばい 出やすい', fx: { packRand: true } },
+  { id: 'pUnc', branch: 'pack', lv: 1, cost: 1, name: 'アンコモン', text: 'パックに アンコモンが 1まい ふえる（8まい ＋ 1まい ＝ 9まい）', detail: 'はじめの 3パックと ごほうびパックの どれも 9まい いりに なる', fx: { packUnc: 1 } },
+  { id: 'pLeg', branch: 'pack', lv: 1, cost: 3, name: 'レジェンド', text: 'レジェンドが 出る かくりつが 3ばい', detail: 'レアの わくが レジェンドに かわる かくりつ 8まいに 1まい → 8まいに 3まい', fx: { packLeg: 0.25 } },
+  { id: 'pBanner', branch: 'pack', lv: 1, cost: 2, name: 'はじめの 旗（はた）', text: 'えらんだ はたを 1まい もって ぼうけんを はじめる（その 3色の デッキが くめる）', detail: 'えらぶ ときに 10まいの はたから 1つ えらぶ。はたは 4点', fx: { banner: true } },
+  // いろ：えらんだ 色の カードが 出やすい（2つまで。2色とも ある カードは 5ばい）
+  ...Object.entries(COLOR_JA).map(([c, ja]) => ({
+    id: `c${c}`, branch: 'color', lv: 1, cost: 2, name: `${ja}の いろ`, color: c,
+    text: `${ja}の カードが 3ばい 出やすい`, detail: 'いろの もんしょうは 2つまで。2つ えらぶと、その 2色の カード（ギルドの カードなど）は 5ばい 出やすい', fx: { packColor: c },
+  })),
 ];
 export const EMBLEM_BY_ID = Object.fromEntries(EMBLEMS.map((e) => [e.id, e]));
 
@@ -34,13 +50,18 @@ export const EMBLEM_BY_ID = Object.fromEntries(EMBLEMS.map((e) => [e.id, e]));
 //   life：はじめの ライフに たす。swap：デッキの カードを おきかえる（きほんカード）。hand：はじめの てふだに 足す カード
 //   basicCharge：きほんカードを マナに おくと その こうかも。startMana：さいしょから マナゾーンに きほんカード。exactLife：ぴったりで たおした とき
 //   handSize：てふだの まいすう（ヴァンガード）。mulligan：はじめの てふだを ひきなおせる かいすう。turnPing・turnBolster：ターンの はじめ
-export function emblemEffects(ids) {
-  const fx = {};
+//   pack：パックの もんしょう（run.js の openPack）{ colors, rand, unc, leg, banner：旗の ID }
+//   picks：えらんだ もの（{ pBanner: 'AB01' }）
+export function emblemEffects(ids, picks = {}) {
+  const fx = {}, colors = [];
   for (const e of EMBLEMS) {
     if (!ids.includes(e.id)) continue;
+    if (e.fx.packColor) { colors.push(e.fx.packColor); continue; }
     for (const [k, v] of Object.entries(e.fx)) fx[k] = typeof v === 'number' && k[0] !== 'v' ? Math.max(fx[k] || 0, v) : v;
   }
-  if (!Object.keys(fx).length) return null;
+  const banner = fx.banner ? picks.pBanner || BANNERS[0]?.id : null;
+  const pack = colors.length || fx.packRand || fx.packUnc || fx.packLeg || banner ? { colors, rand: !!fx.packRand, unc: fx.packUnc || 0, leg: fx.packLeg || 0, banner } : null;
+  if (!Object.keys(fx).length && !pack) return null;
   return {
     life: (fx.life || 0) + (fx.vLife || 0),
     handSize: 5 + (fx.vHand || 0),
@@ -53,5 +74,6 @@ export function emblemEffects(ids) {
     basicCharge: !!fx.basicCharge,
     startMana: fx.startMana || 0,
     exactLife: fx.exactLife || 0,
+    pack,
   };
 }

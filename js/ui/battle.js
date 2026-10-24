@@ -3,7 +3,7 @@ import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan,
 } from '../engine/game.js';
-import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP } from '../engine/ai.js';
+import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
 import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
@@ -362,12 +362,11 @@ function lifeNeed(s, c) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
-  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : costOf(s, d);
+  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? escapeMin(s, d) : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
   const perm = !isSpell(d);
   const mul = d.xMul || 1;
-  if (from === 'escape' && s.P.gy.length - 1 < d.escape.exile) return { why: `ぼちに ほかの カードが ${d.escape.exile}まい いる（いま ${s.P.gy.length - 1}まい）` };
   if (d.discardCost && from === 'hand' && s.P.hand.length - 1 < d.discardCost) return { why: `ほかに すてる てふだが ${d.discardCost}まい いる` };
   if (d.counter) return { why: 'てきが じゅもんを となえたときに 使う' };
   if (from === 'hand' && d.suspend && !plan(s, cost, req, o) && s.active === 'P' && B.mode === 'main') return { why: 'マナが たりない（たいきなら 使える かも）' };
@@ -400,17 +399,23 @@ async function doCast(c, from = 'hand') {
   if (!ci.ok) return;
   B.busy = true;
   const stop = () => { B.busy = false; render(); };
-  const base = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
+  let base = from === 'gy' ? d.flashback.cost : costOf(s, d);
   const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
   let x = ci.x;
   if (d.x) { x = await numberSheet(`${ruby(info(d).name)}：X を きめる`, { min: 1, max: ci.x, value: 1, note: `コストは ${mul > 1 ? `X × ${mul}` : 'X'} ＋ ${base}${manaNote()}` }); if (x == null) return stop(); }
-  // 脱出：墓地の ほかの カードを 追放する（古い ものから）
+  // 脱出：合計の コストを マナと 墓地の ほかの カードに わける（追放は 古い ものから）。5 ＝ マナ 2 ＋ ぼち 3
+  let escExile;
   if (from === 'escape') {
-    const v = await sheet(`<p>ぼちの ほかの カード ${d.escape.exile}まいを ついほうして、${base}マナで となえる。ぼちは ${s.P.gy.length}まい − ${d.escape.exile + 1}まい ＝ のこり ${s.P.gy.length - d.escape.exile - 1}まい に なる。</p>`, [{ label: 'だっしゅつで となえる', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'だっしゅつ' });
+    const tot = d.escape.total, others = s.P.gy.length - 1;
+    const hi = Math.min(others, tot - 1), lo = Math.max(0, tot - manaCount(s, o));
+    escExile = lo >= hi ? hi : await numberSheet(`${ruby(info(d).name)}：ぼちから ついほうする まいすう`, { min: lo, max: hi, value: hi, note: `だっしゅつの コストは ごうけい ${tot}。${tot} ＝ マナ ＋ ぼちの ほかの カード（マナは 1つ いじょう）。ぼちの ほかの カードは ${others}まい${manaNote()}` });
+    if (escExile == null) return stop();
+    const v = await sheet(`<p>${tot} ＝ マナ ${tot - escExile} ＋ ぼち ${escExile}まい。ぼちの ほかの カード ${escExile}まいを ついほうして、${tot - escExile}マナで となえる。</p>`, [{ label: 'だっしゅつで となえる', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'だっしゅつ' });
     if (!v) return stop();
+    base = tot - escExile;
   }
   // 追加で 手札を 捨てる（稲妻の 斧）
   let drop = [];
@@ -445,7 +450,7 @@ async function doCast(c, from = 'hand') {
   if (!pl) return stop();
   discard(s, drop);
   const run = mode ? mode.run : (d.apply && picks ? () => d.apply(s, api, picks, x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined);
-  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined });
+  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile });
   B.busy = false;
   if (!checkOver()) render();
 }
@@ -732,7 +737,7 @@ async function showGy() {
   for (const c of s.P.gy) if (c.def.escape && B.mode === 'main' && !seen.has(c.def.id)) {
     seen.add(c.def.id);
     const ci = castInfo(c, 'escape');
-    choices.push({ label: `${ruby(info(c.def).name)} を だっしゅつで となえる（${c.def.escape.cost}マナ・ほかの ぼち ${c.def.escape.exile}まい）`, value: { c, from: 'escape' }, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
+    choices.push({ label: `${ruby(info(c.def).name)} を だっしゅつで となえる（ごうけい ${c.def.escape.total} ＝ マナ ＋ ほかの ぼち）`, value: { c, from: 'escape' }, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
   }
   choices.push({ label: 'とじる', value: null });
   const v = await sheet(pileList(s.P.gy), choices, { title: `ぼち（${s.P.gy.length}まい）` });

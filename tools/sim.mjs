@@ -5,7 +5,7 @@
 //   node mathtcg/tools/sim.mjs log RG hydra … 1戦のログ
 //   node mathtcg/tools/sim.mjs pvp     … オンラインバトル：見本デッキどうし（どちらも AI）
 // 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED SETS（パックに 入れる 弾。例 SETS=1 で 第1弾だけ）
-//   EMBLEM（もんしょう。例 EMBLEM=life1,basic1、EMBLEM=all）
+//   EMBLEM（もんしょう。例 EMBLEM=life1,basic1、EMBLEM=all。パックの もんしょうは EMBLEM=cR,cG・pLeg、旗は BANNER=TE01）
 import { BY_ID } from '../js/data/cards.js';
 import { SAMPLE } from '../js/data/samples.js';
 import { pvp } from '../js/data/enemies.js';
@@ -20,10 +20,10 @@ const RESHUFFLE = process.env.RESHUFFLE !== '0';
 const SEED = Number(process.env.SEED ?? 1);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : undefined;
 // もんしょう（12章）：EMBLEM=life1,basic1 など。all で ぜんぶ
-const EM = process.env.EMBLEM ? (process.env.EMBLEM === 'all' ? EMBLEMS.filter((e) => e.branch !== 'leader').map((e) => e.id) : process.env.EMBLEM.split(',')) : [];
+const EM = process.env.EMBLEM ? (process.env.EMBLEM === 'all' ? EMBLEMS.filter((e) => !['leader', 'pack', 'color'].includes(e.branch)).map((e) => e.id) : process.env.EMBLEM.split(',')) : [];
 // PLANE=ravnica で ラヴニカの 塔（docs/RAVNICA.md）
 const PLANE = process.env.PLANE || 'theros';
-const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM), plane: PLANE };
+const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM, { pBanner: process.env.BANNER }), plane: PLANE };
 
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);
 const FLOOR_IDS = PLANE === 'ravnica' ? RAV_SLOTS.flat() : ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];

@@ -674,7 +674,7 @@ const G2 = [
       return { score: 6 + b.score, run: () => duel(s, E, me, b.t) };
     },
   }),
-  cr('G28', 'くいしんぼうの テュポーン', 'C', 'G', 4, 4, 4, ['beast'], [], { escape: { cost: 6, req: ['G'], exile: 4, ctr: 3 } }),
+  cr('G28', 'くいしんぼうの テュポーン', 'C', 'G', 4, 4, 4, ['beast'], [], { escape: { total: 6, req: ['G'], ctr: 3 } }),
   cr('G29', 'ほえる つのの けもの', 'C', 'G', 2, 3, 2, ['beast'], [], { bloodrush: { cost: 1, req: ['G'], p: 3, t: 2 }, singleRun: (s, E, q) => E.pump(q, 3, 2) }),
   sp('G30', '大地（だいち）の 突進（とっしん）', 'C', 'G', 2, 'instant', {
     play: (s, E) => {
@@ -738,8 +738,8 @@ const G2 = [
 
 const R2 = [
   cr('R27', 'ゴブリンの たいこたたき', 'C', 'R', 2, 2, 2, ['goblin', 'warrior'], ['battlecry']),
-  cr('R28', '冥界（めいかい）の 怒（いか）り犬（いぬ）', 'C', 'R', 2, 3, 1, ['elemental', 'dog'], [], { mustAttack: true, escape: { cost: 4, req: ['R'], exile: 3, ctr: 1 } }),
-  sp('R29', 'サテュロスの いたずら', 'C', 'R', 1, 'sorcery', { play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.satyr) }), escape: { cost: 3, req: ['R'], exile: 2 } }),
+  cr('R28', '冥界（めいかい）の 怒（いか）り犬（いぬ）', 'C', 'R', 2, 3, 1, ['elemental', 'dog'], [], { mustAttack: true, escape: { total: 4, req: ['R'], ctr: 1 } }),
+  sp('R29', 'サテュロスの いたずら', 'C', 'R', 1, 'sorcery', { play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.satyr) }), escape: { total: 3, req: ['R'] } }),
   sp('R30', '稲妻（いなずま）の 斧（おの）', 'C', 'R', 1, 'instant', { discardCost: 1, play: burn(5, { creatureOnly: true }) }),
   sp('R31', 'ほのおの サイコロ', 'C', 'R', 2, 'sorcery', {
     play: (s, E) => { const b = E.burnTarget(s, 3, { mustHit: true }); return b ? { score: 4 + b.score * 0.6, run: () => diceBolt(s, E, b.t) } : null; },
@@ -754,11 +754,11 @@ const R2 = [
   }),
   cr('R34', '灰（はい）の フェニックス', 'U', 'R', 3, 2, 2, ['phoenix'], ['flying', 'haste'], {
     acts: [{ cost: 3, req: ['R'], pumpP: 2, when: [], play: () => null }],
-    escape: { cost: 4, req: ['R'], exile: 3, ctr: 2 },
+    escape: { total: 5, req: ['R'], ctr: 2 },
   }),
   cr('R35', 'アゴナスの 雄牛（おうし）', 'R', 'R', 5, 4, 2, ['ox'], [], {
     etb: (s, p, E) => { if (p.side !== 'P') return; E.discard(s, [...s.P.hand]); E.drawCard(s, 3); },
-    escape: { cost: 2, req: ['R'], exile: 8, ctr: 1 },
+    escape: { total: 6, req: ['R'], ctr: 1 },
   }),
   cr('R36', 'ラクドスの 穴（あな）の ドラゴン', 'R', 'R', 4, 3, 3, ['dragon'], ['flying'], { hellbent: true, kwFn: (s, p) => (hb(s, p) ? ['double'] : null) }),
   cr('R37', '金（きん）づかいの ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
@@ -835,7 +835,7 @@ const GOLD3 = [
   cr('RG04', '解（と）き放（はな）たれた ポルクラノス', 'R', 'RG', 4, 0, 0, ['hydra'], [], {
     dmgToCounters: true,
     etb: (s, p, E, o) => E.addCounters(s, p, o.escaped ? 12 : 6),
-    escape: { cost: 6, req: ['R', 'G'], exile: 6 },
+    escape: { total: 7, req: ['R', 'G'] },
     acts: [{
       cost: 3, req: ['R'], when: [1, 2],
       play: (s, p, E) => { const b = E.burnTarget(s, E.power(s, p), { creatureOnly: true }); return b && E.power(s, b.t) < p.ctr ? { score: 4 + b.score, run: () => E.fight(s, p, b.t) } : null; },
@@ -848,7 +848,7 @@ const GOLD3 = [
   cr('GU04', '自然（しぜん）の 怒（いか）りの タイタン ウーロ', 'R', 'GU', 3, 6, 6, ['elder', 'giant'], [], {
     etb: (s, p, E, o) => { uroTrigger(s, p, E); if (!o.escaped) E.leave(s, p, 'gy'); },
     onAttack: (s, p, E) => uroTrigger(s, p, E),
-    escape: { cost: 5, req: ['G', 'U'], exile: 5 },
+    escape: { total: 5, req: ['G', 'U'] },
   }),
 ];
 

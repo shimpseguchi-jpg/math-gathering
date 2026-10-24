@@ -2,7 +2,7 @@
 import { seeded, shuffle, pick } from './rng.js';
 import { newGame, play, colorsOf, COLORS } from './game.js';
 import { AI, ptsOf } from './ai.js';
-import { ALL, ALL_DEV, BASICS, SET_OF, bindEngine } from '../data/cards.js';
+import { ALL, ALL_DEV, BASICS, SET_OF, BY_ID, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
 import { pickRavnica } from '../data/ravnica.js';
 import { api } from './game.js';
@@ -26,14 +26,18 @@ export function packPool(sets) {
 
 // ごほうびパック：クリアした階の数（cleared）だけ 上のレアリティが 少し出やすくなり、favor の色が 出やすくなる
 export const REWARD = { cToU: 0.05, uToR: 0.04, rToL: 0.04, surprise: 0.01, favor: 4 };
-export function packOdds(cleared = 0) {
+// em：パックの もんしょう（emblems.js の pack）。leg：レジェンドが 出やすい（unc は openPack で アンコモンを 1まい 足す）
+export function packOdds(cleared = 0, em = {}) {
   return {
     cToU: REWARD.cToU * cleared, uToR: REWARD.uToR * cleared,
-    rToL: PACK.legendFromRare + REWARD.rToL * cleared, surprise: PACK.legendFromCommon + REWARD.surprise * cleared,
+    rToL: PACK.legendFromRare + REWARD.rToL * cleared + (em.leg || 0), surprise: PACK.legendFromCommon + REWARD.surprise * cleared + (em.leg || 0) / 4,
   };
 }
 // 1パックに レジェンドが 1まい以上 出る かくりつ
-export const legendChance = (cleared = 0) => { const o = packOdds(cleared); return 1 - (1 - o.rToL) * (1 - o.surprise); };
+export const legendChance = (cleared = 0, em = {}) => { const o = packOdds(cleared, em); return 1 - (1 - o.rToL) * (1 - o.surprise); };
+
+// パックに 出る 色（黒は 第3弾から）
+export const packColors = (sets) => { const pool = packPool(sets); return COLORS.filter((c) => Object.values(pool).some((l) => l.some((d) => colorsOf(d).includes(c)))); };
 
 // デッキで いちばん多く 使っている色（きほんカードは のぞく）
 export function favorColor(deck) {
@@ -42,18 +46,22 @@ export function favorColor(deck) {
   return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 }
 
-function pickFavored(rng, list, favor) {
-  if (!favor) return pick(rng, list);
-  const w = list.map((d) => (colorsOf(d).includes(favor) ? REWARD.favor : 1));
+// いろの もんしょう：えらんだ 色 1つにつき 重み ＋2（1色 3ばい、2色とも ある カードは 5ばい）
+export const EMBLEM_COLOR = 2;
+function pickFavored(rng, list, favor, colors = []) {
+  if (!favor && !colors.length) return pick(rng, list);
+  const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length); });
   let r = rng() * w.reduce((t, x) => t + x, 0);
   for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; }
   return list[list.length - 1];
 }
 
+// o.em：パックの もんしょう { colors：出やすい 色, unc, leg }
 export function openPack(rng, o = {}) {
-  const odds = packOdds(o.cleared || 0);
+  const em = o.em || {};
+  const odds = packOdds(o.cleared || 0, em);
   const pool = packPool(o.sets);
-  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor);
+  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || []);
   for (let tries = 0; ; tries++) {
     const cards = [];
     for (let i = 0; i < PACK.C; i++) cards.push(take(rng() < odds.cToU ? 'U' : 'C'));
@@ -61,6 +69,7 @@ export function openPack(rng, o = {}) {
     for (let i = 0; i < PACK.R; i++) cards.push(take(rng() < odds.rToL ? 'L' : 'R'));
     const surprise = rng() < odds.surprise;
     if (surprise) cards[0] = take('L');
+    if (em.unc) cards.push(take(rng() < odds.uToR ? 'R' : 'U')); // アンコモンの もんしょう：9まいめ
     // 1パックに 4色 いじょう（5色の ときも 4色で よい）
     const cols = new Set(cards.flatMap(colorsOf));
     if (cols.size >= 4 || tries >= 20) { cards.surprise = surprise; return cards; }
@@ -120,7 +129,11 @@ export async function fight(deck, floorId, o = {}) {
 export async function runAdventure(o = {}) {
   const rng = seeded(o.seed || 1);
   const pool = [];
-  for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets }));
+  // パックの もんしょう：きまぐれの 色は ぼうけんの はじめに きめる。はじめの 旗は さいしょから もつ
+  const pk = o.emblem?.pack;
+  const em = pk ? { ...pk, colors: [...pk.colors, ...(pk.rand ? [pick(rng, packColors(o.sets))] : [])] } : undefined;
+  if (pk?.banner) pool.push(BY_ID[pk.banner]);
+  for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets, em }));
   let b = buildDeck(pool, o);
   const floors = o.floors || (o.plane === 'ravnica' ? pickRavnica : pickFloors)(rng);
   let continues = o.continues ?? 1;
@@ -136,7 +149,7 @@ export async function runAdventure(o = {}) {
       log.lostAt = i + 1;
       return log;
     }
-    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? { sets: o.sets } : { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets })); b = buildDeck(pool, o); }
+    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? { sets: o.sets, em } : { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, o); }
   }
   log.cleared = true;
   return log;

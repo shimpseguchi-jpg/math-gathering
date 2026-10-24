@@ -1,5 +1,5 @@
 // 冒険の流れ：タイトル → パック開封 → デッキ構築 → 塔 → たたかい → …
-import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance } from '../engine/run.js';
+import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, packColors } from '../engine/run.js';
 import { BY_ID, BASICS } from '../data/cards.js';
 import { pickFloors } from '../data/enemies.js';
 import { RAV_NAMES, pickRavnica } from '../data/ravnica.js';
@@ -74,7 +74,11 @@ export function title() {
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
-    A = { diff, plane, pool: [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
+    // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
+    const pk = activeEffects()?.pack;
+    const cols = packColors(enabledSets());
+    const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
+    A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
     packs();
   };
@@ -101,6 +105,14 @@ function tutorial() {
   });
 }
 
+// パックの もんしょうの せつめい（パックを あける 画面）
+function emblemPackNote(em) {
+  const out = [];
+  if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
+  if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
+  if (em.leg) out.push(`<span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(A.idx, em) * 100)}%</b>（もんしょう）</span>`);
+  return out.join('');
+}
 function resume() { if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
 
 // ---- パック開封（ソシャゲの ガチャ演出） ----
@@ -111,7 +123,12 @@ function packs() {
   // ごほうびパック：登った階が 多いほど レア以上が 出やすく、デッキで いちばん使う色が 出やすい
   const cleared = A.idx;
   const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
-  const cards = openPack(Math.random, { cleared, favor, sets: enabledSets() });
+  // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
+  const pk = activeEffects()?.pack;
+  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0 };
+  const cards = openPack(Math.random, { cleared, favor, sets: enabledSets(), em });
+  // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
+  const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;
   const surprise = !!cards.surprise;
   const ids = cards.map((d) => d.id);
   const owned = new Set(A.pool);
@@ -126,18 +143,18 @@ function packs() {
     if (stage === 'pack') {
       app().innerHTML = `<main class="gacha">${top()}
         <button type="button" class="foil ${st.aura}" data-open="1" aria-label="パックを あける">
-          <span class="foil-shine"></span><span class="foil-title">MATHEMATIC<br>THE GATHERING</span><span class="foil-sub">8まい いり</span>
+          <span class="foil-shine"></span><span class="foil-title">MATHEMATIC<br>THE GATHERING</span><span class="foil-sub">${ids.length}まい いり</span>
         </button>
         <p class="gacha-hint">${best === 'L' ? 'パックが にじいろに 光っている…！？' : 'タップして パックを やぶろう'}</p>
         ${cleared > 0 ? `<div class="bonus"><p class="bonus-title">${cleared}階 クリアの ごほうびパック</p>
-          <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
+          <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared, em) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
           <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
-          ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}</div>` : ''}
+          ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">もんしょうの パック</p>${emblemPackNote(em)}</div>` : ''}
       </main>`;
       return;
     }
     if (stage === 'reveal') {
-      const i = ORDER[k], d = BY_ID[ids[i]];
+      const i = order[k], d = BY_ID[ids[i]];
       const isSurprise = surprise && i === 0;
       const rar = isSurprise && !cracked ? 'C' : d.rar;
       const isNew = !owned.has(ids[i]);
@@ -149,8 +166,8 @@ function packs() {
           ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? '<small>しょうかく！</small>' : ''}LEGEND!!</p>` : ''}
         </div>
         <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${ruby(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
-        <ol class="dots">${ORDER.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
-        <p class="tap-next">${flipped ? `カードを タップで ${k < 7 ? 'つぎへ' : 'まとめへ'}（点線の ことばは 長おしで せつめい）` : ''}</p>
+        <ol class="dots">${order.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
+        <p class="tap-next">${flipped ? `カードを タップで ${k < order.length - 1 ? 'つぎへ' : 'まとめへ'}（点線の ことばは 長おしで せつめい）` : ''}</p>
         <div class="row-btns"><button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
       </main>`;
       return;
@@ -164,7 +181,7 @@ function packs() {
   draw();
 
   let flippedAt = 0;
-  const next = () => { if (k < 7) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); draw(); };
+  const next = () => { if (k < order.length - 1) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); draw(); };
   app().onclick = async (e) => {
     // めくった あとは、音・スキップ 以外の どこを タップしても つぎへ（点線の ことばの 長おしは せつめいが 出て、つぎへは いかない）
     if (stage === 'reveal' && flipped && !e.target.closest('[data-snd], [data-skip]')) {
@@ -181,7 +198,7 @@ function packs() {
     }
     if (b.dataset.skip) { stage = 'sum'; sfx.flip(); return draw(); }
     if (b.dataset.flip) {
-      const i = ORDER[k], d = BY_ID[ids[i]];
+      const i = order[k], d = BY_ID[ids[i]];
       if (surprise && i === 0 && !cracked) { cracked = true; sfx.surprise(); return draw(); } // コモンの はずが…！？
       if ((d.rar === 'R' || d.rar === 'L') && !b.classList.contains('charging')) {
         b.classList.add('charging'); sfx.charge();

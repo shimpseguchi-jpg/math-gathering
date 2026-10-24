@@ -1,8 +1,8 @@
 // もんしょう（REQUIREMENTS 12章）：しゅぎょう（ui/study.js）で ポイントを ためて、スキルツリーから えらぶ。えらんでから 12じかん つづく
 // こうかは ぼうけんの たたかい だけ（app.js の fight → battle.js → game.js の newGame）
-import { EMBLEMS, BRANCHES, EMBLEM_BY_ID, EMBLEM_HOURS, emblemEffects } from '../data/emblems.js';
+import { EMBLEMS, BRANCHES, EMBLEM_BY_ID, EMBLEM_HOURS, BANNERS, emblemEffects } from '../data/emblems.js';
 import { CATS, pointsFor } from '../data/quiz.js';
-import { sheet, esc } from './view.js';
+import { sheet, esc, ruby, info, noRuby } from './view.js';
 import { studyScreen } from './study.js';
 
 const KEY = 'mtg-emblem-v1';
@@ -19,12 +19,14 @@ let M = load();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(M)); } catch { /* 保存できなくても あそべる */ } };
 
 export const activeIds = (now = Date.now()) => EMBLEMS.filter((e) => (M.got[e.id] || 0) > now).map((e) => e.id);
-export const activeEffects = () => emblemEffects(activeIds());
+export const activeEffects = () => emblemEffects(activeIds(), M.pick || {});
 const retPts = (now = Date.now()) => (M.ret && M.ret.until > now ? M.ret.pts : 0);
 export const emblemPoints = () => M.pts + retPts();
 const quizCats = () => (M.cats?.length ? M.cats.filter((c) => CATS[c]) : Object.keys(CATS));
 const LV = (n) => `レベル${n}`; // 1ねんせいは ローマ数字を ならわないので すうじで
 const branchOf = (e) => BRANCHES.find((b) => b.id === e.branch);
+const named = (e) => branchOf(e).one || branchOf(e).named; // レベルでは なく 名前で よぶ もんしょう
+const bannerName = () => { const d = BANNERS.find((x) => x.id === M.pick?.pBanner); return d ? info(d).name : ''; };
 export const leftText = (ms) => { const m = Math.max(1, Math.ceil(ms / 60000)); const h = Math.floor(m / 60); return h ? `${h}じかん${m % 60 ? ` ${m % 60}ふん` : ''}` : `${m}ふん`; };
 
 // しゅぎょうの けっかを のこして、もらった ポイントを かえす
@@ -44,6 +46,8 @@ function why(e, now = Date.now()) {
   if (e.need && !((M.got[e.need] || 0) > now)) return `さきに ${LV(EMBLEM_BY_ID[e.need].lv)}が いる`;
   const other = branchOf(e).one && EMBLEMS.find((x) => x.branch === e.branch && x !== e && (M.got[x.id] || 0) > now);
   if (other) return `ヴァンガードは 1つだけ（いまは ${other.name}。「ふりなおす」で かえられる）`;
+  const max = branchOf(e).max;
+  if (max && EMBLEMS.filter((x) => x.branch === e.branch && (M.got[x.id] || 0) > now).length >= max) return `${branchOf(e).name}は ${max}つまで（「ふりなおす」で かえられる）`;
   const have = M.pts + retPts(now);
   if (have < e.cost) return `ポイントが たりない（あと ${e.cost - have}）`;
   return '';
@@ -61,6 +65,8 @@ export function emblemLine(now = Date.now()) {
   const exact = top('exact'); if (exact) out.push(`✦ ぴったりで ライフ ＋${exact.fx.exactLife}`);
   if (on.has('mull')) out.push('☀ マリガン');
   const v = top('leader'); if (v) out.push(`♛ ${v.name}`);
+  const cols = EMBLEMS.filter((e) => e.branch === 'color' && on.has(e.id)); if (cols.length) out.push(`◆ ${cols.map((e) => e.name).join('と ')}`);
+  for (const e of EMBLEMS.filter((x) => x.branch === 'pack' && on.has(x.id))) out.push(`🎴 ${e.id === 'pBanner' && bannerName() ? `はじめの はた：${noRuby(bannerName())}` : noRuby(e.name)}`);
   return out.join('・');
 }
 
@@ -94,8 +100,8 @@ export function emblemScreen(app, back) {
       const left = (M.got[e.id] || 0) - now;
       const st = left > 0 ? 'on' : why(e, now) ? 'lock' : 'can';
       return `<li><button type="button" class="em-node ${st}" data-id="${e.id}" aria-label="${esc(branchOf(e).name)} ${LV(e.lv)}">
-        <span class="em-lv">${branchOf(e).mark}<b>${branchOf(e).one ? esc(e.name) : LV(e.lv)}</b></span>
-        <span class="em-text">${esc(e.text)}</span>
+        <span class="em-lv">${branchOf(e).mark}<b>${named(e) ? ruby(e.name) : LV(e.lv)}</b></span>
+        <span class="em-text">${esc(e.text)}${e.id === 'pBanner' && left > 0 && bannerName() ? `（${ruby(bannerName())}）` : ''}</span>
         <em>${st === 'on' ? `のこり ${leftText(left)}` : `${e.cost}ポイント`}</em></button></li>`;
     };
     const tries = M.log.slice(0, 5);
@@ -105,7 +111,7 @@ export function emblemScreen(app, back) {
       <p class="em-pts">もんしょうポイント <b>${emblemPoints()}</b>${retPts(now) ? `<small>（ふりなおした ${retPts(now)}ポイントは のこり ${leftText(M.ret.until - now)}で きえる）</small>` : ''}</p>
       <button type="button" class="btn primary em-study" data-study="1">しゅぎょうを する（60びょう）<small>7わりより おおく せいかいで ＋3ポイント</small></button>
       <p class="zk-note">ポイントで もんしょうを えらぶと、${EMBLEM_HOURS}じかん ぼうけんの たたかいで つよく なる（オンライン バトルでは つかえない）。レベル2・3 は まえの レベルが ついて いる ときに えらべる。</p>
-      ${BRANCHES.map((b) => `<section class="em-branch ${b.one ? 'one' : ''}"><h3>${b.mark} ${esc(b.name)}${b.one ? '<small>（1つだけ えらぶ）</small>' : ''}</h3><ol class="em-nodes">${EMBLEMS.filter((e) => e.branch === b.id).map(node).join('')}</ol></section>`).join('')}
+      ${BRANCHES.map((b) => `<section class="em-branch ${b.one || b.named ? 'one' : ''}"><h3>${b.mark} ${esc(b.name)}${b.one ? '<small>（1つだけ えらぶ）</small>' : b.max ? `<small>（${b.max}つまで）</small>` : ''}</h3><ol class="em-nodes">${EMBLEMS.filter((e) => e.branch === b.id).map(node).join('')}</ol></section>`).join('')}
       ${tries.length ? `<h3 class="zk-h">しゅぎょうの きろく</h3><ol class="em-log">${tries.map((r) => `<li><span>${new Date(r.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><b>${r.ok} / ${r.n}</b><em>${r.gain ? `＋${r.gain}ポイント` : '−'}</em></li>`).join('')}</ol>` : ''}
       ${stats.length ? `<h3 class="zk-h">しゅるいごとの せいかい</h3><ul class="qz-break">${stats.map(([k, c]) => `<li><span>${esc(c.name)}</span><b>${M.stat[k][1]} / ${M.stat[k][0]}</b></li>`).join('')}</ul>` : ''}
       ${activeIds(now).length ? '<button type="button" class="btn" data-respec="1">ポイントを ふりなおす<small>ついて いる もんしょうを はずして ポイントを もどす（のこり じかんは そのまま）</small></button>' : ''}
@@ -134,13 +140,22 @@ export function emblemScreen(app, back) {
     if (b.dataset.id) {
       const em = EMBLEM_BY_ID[b.dataset.id];
       const now = Date.now(), left = (M.got[em.id] || 0) - now, w = why(em, now);
-      const head = `<p class="em-big">${branchOf(em).mark} ${esc(branchOf(em).name)} ${branchOf(em).one ? esc(em.name) : LV(em.lv)}</p><p>${esc(em.text)}</p>${em.detail ? `<p class="zk-note">${esc(em.detail)}</p>` : ''}`;
+      const head = `<p class="em-big">${branchOf(em).mark} ${esc(branchOf(em).name)} ${named(em) ? ruby(em.name) : LV(em.lv)}</p><p>${esc(em.text)}</p>${em.detail ? `<p class="zk-note">${esc(em.detail)}</p>` : ''}`;
       if (left > 0) return sheet(`${head}<p>ついて いる。のこり ${leftText(left)}。</p>`, [{ label: 'とじる', value: 0 }]);
       if (w) return sheet(`${head}<p>${esc(w)}</p>`, [{ label: 'とじる', value: 0 }]);
       const have = emblemPoints();
       const v = await sheet(`${head}<p>ポイント ${have} − ${em.cost} ＝ ${have - em.cost} に なる。${retPts(now) ? `ふりなおした ポイントを つかうので、のこり ${leftText(M.ret.until - now)} つづく。` : `${EMBLEM_HOURS}じかん つづく。`}</p>`,
         [{ label: `${em.cost}ポイントで えらぶ`, value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'もんしょうを えらぶ' });
-      if (v && !why(em)) buy(em);
+      if (!v || why(em)) return draw();
+      // はじめの 旗：10まいから 1つ えらぶ
+      if (em.id === 'pBanner') {
+        const pickB = await sheet('<p>ぼうけんの はじめから もつ はたを えらぶ。はたが あると、その 3色の デッキが くめる（はたは 4点）。</p>',
+          [...BANNERS.map((d) => ({ label: ruby(info(d).name), value: d.id, kind: 'primary', note: d.banner.split('').map((c) => ({ W: '白', U: '青', K: '黒', R: '赤', G: '緑' })[c]).join('・') })), { label: 'やめる', value: null }],
+          { title: 'はじめの はたを えらぶ' });
+        if (!pickB) return draw();
+        M.pick = { ...(M.pick || {}), pBanner: pickB };
+      }
+      buy(em);
       draw();
     }
   };
