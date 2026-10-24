@@ -1,81 +1,16 @@
 // カード（第1弾 126種＋第2弾 74種＋きほんカード5種＋トークン）。文章は docs/cards/*.md、ここはルールエンジン用のデータ
 // cost は合計マナ。color は色（2色は 'WG' など）。play / react / trick は AI の使いどころ（シミュレーション用）
-
-const cr = (id, name, rar, color, cost, pow, tou, sub, kw = [], x = {}) => ({ id, name, rar, color, cost, types: ['creature'], pow, tou, sub, kw, ...x });
-const sp = (id, name, rar, color, cost, type, x = {}) => ({ id, name, rar, color, cost, types: [type], kw: [], ...x });
-const pm = (id, name, rar, color, cost, types, x = {}) => ({ id, name, rar, color, cost, types, kw: [], ...x });
-
-// 対象が もう いなければ（ほかの能力で 倒れたなど）、そのときに ねらいなおす
-const hit = (s, E, t, n) => {
-  if (t !== 'face' && !E.onBf(s, t)) { const b = E.burnTarget(s, n, { mustHit: true }); if (!b) return null; t = b.t; }
-  if (t === 'face') E.hitTarget(s, 'face', n, null); else E.damage(s, t, n, null);
-  E.sba(s);
-  return t;
-};
-// 人が遊ぶとき（ctx.human）は、倒せなくても 敵に当てられる
-const burn = (n, o = {}) => (s, E, ctx = {}) => { const b = E.burnTarget(s, n, { ...o, mustHit: !!ctx.human || o.mustHit }); return b ? { score: 6 + b.score, run: () => hit(s, E, b.t, n) } : null; };
-// X のダメージ呪文：いちばん小さい X で倒せる敵、なければ本体に最大の X（工場はちょうど鍵の数）
-const xBurn = (s, E, ctx, bonus, after) => {
-  for (let x = 1; x <= ctx.xMax; x++) {
-    const b = E.burnTarget(s, x + bonus, {});
-    if (b && (b.t !== 'face' || x === ctx.xMax || b.score >= 100)) return { score: 4 + Math.min(b.score, 30), x, run: (xx) => { const t = hit(s, E, b.t, b.score >= 100 ? x + bonus : xx + bonus); if (t && after) after(t); } };
-  }
-  return null;
-};
-// 荒々しい一撃：獰猛なら ＋2/＋2 して 格闘。ぴったりで 倒したら ＋1/＋1カウンター
-const savagePunch = (s, E, me, t) => {
-  E.target(s, me); if (ferocious(s, E)) E.pump(me, 2, 2);
-  E.fight(s, me, t);
-  if (t.exact && E.onBf(s, me)) E.addCounters(s, me, 1);
-};
-// 光の矢の雨：割り振って、ぴったりで 倒した 1体につき 兵士
-const arrowRain = (s, E, plan) => {
-  for (const d of plan) E.damage(s, d.t, d.n, null);
-  E.sba(s);
-  E.token(s, 'P', T.soldier, plan.filter((d) => d.t.exact).length);
-};
-const draw = (n, score) => (s, E, ctx) => ({ score: (score ?? 4 * n) - (ctx.phase === 1 ? 1 : 0), run: () => E.drawCard(s, n) });
-const mine = (s, E) => E.creatures(s, 'P');
-const theirs = (s, E) => E.creatures(s, 'E');
-const isSub = (p, t) => (p.def.sub || []).includes(t);
-const ferocious = (s, E) => mine(s, E).some((p) => E.power(s, p) >= 4);
-const battalion = (atk) => atk.length >= 3;
-// 集団戦術：攻撃している クリーチャーの パワーの 合計が 6 いじょう
-const packTactics = (s, E, atk) => E.totalPower(s, atk.map((a) => a.p).filter((q) => E.onBf(s, q))) >= 6;
-// 激励：対象を ふやせるだけ ふやす（2つめから 1つにつき n マナ）
-const strive = (list, n, ctx) => list.slice(0, Math.max(1, 1 + Math.floor((ctx.manaLeft ?? 0) / n)));
-const single = (p, t, more = {}) => ({ trick: { kind: 'single', p, t, ...more }, singleRun: (s, E, q) => E.pump(q, p, t, more.kw || []) });
-const mass = (p, t, filter) => ({ trick: { kind: 'mass', p, t }, massRun: (s, E) => { for (const q of mine(s, E)) if (!filter || filter(q)) E.pump(q, p, t); } });
-
-// ---- トークン ----
-export const T = {
-  soldier: cr('t_soldier', '兵士（へいし）', null, 'W', 0, 1, 1, ['soldier']),
-  soldierLL: cr('t_soldierLL', '兵士（へいし）', null, 'W', 0, 1, 1, ['soldier'], ['lifelink']),
-  soldierHaste: cr('t_soldierH', '兵士（へいし）', null, 'W', 0, 1, 1, ['soldier'], ['haste']),
-  catSoldier: cr('t_cat', '猫（ねこ）・兵士（へいし）', null, 'W', 0, 1, 1, ['cat', 'soldier'], ['vigilance']),
-  spirit: cr('t_spirit', 'スピリット', null, 'W', 0, 1, 1, ['spirit'], ['flying']),
-  cleric: cr('t_cleric', 'クレリック', null, 'W', 0, 2, 1, ['cleric']),
-  saproling: cr('t_sap', '苗木（なえぎ）', null, 'G', 0, 1, 1, ['saproling']),
-  goblin: cr('t_goblin', 'ゴブリン', null, 'R', 0, 1, 1, ['goblin']),
-  goblinHaste: cr('t_goblinH', 'ゴブリン', null, 'R', 0, 1, 1, ['goblin'], ['haste']),
-  drake: cr('t_drake', 'ドレイク', null, 'U', 0, 2, 2, ['drake'], ['flying']),
-  elemental: cr('t_elem', 'エレメンタル', null, 'R', 0, 1, 1, ['elemental']),
-  myr: { ...cr('t_myr', 'マイア', null, '', 0, 1, 1, ['myr']), types: ['artifact', 'creature'] },
-  wurmDT: { ...cr('t_wurmD', 'ワーム', null, '', 0, 3, 3, ['wurm'], ['deathtouch']), types: ['artifact', 'creature'] },
-  wurmLL: { ...cr('t_wurmL', 'ワーム', null, '', 0, 3, 3, ['wurm'], ['lifelink']), types: ['artifact', 'creature'] },
-  // 第2弾
-  treasure: { ...pm('t_treasure', '宝物（たからもの）', null, '', 0, ['artifact']), treasure: true },
-  wall: { ...cr('t_wall', '壁（かべ）', null, 'W', 0, 0, 4, ['wall'], ['defender']), types: ['artifact', 'creature'] },
-  illusion: cr('t_illusion', 'イリュージョン', null, 'U', 0, 2, 2, ['illusion'], ['flying']),
-  kraken: cr('t_kraken', 'クラーケン', null, 'U', 0, 8, 8, ['kraken']),
-  satyr: cr('t_satyr', 'サテュロス', null, 'R', 0, 1, 1, ['satyr'], [], { cantBlock: true }),
-  pegasus: cr('t_pegasus', 'ペガサス', null, 'W', 0, 2, 2, ['pegasus'], ['flying']),
-  human: cr('t_human', '人間', null, 'W', 0, 1, 1, ['human']),
-  shark: cr('t_shark', 'サメ', null, 'U', 0, 0, 0, ['shark'], ['flying']), // X/X は 出すときに きめる
-  beast: cr('t_beast', 'ビースト', null, 'G', 0, 3, 3, ['beast']),
-};
-// プルフォロスの 介入：X/1 の エレメンタル（ターン終了時に 墓地へ）
-const elemX = (x) => ({ ...cr('t_elemX', 'エレメンタル', null, 'R', 0, x, 1, ['elemental'], ['trample', 'haste']), endStep: (s, p, E) => E.leave(s, p, 'gy') });
+import {
+  cr, sp, pm, hit, burn, xBurn, savagePunch, arrowRain, draw, mine, theirs, isSub, ferocious, battalion, packTactics, strive, single, mass, T, elemX, ROMAN, saga, sagaStep, vanishUpkeep, vanish, hb, bestFreeze, bestIn, RANK, lowestKeep,
+} from './kit.js';
+export { T } from './kit.js';
+import { SKEL, SET_IDS } from './skel.js';
+import { S3, B06 } from './set3.js';
+import { S4 } from './set4.js';
+import { S5 } from './set5.js';
+import { S6 } from './set6.js';
+import { SY } from './alchemy.js';
+import { LESSONS, REG } from './kit.js';
 
 // ---- 緑 ----
 const G = [
@@ -550,39 +485,6 @@ const C = [
 ];
 
 // ======== 第2弾（62種）。文章は docs/cards/set2.md ========
-// 英雄譚：出たときと、自分の ターンの はじめ（手札の 補充の 前）に 伝承カウンターを 1こ 足して、その 章を 起こす。さいごの 章の あと 墓地へ
-// 章 ch = { run(s, E, p, picks), tgt }。picks は 人が えらんだ 対象（ないときは AI が えらぶ）。1章の tgt は 唱える ときに えらぶ
-const ROMAN = ['', 'I', 'II', 'III'];
-const saga = (chs) => ({
-  saga: chs, tgt: chs[0].tgt,
-  etb: (s, p, E, o) => sagaStep(s, p, E, o.chosen),
-  upkeep: (s, p, E) => sagaStep(s, p, E, undefined, true),
-});
-function sagaStep(s, p, E, chosen, upkeep = false) {
-  p.lore = (p.lore || 0) + 1;
-  const ch = p.def.saga[p.lore - 1];
-  E.L(s, `えいゆうたん：${p.def.name} ${ROMAN[p.lore]}`);
-  const finish = () => { if (p.lore >= p.def.saga.length && E.onBf(s, p)) E.leave(s, p, 'gy'); };
-  if (upkeep && s.ai.chapter && p.side === 'P') return Promise.resolve(s.ai.chapter(s, p, ch, ROMAN[p.lore])).then(finish);
-  ch.run(s, E, p, chosen);
-  finish();
-}
-// 消失：時間カウンター n こで 出る。自分の ターンの はじめに 1こ へる。0に なったら 墓地へ
-function vanishUpkeep(s, p, E) {
-  if (!p.time) return;
-  p.time--;
-  E.L(s, `しょうしつ：${p.def.name}（のこり ${p.time}）`);
-  p.def.onTimeRemoved?.(s, p, E);
-  if (p.time <= 0 && E.onBf(s, p)) E.leave(s, p, 'gy', { died: E.isCreature(p) });
-}
-const vanish = (n, x = {}) => ({ vanishing: n, ...x, etb: (s, p, E, o) => { p.time = typeof n === 'function' ? n(s, p, E) : n; x.etb?.(s, p, E, o); }, upkeep: vanishUpkeep });
-const hb = (s, p) => (s[p.side].hand || [1]).length === 0; // 暴勇（手札が 0まい）
-// 敵の クリーチャーで 止めたい もの（攻撃してくる もの・頭）
-const bestFreeze = (s, E) => theirs(s, E).filter((p) => !p.iceBy && !s.floor.untargetable?.(s, p, E) && (p.def.attacks || p.def.headDmg || s.floor.id === 'pvp'))
-  .sort((a, b) => (b.def.headDmg || E.power(s, b)) - (a.def.headDmg || E.power(s, a)))[0];
-const bestIn = (list, f) => list.filter(f).sort((a, b) => b.def.cost - a.def.cost || (RANK[b.def.rar] || 0) - (RANK[a.def.rar] || 0))[0];
-const RANK = { C: 1, U: 2, R: 3, L: 4 };
-const lowestKeep = (s, E) => [...s.P.hand].sort((a, b) => E.keepValue(s, a) - E.keepValue(s, b))[0];
 const divineArrow = (s, E, t) => { const h = hit(s, E, t, 4); if (h && h.exact) E.token(s, 'P', T.soldier); };
 const diceBolt = (s, E, t) => {
   const rolls = [E.rollDie(s)]; if (rolls[0] === 6) rolls.push(E.rollDie(s));
@@ -1007,6 +909,20 @@ export const BASICS = {
   C: sp('B05', '無色（むしょく）の きほんカード', 'B', '', 2, 'sorcery', { basic: true, play: (s, E) => ({ score: 2, run: () => E.drawCard(s) }) }),
 };
 
+// ---- 第3弾から あと：土台（skel.js）に うごき（set3.js など）を かさねる ----
+// kw は 足す（kwSet が あれば おきかえ）。探査は 色の ぶんは はらう
+function build(id, b = {}) {
+  const k = SKEL[id];
+  const d = { ...k, ...b, kw: b.kwSet ?? [...new Set([...(k.kw || []), ...(b.kw || [])])] };
+  delete d.kwSet;
+  if (d.delve && d.costMin == null) d.costMin = [...d.color].length;
+  if ([...d.color].length >= 3) d.req2 = true; // 3色の カードは、3色の うち 2つの マナが いる
+  return d;
+}
+const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY };
+const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
+BASICS.K = build('B06', B06);
+
 // ライブラリーの一番上をマナゾーンに（豊かな成長・カラメトラ・空身像）
 let api_rampTop = () => {};
 export function bindEngine(E) {
@@ -1017,14 +933,28 @@ export function bindEngine(E) {
 
 export const SET1 = [...W, ...U, ...U2, ...G, ...R, ...GOLD1, ...GOLD2, ...C];
 export const SET2 = [...W2, ...U3, ...G2, ...R2, ...GOLD3, ...C2];
-export const ALL = [...SET1, ...SET2];
-export const BY_ID = Object.fromEntries([...ALL, ...Object.values(BASICS)].map((d) => [d.id, d]));
-// 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ
+export const SET3 = setOf(3);
+export const SET4 = setOf(4);
+export const SET5 = setOf(5);
+export const SET6 = setOf(6);
+export const SET7 = setOf(7);
+LESSONS.push(...SET5.filter((d) => isSub({ def: d }, 'lesson')));
+// 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ。released が ない 弾は 開発中（開発モードで えらんだ ときだけ パックに 入る）
 export const SETS = [
-  { id: 1, name: '第1弾（だん）', cards: SET1 },
-  { id: 2, name: '第2弾（だん）「英雄譚（えいゆうたん）の 時代（じだい）」', cards: SET2 },
+  { id: 1, name: '第1弾（だん）', cards: SET1, released: true },
+  { id: 2, name: '第2弾（だん）「英雄譚（えいゆうたん）の 時代（じだい）」', cards: SET2, released: true },
+  { id: 3, name: '第3弾（だん）「冥界（めいかい）の 門（もん）」', cards: SET3 },
+  { id: 4, name: '第4弾（だん）「星（ほし）めぐりの 夜（よる）」', cards: SET4 },
+  { id: 5, name: '第5弾（だん）「大きな 数の 塔（とう）」', cards: SET5 },
+  { id: 6, name: '第6弾（だん）「三つの 旗（はた）」', cards: SET6 },
+  { id: 7, name: 'アルケミー（デジタル 限定（げんてい））', cards: SET7 },
 ];
+// ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない レッスンなどは のぞく）
+export const ALL = SETS.filter((x) => x.released).flatMap((x) => x.cards);
+export const ALL_DEV = SETS.flatMap((x) => x.cards).filter((d) => !d.noPack);
+export const BY_ID = Object.fromEntries([...SETS.flatMap((x) => x.cards), ...Object.values(BASICS)].map((d) => [d.id, d]));
 export const SET_OF = Object.fromEntries(SETS.flatMap((x) => x.cards.map((d) => [d.id, x.id])));
+REG.byId = BY_ID; REG.all = ALL_DEV;
 
 // ---- 人が遊ぶとき：対象を自分で選ぶカード（ui/battle.js が使う） ----
 // tgt：選ぶものの並び。side は E（敵）・P（自分）・any（両方）・atk（攻撃してきた敵）。face は敵の本体も選べる。

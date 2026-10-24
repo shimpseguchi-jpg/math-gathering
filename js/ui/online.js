@@ -39,7 +39,7 @@ function state() {
 }
 const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim(); // 「ゆうかんな ドラゴン」「ほのお ドラゴン」
 // 2色は アーキタイプの よびかた（赤白・青白…）に そろえる
-const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑赤', GU: '青緑' };
+const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑赤', GU: '青緑', KW: '白黒', KU: '青黒', KR: '黒赤', GK: '黒緑' };
 const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
 
 // ---- サーバー ----
@@ -62,7 +62,7 @@ const when = (ms) => new Date(ms).toLocaleString('ja-JP', { timeZone: 'Asia/Toky
 export async function saveGhost(deckDefs, tier) {
   const o = state();
   const d = deckDefs.map((x) => x.id);
-  const pair = [...new Set(deckDefs.flatMap(colorsOf))].sort((a, b) => 'WUGR'.indexOf(a) - 'WUGR'.indexOf(b)).join('');
+  const pair = [...new Set(deckDefs.flatMap(colorsOf))].sort((a, b) => 'WUKRG'.indexOf(a) - 'WUKRG'.indexOf(b)).join('');
   const rec = { d, p: pair, t: tier, s: 0, date: new Date().toISOString().slice(0, 10) };
   const upload = hasServer() ? call('mtgSubmitGhost', { d, t: tier, n: o.name }).then((r) => r.i, () => null) : Promise.resolve(null);
   let keep = true, drop = -1;

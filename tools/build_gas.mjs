@@ -48,7 +48,8 @@ writeFileSync(join(OUT, 'index.html'), html);
 // Code.gs：サーバーが デッキを チェック できるように、カードの 点数と 色を 書きこむ
 const { BY_ID } = await import(join(ROOT, 'js/data/cards.js'));
 const PTS = { C: 1, U: 2, R: 3, L: 4, B: 0 };
-const cards = Object.fromEntries(Object.values(BY_ID).map((d) => [d.id, [PTS[d.rar] ?? 0, [...(d.color || '')].filter((c) => 'WUGR'.includes(c)).join('')]]));
+// [点数, 色, 旗の 3色（旗だけ）]
+const cards = Object.fromEntries(Object.values(BY_ID).map((d) => [d.id, [d.pts ?? PTS[d.rar] ?? 0, [...(d.color || '')].filter((c) => 'WUKGR'.includes(c)).join(''), ...(d.banner ? [d.banner] : [])]]));
 const code = readFileSync(join(ROOT, 'tools/gas_Code.gs'), 'utf8').replace('/*CARDS*/{}', JSON.stringify(cards));
 writeFileSync(join(OUT, 'Code.gs'), code);
 writeFileSync(join(OUT, 'appsscript.json'), JSON.stringify({

@@ -29,28 +29,30 @@ function loadTier_(props, tier) { var v = props.getProperty(key_(tier)); return 
 function saveTier_(props, tier, list) { props.setProperty(key_(tier), JSON.stringify(list)); }
 function deckKey_(id) { return 'deck:' + id; }
 function idOk_(id) { return /^[1-6]-[0-9a-f]{8}$/.test(String(id || '')); }
-// デッキの 2色（W・U・G・R の じゅん）
+// デッキの 色（W・U・K・R・G の じゅん。旗が あれば 3色）
 function pairOf_(d) {
   var has = {};
   d.forEach(function (id) { var c = CARDS[id]; if (c) for (var k = 0; k < c[1].length; k++) has[c[1].charAt(k)] = 1; });
-  return 'WUGR'.split('').filter(function (c) { return has[c]; }).join('');
+  return 'WUKRG'.split('').filter(function (c) { return has[c]; }).join('');
 }
 function tierOf_(id) { var m = /^([1-6])-[0-9a-f]{8}$/.exec(String(id || '')); return m ? Number(m[1]) : 0; }
 
-// デッキが ルールどおりか（20まい・30点まで・2色まで。きほんカードは 0点）
+// デッキが ルールどおりか（20まい・30点まで・2色まで。旗が あれば その 3色まで。きほんカードは 0点）
 function checkDeck_(d) {
   if (!Array.isArray(d) || d.length !== DECK_SIZE) throw new Error('デッキは 20まい');
-  var pts = 0, colors = {}, count = {};
+  var pts = 0, colors = {}, count = {}, banner = null;
   for (var i = 0; i < d.length; i++) {
     var c = CARDS[d[i]];
     if (!c) throw new Error('しらない カード');
     pts += c[0];
+    if (c[2]) banner = c[2];
     for (var k = 0; k < c[1].length; k++) colors[c[1].charAt(k)] = 1;
     count[d[i]] = (count[d[i]] || 0) + 1;
     if (c[0] > 0 && count[d[i]] > 8) throw new Error('おなじ カードが おおすぎる');
   }
   if (pts > CAPACITY) throw new Error('点数が おおすぎる');
-  if (Object.keys(colors).length > 2) throw new Error('色が おおすぎる');
+  var cs = Object.keys(colors);
+  if (cs.length > 2 && !(banner && cs.length <= 3 && cs.every(function (k) { return banner.indexOf(k) >= 0; }))) throw new Error('色が おおすぎる');
   return d.map(String);
 }
 function checkName_(n) {
@@ -135,7 +137,7 @@ function mtgResult(q) {
     var id = String(q.i || '');
     if (!idOk_(id)) return { s: null };
     var v = props.getProperty(deckKey_(id));
-    var rec = v ? JSON.parse(v) : { s: 0, p: String(q.p || '').replace(/[^WUGR]/g, '').slice(0, 2) };
+    var rec = v ? JSON.parse(v) : { s: 0, p: String(q.p || '').replace(/[^WUKGR]/g, '').slice(0, 3) };
     rec.s = Math.max(0, Math.min(99999, rec.s + POINTS[res]));
     rec.n = checkName_(q.n);
     rec.u = Date.now();

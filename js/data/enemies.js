@@ -549,7 +549,7 @@ export function clock() {
       });
       if (exact) return exact;
       // とどかない ときは すすめておく：敵の ターンに 1 すすんだ あとの のこりが、いまの クリーチャーで 作れる 数に なるように（12は こえない）
-      const can = sumsOf(E.creatures(s, 'P').filter((p) => !E.hasKw(s, p, 'defender') && !p.def.cantAttack).map((p) => Math.max(0, E.power(s, p))));
+      const can = sumsOf(E.creatures(s, 'P').filter((p) => !E.hasKw(s, p, 'defender') && !E.cant(s, p, 'cantAttack')).map((p) => Math.max(0, E.power(s, p))));
       let best = null;
       eachSubset(list, (toC) => {
         const a = sumPow(s, E, toC);

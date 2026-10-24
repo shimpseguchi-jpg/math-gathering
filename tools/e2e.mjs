@@ -1,6 +1,6 @@
 // ブラウザで ロボットが 冒険を 最後まで あそぶ 通しテスト（Playwright）
 //   npx http-server -p 8124 -c-1 . &  →  node mathtcg/tools/e2e.mjs
-// 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS
+// 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）
 import { chromium } from 'playwright';
 const url = process.env.URL || 'http://localhost:8124/mathtcg/';
 const out = process.env.OUT || (await import('os')).tmpdir();
@@ -11,7 +11,8 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(url);
-await page.evaluate(() => localStorage.clear());
+const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
+await page.evaluate((sets) => { localStorage.clear(); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); }, SETS);
 await page.reload();
 const shots = new Set();
 async function swipe(from, to) {
@@ -27,11 +28,11 @@ await shot('title');
 // START=0〜4 で、その階から はじめる（7パックぶんの カードを 持った セーブを つくる）。FLOOR3=factory|slime|twins
 // FLOORS=clock,dragon,twins,gorgon,erebos のように 5つの 階を ぜんぶ きめても よい
 if (process.env.START) {
-  await page.evaluate(async ([start, f3, floors]) => {
+  await page.evaluate(async ([start, f3, floors, sets]) => {
     const { openPack } = await import('./js/engine/run.js');
-    const pool = []; for (let i = 0; i < 7; i++) pool.push(...openPack(Math.random).map((d) => d.id));
+    const pool = []; for (let i = 0; i < 7; i++) pool.push(...openPack(Math.random, { sets: sets || undefined }).map((d) => d.id));
     localStorage.setItem('mtg-adventure-v1', JSON.stringify({ diff: 'easy', pool, deck: null, floors: floors ? floors.split(',') : ['hydra', 'horde', f3, 'xenagos', 'erebos'], idx: start, continues: 9, toOpen: 0, opened: 7, exact: 0 }));
-  }, [Number(process.env.START), process.env.FLOOR3 || 'factory', process.env.FLOORS || '']);
+  }, [Number(process.env.START), process.env.FLOOR3 || 'factory', process.env.FLOORS || '', SETS]);
   await page.reload();
   await page.click('[data-go=cont]');
 } else await page.click('[data-go=new]');

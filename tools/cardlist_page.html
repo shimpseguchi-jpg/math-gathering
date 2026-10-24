@@ -70,6 +70,7 @@ main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; ga
 .card { --c1: var(--C); --c2: var(--c1); --c3: var(--c2); background: var(--face); border: 1px solid color-mix(in srgb, var(--c1) 45%, var(--line)); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 .card.c-W { --c1: var(--W); } .card.c-U { --c1: var(--U); } .card.c-K { --c1: var(--K); } .card.c-G { --c1: var(--G); } .card.c-R { --c1: var(--R); }
 .card.draft { border-style: dashed; }
+.card.dev { box-shadow: inset 0 0 0 2px rgba(255, 179, 0, 0.55); }
 .card-head { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px 7px; background: linear-gradient(90deg, color-mix(in srgb, var(--c1) var(--head-mix), var(--face)), color-mix(in srgb, var(--c2) var(--head-mix), var(--face))); }
 .card.tri .card-head { background: linear-gradient(90deg, color-mix(in srgb, var(--c1) var(--head-mix), var(--face)), color-mix(in srgb, var(--c2) var(--head-mix), var(--face)), color-mix(in srgb, var(--c3) var(--head-mix), var(--face))); }
 .cost { flex: none; display: inline-flex; align-items: center; gap: 2px; min-width: 30px; height: 28px; padding: 0 7px; border-radius: 999px; background: var(--bg); color: var(--ink); font-family: var(--display); font-size: 15px; justify-content: center; font-variant-numeric: tabular-nums; }
@@ -90,6 +91,7 @@ main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; ga
 .set { border-radius: 4px; padding: 0 6px; border: 1px solid var(--line); }
 .set.s2 { border-color: var(--gold); color: var(--gold); }
 .set.draft { border-style: dashed; }
+.set.dev { background: #fff3cd; }
 .set-title { font-family: var(--body); font-weight: 700; font-size: 14px; color: var(--ink-dim); margin: 6px 0 -4px; letter-spacing: 0.04em; }
 .motif { margin-left: auto; font-style: italic; text-align: right; }
 .empty { color: var(--ink-dim); border: 1px dashed var(--line); border-radius: 12px; padding: 24px; text-align: center; }
@@ -109,9 +111,9 @@ main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; ga
     <nav class="tabs" id="tabs" role="tablist" aria-label="色"></nav>
     <div class="filters">
       <label><span class="flab">弾</span><select class="sel" id="f-set">
-        <option value="all">すべて</option><option value="play">遊べる（第1・2弾）</option><option value="draft">案（第3弾から）</option>
-        <option value="1">第1弾</option><option value="2">第2弾</option><option value="3">第3弾（案）</option><option value="4">第4弾（案）</option>
-        <option value="5">第5弾（案）</option><option value="6">第6弾（案）</option><option value="A">アルケミー（案）</option><option value="P">プロモ（案）</option>
+        <option value="all">すべて</option><option value="play">遊べる（第1・2弾）</option><option value="dev">開発中（第3弾から・開発モード）</option><option value="draft">案（プロモ）</option>
+        <option value="1">第1弾</option><option value="2">第2弾</option><option value="3">第3弾（開発中）</option><option value="4">第4弾（開発中）</option>
+        <option value="5">第5弾（開発中）</option><option value="6">第6弾（開発中）</option><option value="A">アルケミー（開発中）</option><option value="P">プロモ（案）</option>
       </select></label>
       <span><span class="flab">レア</span><span class="seg" id="f-rar"><button type="button" data-v="C" aria-pressed="true">C</button><button type="button" data-v="U" aria-pressed="true">U</button><button type="button" data-v="R" aria-pressed="true">R</button><button type="button" data-v="L" aria-pressed="true">L</button><button type="button" data-v="P" aria-pressed="true" title="プロモ">P</button></span></span>
       <input class="search" id="q" type="search" placeholder="なまえ・ことばで さがす（例：ぴったり、飛行）" aria-label="さがす">
@@ -122,7 +124,7 @@ main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; ga
   <div class="wrap">
     <p class="count" id="count"></p>
     <div id="list"></div>
-    <p class="note">コスト：「4」と 色の 丸 ＝ 合計 4マナ、うち その色を 最低 1つ（丸が 2つなら どちらかの 色、3つなら そのうち 2つの 色）。「X＋1」は X ＋ 1マナ、「XX」は X を 2回。レア：C 1点・U 2点・R 3点・L 4点・プロモ 2点（デッキは 20まい・30点まで・2色まで）。点線の わくは <b>案</b>（まだ ゲームでは 遊べない カード）。</p>
+    <p class="note">コスト：「4」と 色の 丸 ＝ 合計 4マナ、うち その色を 最低 1つ（丸が 2つなら どちらかの 色、3つなら そのうち 2つの 色）。「X＋1」は X ＋ 1マナ、「XX」は X を 2回。レア：C 1点・U 2点・R 3点・L 4点・プロモ 2点（デッキは 20まい・30点まで・2色まで）。オレンジの ふちは <b>開発中</b>（タイトルの「せってい」で えらぶと 開発モードで 遊べる）、点線の わくは <b>案</b>（まだ ゲームでは 遊べない カード）。</p>
   </div>
 </main>
 
@@ -140,7 +142,7 @@ const TRIS = [
   ['AB', 'アブザン', 'W', 'K', 'G'], ['JE', 'ジェスカイ', 'U', 'R', 'W'], ['SU', 'スゥルタイ', 'K', 'G', 'U'], ['MA', 'マルドゥ', 'R', 'W', 'K'], ['TE', 'ティムール', 'G', 'U', 'R'],
   ['BA', 'バント', 'G', 'W', 'U'], ['ES', 'エスパー', 'W', 'U', 'K'], ['GX', 'グリクシス', 'U', 'K', 'R'], ['JU', 'ジャンド', 'K', 'R', 'G'], ['NA', 'ナヤ', 'R', 'G', 'W'],
 ];
-const SETS = [['1', '第1弾'], ['2', '第2弾'], ['3', '第3弾（案）'], ['4', '第4弾（案）'], ['5', '第5弾（案）'], ['6', '第6弾（案）'], ['A', 'アルケミー（案）'], ['P', 'プロモ（案）']];
+const SETS = [['1', '第1弾'], ['2', '第2弾'], ['3', '第3弾（開発中）'], ['4', '第4弾（開発中）'], ['5', '第5弾（開発中）'], ['6', '第6弾（開発中）'], ['A', 'アルケミー（開発中）'], ['P', 'プロモ（案）']];
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* なくても うごく */ } } };
 const st = { tab: 'W', set: 'all', rars: new Set(['C', 'U', 'R', 'L', 'P']), q: '' };
 const hash = location.hash.slice(1);
@@ -150,10 +152,10 @@ if ([...document.querySelectorAll('#f-set option')].some((o) => o.value === stor
 
 const $ = (id) => document.getElementById(id);
 const inTab = (c, k) => (k === 'gold' ? PAIRS.some((p) => p[0] === c.group) : k === 'tri' ? TRIS.some((t) => t[0] === c.group) : c.group === k);
-const nDraft = DATA.cards.filter((c) => c.draft).length;
-$('total').textContent = `${DATA.cards.length - nDraft}種 ＋ 案 ${nDraft}種`;
+const nDraft = DATA.cards.filter((c) => c.draft).length, nDev = DATA.cards.filter((c) => c.dev).length;
+$('total').textContent = `${DATA.cards.length - nDraft - nDev}種 ＋ 開発中 ${nDev}種 ＋ 案 ${nDraft}種`;
 $('f-set').value = st.set;
-const setOk = (c) => st.set === 'all' || (st.set === 'play' ? !c.draft : st.set === 'draft' ? c.draft : c.set === st.set);
+const setOk = (c) => st.set === 'all' || (st.set === 'play' ? !c.draft && !c.dev : st.set === 'dev' ? c.dev : st.set === 'draft' ? c.draft : c.set === st.set);
 
 function tabsHtml() {
   return TABS.map((t) => {
@@ -167,9 +169,9 @@ const goldStyle = (c) => {
   if (t) return ` style="--c1: var(--${t[2]}); --c2: var(--${t[3]}); --c3: var(--${t[4]})"`;
   return p ? ` style="--c1: var(--${p[2]}); --c2: var(--${p[3]})"` : '';
 };
-const setTag = (c) => `<span class="set s${c.set}${c.draft ? ' draft' : ''}">${c.setLabel}${c.extra ? `・${c.extra}` : ''}${c.draft ? '（案）' : ''}</span>`;
+const setTag = (c) => `<span class="set s${c.set}${c.draft ? ' draft' : ''}${c.dev ? ' dev' : ''}">${c.setLabel}${c.extra ? `・${c.extra}` : ''}${c.draft ? '（案）' : c.dev ? '（開発中）' : ''}</span>`;
 function cardHtml(c) {
-  return `<article class="card ${colorClass(c)}${c.draft ? ' draft' : ''}"${goldStyle(c)}>
+  return `<article class="card ${colorClass(c)}${c.draft ? ' draft' : ''}${c.dev ? ' dev' : ''}"${goldStyle(c)}>
     <div class="card-head"><span class="cost">${c.cost}</span><h3 class="name">${c.name}</h3>${c.rar ? `<span class="rar r-${c.rar}" title="${c.rarName}">${c.rar}</span>` : ''}</div>
     <div class="card-body">
       <p class="type"><span>${c.type}</span>${c.pt && c.pt !== '−' ? `<span class="pt">${c.pt}</span>` : ''}</p>
@@ -181,9 +183,9 @@ function cardHtml(c) {
 }
 function tokenHtml(t) {
   const g = { 白: 'W', 青: 'U', 黒: 'K', 緑: 'G', 赤: 'R' }[t.color] || 'C';
-  return `<article class="card c-${g}${t.draft ? ' draft' : ''}">
+  return `<article class="card c-${g}${t.draft ? ' draft' : ''}${t.dev ? ' dev' : ''}">
     <div class="card-head"><h3 class="name">${t.name}</h3></div>
-    <div class="card-body"><p class="type"><span>トークン（${t.color}）${t.draft ? '・案' : ''}</span>${t.pt && t.pt !== '−' ? `<span class="pt">${t.pt}</span>` : ''}</p>${t.text && t.text !== '−' ? `<p class="text">${t.text}</p>` : ''}</div>
+    <div class="card-body"><p class="type"><span>トークン（${t.color}）${t.draft ? '・案' : t.dev ? '・開発中' : ''}</span>${t.pt && t.pt !== '−' ? `<span class="pt">${t.pt}</span>` : ''}</p>${t.text && t.text !== '−' ? `<p class="text">${t.text}</p>` : ''}</div>
     <div class="card-foot"><span>出す カード：${t.from}</span></div>
   </article>`;
 }
@@ -216,7 +218,7 @@ function render() {
     if (!list.length) html = '<p class="empty">あてはまる カードが ない。しぼりこみを ゆるめてね。</p>';
   }
   $('list').innerHTML = html;
-  $('count').textContent = isCards ? `${all}まい中 ${shown}まい・弾ごとに コストの 小さい じゅん` : `${all}しゅるい（点線は 案）`;
+  $('count').textContent = isCards ? `${all}まい中 ${shown}まい・弾ごとに コストの 小さい じゅん` : `${all}しゅるい（オレンジの ふちは 開発中、点線は 案）`;
 }
 $('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-k]'); if (!b) return;

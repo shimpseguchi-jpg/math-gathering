@@ -13,7 +13,7 @@
   --bad: #ff7a69;
   --paper: #f7f2e3;
   --paper-ink: #1f2433;
-  --W: #e7d9ad; --U: #5f9fe2; --G: #4fae6b; --R: #e0624a; --C: #a9aec0;
+  --W: #e7d9ad; --U: #5f9fe2; --K: #6b5c86; --G: #4fae6b; --R: #e0624a; --C: #a9aec0;
   --enemy: #3b1c33; --enemy-2: #5a2846; --enemy-ink: #f7e6ef;
   --display: 'Dela Gothic One', 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
   --body: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
@@ -72,14 +72,22 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .st-sets small { font-weight: 500; font-size: 12px; color: var(--ink-dim); }
 .st-sets .planned label { border-style: dashed; opacity: 0.55; cursor: default; }
 .st-pool { margin: 0; font-size: 13px; }
+.st-dev { font-style: normal; color: var(--bad); font-weight: 700; }
+.hand-slot { position: relative; }
+.adv-done { position: absolute; left: 4px; right: 4px; bottom: 4px; border-radius: 6px; background: var(--gold); color: var(--gold-ink); font-size: 9px; font-weight: 700; text-align: center; line-height: 1.5; pointer-events: none; }
 .st-pool b { color: var(--gold); }
 
 /* ---- カード ---- */
 .card { --band: var(--C); position: relative; box-sizing: border-box; width: 100%; aspect-ratio: 5 / 7; max-width: 100%; border-radius: 9px; background: var(--paper); color: var(--paper-ink); border: 0; border-top: 7px solid var(--band); padding: 4px 5px 5px; display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: hidden; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); font-size: 11px; line-height: 1.25; }
-.c-W { --band: var(--W); } .c-U { --band: var(--U); } .c-G { --band: var(--G); } .c-R { --band: var(--R); } .c-C { --band: var(--C); }
+.c-W { --band: var(--W); } .c-U { --band: var(--U); } .c-K { --band: var(--K); } .c-G { --band: var(--G); } .c-R { --band: var(--R); } .c-C { --band: var(--C); }
 .c-gold { border-top: 7px solid transparent; background: linear-gradient(var(--paper), var(--paper)) padding-box, linear-gradient(90deg, var(--a), var(--b)) border-box; }
 .c-WU { --a: var(--W); --b: var(--U); } .c-WG { --a: var(--W); --b: var(--G); } .c-RW { --a: var(--R); --b: var(--W); }
 .c-UR { --a: var(--U); --b: var(--R); } .c-RG { --a: var(--R); --b: var(--G); } .c-GU { --a: var(--G); --b: var(--U); }
+/* 黒の 2色・3色（ca-/cb-/cc- は 1色めから じゅんに） */
+.ca-W { --a: var(--W); } .ca-U { --a: var(--U); } .ca-K { --a: var(--K); } .ca-G { --a: var(--G); } .ca-R { --a: var(--R); }
+.cb-W { --b: var(--W); } .cb-U { --b: var(--U); } .cb-K { --b: var(--K); } .cb-G { --b: var(--G); } .cb-R { --b: var(--R); }
+.cc-W { --c3: var(--W); } .cc-U { --c3: var(--U); } .cc-K { --c3: var(--K); } .cc-G { --c3: var(--G); } .cc-R { --c3: var(--R); }
+.c-gold.c-tri { background: linear-gradient(var(--paper), var(--paper)) padding-box, linear-gradient(90deg, var(--a), var(--b), var(--c3)) border-box; }
 .c-E { background: linear-gradient(160deg, var(--enemy-2), var(--enemy)); color: var(--enemy-ink); --band: #8e3b67; }
 .card-top { display: flex; justify-content: space-between; align-items: center; gap: 2px; min-height: 18px; }
 .cost { min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; background: var(--paper-ink); color: var(--paper); font-weight: 700; font-size: 11px; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums; }
@@ -193,7 +201,7 @@ span.pile { cursor: default; }
 .pile.low small { font-size: 10px; opacity: 0.85; }
 .mana b { font-size: 16px; }
 .pip { font-style: normal; font-size: 11px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: inline-grid; place-items: center; padding: 0 3px; color: var(--paper-ink); }
-.m-W { background: var(--W); } .m-U { background: var(--U); } .m-G { background: var(--G); } .m-R { background: var(--R); } .m-C { background: var(--C); }
+.m-W { background: var(--W); } .m-U { background: var(--U); } .m-K { background: var(--K); color: #fff; } .m-G { background: var(--G); } .m-R { background: var(--R); } .m-C { background: var(--C); }
 .hand { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 8px; scroll-snap-type: x proximity; }
 .hand-slot { flex: 0 0 82px; border: 0; padding: 0; background: none; cursor: pointer; scroll-snap-align: start; }
 .actions { position: sticky; bottom: 0; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding-block: 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--table); border-top: 1px solid var(--line); }
@@ -286,8 +294,8 @@ span.pile { cursor: default; }
 .gyc.none b { background: none; color: var(--ink-dim); }
 .foe .gyc { width: 34px; }
 .gyc.b1-E { background: linear-gradient(var(--enemy-2), var(--enemy-2)) top / 100% 6px no-repeat, var(--enemy); color: var(--enemy-ink); }
-.b1-W { --b1: var(--W); } .b1-U { --b1: var(--U); } .b1-G { --b1: var(--G); } .b1-R { --b1: var(--R); } .b1-C { --b1: var(--C); }
-.b2-W { --b2: var(--W); } .b2-U { --b2: var(--U); } .b2-G { --b2: var(--G); } .b2-R { --b2: var(--R); } .b2-C { --b2: var(--C); }
+.b1-W { --b1: var(--W); } .b1-U { --b1: var(--U); } .b1-K { --b1: var(--K); } .b1-G { --b1: var(--G); } .b1-R { --b1: var(--R); } .b1-C { --b1: var(--C); }
+.b2-W { --b2: var(--W); } .b2-U { --b2: var(--U); } .b2-K { --b2: var(--K); } .b2-G { --b2: var(--G); } .b2-R { --b2: var(--R); } .b2-C { --b2: var(--C); }
 /* じぶんの 卓：ライフ・マナ・やまふだ・ぼち */
 .me-bar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 8px; }
 .life { display: grid; place-items: center; align-content: center; width: 54px; height: 54px; border-radius: 50%; line-height: 1; color: #fff; border: 2px solid var(--good); background: radial-gradient(circle at 35% 30%, #2f8f5c, #17462f); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4); }

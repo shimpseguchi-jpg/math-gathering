@@ -66,7 +66,7 @@ const kwChip = (k) => {
   return `<span ${KW_TERM[k] ? `data-term="${esc(KW_TERM[k])}"` : ''}>${yomi && /[一-龯]/.test(k) ? ruby(`${k}（${yomi}）`) : esc(k)}</span>`;
 };
 
-export const COLOR_NAME = { W: '白', U: '青', G: '緑', R: '赤' };
+export const COLOR_NAME = { W: '白', U: '青', K: '黒', G: '緑', R: '赤' };
 const KW = {
   flying: '飛行', reach: '到達', haste: '速攻', vigilance: '警戒', first: '先制攻撃', double: '二段攻撃', trample: 'トランプル',
   defender: '防衛', lifelink: '絆魂', deathtouch: '接死', flash: '瞬速', indestructible: '破壊不能', convoke: '召集', prowess: '果敢', evolve: '進化',
@@ -85,19 +85,20 @@ export function info(def) {
 export function colorClass(def, enemy = false) {
   if (enemy) return 'c-E';
   const c = colorsOf(def);
-  if (c.length === 2) return `c-gold c-${c[0]}${c[1]}`;
+  if (c.length === 3) return `c-gold c-tri ca-${c[0]} cb-${c[1]} cc-${c[2]}`;
+  if (c.length === 2) return `c-gold c-${c[0]}${c[1]} ca-${c[0]} cb-${c[1]}`;
   return c.length ? `c-${c[0]}` : 'c-C';
 }
 
 // カードの ならべかた（デッキ構築・やまふだ・ぼち）：色（白・青・緑・赤・2色・無色）→ コスト → ID。きほんカードは さいご
-const COLOR_ORDER = ['W', 'U', 'G', 'R'];
-const colorKey = (d) => { const c = colorsOf(d); return c.length === 0 ? 9 : c.length === 2 ? 5 + COLOR_ORDER.indexOf(c[0]) / 10 : COLOR_ORDER.indexOf(c[0]); };
+const COLOR_ORDER = ['W', 'U', 'K', 'R', 'G'];
+const colorKey = (d) => { const c = colorsOf(d); return c.length === 0 ? 9 : c.length >= 2 ? 5 + c.length + COLOR_ORDER.indexOf(c[0]) / 10 : COLOR_ORDER.indexOf(c[0]); };
 export const byColorCost = (a, b) => !!a.basic - !!b.basic || colorKey(a) - colorKey(b) || (a.cost ?? 0) - (b.cost ?? 0) || String(a.id ?? a.name).localeCompare(String(b.id ?? b.name));
 
 // もとの P/T。数で ない もの（ダクソスの タフネス＝白の パーマネントの 数 など）は ＊
 const basePT = (def) => [def.pow, def.tou].map((v) => (typeof v === 'number' ? v : '＊')).join('/');
 
-const costLabel = (def) => (def.x ? `X+${def.cost}` : String(def.cost ?? 0));
+const costLabel = (def) => (def.x ? `${def.xMul > 1 ? def.xMul : ''}X+${def.cost}` : String(def.cost ?? 0));
 
 // 手札・プールのカード（def だけ）
 export function cardFace(def, o = {}) {
@@ -112,10 +113,11 @@ export function cardFace(def, o = {}) {
   </div>`;
 }
 
-// 色の マーク（MTG の マナ記号の ように）：白＝太陽・青＝しずく・緑＝木・赤＝ほのお・無色＝ひし形
+// 色の マーク（MTG の マナ記号の ように）：白＝太陽・青＝しずく・黒＝月・緑＝木・赤＝ほのお・無色＝ひし形
 const EMBLEM = {
   W: '<circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   U: '<path d="M12 2.5C9 7 6 10.5 6 14.5a6 6 0 0 0 12 0C18 10.5 15 7 12 2.5z"/>',
+  K: '<path d="M15.5 2.5a9.5 9.5 0 1 0 6 16.8A8 8 0 0 1 15.5 2.5z"/>',
   G: '<path d="M12 2a6 6 0 0 0-5.6 8.2A5 5 0 0 0 9 19.5h2V22h2v-2.5h2a5 5 0 0 0 2.6-9.3A6 6 0 0 0 12 2z"/>',
   R: '<path d="M13 2c.5 3.5-2 5-3.5 7S7 12.5 7 15a5 5 0 0 0 10 0c0-2-1-3.5-2-4.5.2 1.6-.4 2.7-1.4 3.2.6-3.4-.2-7.6-.6-11.7z"/>',
   C: '<path d="M12 2l8 10-8 10-8-10z"/>',

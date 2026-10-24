@@ -6,7 +6,7 @@
 - 遊ぶ：`mathtcg/index.html` をブラウザで開く（HTTPS か `npx http-server -p 8124 -c-1 .` などで配信。ファイルを直接開くと動かない）
 - スマホの縦向きが基準。iPad・PC でも動く
 - 冒険の途中（たたかいの合間）はブラウザに自動で保存され、「つづきから」で再開できる
-- WEB版は **開発モード**：タイトルの「せってい」で、パックに 入る 弾（第1弾・第2弾）を えらべる（`js/ui/settings.js` の `DEV`）
+- WEB版は **開発モード**：タイトルの「せってい」で、パックに 入る 弾を えらべる（`js/ui/settings.js` の `DEV`）。第1弾・第2弾の ほかに、開発中の 第3弾〜第6弾・アルケミー（325種）も えらべる（[`docs/ROADMAP.md`](docs/ROADMAP.md) 6章）
 
 ## つくり
 
@@ -24,6 +24,7 @@ js/ui/sfx.js        効果音（WebAudio で合成）
 js/ui/glossary.js   ことばの せつめい（キーワード能力・用語 約65）
 js/engine/          ルール（game.js）・シミュレーション用AI（ai.js）・冒険（run.js）
 js/data/            カード（cards.js）・敵（enemies.js）・カードの文章（texts.js：docs から自動生成）
+                    第3弾から：土台（skel.js：docs から自動生成）・うごき（set3.js〜set6.js・alchemy.js）・道具（kit.js）
 docs/               要件定義・カードリスト・敵・シミュレーションの結果
 tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・kanji_drafts.mjs（案の カード表の ふりがな）・gen_texts.py・check_cards.py・packsim.py
 ```

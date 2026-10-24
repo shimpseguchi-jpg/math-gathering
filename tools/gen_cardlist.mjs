@@ -2,7 +2,7 @@
 // つかいかた：node mathtcg/tools/gen_cardlist.mjs   → mathtcg/docs/CARDLIST.md
 //             node mathtcg/tools/gen_cardlist.mjs --html=<ファイル>   → 色ごとに 見る ウェブページ（カードずかん）も 書く
 // 文章は docs/cards/*.md の表から（gen_texts.py と おなじ）。どの弾かは js/data/cards.js の SET2 で きめる
-// ウェブページには、まだ データに なって いない 案（第3弾〜第6弾・アルケミー・プロモ）も「案」として 入れる
+// ウェブページには、開発中の 弾（第3弾〜第6弾・アルケミー。開発モードで 遊べる）と、まだ 案の プロモも 入れる
 import { readFileSync, readdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -125,10 +125,11 @@ console.log(`docs/CARDLIST.md：${all.length}種 ＋ きほん ${basics.length} 
 // ---- ウェブページ（tools/cardlist_page.html に データを 入れる）----
 const htmlArg = process.argv.find((a) => a.startsWith('--html='));
 if (htmlArg) {
-  // 案の 弾（まだ データに なって いない）。B06 は 第3弾の 黒の きほんカード、LS は 第5弾の レッスン、YT は アルケミーの 創出だけの カード
+  // 開発中の 弾（開発モードで 遊べる）と 案（プロモ）。B06 は 第3弾の 黒の きほんカード、LS は 第5弾の レッスン、YT は アルケミーの 創出だけの カード
   const DRAFTS = [['SET3.md', '3'], ['SET4.md', '4'], ['SET5.md', '5'], ['SET6.md', '6'], ['ALCHEMY.md', 'A'], ['PROMO.md', 'P']];
   const SET_LABEL = { 1: '第1弾', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: '第6弾', A: 'アルケミー', P: 'プロモ' };
   const draftSet = {}, drafts = {};
+  const DEV = new Set(['3', '4', '5', '6', 'A']);
   for (const [f, k] of DRAFTS) {
     const got = {};
     readTables(join(ROOT, 'docs', f), got);
@@ -164,7 +165,7 @@ if (htmlArg) {
     const text = r['テキスト'] ?? r['テキスト（案）'] ?? '';
     const motif = r['元のカード'] || (r['手に 入れる'] ? `手に 入れる：${r['手に 入れる']}` : '');
     return {
-      id: r.ID, set, setLabel: SET_LABEL[set], draft: !!draftSet[r.ID], extra,
+      id: r.ID, set, setLabel: SET_LABEL[set], draft: draftSet[r.ID] === 'P', dev: DEV.has(draftSet[r.ID]), extra,
       group: basic ? BASIC_COLOR[r.ID] || 'C' : groupOf(r.ID, r['コスト']),
       rar, rarName: rar ? `${RAR_NAMES[rar]}（${RAR_PTS[rar]}点）` : '',
       cost: costHtml(r['コスト']), name: rb(r['名前']), type: rb(r['タイプ']), pt: h(r['P/T'] || ''), text: rb(text),
@@ -182,12 +183,13 @@ if (htmlArg) {
     basics: everything.filter(isBasic).sort((a, b) => a.ID.localeCompare(b.ID)).map((r) => card(r, true)),
     tokens: [...tokens.values()].sort((a, b) => a['名前'].localeCompare(b['名前'], 'ja')).map((t) => ({
       name: rb(t['名前']), color: h(t['色']), pt: h(t['P/T']), text: rb(t['能力']), from: h([...t.from].sort().join('・')),
-      draft: ![...t.from].some((id) => playable.has(id)),
+      draft: [...t.from].every((id) => draftSet[id] === 'P'),
+      dev: ![...t.from].some((id) => playable.has(id)) && [...t.from].some((id) => DEV.has(draftSet[id])),
     })),
   };
   const page = readFileSync(join(ROOT, 'tools', 'cardlist_page.html'), 'utf8').replace('/*DATA*/null', () => JSON.stringify(data).replace(/</g, '\\u003c'));
   const out2 = htmlArg.slice('--html='.length);
   writeFileSync(out2, page);
-  const nDraft = data.cards.filter((c) => c.draft).length;
-  console.log(`${out2}：遊べる ${data.cards.length - nDraft}種 ＋ 案 ${nDraft}種、きほん ${data.basics.length}、トークン ${data.tokens.length}（${(Buffer.byteLength(page) / 1024).toFixed(0)}KB）`);
+  const nDraft = data.cards.filter((c) => c.draft).length, nDev = data.cards.filter((c) => c.dev).length;
+  console.log(`${out2}：遊べる ${data.cards.length - nDraft - nDev}種 ＋ 開発中 ${nDev}種 ＋ 案 ${nDraft}種、きほん ${data.basics.length}、トークン ${data.tokens.length}（${(Buffer.byteLength(page) / 1024).toFixed(0)}KB）`);
 }

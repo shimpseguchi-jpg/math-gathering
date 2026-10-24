@@ -1,9 +1,11 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
+// デッキの 点数（旗は 4点）
+export const ptsOf = (d) => d.pts ?? RARITY_PTS[d.rar] ?? 0;
 const rarityV = (d) => RARITY_PTS[d.rar] || 0;
 const isPermDef = (d) => !d.types.includes('instant') && !d.types.includes('sorcery');
 
@@ -20,7 +22,7 @@ function sources(s, o = {}) {
   }
   if (o.convoke) for (const p of s.P.bf) {
     if (!isCreature(p) || p.tapped || p === o.exclude || out.some((x) => x.ref === p)) continue;
-    const free = p.sick || hasKw(s, p, 'defender') || p.def.cantAttack;
+    const free = p.sick || hasKw(s, p, 'defender') || cant(s, p, 'cantAttack');
     if (o.sickOnly && !free) continue;
     const c = colorsOf(p.def);
     out.push({ kind: 'convoke', ref: p, colors: c.length ? c : ['C'], pri: free ? 2 : 3 });
@@ -33,7 +35,9 @@ function sources(s, o = {}) {
 function manaOf(s, p) {
   if (p.def.treasure) return { colors: 'any', n: s[p.side].bf.some((q) => q.def.richTreasure) ? 2 : 1 };
   const r = levelRow(p); const m = r?.mana ?? p.def.mana;
-  if (m) return { colors: m, n: r?.manaN ?? (typeof p.def.manaN === 'function' ? p.def.manaN(p) : p.def.manaN) ?? 1 };
+  if (m) return { colors: m, n: r?.manaN ?? (typeof p.def.manaN === 'function' ? p.def.manaN(p, s) : p.def.manaN) ?? 1 };
+  // ニヴ＝ミゼット（UR06）：あなたの アーティファクトは 好きな 色の マナを 出す
+  if ((p.def.types || []).includes('artifact') && !isCreature(p) && s[p.side].bf.some((q) => q.def.artifactMana)) return { colors: 'any', n: 1 };
   if (isCreature(p) && p.side === 'P' && (s.P.flags.anyManaUntil || 0) >= s.stats.playerTurns) return { colors: 'any', n: 1 };
   return null;
 }
@@ -62,7 +66,7 @@ export function pay(s, pl) {
   const convoked = [];
   for (const x of pl.srcs) {
     if (x.kind === 'mana') x.ref.tapped = true;
-    else { tapPerm(s, x.ref); if (x.kind === 'convoke') convoked.push(x.ref); }
+    else { tapPerm(s, x.ref); if (x.kind === 'convoke') convoked.push(x.ref); if (x.kind === 'ability' && x.ref.def.manaLife) api.hurt(s, x.ref.def.manaLife); }
     if (x.ref.def?.treasure && onBf(s, x.ref)) leave(s, x.ref, 'gy');
   }
   if (pl.prism) pl.prism.tapped = true;
@@ -73,24 +77,44 @@ export const manaCount = (s, o = {}) => sources(s, o).length;
 
 // ---- 唱える ----
 export function castCard(s, c, pl, o = {}) {
+  // 恩恵（アルケミー YW04）：つぎの クリーチャー呪文は 永久に ＋2/＋2
+  if (s.P.flags.boonCreature && (c.def.types || []).includes('creature')) {
+    const k = 2 * s.P.flags.boonCreature; s.P.flags.boonCreature = 0;
+    const P0 = c.def.pow, T0 = c.def.tou;
+    c.def = { ...c.def, perp: true, pow: typeof P0 === 'function' ? (a, b, e) => P0(a, b, e) + k : (P0 ?? 0) + k, tou: typeof T0 === 'function' ? (a, b, e) => T0(a, b, e) + k : (T0 ?? 0) + k };
+    L(s, `おんけい：${c.def.name} は えいきゅうに ＋${k}/＋${k}`);
+  }
   const P = s.P, def = c.def, from = o.from || 'hand';
   if (from === 'hand') P.hand.splice(P.hand.indexOf(c), 1);
-  else if (from === 'gy' || from === 'escape') P.gy.splice(P.gy.indexOf(c), 1);
+  else if (from === 'gy' || from === 'escape' || from === 'madness') P.gy.splice(P.gy.indexOf(c), 1);
   // 脱出：墓地の ほかの カードを N まい 追放する（古い ものから）
   if (from === 'escape') { const ex = P.gy.splice(0, def.escape.exile); P.exile.push(...ex); L(s, `${s.swapped ? 'てき：' : ''}だっしゅつ：ぼちの ${ex.length}まいを ついほう`); }
+  // 収斂：はらった マナの 色の 数
+  P.flags.converge = pl ? Math.min(pl.srcs.length, new Set(pl.srcs.flatMap((x) => x.colors.filter((k) => k !== 'C'))).size) : 0;
   const convoked = pl ? pay(s, pl) : [];
+  // 探査：はらわなかった ぶん、墓地の カードを 古い ものから 追放する
+  if (def.delve && pl) {
+    const ex = P.gy.splice(0, Math.max(0, def.cost + (o.x || 0) * (def.xMul || 1) - pl.srcs.length));
+    P.exile.push(...ex);
+    if (ex.length) L(s, `${s.swapped ? 'てき：' : ''}たんさ：ぼちの ${ex.length}まいを ついほう`);
+  }
   P.flags.cast++;
   L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}${from === 'escape' ? '（だっしゅつ）' : ''}`);
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
     if (!onBf(s, q)) continue;
     if (noncreature && hasKw(s, q, 'prowess')) api.pump(q, 1, 1);
-    q.def.onCast?.(s, q, def, api, { x: o.x || 0 });
+    q.def.onCast?.(s, q, def, api, { x: o.x || 0, from });
     q.def.onAnyCast?.(s, q, def, 'P', api);
+    // 強請：のこりの マナが あれば 1つ はらって、敵に 1点・自分は 1点 回復（自動）
+    if (hasKw(s, q, 'extort')) {
+      const ep = plan(s, 1, []);
+      if (ep) { pay(s, ep); L(s, `ゆすり：${q.def.name}`); api.hitEnemy(s, 1, null); api.gain(s, 1); for (const r of [...P.bf]) r.def.onExtort?.(s, r, api); }
+    }
   }
   if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: def, chosen: o.chosen, escaped: from === 'escape' }); sba(s); return; }
   const done = () => {
-    if (from === 'escape') P.gy.push(c);
+    if (from === 'escape' || from === 'madness') P.gy.push(c);
     else if (from === 'gy' || o.free) P.exile.push(c);
     else if (def.backToHand) { c.locked = true; P.hand.push(c); }
     else P.gy.push(c);
@@ -98,14 +122,87 @@ export function castCard(s, c, pl, o = {}) {
   };
   // 効果が 画面の答えを待つ（占術など）ときだけ Promise を返す。シミュレーションでは そのまま進む
   // ミラーリの 予想（III）：この ターンは インスタント・ソーサリーを コピーする
-  const copy = P.flags.copySpells === s.turn;
+  // 共鳴者（U66）：インスタント・ソーサリーを いつも コピーする
+  const copy = P.flags.copySpells === s.turn || P.bf.some((q) => q.def.copyAll);
+  // この 呪文の ダメージは「あなたの カード」の ダメージ（炎の 解放・トーブラン）
+  s.resolving = s.swapped ? 'E' : 'P'; s.resolvingRed = colorsOf(def).includes('R');
+  // 最後に 唱えた インスタント・ソーサリー（双つ術 R67 が コピーする）
+  if (o.run) P.flags.lastSpell = { def, run: o.run, x: o.x, turn: s.turn };
   const r0 = o.run?.(o.x);
-  const r = copy ? api.then(r0, () => { L(s, `コピー：${def.name}`); return o.run?.(o.x); }) : r0;
-  if (r && r.then) return r.then(done);
-  done();
+  const r = copy ? api.then(r0, () => copySpell(s, def, () => o.run?.(o.x))) : r0;
+  const fin = () => { s.resolving = null; done(); };
+  if (r && r.then) return r.then(fin);
+  fin();
 }
 
+// 呪文の コピー（魔技も おきる）
+export function copySpell(s, def, run) {
+  L(s, `コピー：${def.name}`);
+  const r = run();
+  return api.then(r, () => { for (const q of [...s.P.bf]) if (onBf(s, q)) q.def.onCopy?.(s, q, def, api); });
+}
+
+// 出来事・授与は、ふつうに 唱える ほかに えらべる
 function optionsFor(s, c, phase, from) {
+  const out = optionsFor0(s, c, phase, from);
+  if (from === 'hand' && c.def.adv && !c.advDone) out.push(...advOptions(s, c, phase));
+  if (from === 'hand' && c.def.bestow) out.push(...bestowOptions(s, c, phase));
+  return out;
+}
+
+// 出来事：カードの 下の 呪文だけ 使う。カードは 手札に のこり（補充では かぞえない）、あとで クリーチャーとして 唱えられる
+function advOptions(s, c, phase) {
+  const a = c.def.adv;
+  if (!a.play || (a.kind === 'sorcery' && phase === 'react') || !plan(s, a.cost, a.req)) return [];
+  const r = a.play(s, api, { phase, c, manaLeft: manaCount(s) - a.cost });
+  if (!r || r.score <= 0) return [];
+  return [{ score: r.score + 1, name: `${a.name}（できごと）`, exec: () => { const pl = plan(s, a.cost, a.req); if (pl) castAdventure(s, c, pl, r.run); } }];
+}
+export function castAdventure(s, c, pl, run) {
+  const a = c.def.adv, P = s.P;
+  pay(s, pl);
+  P.flags.cast++;
+  c.advDone = true;
+  L(s, `${s.swapped ? 'てき：' : ''}できごと：${a.name}（${c.def.name}）`);
+  const sp = { ...c.def, name: a.name, cost: a.cost, types: [a.kind] };
+  for (const q of [...P.bf]) {
+    if (!onBf(s, q)) continue;
+    if (hasKw(s, q, 'prowess')) api.pump(q, 1, 1);
+    q.def.onCast?.(s, q, sp, api, { x: 0, from: 'adventure' });
+    q.def.onAnyCast?.(s, q, sp, 'P', api);
+  }
+  return api.then(run?.(), () => sba(s));
+}
+
+// 授与：オーラとして 唱えて クリーチャーに つける。つけた クリーチャーが いなくなったら クリーチャーに もどる
+export const bestowDef = (d) => (d.bestowAura ||= {
+  id: d.id, name: d.name, rar: d.rar, color: d.color, cost: d.bestow.cost, types: ['enchantment'], sub: ['aura'], kw: [], aura: true, bestowBase: d,
+  eqP: d.bestow.p || 0, eqT: d.bestow.t || 0, eqPT: d.bestow.pt, steal: d.bestow.steal,
+  grant: d.bestow.kw ? (s, q, p) => (p.uid === q.attached ? d.bestow.kw : null) : undefined,
+  onLeaveSelf: d.bestow.steal ? (s, p, E) => E.unsteal(s, p) : undefined,
+});
+export function castBestow(s, c, pl, host) {
+  const d = c.def, aura = bestowDef(d);
+  c.def = aura;
+  castCard(s, c, pl, {});
+  c.def = d;
+  const p = [...s.P.bf].reverse().find((q) => q.def === aura);
+  if (!p) return;
+  p.card = d;
+  if (onBf(s, host)) api.attach(s, p, host);
+  else { p.def = d; L(s, `${d.name} は クリーチャーとして 出た`); }
+  sba(s);
+}
+const stealable = (s, p) => isCreature(p) && !p.def.noCopy && !s.floor.cantLeave?.(s, p, api) && !s.floor.untargetable?.(s, p, api);
+function bestowOptions(s, c, phase) {
+  const b = c.def.bestow;
+  if (phase !== 1 || !plan(s, b.cost, b.req || colorsOf(c.def))) return [];
+  const host = b.steal ? s.E.bf.filter((p) => stealable(s, p)).sort((x, y) => power(s, y) - power(s, x))[0] : api.bestBuffTarget(s, null, { ready: true });
+  if (!host || (b.steal && power(s, host) < 2)) return [];
+  return [{ score: 12 + b.cost * 3, name: `${c.def.name}（じゅよ）`, exec: () => { const pl = plan(s, b.cost, b.req || colorsOf(c.def)); if (pl) castBestow(s, c, pl, host); } }];
+}
+
+function optionsFor0(s, c, phase, from) {
   const def = c.def;
   const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? def.escape.cost : costOf(s, def);
   const req = from === 'gy' ? def.flashback.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
@@ -116,7 +213,7 @@ function optionsFor(s, c, phase, from) {
   if (def.x) {
     const xMax = Math.floor((manaCount(s, o) - cost) / mul);
     if (xMax < 1 || !plan(s, cost + mul, req, o)) return [];
-    const r = def.play(s, api, { phase, xMax, c });
+    const r = def.play(s, api, { phase, xMax, c, from });
     if (!r || r.score <= 0) return [];
     const x = Math.min(r.x ?? xMax, xMax);
     return [{
@@ -136,7 +233,7 @@ function optionsFor(s, c, phase, from) {
   if (!def.play || (def.reactive && phase !== 'react')) return out;
   if (def.types.includes('sorcery') && phase === 'react') return out;
   // r.extra：激励・キッカー・増呪で ふえる マナ（ctx.manaLeft を見て 払える ぶんだけ）
-  const r = def.play(s, api, { phase, c, manaLeft: manaCount(s, o) - cost });
+  const r = def.play(s, api, { phase, c, manaLeft: manaCount(s, o) - cost, from });
   if (!r || r.score <= 0) return out;
   const extra = r.extra || 0;
   if (extra && !plan(s, cost + extra, req, o)) return out;
@@ -192,6 +289,7 @@ function actOptions(s, phase) {
     if (a.monstrosity && p.monstrous) continue;
     if (a.discard && s.P.hand.length < a.discard) continue;
     if (a.levelUp && p.def.levelMax && p.level >= p.def.levelMax) continue;
+    if (a.can && !a.can(s, p, api)) continue;
     const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
     const o = { exclude: a.tap || a.sac ? p : null };
     let xMax = 0;
@@ -225,6 +323,22 @@ function actOptions(s, phase) {
   return out;
 }
 
+// 蘇生（イゼットの ゾンビ GX02）：3（黒）で 墓地の クリーチャーを 戦場に。速攻、ターンの おわりに 追放
+const isCrDef = (d) => (d.types || []).includes('creature');
+function unearthOption(s, c) {
+  if (!plan(s, 3, ['K']) || (c.def.pow ?? 0) < 3) return [];
+  return [{ score: 6 + (c.def.pow ?? 0), name: `${c.def.name}（そせい）`, exec: () => unearth(s, c, plan(s, 3, ['K'])) }];
+}
+export function unearth(s, c, pl) {
+  if (!pl) return;
+  pay(s, pl);
+  s.P.gy.splice(s.P.gy.indexOf(c), 1);
+  const p = enter(s, 'P', c.def, { card: c.def });
+  p.unearthed = true; p.kwT.add('haste');
+  L(s, `そせい：${c.def.name}`);
+  sba(s);
+}
+
 export function levelUp(s, p) { p.level++; L(s, `Lvアップ：${p.def.name}（レベル ${p.level}）`); }
 
 // ---- メイン・フェイズ ----
@@ -235,6 +349,7 @@ function main(s, phase) {
     for (const c of [...s.P.hand]) if (!c.locked) opts.push(...optionsFor(s, c, phase, 'hand'));
     for (const c of s.P.gy) if (c.def.flashback) opts.push(...optionsFor(s, c, phase, 'gy'));
     for (const c of s.P.gy) if (c.def.escape) opts.push(...optionsFor(s, c, phase, 'escape'));
+    if (phase === 1 && s.P.bf.some((q) => q.def.unearthAll)) for (const c of s.P.gy) if (isCrDef(c.def)) opts.push(...unearthOption(s, c));
     opts.push(...actOptions(s, phase));
     if (!opts.length) break;
     opts.sort((a, b) => b.score - a.score);
@@ -275,7 +390,7 @@ function chargeMana(s) {
 
 // ---- 攻撃 ----
 export function readyAttackers(s) {
-  return s.P.bf.filter((p) => isCreature(p) && !p.tapped && (!p.sick || hasKw(s, p, 'haste')) && !hasKw(s, p, 'defender') && !p.def.cantAttack && power(s, p) > 0);
+  return s.P.bf.filter((p) => isCreature(p) && !p.tapped && (!p.sick || hasKw(s, p, 'haste')) && !hasKw(s, p, 'defender') && !cant(s, p, 'cantAttack') && power(s, p) > 0);
 }
 
 function attack(s) {
@@ -390,6 +505,14 @@ function tricks(s, atk, blocks) {
         }
       }
     }
+    // 忍術：ブロックされなかった 攻撃クリーチャーを 手札に もどして、忍者を 攻撃している 状態で 出す
+    for (const c of s.P.hand) {
+      const nj = c.def.ninjutsu; if (!nj || c.locked || !plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 })) continue;
+      for (const a of live) {
+        if (blocks.get(a.p.uid) || a.p.token || a.p.def.ninjutsu) continue;
+        consider(3 + c.def.pow - power(s, a.p), () => ninjutsu(s, c, a));
+      }
+    }
     // 起動型の強化（ドラゴンの雛）
     for (const a of live) for (const act of a.p.def.acts || []) {
       if (!act.pumpP || !plan(s, act.cost, act.req || [])) continue;
@@ -399,6 +522,22 @@ function tricks(s, atk, blocks) {
     if (!best) break;
     best.exec();
   }
+}
+
+// 忍術（人が 遊ぶ ときも つかう）。a は 攻撃の { p, t }。a.p を 忍者に 入れかえる
+export function ninjutsu(s, c, a) {
+  const nj = c.def.ninjutsu;
+  const pl = plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 }); if (!pl) return false;
+  pay(s, pl);
+  s.P.hand.splice(s.P.hand.indexOf(c), 1);
+  const old = a.p;
+  old.attacking = false;
+  leave(s, old, 'hand');
+  const n = enter(s, 'P', c.def, { card: c.def, tapped: true });
+  n.attacking = true;
+  a.p = n;
+  L(s, `にんじゅつ：${old.def.name} → ${c.def.name}`);
+  return true;
 }
 
 // ---- ブロック（プレイヤー） ----
@@ -539,6 +678,17 @@ Object.assign(api, {
     return best;
   },
   castFree: (s, c, r) => { castCard(s, c, null, { run: r.run, from: 'gy', free: true, x: r.x }); },
+  // マッドネス：捨てた カードを、マッドネスの コストで すぐ 唱える（はらえて、こうかが あるとき。人が 遊ぶ ときも 自動）
+  madness: (s, c) => {
+    const d = c.def, m = d.madness;
+    const pl = plan(s, m.cost, m.req || colorsOf(d)); if (!pl) return;
+    if (isPermDef(d)) { L(s, `マッドネス：${d.name}`); castCard(s, c, pl, { from: 'madness' }); return; }
+    const r = d.play?.(s, api, { phase: 1, c, manaLeft: 0, human: !!s.ai.scry });
+    if (!r || r.score <= 0) return;
+    L(s, `マッドネス：${d.name}`);
+    castCard(s, c, pl, { from: 'madness', run: r.run });
+  },
+  ninjutsu, castAdventure, castBestow, stealable, copySpell, unearth,
   castSuspended,
   // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {

@@ -3,12 +3,14 @@
 import { seeded, shuffle } from './rng.js';
 
 let UID = 1;
-export const COLORS = ['W', 'U', 'G', 'R'];
+export const COLORS = ['W', 'U', 'K', 'G', 'R'];
 export const colorsOf = (d) => [...(d.color || '')].filter((c) => COLORS.includes(c));
 export const is = (p, t) => (p.def.types || []).includes(t);
 export const isCreature = (p) => is(p, 'creature');
 export const onBf = (s, p) => s[p.side].bf.includes(p);
 export const card = (def) => ({ uid: UID++, def });
+// 攻撃・ブロック できない（門の 五神は 数の 条件で かわる：関数）
+export const cant = (s, p, k) => { const v = p.def[k]; return typeof v === 'function' ? !!v(s, p, api) : !!v; };
 
 // カードの効果・各階のルールから使う関数をまとめたもの（ai.js がAI用の関数を足す）
 export const api = {};
@@ -80,7 +82,11 @@ export function beginPlayerTurn(s) {
   const ready = [];
   for (const x of P.suspended) { x.n--; if (x.n <= 0) ready.push(x); }
   P.suspended = P.suspended.filter((x) => x.n > 0);
-  const rest = () => { sba(s); if (s.over) return; refill(s); };
+  const rest = () => {
+    sba(s); if (s.over) return; refill(s);
+    for (const p of [...P.bf]) if (onBf(s, p) && p.def.afterRefill) p.def.afterRefill(s, p, api); // 手札の 補充の あと（祠）
+    sba(s);
+  };
   const castReady = () => ready.reduce((w, x) => w.then(() => api.castSuspended(s, x.c)), Promise.resolve());
   // 占術（海の神タッサ）や 待機の 対象を 画面で聞くときは、答えを待ってから引く
   if (waits.length || (ready.length && s.ai.castSuspended)) return Promise.all(waits).then(castReady).then(rest);
@@ -131,6 +137,7 @@ export function drawCard(s, n = 1) {
       } else if (!s.reshuffle) { s.over = 'lose'; s.stats.deckout = true; return; }
       else return;
     }
+    if (!P.lib.length) return; // ライフを 失って 引いた（ラクドス）あとで なくなる ことが ある
     P.hand.push(P.lib.shift());
     for (const q of [...P.bf]) if (q.def.onDraw && onBf(s, q)) q.def.onDraw(s, q, api);
   }
@@ -143,7 +150,7 @@ export const LOW_LIBRARY = 5; // 山札が これより 少ないと、画面で
 export const reshuffleCost = (P, next = false) => 2 * ((P.reshuffles || 0) + (next ? 1 : 0));
 export function refill(s) {
   const size = s.P.flags.refill7 === s.stats.playerTurns ? 7 : HAND_SIZE;
-  const n = size - s.P.hand.length;
+  const n = size - s.P.hand.filter((c) => !c.advDone).length; // 出来事を つかった カードは かぞえない
   if (n <= 0) return;
   drawCard(s, n);
   L(s, `${foe(s, 'P')}てふだを ${size}まいに した（${n}まい 引いた）`);
@@ -153,6 +160,8 @@ export function refill(s) {
 export function discard(s, cards) {
   for (const c of cards) { const i = s.P.hand.indexOf(c); if (i >= 0) { s.P.hand.splice(i, 1); s.P.gy.push(c); } }
   if (cards.length) L(s, `${foe(s, 'P')}すてた：${cards.map((c) => c.def.name).join('、')}`);
+  for (const q of [...s.P.bf]) if (q.def.onDiscard && onBf(s, q)) q.def.onDiscard(s, q, api, cards.length);
+  for (const c of cards) if (c.def.madness && s.P.gy.includes(c)) api.madness?.(s, c); // マッドネス：すてたら 安く 唱えられる
 }
 
 export function rampTop(s) {
@@ -196,6 +205,7 @@ export function enter(s, side, def, o = {}) {
 export const MAX_CREATURES = 30;
 export function token(s, side, def, n = 1, o = {}) {
   const out = [];
+  for (const q of s[side].bf) if (q.def.tokenMult) n *= q.def.tokenMult; // 倍化（トークンが 2倍）
   for (let i = 0; i < n; i++) {
     if (s[side].bf.filter(isCreature).length >= MAX_CREATURES) break;
     out.push(enter(s, side, def, { ...o, token: true }));
@@ -212,10 +222,12 @@ export function pt(s, p) {
   let T = typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
   if (p.base2) P = 2;
   if (p.setPT) [P, T] = p.setPT;
-  P += p.ctr + p.mP; T += p.ctr + p.mT;
-  for (const q of s[p.side].bf) {
-    if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
-    if (q.attached === p.uid) { P += q.def.eqP || 0; T += q.def.eqT || 0; }
+  P += p.ctr - (p.mctr || 0) + p.mP; T += p.ctr - (p.mctr || 0) + p.mT;
+  for (const q of s[p.side].bf) if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
+  // 装備品・オーラ（あいての オーラも）
+  for (const q of [...s.P.bf, ...s.E.bf]) if (q.attached === p.uid) {
+    P += q.def.eqP || 0; T += q.def.eqT || 0;
+    if (q.def.eqPT) { const r = q.def.eqPT(s, q, p, api); P += r[0]; T += r[1]; }
   }
   return [P, T];
 }
@@ -226,6 +238,7 @@ export function hasKw(s, p, k) {
   if (p.def.kw?.includes(k) || p.kwT.has(k) || levelRow(p)?.kw?.includes(k)) return true;
   if (p.def.kwFn?.(s, p, api)?.includes(k)) return true;
   for (const q of s[p.side].bf) if (q.def.grant) { const g = q.def.grant(s, q, p, api); if (g && g.includes(k)) return true; }
+  for (const q of s[p.side === 'P' ? 'E' : 'P'].bf) if (q.attached === p.uid && q.def.grant) { const g = q.def.grant(s, q, p, api); if (g && g.includes(k)) return true; }
   return false;
 }
 
@@ -238,6 +251,7 @@ export function tapPerm(s, p) {
 export function addCounters(s, p, n) {
   if (!onBf(s, p) || n <= 0) return;
   n += s[p.side].bf.filter((q) => q.def.scales).length;
+  for (const q of s[p.side].bf) if (q.def.counterMult) n *= q.def.counterMult; // 重ねる 季節（カウンターが 2倍）
   p.ctr += n;
   p.def.onCounters?.(s, p, api, n);
 }
@@ -252,6 +266,23 @@ export function proliferate(s) {
 
 export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); }
 
+// 来世の スピリット（白黒 1/1 飛行）
+const AFTERLIFE = { id: 't_spiritWK', name: 'スピリット', rar: null, color: 'WK', cost: 0, types: ['creature'], pow: 1, tou: 1, sub: ['spirit'], kw: ['flying'] };
+// −1/−1カウンター（＋1/＋1カウンターが あれば うちけしあう）。by が 'P' なら「あなたが 置いた」
+export function addMinus(s, p, n, by = 'P') {
+  if (!onBf(s, p) || n <= 0) return;
+  const k = Math.min(n, p.ctr); p.ctr -= k;
+  p.mctr = (p.mctr || 0) + (n - k);
+  L(s, `${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`);
+  if (by === 'P') for (const q of [...s.P.bf]) if (q.def.onMinus && onBf(s, q)) q.def.onMinus(s, q, api, p, n);
+}
+// 信心：あなたの 戦場の その 色の パーマネントの 数
+export const devotion = (s, c, side = 'P') => s[side].bf.filter((p) => colorsOf(p.def).includes(c)).length;
+// 版図：マナゾーンの カードの 色の 数
+export const domain = (s) => new Set(s.P.mana.flatMap((m) => colorsOf(m.def))).size;
+// 昂揚：墓地の カードの 種類（クリーチャー・インスタント・ソーサリー・エンチャント・アーティファクト）が 4つ いじょう
+export const delirium = (s) => new Set(s.P.gy.flatMap((c) => c.def.types || []).filter((t) => ['creature', 'instant', 'sorcery', 'enchantment', 'artifact'].includes(t))).size >= 4;
+
 // 鼓舞 N：タフネスが いちばん小さい 自分の クリーチャー（同じなら 先に 出た ほう）に ＋1/＋1カウンターを N個
 export function bolster(s, n) {
   const t = s.P.bf.filter(isCreature).sort((a, b) => pt(s, a)[1] - pt(s, b)[1])[0];
@@ -264,7 +295,22 @@ export function bolster(s, n) {
 
 // 圧倒：自分の クリーチャーの パワーの 合計が 8 いじょう
 // 唱える コスト（ガルタ：あなたの クリーチャーの パワーの 合計だけ 安く なる。costMin より 下には ならない）
-export const costOf = (s, d) => (d.costLess ? Math.max(d.costMin ?? 0, d.cost - d.costLess(s, api)) : d.cost);
+export function costOf(s, d) {
+  let c = d.cost, cut = 0;
+  if (d.costLess) c -= d.costLess(s, api);
+  for (const q of s.P.bf) if (q.def.costCut) cut += q.def.costCut(s, q, d, api) || 0; // ほかの カードで 安く なる（色の ぶんは のこる）
+  if (cut) c = Math.max(Math.min(c, colorsOf(d).length), c - cut);
+  return Math.max(d.costMin ?? 0, c);
+}
+// この ターンに 敵が うけた ダメージ（本体と クリーチャー）
+export const dmgThisTurn = (s) => (s.E.flags.dmgT === s.turn ? s.E.flags.dmgTaken : 0);
+const noteDmg = (s, n) => { if (s.E.flags.dmgT !== s.turn) { s.E.flags.dmgT = s.turn; s.E.flags.dmgTaken = 0; } s.E.flags.dmgTaken += n; };
+// ライブラリーの 上から N まいを 墓地へ（切削）
+export function mill(s, n) {
+  const c = s.P.lib.splice(0, n); s.P.gy.push(...c);
+  if (c.length) L(s, `${foe(s, 'P')}やまふだの 上から ${c.length}まいを ぼちへ`);
+  return c;
+}
 export const totalPower = (s, list) => list.reduce((t, p) => t + Math.max(0, power(s, p)), 0);
 export const formidable = (s) => totalPower(s, s.P.bf.filter(isCreature)) >= 8;
 // 集会：パワーが ちがう クリーチャーが 3体 いじょう（2・2・3 は 2しゅるい）
@@ -279,13 +325,29 @@ export function target(s, p) { if (p.side === 'P' && onBf(s, p) && p.def.heroic)
 
 // ---- ダメージ・ライフ ----
 // o.spell：呪文の ぴったり（{ pittari() }）
+// あなたの カードが あたえる ダメージ（炎の 解放は 3倍、トーブランは 赤なら ＋2）
+export function boostDmg(s, n, src, enemy) {
+  const mine = src ? src.side === 'P' : s.resolving === 'P';
+  if (!mine || n <= 0 || s.swapped) return n;
+  if (!src && s.P.flags.boonDmg) { s.P.flags.boonDmg--; n += 2; L(s, 'おんけい：＋2'); } // 恩恵（YR04）：つぎの 呪文の ダメージ ＋2
+  for (const q of s.P.bf) {
+    if (q.def.redPlus && enemy && (src ? colorsOf(src.def).includes('R') : s.resolvingRed)) n += q.def.redPlus;
+    if (q.def.dmgMult) n *= q.def.dmgMult;
+  }
+  return n;
+}
+
 export function damage(s, p, n, src, o = {}) {
   if (n <= 0 || !onBf(s, p)) return 0;
+  n = boostDmg(s, n, src, p.side === 'E');
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
+  if (p.shieldT === s.turn) return 0; // ダメージは 0 に なる（ニンフの 犬）
   if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
   if (p.def.dmgToCounters) { const k = Math.min(n, p.ctr); p.ctr -= k; L(s, `${foe(s, p.side)}${p.def.name} の ＋1/＋1カウンターが ${k}こ へった`); }
   else if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
+  if (p.side === 'E' && !s.swapped) noteDmg(s, n);
   if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: p, n });
+  if (s.combat && src && isCreature(p)) src.def.onDamageCreature?.(s, src, p, api);
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
@@ -295,6 +357,8 @@ export function damage(s, p, n, src, o = {}) {
 export function hurt(s, n, src) {
   if (n <= 0 || s.over) return;
   s.P.life -= n; s.stats.lifeLost += n;
+  s.P.flags.lostThisTurn = (s.P.flags.lostThisTurn || 0) + n;
+  if (s.P.life > 0) for (const q of [...s.P.bf]) if (q.def.onLifeLoss && onBf(s, q)) q.def.onLifeLoss(s, q, api, n);
   L(s, `${s.swapped ? 'てき' : 'プレイヤー'}に ${n}点（のこり ${s.P.life}）`);
   if (s.P.life <= 0) s.over = dead(s);
 }
@@ -315,12 +379,17 @@ export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
   if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
+    n = boostDmg(s, n, src, true);
+    noteDmg(s, n);
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
     L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
     s.floor.face(s, n, api);
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   } else damage(s, t, n, src);
-  if (combat && src?.side === 'P') src.def.onCombatHit?.(s, src, api);
+  if (combat && src?.side === 'P') {
+    src.def.onCombatHit?.(s, src, api);
+    for (const q of [...s.P.bf]) if (q.def.onAllyHit && onBf(s, src)) q.def.onAllyHit(s, q, src, api); // あなたの 忍者が…（ヨリオン）
+  }
 }
 
 export function fight(s, a, b) {
@@ -351,16 +420,27 @@ const isExact = (s, p) => p.side === 'E' && isCreature(p) && !p.dt && p.dmg > 0 
 export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
+  // 死亡の かわりに：アナフェンザ（てきは 追放）・墓の タイタン など（ライブラリーの 一番下）
+  if (o.died && to === 'gy' && !p.token) {
+    if ((p.side === 'E' && s.P.bf.some((q) => q.def.exileEnemyDead)) || p.exileT === s.turn) to = 'exile';
+    else if (p.side === 'P' && (p.def.dieToBottom || s.P.bf.some((q) => q.def.ownDeadToBottom))) to = 'bottom';
+  }
   const exact = o.died && isExact(s, p);
-  if (isCreature(p)) p.diedT = pt(s, p)[1]; // 画面の「攻撃の けっか」で 見せる
+  if (isCreature(p)) [p.diedP, p.diedT] = pt(s, p); // 画面の「攻撃の けっか」で 見せる
   const side = s[p.side];
   side.bf.splice(side.bf.indexOf(p), 1);
-  for (const q of side.bf) if (q.attached === p.uid) q.attached = null;
   // 手札に もどす：手札の ない 塔の 敵は、かわりに やまふだの 一番上へ（つぎの ターンに また めくられて 出てくる）。トークンは きえる
   if ((to === 'hand' && !side.hand) || to === 'lib') to = 'lib';
   if (!p.token) {
     const c = { uid: p.uid, def: p.card };
-    if (to === 'hand') side.hand.push(c); else if (to === 'lib') side.lib.unshift(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
+    if (to === 'hand') side.hand.push(c); else if (to === 'lib') side.lib.unshift(c); else if (to === 'bottom') side.lib.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
+  }
+  // ついていた オーラ・装備品：授与は クリーチャーに もどる、オーラは 墓地へ、装備品は はずれる
+  for (const q of [...s.P.bf, ...s.E.bf]) {
+    if (q.attached !== p.uid) continue;
+    q.attached = null;
+    if (q.def.bestowBase) { q.def = q.def.bestowBase; q.card = q.def; L(s, `${q.def.name} が クリーチャーに もどった`); }
+    else if (q.def.aura) leave(s, q, 'gy');
   }
   L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${p.token && to !== 'gy' ? 'きえた' : { gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだの 上へ' }[to] || to}）`);
   if (exact) {
@@ -370,9 +450,16 @@ export function leave(s, p, to = 'gy', o = {}) {
       if (by?.pittari) by.pittari(s, api, p);
       else if (by?.def?.pittari && onBf(s, by)) by.def.pittari(s, by, api, p);
     }
+    for (const q of [...s.P.bf]) if (q.def.onExact && onBf(s, q)) q.def.onExact(s, q, api, p); // ぴったりで たおすたび（YM03）
   }
   for (const l of p.links) returnLinked(s, l);
-  if (o.died && p.def.onDie) p.def.onDie(s, p, api);
+  const twice = o.died && s[p.side].bf.some((q) => q.def.doubleDeath) ? 2 : 1; // テイサ：死亡したときの 能力が 2回
+  for (let i = 0; i < twice; i++) {
+    if (o.died && p.def.onDie) p.def.onDie(s, p, api);
+    if (o.died && p.def.afterlife) token(s, p.side, AFTERLIFE, p.def.afterlife); // 来世
+  }
+  // このターンに ダメージを あたえた クリーチャーが 死んだら（マラキールの 血・ズルゴ）
+  if (o.died && isCreature(p)) for (const by of new Set(p.dmgBy)) if (by?.def?.onKill && onBf(s, by)) by.def.onKill(s, by, api, p);
   p.def.onLeaveSelf?.(s, p, api);
   if (p.def.reward) p.def.reward(s, p, api);
   for (const q of [...s.P.bf, ...s.E.bf]) if (q.def.onOtherLeave) q.def.onOtherLeave(s, q, p, api, o);
@@ -398,6 +485,33 @@ function returnLinked(s, l) {
   enter(s, l.side, c.def);
 }
 
+// ---- オーラ ----
+// p に ついている オーラ・装備品で、その 性質を もつ ものが あるか（平和な 心：攻撃も ブロックも できない）
+export const auraFlag = (s, p, k) => [...s.P.bf, ...s.E.bf].some((q) => q.attached === p.uid && q.def[k]);
+// オーラを つける（あなたの オーラが あなたの クリーチャーに つくたび：WG05）
+export function attach(s, aura, host) {
+  if (!onBf(s, host)) return;
+  aura.attached = host.uid;
+  L(s, `${aura.def.name} を ${host.def.name} に つけた`);
+  if (aura.def.steal && host.side === 'E') steal(s, host, aura);
+  if (aura.side === 'P' && host.side === 'P') for (const q of [...s.P.bf]) q.def.onAttach?.(s, q, aura, host, api);
+}
+// 敵の クリーチャーを あなたの ものに する（オーラが はなれたら もどる）
+export function steal(s, p, by) {
+  s.E.bf.splice(s.E.bf.indexOf(p), 1);
+  p.side = 'P'; p.sick = true; p.attacking = false; p.stolenBy = by.uid;
+  s.P.bf.push(p);
+  L(s, `${p.def.name} が あなたの ものに なった`);
+}
+export function unsteal(s, aura) {
+  const p = s.P.bf.find((q) => q.stolenBy === aura.uid);
+  if (!p) return;
+  s.P.bf.splice(s.P.bf.indexOf(p), 1);
+  p.side = 'E'; p.stolenBy = null; p.attacking = false;
+  s.E.bf.push(p);
+  L(s, `${p.def.name} が てきに もどった`);
+}
+
 // ---- 敵の呪文 ----
 export async function reveal(s, n) {
   for (let i = 0; i < n && !s.over; i++) {
@@ -420,9 +534,11 @@ export async function enemyCast(s, c) {
 // ---- 戦闘 ----
 export function canBlock(s, b, a) {
   if (a.flags.turn?.unblockable) return false;
-  if (b.def.cantBlock) return false;
+  if (cant(s, b, 'cantBlock') || auraFlag(s, b, 'pacify')) return false;
+  if (b.def.blockOnlyFlyers && !hasKw(s, a, 'flying')) return false;
   if (a.flags.turn?.hasteOnly && !hasKw(s, b, 'haste')) return false;
   if (s.smallCantBlock === s.turn && power(s, b) <= 1) return false;
+  if (s.cantBlock3 === s.turn && power(s, b) <= 3) return false;
   if (a.def.minBlockPow && power(s, b) < a.def.minBlockPow) return false; // はがね葉の チャンピオン：パワー 2 いかには ブロックされない
   if (hasKw(s, a, 'flying') && !hasKw(s, b, 'flying') && !hasKw(s, b, 'reach')) return false;
   return true;
@@ -477,6 +593,7 @@ export function declareAttack(s, atk) {
 // 攻撃したときの 能力（ブリマーズ・大隊・集団戦術・訓練・教導 など）
 export function attackTriggers(s, atk) {
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
+  for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onAttacks) q.def.onAttacks(s, q, atk, api); // 讃美（1体だけで 攻撃）
   battleCry(s, atk);
   attackCounters(s, atk);
 }
@@ -511,7 +628,7 @@ export function finishCombat(s, atk, blocks) {
 }
 
 export async function enemyAttack(s, attackers) {
-  attackers = attackers.filter((p) => onBf(s, p) && isCreature(p));
+  attackers = attackers.filter((p) => onBf(s, p) && isCreature(p) && !auraFlag(s, p, 'pacify'));
   if (!attackers.length) return;
   for (const p of attackers) { p.attacking = true; if (!hasKw(s, p, 'vigilance')) p.tapped = true; }
   L(s, `てきの こうげき：${attackers.map((p) => p.def.name).join('、')}`);
@@ -568,4 +685,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
+  addMinus, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, attach, steal, unsteal, auraFlag,
 });

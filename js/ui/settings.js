@@ -7,32 +7,34 @@ import { ruby } from './view.js';
 // WEB版は 開発モード。false に すると 開発用の 項目が かくれて、ぜんぶの 弾が パックに 入る
 export const DEV = true;
 const KEY = 'mtg-sets';
-// まだ データに なって いない 弾（えらべない。作ったら cards.js の SETS に うつす）
+// まだ データに なって いない 弾（えらべない。作ったら cards.js の SETS に 入る）
 const PLANNED = [
-  ['第3弾（だん）「冥界（めいかい）の 門（もん）」', 81],
-  ['第4弾（だん）「星（ほし）めぐりの 夜（よる）」', 74],
-  ['第5弾（だん）「大きな 数の 塔（とう）」', 94],
-  ['第6弾（だん）「三つの 旗（はた）」', 45],
-  ['アルケミー（デジタル 限定（げんてい））', 31],
-];
+  [3, '第3弾（だん）「冥界（めいかい）の 門（もん）」', 81],
+  [4, '第4弾（だん）「星（ほし）めぐりの 夜（よる）」', 74],
+  [5, '第5弾（だん）「大きな 数の 塔（とう）」', 94],
+  [6, '第6弾（だん）「三つの 旗（はた）」', 45],
+  [7, 'アルケミー（デジタル 限定（げんてい））', 31],
+].filter(([id]) => !SETS.some((x) => x.id === id));
 
 const ALL_SETS = SETS.map((x) => x.id);
+// 出ている 弾（released）。開発中の 弾は 開発モードで えらんだ ときだけ
+const RELEASED = SETS.filter((x) => x.released).map((x) => x.id);
 let sets = (() => {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
     const ok = Array.isArray(v) ? v.filter((x) => ALL_SETS.includes(x)) : [];
-    return ok.length ? ok : ALL_SETS;
-  } catch { return ALL_SETS; }
+    return ok.length ? ok : RELEASED;
+  } catch { return RELEASED; }
 })();
 
-// パックに 入れる 弾（開発モードで ないときは ぜんぶ）
-export const enabledSets = () => (DEV ? sets : ALL_SETS);
+// パックに 入れる 弾（開発モードで ないときは 出ている 弾 ぜんぶ）
+export const enabledSets = () => (DEV ? sets : RELEASED);
 const setSets = (v) => {
   sets = v;
   try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* 保存できなくても この あいだは つかえる */ }
 };
 // タイトルに 出す みじかい 説明（ぜんぶの ときは なし）
-export const setsNote = () => (enabledSets().length === ALL_SETS.length ? '' : SETS.filter((x) => sets.includes(x.id)).map((x) => x.name.replace(/「.*$/, '')).join('・'));
+export const setsNote = () => (String(enabledSets()) === String(RELEASED) ? '' : SETS.filter((x) => sets.includes(x.id)).map((x) => x.name.replace(/「.*$/, '')).join('・'));
 
 export function settingsScreen(app, back) {
   const draw = () => {
@@ -49,8 +51,8 @@ export function settingsScreen(app, back) {
         <h3><span class="dev-badge">開発モード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
-          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${on.length === 1 && on.includes(x.id) ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.length}しゅるい</small></span></label></li>`).join('')}
-          ${PLANNED.map(([name, k], i) => `<li class="planned"><label><input type="checkbox" id="plan-${i}" disabled><span><b>${ruby(name)}</b><small>じゅんびちゅう（あんは ${k}しゅるい）</small></span></label></li>`).join('')}
+          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${on.length === 1 && on.includes(x.id) ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}</small></span></label></li>`).join('')}
+          ${PLANNED.map(([id, name, k]) => `<li class="planned"><label><input type="checkbox" id="plan-${id}" disabled><span><b>${ruby(name)}</b><small>じゅんびちゅう（あんは ${k}しゅるい）</small></span></label></li>`).join('')}
         </ul>
         <p class="st-pool">パックに 出る カード：<b>${n('C') + n('U') + n('R') + n('L')}しゅるい</b>（コモン ${n('C')}・アンコモン ${n('U')}・レア ${n('R')}・レジェンド ${n('L')}）</p>
       </section>` : ''}

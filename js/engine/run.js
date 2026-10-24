@@ -1,8 +1,8 @@
 // 冒険1回ぶん：パック開封 → デッキ構築 → 塔の5階（シミュレーションでも本番でも使う）
 import { seeded, shuffle, pick } from './rng.js';
 import { newGame, play, colorsOf, COLORS } from './game.js';
-import { AI, RARITY_PTS } from './ai.js';
-import { ALL, BASICS, SET_OF, bindEngine } from '../data/cards.js';
+import { AI, ptsOf } from './ai.js';
+import { ALL, ALL_DEV, BASICS, SET_OF, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
 import { api } from './game.js';
 
@@ -19,7 +19,7 @@ const POOLS = new Map();
 export function packPool(sets) {
   if (!sets) return POOL;
   const key = [...sets].sort().join(',');
-  if (!POOLS.has(key)) POOLS.set(key, poolOf(ALL.filter((d) => sets.includes(SET_OF[d.id]))));
+  if (!POOLS.has(key)) POOLS.set(key, poolOf(ALL_DEV.filter((d) => sets.includes(SET_OF[d.id]))));
   return POOLS.get(key);
 }
 
@@ -60,8 +60,9 @@ export function openPack(rng, o = {}) {
     for (let i = 0; i < PACK.R; i++) cards.push(take(rng() < odds.rToL ? 'L' : 'R'));
     const surprise = rng() < odds.surprise;
     if (surprise) cards[0] = take('L');
+    // 1パックに 4色 いじょう（5色の ときも 4色で よい）
     const cols = new Set(cards.flatMap(colorsOf));
-    if (cols.size === 4 || tries >= 20) { cards.surprise = surprise; return cards; }
+    if (cols.size >= 4 || tries >= 20) { cards.surprise = surprise; return cards; }
   }
 }
 
@@ -83,12 +84,16 @@ export function buildDeck(pool, o = {}) {
     const extra = inside(pair).filter((d) => colorsOf(d).includes(t)).sort((a, b) => cardValue(b) - cardValue(a)).slice(0, o.splash);
     tries.push({ pair, items: [...inside(two), ...extra] });
   }
-  for (const { pair, items } of tries) {
+  // 旗（第6弾）：その 3色の デッキに できる（旗は かならず 入れる）
+  const banners = [...new Map(pool.filter((d) => d.banner).map((d) => [d.banner, d])).values()];
+  if (o.banners !== false) for (const bn of banners) { const pair = [...bn.banner]; tries.push({ pair, items: inside(pair).filter((d) => d !== bn), forced: bn }); }
+  for (const { pair, items, forced } of tries) {
     // dp[n][pts] = { v, pick }
     const dp = Array.from({ length: DECK_SIZE + 1 }, () => Array(cap + 1).fill(null));
-    dp[0][0] = { v: 0, pick: [] };
+    if (forced) dp[1][ptsOf(forced)] = { v: cardValue(forced), pick: [forced] };
+    else dp[0][0] = { v: 0, pick: [] };
     for (const d of items) {
-      const w = RARITY_PTS[d.rar], v = cardValue(d);
+      const w = ptsOf(d), v = cardValue(d);
       for (let n = DECK_SIZE - 1; n >= 0; n--) for (let p = cap - w; p >= 0; p--) {
         const cur = dp[n][p]; if (!cur) continue;
         const nx = dp[n + 1][p + w];
@@ -102,7 +107,7 @@ export function buildDeck(pool, o = {}) {
   const cnt = Object.fromEntries(best.pair.map((c) => [c, deck.filter((d) => colorsOf(d).includes(c)).length]));
   const order = [...best.pair].sort((a, b) => cnt[b] - cnt[a]);
   for (let n = 0; deck.length < DECK_SIZE; n++) deck.push(BASICS[order[n % order.length]]);
-  return { deck, pair: best.pair.join(''), points: best.pick.reduce((t, d) => t + RARITY_PTS[d.rar], 0), real: best.pick.length };
+  return { deck, pair: best.pair.join(''), points: best.pick.reduce((t, d) => t + ptsOf(d), 0), real: best.pick.length };
 }
 
 export async function fight(deck, floorId, o = {}) {
