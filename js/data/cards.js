@@ -81,7 +81,7 @@ const G = [
     }],
   }),
   // 青緑
-  sp('G18', '豊（ゆた）かな 成長（せいちょう）', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 ? 14 : 2, run: () => api_rampTop(s) }) }),
+  sp('G18', '豊（ゆた）かな 成長（せいちょう）', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 && hasBasic(s) ? 14 : 2, run: () => api_ramp(s) }) }),
   sp('G19', '弱者（じゃくしゃ）の 選別（せんべつ）', 'C', 'G', 4, 'sorcery', {
     play: (s, E) => {
       const me = E.bestBuffTarget(s, null); if (!me) return null;
@@ -94,7 +94,7 @@ const G = [
     onOtherEnter: (s, p, q, E) => { if (q.side === p.side && E.isCreature(q) && E.colorsOf(q.def).includes('G')) { const t = E.bestBuffTarget(s, null); if (t) { E.target(s, t); E.addCounters(s, t, 1); } } },
   }),
   sp('G22', '耕作（こうさく）', 'U', 'G', 3, 'sorcery', {
-    play: (s, E) => ({ score: s.P.mana.length < 7 ? 13 : 4, run: () => { api_rampTop(s); E.drawCard(s); } }),
+    play: (s, E) => ({ score: s.P.mana.length < 7 ? 13 : 4, run: () => { api_ramp(s); E.drawCard(s); } }),
   }),
   cr('G23', '魔力喰（まりょくく）らいの ハイドラ', 'R', 'G', 2, 1, 1, ['hydra'], ['trample'], {
     onAnyCast: (s, p, d, who, E) => E.addCounters(s, p, 1),
@@ -208,7 +208,7 @@ const GOLD1 = [
     onTapped: (s, p, E) => { if (p.flags.turn.emmara) return; p.flags.turn.emmara = 1; E.token(s, 'P', T.soldierLL); },
   }),
   cr('WG02', '収穫（しゅうかく）の神（かみ） カラメトラ', 'R', 'WG', 5, 5, 6, ['god'], ['indestructible'], {
-    onCast: (s, p, d) => { if (d.types.includes('creature')) api_rampTop(s); },
+    onCast: (s, p, d) => { if (d.types.includes('creature')) api_ramp(s); },
   }),
   cr('WU01', '雷鳴（らいめい）の ワイバーン', 'U', 'WU', 4, 2, 3, ['drake'], ['flash', 'flying'], {
     flash: true,
@@ -923,12 +923,13 @@ const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY };
 const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
 BASICS.K = build('B06', B06);
 
-// ライブラリーの一番上をマナゾーンに（豊かな成長・カラメトラ・空身像）
-let api_rampTop = () => {};
+// ライブラリーから きほんカードを さがして マナゾーンに（豊かな成長・耕作・カラメトラ・空身像。2026-10-24 に「一番上を」から かえた）
+let api_ramp = () => 0;
+const hasBasic = (s) => s.P.lib.some((c) => c.def.basic);
 export function bindEngine(E) {
-  api_rampTop = (s) => E.rampTop(s);
+  api_ramp = (s, n = 1) => E.rampBasic(s, n);
   const solemn = ALL.find((d) => d.id === 'C09');
-  solemn.etb = (s) => E.rampTop(s);
+  solemn.etb = (s) => E.rampBasic(s, 1);
 }
 
 export const SET1 = [...W, ...U, ...U2, ...G, ...R, ...GOLD1, ...GOLD2, ...C];
