@@ -2,6 +2,7 @@
 import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance } from '../engine/run.js';
 import { BY_ID, BASICS } from '../data/cards.js';
 import { pickFloors } from '../data/enemies.js';
+import { RAV_NAMES, pickRavnica } from '../data/ravnica.js';
 import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
 import { startBattle } from './battle.js';
@@ -21,7 +22,10 @@ const FLOOR_NAMES = {
   hydra: '1階 ハイドラとの たいじ', horde: '2階 たいぐんとの たたかい', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
   xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
   clock: '1階 からくり とけいとう', dragon: '2階 ドラゴンの たからの 山', twins: '3階 ふたごの きょじん', gorgon: '4階 メドゥーサの 石の 庭',
+  ...RAV_NAMES,
 };
+// せかい（プレーン）：どの 塔に のぼるか（docs/RAVNICA.md）
+const PLANES = [['theros', 'テーロス'], ['ravnica', 'ラヴニカ']];
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
 
 let A = null; // いまの冒険
@@ -43,6 +47,7 @@ export function title() {
     <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
     <h1>マスマティック・<br>ザ・ギャザリング</h1>
     <p class="title-sub">算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。</p>
+    <fieldset class="seg"><legend>せかい</legend>${PLANES.map(([k, l]) => `<label><input type="radio" name="plane" id="plane-${k}" value="${k}" ${(pref.plane || 'theros') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <div class="title-btns">
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
@@ -68,7 +73,8 @@ export function title() {
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
-    A = { diff, pool: [], deck: null, floors: pickFloors(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
+    const plane = app().querySelector('input[name=plane]:checked').value;
+    A = { diff, plane, pool: [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
     packs();
   };
@@ -339,11 +345,11 @@ function tower() {
   const st = deckStats(A.deck);
   app().innerHTML = `<main class="tower">
     <p class="eyebrow">${DIFFS.find(([k]) => k === A.diff)[1]}　コンティニュー のこり ${A.continues}回</p>
-    <h2>とう</h2>
-    <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${esc(FLOOR_NAMES[f])}</span><em>${i < A.idx ? 'クリア' : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
+    <h2>${A.plane === 'ravnica' ? 'ラヴニカの とう' : 'テーロスの とう'}</h2>
+    <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${ruby(FLOOR_NAMES[f])}</span><em>${i < A.idx ? 'クリア' : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
     <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     ${emblemLine() ? `<p class="em-line">もんしょう：${esc(emblemLine())}</p>` : ''}
-    <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${esc(FLOOR_NAMES[A.floors[A.idx]])}へ</button></div>
+    <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(FLOOR_NAMES[A.floors[A.idx]])}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
   </main>`;
   app().onclick = (e) => {
@@ -371,7 +377,7 @@ function fight() {
         return packs();
       }
       if (A.continues > 0) {
-        const v = await sheet(`<p>コンティニューすると、${esc(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは はじめの 数に もどる）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
+        const v = await sheet(`<p>コンティニューすると、${ruby(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは はじめの 数に もどる）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
           [{ label: 'コンティニュー（のこり1回）', value: 'c', kind: 'primary' }, { label: 'あきらめる', value: 'x' }], { title: 'まけてしまった', dismiss: false });
         if (v === 'c') { A.continues--; save(); return tower(); }
       }
@@ -392,7 +398,7 @@ function ending(win) {
   if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
     <p class="eyebrow">${win ? 'とうを のぼりきった' : `${reached}階で ちからつきた`}</p>
-    <h2>${win ? 'エレボスを たおした！' : 'ぼうけん おわり'}</h2>
+    <h2>${win ? (A.plane === 'ravnica' ? 'ジェイスに みとめられた！' : 'エレボスを たおした！') : 'ぼうけん おわり'}</h2>
     <dl class="stats">
       <div><dt>とどいた 階</dt><dd>${reached}<small>/5</small></dd></div>
       <div><dt>ぴったり</dt><dd>${A.exact || 0}<small>回</small></dd></div>

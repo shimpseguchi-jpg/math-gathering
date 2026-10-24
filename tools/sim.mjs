@@ -12,6 +12,7 @@ import { pvp } from '../js/data/enemies.js';
 import { fight, runAdventure, openPack, buildDeck } from '../js/engine/run.js';
 import { seeded } from '../js/engine/rng.js';
 import { EMBLEMS, emblemEffects } from '../js/data/emblems.js';
+import { RAV_SLOTS } from '../js/data/ravnica.js';
 
 const N = Number(process.env.N ?? 200);
 const DIFF = process.env.DIFF ?? 'normal';
@@ -20,10 +21,12 @@ const SEED = Number(process.env.SEED ?? 1);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : undefined;
 // もんしょう（12章）：EMBLEM=life1,basic1 など。all で ぜんぶ
 const EM = process.env.EMBLEM ? (process.env.EMBLEM === 'all' ? EMBLEMS.filter((e) => e.branch !== 'leader').map((e) => e.id) : process.env.EMBLEM.split(',')) : [];
-const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM) };
+// PLANE=ravnica で ラヴニカの 塔（docs/RAVNICA.md）
+const PLANE = process.env.PLANE || 'theros';
+const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM), plane: PLANE };
 
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);
-const FLOOR_IDS = ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];
+const FLOOR_IDS = PLANE === 'ravnica' ? RAV_SLOTS.flat() : ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];
 const pct = (x) => `${Math.round(x * 100)}%`.padStart(4);
 const avg = (a) => (a.length ? a.reduce((t, x) => t + x, 0) / a.length : 0);
 

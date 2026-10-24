@@ -126,7 +126,7 @@ export function trophyScreen(app, back) {
   };
   const progress = [
     ['ぴったり ぜんぶで', `${T.exactTotal || 0}回`],
-    ['たおした てき', `${T.beaten.length} / ${FOES.length}しゅるい`],
+    ['たおした てき（テーロス）', `${T.beaten.filter((f) => FOES.includes(f)).length} / ${FOES.length}しゅるい`],
     ['のぼりきった 色の くみあわせ', `${T.pairs.length}つ`],
   ];
   app().innerHTML = `<main class="trophies">

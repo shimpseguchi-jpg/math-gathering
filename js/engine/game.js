@@ -345,6 +345,7 @@ export function costOf(s, d) {
   if (d.costLess) c -= d.costLess(s, api);
   for (const q of s.P.bf) if (q.def.costCut) cut += q.def.costCut(s, q, d, api) || 0; // ほかの カードで 安く なる（色の ぶんは のこる）
   if (cut) c = Math.max(Math.min(c, colorsOf(d).length), c - cut);
+  c += s.floor.costTax?.(s, d) || 0; // アゾリウスの 法（ラヴニカの 塔）：コスト ＋1
   return Math.max(d.costMin ?? 0, c);
 }
 // この ターンに 敵が うけた ダメージ（本体と クリーチャー）
@@ -580,6 +581,7 @@ export async function enemyCast(s, c) {
   if (await s.ai.counter(s, c)) { s.E.gy.push(c); L(s, '打ち消した'); return; }
   if (c.def.types.includes('sorcery')) { c.def.effect(s, api); s.E.gy.push(c); }
   else enter(s, 'E', c.def, { card: c.def });
+  s.floor.onReveal?.(s, c.def, api); // めくった ときの 階の ルール（ラヴニカの 塔）
   sba(s);
 }
 

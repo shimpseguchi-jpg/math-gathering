@@ -903,6 +903,8 @@ function ghostBegin(s, E) {
 }
 
 export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, clock, dragon, twins, gorgon, tutorial };
+// ほかの 次元の 塔（ラヴニカ：data/ravnica.js）が 使う 部品
+export const KIT = { ecr, esp, eart, pc, biggest, weakest, DIFF, build, toLib, attackers, sumPow };
 // 冒険の 5つの 階：それぞれ この 中から ランダムに 1つ
 export const SLOTS = [['hydra', 'clock'], ['horde', 'dragon'], ['factory', 'slime', 'twins'], ['xenagos', 'gorgon'], ['erebos']];
 export const pickFloors = (rng) => SLOTS.map((ids) => ids[Math.floor(rng() * ids.length)]);

@@ -6,6 +6,7 @@ import {
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
 import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
+import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
 import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
 
@@ -26,7 +27,7 @@ export function startBattle(o) {
   const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
   if (!floor.goal || o.tutorial) return go();
   render();
-  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${esc(o.floorName)}：かちかた`, dismiss: false }).then(go);
+  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${ruby(o.floorName)}：かちかた`, dismiss: false }).then(go);
 }
 
 // マリガン（もんしょう）：はじめの てふだを 見て、1かいだけ ひきなおせる
@@ -42,7 +43,7 @@ async function askMulligan() {
 
 // オンラインバトルで あいてが 先に うごく とき
 async function enemyFirst() {
-  await sheet(`<p>${esc(B.floorName)}が 先に うごく。</p>`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: 'あいての せんこう', dismiss: false });
+  await sheet(`<p>${ruby(B.floorName)}が 先に うごく。</p>`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: 'あいての せんこう', dismiss: false });
   await enemyPhase();
 }
 
@@ -209,12 +210,15 @@ async function enemyPhase() {
   if (!B.s.over) startTurn();
 }
 
+// ラヴニカの 塔：リーダーの セリフ（ふきだし）
+const sayBox = (text) => (text && B.s.floor.speaker ? `<p class="say"><b>${esc(B.s.floor.speaker)}</b><span>${ruby(text)}</span></p>` : '');
+
 function checkOver(lines) {
   const s = B.s;
   if (!s.over) return false;
   render();
   const win = s.over === 'win', draw = s.over === 'draw';
-  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>`,
+  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
     .then(() => B.onEnd({
       win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase,
@@ -239,10 +243,12 @@ function attackTargets() {
       if (s.phase === 1) return cr.filter((p) => p.def.head);
       if (s.phase === 2) return cr.filter((p) => p.def.minion);
       return ['face', ...cr.filter((p) => !p.def.erebos)];
-    default: return cr;
+    default: return ravFace() ? ['face', ...cr] : cr;
   }
 }
-const faceName = () => (B.s.floor.id === 'pvp' ? `${B.s.floor.name}（ライフ ${B.s.E.life}）` : null) || ({
+// ラヴニカの 塔：ライフを もった リーダー（ジェイスも）
+const ravFace = () => !!(B.s.floor.rav && B.s.floor.faceLabel);
+const faceName = () => (B.s.floor.id === 'pvp' || ravFace() ? `${B.s.floor.faceLabel || B.s.floor.name}（ライフ ${B.s.E.life}）` : null) || ({
   horde: 'たいぐん（やまふだを けずる）', erebos: 'エレボス（ライフを へらす）', factory: `ゴーレム工場（かぎ ${B.s.E.key}：ちょうど 同じ数で こわれる）`,
   clock: `からくり時計（はり ${B.s.E.hour}時：ちょうど 12で とまる）`, dragon: `たからの 山（きんか ${B.s.E.gold}/${B.s.E.goal}まい）`, gorgon: `メドゥーサ（ライフ ${B.s.E.life}）`,
 })[B.s.floor.id] || 'てき';
@@ -250,7 +256,7 @@ const faceName = () => (B.s.floor.id === 'pvp' ? `${B.s.floor.name}（ライフ 
 // ---- 対象を えらぶ ----
 function faceAvailable() {
   const s = B.s;
-  return { horde: s.E.lib.length > 0, erebos: s.phase === 3, factory: true, pvp: true, clock: true, dragon: true, gorgon: true }[s.floor.id] || false;
+  return { horde: s.E.lib.length > 0, erebos: s.phase === 3, factory: true, pvp: true, clock: true, dragon: true, gorgon: true }[s.floor.id] || ravFace();
 }
 function cands(spec, ctx = {}) {
   const s = B.s;
@@ -440,7 +446,7 @@ async function onClick(e) {
 
 // たたかいの とちゅうで メニューへ もどる（o.quit：{ label, note, go }。冒険は つづきが のこる、オンラインは こうさん）
 // かちかた（ボスの たおしかた）を いつでも 見られる
-const showGoal = () => sheet(`<p class="goal">${ruby(B.s.floor.goal(B.s))}</p>`, [{ label: 'とじる', value: 0, kind: 'primary' }], { title: `${esc(B.floorName)}：かちかた` });
+const showGoal = () => sheet(`<p class="goal">${ruby(B.s.floor.goal(B.s))}</p>`, [{ label: 'とじる', value: 0, kind: 'primary' }], { title: `${ruby(B.floorName)}：かちかた` });
 
 async function menu() {
   const q = B.quit || { label: 'タイトルへ もどる', note: '', go: () => {} };
@@ -714,7 +720,7 @@ async function showGy() {
 
 // ---- スワイプ：自分の クリーチャーから 敵へ ひっぱると 攻撃先・ブロックを きめる ----
 // 本体（大群の山札・エレボスのライフ）を ねらえる 階は、敵の 戦場に「本体」の 札を 出す
-const attackFace = () => ['horde', 'erebos', 'pvp', 'dragon'].includes(B.s.floor.id) && attackTargets().includes('face');
+const attackFace = () => (['horde', 'erebos', 'pvp', 'dragon'].includes(B.s.floor.id) || ravFace()) && attackTargets().includes('face');
 function canDrag(p) {
   const s = B.s;
   if (!isCreature(p) || (B.tut && !B.tut.allowDrag(p))) return false;
@@ -816,7 +822,7 @@ function enemyStatus() {
     case 'dragon': return `<span class="chip hot">きんか ${s.E.gold}/${s.E.goal}まい</span><span class="chip">${s.E.flags.awake ? 'ドラゴンが おきている！' : `ドラゴンの ねむけ ${s.E.sleep}`}</span>`;
     case 'twins': return `<span class="chip hot">きょじん ${cr.filter((p) => p.def.twin).length}体</span>`;
     case 'gorgon': return `<span class="chip hot">メドゥーサの ライフ ${s.E.life}</span>`;
-    default: return lib;
+    default: return s.floor.status ? s.floor.status(s, api) : lib;
   }
 }
 
@@ -851,12 +857,13 @@ function intent() {
   if (s.floor.id === 'factory' && !s.E.flags.inspect && s.E.bf.filter((p) => p.def.golem).length < 2) out.push('ゴーレムを 1体 作る');
   if (s.floor.id === 'clock') out.push(`チクタク：はりが 1 すすむ（いま ${s.E.hour}時）`);
   if (s.floor.id === 'dragon' && !s.E.flags.awake) out.push(`ドラゴンは ねている（ねむけ ${s.E.sleep}）`);
+  if (s.floor.intent) out.push(...s.floor.intent(s, api)); // ラヴニカの 塔：階の ルール
   const atk = cr.filter(willAttack).filter((p) => !p.frozen);
   if (atk.length) out.push(`${atk.length}体で こうげき（パワー ${atk.map((p) => Math.max(0, power(s, p))).join('・')}）`);
   if (s.floor.id === 'slime' && !s.E.flags.started) out.push('さいしょの ターンは こうげきしない');
   if (s.floor.id === 'xenagos') out.push('ゼナゴスは ふえふききが 出たときだけ こうげき');
   const n = { horde: { easy: 1, normal: 1, hard: 2 }, xenagos: 1 }[s.floor.id];
-  const reveal = s.floor.id === 'horde' ? n[s.diff] + s.E.bf.filter((p) => p.def.altar).length : s.floor.id === 'erebos' && s.phase > 1 ? (s.diff === 'easy' ? 1 : 2) : 1;
+  const reveal = s.floor.revealN ? s.floor.revealN(s) : s.floor.id === 'horde' ? n[s.diff] + s.E.bf.filter((p) => p.def.altar).length : s.floor.id === 'erebos' && s.phase > 1 ? (s.diff === 'easy' ? 1 : 2) : 1;
   if (s.E.lib.length) out.push(`やまふだを ${Math.min(reveal, s.E.lib.length)}まい めくって 使う`);
   if (s.E.extraTurns > 0) out.push(`まだ 来ない（あと ${s.E.extraTurns}ターン）`);
   return out.length ? out : ['なにも しない'];
@@ -933,7 +940,7 @@ function render() {
     label: permLabel(p),
     cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
-  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : s.floor.id === 'dragon' ? 'たからの 山' : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : s.floor.id === 'dragon' ? `きんか ${s.E.gold}/${s.E.goal}` : `ライフ ${s.E.life}`}</b></div>` : '';
+  const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : ravFace() ? s.floor.faceLabel : s.floor.id === 'dragon' ? 'たからの 山' : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : s.floor.id === 'dragon' ? `きんか ${s.E.gold}/${s.E.goal}` : `ライフ ${s.E.life}`}</b></div>` : '';
   const untapped = s.P.mana.filter((m) => !m.tapped).length;
   const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }
@@ -950,9 +957,10 @@ function render() {
   app().innerHTML = `<div class="battle">
     <header class="bt-head">
       <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
-      <div class="bt-title"><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
+      <div class="bt-title"><span class="floor">${ruby(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
       <div class="chips">${s.floor.goal && !B.tut ? '<button type="button" class="chip goal-btn" data-act="goal">かちかた</button>' : ''}${enemyStatus()}</div>
     </header>
+    ${s.over ? '' : sayBox(s.E.say)}
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの てき'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
     <div class="erow">
       <section class="zone enemy" aria-label="てきの せんじょう">${face}${perms('E')}</section>

@@ -5,7 +5,7 @@ import { T, hit, theirs, foeBest, killIt, pwAbility } from './kit.js';
 export const SPW = {
   PW01: {
     acts: [
-      pwAbility(1, '白の 1/1 の 兵士を 2体', { play: () => ({ score: 5, run: () => undefined }) }),
+      pwAbility(1, '白の 1/1 の へいしを 2体', { play: () => ({ score: 5, run: () => undefined }) }),
       pwAbility(-3, 'パワー 4 いじょうの てきを ぜんぶ はかい', {
         play: (s, p, E, ctx) => { const n = theirs(s, E).filter((q) => E.power(s, q) >= 4).length; return n && (n >= 2 || p.loy > 3 || ctx?.human) ? { score: 6 + 5 * n, run: () => undefined } : null; },
       }),

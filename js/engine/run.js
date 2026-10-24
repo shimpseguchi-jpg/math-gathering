@@ -4,6 +4,7 @@ import { newGame, play, colorsOf, COLORS } from './game.js';
 import { AI, ptsOf } from './ai.js';
 import { ALL, ALL_DEV, BASICS, SET_OF, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
+import { pickRavnica } from '../data/ravnica.js';
 import { api } from './game.js';
 
 bindEngine(api);
@@ -121,7 +122,7 @@ export async function runAdventure(o = {}) {
   const pool = [];
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets }));
   let b = buildDeck(pool, o);
-  const floors = o.floors || pickFloors(rng);
+  const floors = o.floors || (o.plane === 'ravnica' ? pickRavnica : pickFloors)(rng);
   let continues = o.continues ?? 1;
   const log = { floors: [], cleared: false, decks: [] };
   for (let i = 0; i < floors.length; i++) {
