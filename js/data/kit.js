@@ -253,33 +253,37 @@ export const magecraft = (f) => ({
 // フラクタル（0/0 に ＋1/＋1カウンター X こ）
 export const fractal = (s, E, x) => (x > 0 ? E.token(s, 'P', T.fractal, 1, { ctr: x }) : []);
 // ---- 3まいから 1まいを えらぶ（学習・呪文書） ----
-// プレイヤーの デッキの 色（色の 合わない カードは 出さない）
-function deckColors(s, E) {
-  const all = [...s.P.lib, ...s.P.hand, ...s.P.gy, ...s.P.mana, ...s.P.bf.map((p) => ({ def: p.card || p.def }))];
-  return new Set(all.flatMap((c) => E.colorsOf(c.def)));
-}
-// ちがう カードを 3まいまで ランダムに。デッキの 色で 唱えられる もの（なければ ぜんぶから）
+// 手に 入れた カードは 色が 合わなくても、色の マナの かわりに ライフ 2 で 唱えられる（ai.js の plan・LIFE_PIP）
+// デッキの 色（はじめに 組んだ デッキ。呪文書から 来た カードの 色は 入れない）
+const deckColors = (s, E) => s.P.cols || new Set(s.P.lib.flatMap((c) => E.colorsOf(c.def)));
+// その 色の マナで 唱えられる（ライフが いらない）
+export const fitsDeck = (s, E, d) => { const cs = E.colorsOf(d), cols = deckColors(s, E); return !cs.length || cs.some((c) => cols.has(c)); };
+// ちがう カードを 3まいまで ランダムに。デッキの 色で 唱えられる ものを 1まいは 入れる（本に あれば）
 function threeOf(s, E, defs) {
-  const cols = deckColors(s, E);
-  let list = [...new Set(defs.filter(Boolean))];
-  const ok = list.filter((d) => E.colorsOf(d).every((c) => cols.has(c)));
-  if (ok.length) list = ok;
+  const list = [...new Set(defs.filter(Boolean))];
   const out = [];
   while (out.length < 3 && list.length) out.push(list.splice(Math.floor(s.rng() * list.length), 1)[0]);
+  const ok = list.filter((d) => fitsDeck(s, E, d));
+  if (out.length && ok.length && !out.some((d) => fitsDeck(s, E, d))) out[Math.floor(s.rng() * out.length)] = ok[Math.floor(s.rng() * ok.length)];
   return out;
 }
-const aiChoice = (s, defs) => { const mana = s.P.mana.length; return [...defs].sort((a, b) => (b.cost <= mana + 1) - (a.cost <= mana + 1) || (RANK[b.rar] || 0) - (RANK[a.rar] || 0) || b.cost - a.cost)[0]; };
+// AI：すぐ 出せる もの → 点（レアリティ。色が 合わない ものは 1 ひく。ライフが 10 より 少ない ときは 3 ひく）→ 重い もの
+const aiChoice = (s, E, defs) => {
+  const mana = s.P.mana.length;
+  const v = (d) => (RANK[d.rar] || 0) - (fitsDeck(s, E, d) ? 0 : s.P.life < 10 ? 3 : 1);
+  return [...defs].sort((a, b) => (b.cost <= mana + 1) - (a.cost <= mana + 1) || v(b) - v(a) || b.cost - a.cost)[0];
+};
 // 人が 遊ぶ ときは 画面で えらぶ（s.ai.pickCard。えらぶ まで まつ）。then(えらんだ カード) の けっかを かえす
 function chooseOne(s, E, defs, title, then) {
   if (!defs.length) return null;
   E.L(s, `${title}：${defs.map((d) => d.name).join('・')}`);
   if (s.ai.pickCard && !s.swapped) return s.ai.pickCard(s, defs, title).then((d) => then(d || defs[0]));
-  return then(aiChoice(s, defs));
+  return then(aiChoice(s, E, defs));
 }
 // 学習：レッスンの 3まいから 1まいを えらんで 手札に
 export const LESSONS = [];
 export function learn(s, E) {
-  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：レッスンを 1まい えらぶ', (d) => { s.P.hand.push(E.card(d)); E.L(s, `がくしゅう：${d.name}`); });
+  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：レッスンを 1まい えらぶ', (d) => { const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう：${d.name}`); });
 }
 // 再帰（さいき）を ふせぐ（パワーの 合計で 強く なる カードどうし）
 export function guard(s, k, f, dflt) {
@@ -321,8 +325,8 @@ export function seek(s, E, f) {
   E.L(s, `さがした：${c.def.name}`);
   return c;
 }
-// 創出：カードを 手札に 作る
-export function conjure(s, E, d) { if (!d) return null; const c = E.card(d); s.P.hand.push(c); E.L(s, `そうしゅつ：${d.name}`); return c; }
+// 創出：カードを 手札に 作る（c.conj：色が 合わなくても ライフで 唱えられる）
+export function conjure(s, E, d) { if (!d) return null; const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `そうしゅつ：${d.name}`); return c; }
 // 呪文書：本から 3まい 出して 1まい えらぶ（AI が えらぶ）
 export const BOOKS = {
   tashizan: ['W12', 'W13', 'W15', 'W31', 'U03', 'U13', 'G04', 'G09', 'G18', 'G30', 'R04', 'R10', 'R21', 'R30', 'RW01'],
@@ -335,7 +339,7 @@ export const BOOK_NAME = {
   tashizan: 'たし算の 呪文書（じゅもんしょ）', kuku: '九九（くく）の 呪文書（じゅもんしょ）', pittari: 'ぴったりの 呪文書（じゅもんしょ）',
   dragon: 'ドラゴンの 呪文書（じゅもんしょ）', meikai: '冥界（めいかい）の 呪文書（じゅもんしょ）', all: '無限（むげん）の 秘本（ひほん）',
 };
-// 呪文書から ドラフト：デッキの 色に 合う ちがう 3まいから 1まい えらんで 手札に 創出
+// 呪文書から ドラフト：ちがう 3まいから 1まい えらんで 手札に 創出
 export function draft(s, E, book, after) {
   const ids = book === 'all' ? REG.all.map((d) => d.id) : BOOKS[book];
   return chooseOne(s, E, threeOf(s, E, ids.map((id) => REG.byId[id])), `${BOOK_NAME[book]}から 1まい えらぶ`, (d) => { const c = conjure(s, E, d); after?.(c); return c; });

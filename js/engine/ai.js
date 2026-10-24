@@ -42,11 +42,14 @@ function manaOf(s, p) {
   return null;
 }
 
+// 呪文書・学習で 手に 入れた カード（c.conj）は、色の マナが なければ 1つにつき ライフ 2 で かわりに できる（マナの 数は そのまま）
+// o.lifeKeep：はらった あとに のこす ライフ（人は 1、AI は 5）。0 なら ライフでは はらわない
+export const LIFE_PIP = 2;
 export function plan(s, cost, req = [], o = {}) {
   const src = sources(s, o);
   if (src.length < cost) return null;
   const chosen = new Set();
-  let prism = null;
+  let prism = null, life = 0;
   const nReq = cost === 0 || !req.length ? 0 : (o.req2 ? 2 : 1);
   for (let k = 0; k < nReq; k++) {
     let x = src.find((y) => !chosen.has(y) && y.colors.some((c) => req.includes(c)));
@@ -54,12 +57,13 @@ export function plan(s, cost, req = [], o = {}) {
       const pr = s.P.bf.find((p) => p.def.prism && !p.tapped);
       if (pr && !prism) { prism = pr; x = src.find((y) => !chosen.has(y)); }
     }
+    if (!x && o.lifeKeep && s.P.life - life - LIFE_PIP >= o.lifeKeep) { life += LIFE_PIP; x = src.find((y) => !chosen.has(y)); }
     if (!x) return null;
     chosen.add(x);
   }
   for (const x of src) { if (chosen.size >= cost) break; chosen.add(x); }
   if (chosen.size < cost) return null;
-  return { srcs: [...chosen], prism };
+  return { srcs: [...chosen], prism, life };
 }
 
 export function pay(s, pl) {
@@ -70,6 +74,7 @@ export function pay(s, pl) {
     if (x.ref.def?.treasure && onBf(s, x.ref)) leave(s, x.ref, 'gy');
   }
   if (pl.prism) pl.prism.tapped = true;
+  if (pl.life) { L(s, `${s.swapped ? 'てき：' : ''}色の マナの かわりに ライフを ${pl.life} はらう`); s.stats.lifePaid = (s.stats.lifePaid || 0) + pl.life; api.hurt(s, pl.life); }
   return [...new Set(convoked)];
 }
 
@@ -206,7 +211,7 @@ function optionsFor0(s, c, phase, from) {
   const def = c.def;
   const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? def.escape.cost : costOf(s, def);
   const req = from === 'gy' ? def.flashback.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
-  const o = { convoke: def.kw?.includes('convoke'), sickOnly: phase === 1, req2: def.req2 };
+  const o = { convoke: def.kw?.includes('convoke'), sickOnly: phase === 1, req2: def.req2, lifeKeep: c.conj ? 5 : 0 };
   if (from === 'escape' && s.P.gy.length - 1 < def.escape.exile) return [];
   if (def.discardCost && from === 'hand' && s.P.hand.length - 1 < def.discardCost) return [];
   const mul = def.xMul || 1;

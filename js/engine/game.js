@@ -20,7 +20,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20, lib: shuffle(rng, deck.map((d) => card(d))), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {} },
+    P: { side: 'P', life: 20, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {} },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {} },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };

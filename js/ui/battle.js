@@ -3,7 +3,8 @@ import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf,
 } from '../engine/game.js';
-import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow } from '../engine/ai.js';
+import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP } from '../engine/ai.js';
+import { fitsDeck } from '../data/kit.js';
 import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
 import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
@@ -96,8 +97,9 @@ function humanAI() {
     // 学習・呪文書：3まいから 1まいを えらぶ（色も 見える）。えらんだ あとで 手札に 入るので、すこし あとで 画面を かきなおす
     pickCard: async (s, defs, title) => {
       if (B) render();
-      const v = await sheet(`<p>${defs.length}まいから 1まいを えらんで、てふだに 入れる。</p><div class="pick3">${defs.map((d) => detail(d)).join('')}</div>`,
-        defs.map((d) => ({ label: `${ruby(info(d).name)} を えらぶ`, value: d, kind: 'primary' })), { title: ruby(title), dismiss: false });
+      const off = (d) => (fitsDeck(s, api, d) ? 0 : LIFE_PIP * (d.req2 ? 2 : 1));
+      const v = await sheet(`<p>${defs.length}まいから 1まいを えらんで、てふだに 入れる。${defs.some(off) ? `デッキに ない 色の カードも、色の マナの かわりに ライフを ${LIFE_PIP} はらえば 出せる。` : ''}</p><div class="pick3">${defs.map((d) => detail(d)).join('')}</div>`,
+        defs.map((d) => ({ label: `${ruby(info(d).name)} を えらぶ`, value: d, kind: 'primary', note: off(d) ? `デッキに ない 色：出す とき ライフ −${off(d)}` : '' })), { title: ruby(title), dismiss: false });
       setTimeout(() => { if (B && !checkOver()) render(); }, 0);
       return v;
     },
@@ -314,12 +316,22 @@ async function payable(cost, req, o) {
   return pl;
 }
 
+// 呪文書・学習の カード：色の マナが ない ぶんは ライフで はらえる（1つにつき 2。ライフは 1 のこる ときだけ）
+const lifeNote = (d, n) => `${colorsOf(d).map((k) => COLOR_NAME[k]).join('か')}の マナの かわり（ライフ ${B.s.P.life} − ${n} ＝ ${B.s.P.life - n}）`;
+// てふだの ♥：いまの マナゾーンに その 色が なくて、ライフで はらう ことに なる
+function lifeNeed(s, c) {
+  const cs = colorsOf(c.def);
+  if (!c.conj || !cs.length) return 0;
+  const have = s.P.mana.filter((m) => colorsOf(m.def).some((k) => cs.includes(k))).length;
+  return LIFE_PIP * Math.max(0, (c.def.req2 ? 2 : 1) - have);
+}
+
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
   const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
-  const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
+  const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
   const perm = !isSpell(d);
   const mul = d.xMul || 1;
   if (from === 'escape' && s.P.gy.length - 1 < d.escape.exile) return { why: `ぼちに ほかの カードが ${d.escape.exile}まい いる（いま ${s.P.gy.length - 1}まい）` };
@@ -335,7 +347,7 @@ function castInfo(c, from = 'hand') {
     if (x < 1) return { why: 'マナが たりない' };
   }
   const pl = plan(s, cost + x * mul, req, o);
-  if (!pl) return { why: colorsOf(d).length && plan(s, cost + x * mul, [], o) ? `${colorsOf(d).map((k) => COLOR_NAME[k]).join('か')}の マナが いる` : 'マナが たりない' };
+  if (!pl) return { why: colorsOf(d).length && plan(s, cost + x * mul, [], o) ? `${colorsOf(d).map((k) => COLOR_NAME[k]).join('か')}の マナが いる${c.conj ? '（ライフで はらうと 0に なるので はらえない）' : ''}` : 'マナが たりない' };
   if (perm) {
     if (d.need && !d.need(s, api)) return { why: 'いまは 出しても こうかが ない' };
     return { ok: true, pl, x };
@@ -357,7 +369,7 @@ async function doCast(c, from = 'hand') {
   const stop = () => { B.busy = false; render(); };
   const base = from === 'gy' ? d.flashback.cost : from === 'escape' ? d.escape.cost : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
-  const o = { convoke: d.kw?.includes('convoke'), req2: d.req2 };
+  const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
   const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
   let x = ci.x;
@@ -498,7 +510,8 @@ async function tapHand(c) {
   const choices = [];
   if (B.mode === 'main') {
     const ci = castInfo(c);
-    choices.push({ label: d.types.includes('creature') ? 'せんじょうに 出す' : '使う', value: 'cast', kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
+    const verb = d.types.includes('creature') ? 'せんじょうに 出す' : '使う', lf = ci.ok && ci.pl?.life;
+    choices.push({ label: lf ? `ライフを ${lf} はらって ${verb}` : verb, value: 'cast', kind: 'primary', disabled: !ci.ok, note: !ci.ok ? ci.why : lf ? lifeNote(d, lf) : '' });
     if (d.suspend && s.active === 'P') { const ok = !!plan(s, d.suspend.cost, d.suspend.req || []); choices.push({ label: `たいきする（${d.suspend.cost}マナ・${d.suspend.turns}ターン あとに ただで 使う）`, value: 'suspend', kind: 'primary', disabled: !ok, note: ok ? '' : 'マナが たりない' }); }
     // 出来事（カードの 下の 呪文）・授与（オーラとして つける）
     if (d.adv && !c.advDone) { const ok = !!plan(s, d.adv.cost, d.adv.req); choices.push({ label: `できごと「${ruby(d.adv.name)}」を 使う（${d.adv.cost}マナ）`, value: 'adv', kind: 'primary', disabled: !ok, note: ok ? 'あとで クリーチャーとしても 出せる' : 'マナが たりない' }); }
@@ -514,8 +527,9 @@ async function tapHand(c) {
     }
     if (tr || (d.modes && d.types.includes('instant'))) { // モードの ある ソーサリー（プルフォロスの 介入）は たたかいの とちゅうには 使えない
       const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
-      const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke') });
-      choices.push({ label: d.bloodrush ? 'ゆうけつで 使う' : '使う', value: 'trick', kind: 'primary', disabled: !pl, note: pl ? '' : 'マナが たりない' });
+      const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
+      const verb = d.bloodrush ? 'ゆうけつで 使う' : '使う';
+      choices.push({ label: pl?.life ? `ライフを ${pl.life} はらって ${verb}` : verb, value: 'trick', kind: 'primary', disabled: !pl, note: !pl ? 'マナが たりない' : pl.life ? lifeNote(d, pl.life) : '' });
     }
   }
   choices.push({ label: 'とじる', value: null });
@@ -580,7 +594,7 @@ async function useTrick(c) {
     target = await sheet('<p>どの クリーチャーに 使う？</p>', [...live.map((a) => ({ label: `${(nm(a.p))}（${power(s, a.p)}/${pt(s, a.p)[1]}）`, value: a.p })), { label: 'やめる', value: null }]);
     if (!target) return;
   }
-  const pl = await payable(cost + (mode?.extra || 0), req, { convoke: d.kw?.includes('convoke') });
+  const pl = await payable(cost + (mode?.extra || 0), req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
   if (!pl) return;
   B.busy = true;
   const run = mode ? mode.run : (target ? () => { api.target(s, target); d.singleRun(s, api, target); } : () => d.massRun(s, api));
@@ -936,7 +950,7 @@ function render() {
       <div class="piles">${deckPile('P')}${gravePile('P')}</div>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
-    <div class="hand" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
+    <div class="hand" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}${lifeNeed(s, c) ? `<span class="life-cost" aria-label="ライフ ${lifeNeed(s, c)}で 色を はらう">♥${lifeNeed(s, c)}</span>` : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
     <footer class="actions">${btns}</footer>
   </div>`;
   B.tut?.highlight(app());

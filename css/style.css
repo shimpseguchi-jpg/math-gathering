@@ -75,6 +75,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .st-dev { font-style: normal; color: var(--bad); font-weight: 700; }
 .hand-slot { position: relative; }
 .adv-done { position: absolute; left: 4px; right: 4px; bottom: 4px; border-radius: 6px; background: var(--gold); color: var(--gold-ink); font-size: 9px; font-weight: 700; text-align: center; line-height: 1.5; pointer-events: none; }
+/* 呪文書・学習の カード：色の マナの かわりに はらう ライフ */
+.life-cost { position: absolute; left: 4px; bottom: 5px; padding: 0 5px; border-radius: 999px; background: #c62f3b; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.6; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; }
 .st-pool b { color: var(--gold); }
 
 /* ---- カード ---- */
