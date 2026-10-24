@@ -1,4 +1,4 @@
-// しゅぎょう（もんしょうの もんだい）：1ねんせいの さんすう・こくご。3ぷんで とく（ui/study.js）
+// しゅぎょう（もんしょうの もんだい）：1ねんせいの さんすう・こくご。90びょうで とく（ui/study.js）
 // もんだい q = { cat, kind, text, answer, choices?, clock? }
 //   kind 'num'：すうじで こたえる（answer は かず）。'choice'：ボタンから えらぶ（answer は もじ）
 //   text の ［ ］ は よむ ところ（かんじ）、□ は あなに 入る ところ
@@ -146,7 +146,7 @@ export function quizSession(rng, cats = Object.keys(CATS)) {
 }
 
 // こたえあわせ：7わりより おおく せいかい（5もん いじょう とく）で もんしょうポイント
-export const QUIZ_SECONDS = 180;
+export const QUIZ_SECONDS = 90; // 2026-10-24 に 3ぷん → 90びょう（1ねんせいには 3ぷんは ながい）
 export const PASS_MIN = 5;
 export const PASS_RATE = 0.7;
 export const passed = (n, ok) => n >= PASS_MIN && ok * 10 > n * PASS_RATE * 10; // 7わり ちょうどは だめ（10ばいして せいすうで くらべる）

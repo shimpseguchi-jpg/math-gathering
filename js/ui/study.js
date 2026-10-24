@@ -1,4 +1,4 @@
-// しゅぎょう（REQUIREMENTS 12章）：3ぷんで もんだいを とく。7わりより おおく せいかいで もんしょうポイント（ui/emblem.js）
+// しゅぎょう（REQUIREMENTS 12章）：90びょうで もんだいを とく。7わりより おおく せいかいで もんしょうポイント（ui/emblem.js）
 // たたかいの なかでは もんだいを 出さない（5章）。ここは たたかいの そとの「しゅぎょうの へや」
 import { CATS, QUIZ_SECONDS, PASS_MIN, quizSession, passed } from '../data/quiz.js';
 import { esc, sheet } from './view.js';
@@ -12,7 +12,7 @@ export function clockSvg(h, m) {
   return `<svg class="qz-clock" viewBox="0 0 200 200" role="img" aria-label="とけい"><circle cx="100" cy="100" r="95" class="face"/>${ticks}${nums}${hand(((h % 12) + m / 60) * 30, 46, 'hh')}${hand(m * 6, 74, 'mh')}<circle cx="100" cy="100" r="6" class="pin"/></svg>`;
 }
 
-const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const secs = (ms) => Math.ceil(ms / 1000); // のこりは「90びょう」の ように びょうで 出す（1ねんせいは ふんと びょうを まだ ならわない）
 const pct = (n, ok) => (n ? Math.round((ok / n) * 100) : 0);
 // もんだいの 文：［ ］は よむ ところ、□は あな
 const marked = (t) => esc(t).replace(/［(.+?)］/g, '<b class="qz-target">$1</b>').replace(/□/g, '<b class="qz-blank">□</b>');
@@ -24,8 +24,8 @@ export function studyScreen(app, o) {
   const intro = () => {
     app().innerHTML = `<main class="study">
       <p class="eyebrow">しゅぎょうの へや</p>
-      <h2>3ぷん しゅぎょう</h2>
-      <p class="qz-lead">3ぷんで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）。${PASS_MIN}もん いじょう とこう。</p>
+      <h2>90びょう しゅぎょう</h2>
+      <p class="qz-lead">${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）。${PASS_MIN}もん いじょう とこう。</p>
       <h3 class="zk-h">もんだいの しゅるい</h3>
       <div class="qz-cats">${Object.entries(CATS).map(([k, c]) => `<button type="button" class="qz-cat ${cats.includes(k) ? 'on' : ''}" data-cat="${k}" aria-pressed="${cats.includes(k)}"><b>${esc(c.name)}</b><small>${esc(c.note)}</small></button>`).join('')}</div>
       <p class="zk-note">まだ ならって いない ものは タップして はずせる。</p>
@@ -46,7 +46,7 @@ export function studyScreen(app, o) {
     const stat = {}, miss = [];
     let n = 0, ok = 0, q = null, typed = '', wait = false, over = false;
     app().innerHTML = `<main class="study run">
-      <div class="qz-top"><span class="qz-time" aria-live="off">のこり <b>${mmss(QUIZ_SECONDS * 1000)}</b></span><span class="qz-score">せいかい <b>0</b> / 0</span><button type="button" class="btn ghost qz-quit" data-quit="1">やめる</button></div>
+      <div class="qz-top"><span class="qz-time" aria-live="off">のこり <b>${QUIZ_SECONDS}</b>びょう</span><span class="qz-score">せいかい <b>0</b> / 0</span><button type="button" class="btn ghost qz-quit" data-quit="1">やめる</button></div>
       <div class="qz-bar"><i></i></div>
       <section class="qz-q" aria-live="polite"></section>
       <div class="qz-in"></div>
@@ -68,9 +68,9 @@ export function studyScreen(app, o) {
     const tick = () => {
       const left = Math.max(0, end - Date.now());
       const t = $('.qz-time b'); if (!t) return;
-      t.textContent = mmss(left);
+      t.textContent = secs(left);
       $('.qz-bar i').style.width = `${(left / (QUIZ_SECONDS * 1000)) * 100}%`;
-      $('.qz-time').classList.toggle('low', left <= 30000);
+      $('.qz-time').classList.toggle('low', left <= 15000);
       if (left <= 0 && !wait) finish();
     };
     const answer = (given) => {

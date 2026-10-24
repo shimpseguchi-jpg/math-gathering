@@ -12,6 +12,7 @@ import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints } from './emblem.js';
+import { QUIZ_SECONDS } from '../data/quiz.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -83,7 +84,11 @@ function tutorial() {
         try { localStorage.setItem(TUTORIAL_DONE, '1'); } catch { /* 保存できなくても よい */ }
         award('tutorial');
         await sheet(`<p>${ruby(r.exact ? 'ぴったり 10点で まとを たおした！ マナの おきかた、しょうしゅう、ブロック、あっとう、ぴったり。これで とうに いどめるよ。' : 'まとを たおした！ つぎは ぴったりを ねらってみよう。これで とうに いどめるよ。')}</p>`,
-          [{ label: 'タイトルへ', value: 1, kind: 'primary' }], { title: 'チュートリアル クリア！', dismiss: false });
+          [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'チュートリアル クリア！', dismiss: false });
+        // かてなく なったら もんしょう（REQUIREMENTS 12章）
+        const v = await sheet(`<p>とうで かてなく なったら、タイトルの「✦ もんしょう」で しゅぎょうしよう！</p><p>${QUIZ_SECONDS}びょうで もんだいを といて、7わりより おおく せいかいすると もんしょうポイントが もらえる。ポイントで もんしょうを えらぶと、12じかん ぼうけんで つよく なれるよ（はじめの ライフが ふえる・たいようの ゆびわ など）。</p>`,
+          [{ label: 'もんしょうを 見る', value: 'em', kind: 'primary' }, { label: 'タイトルへ', value: 't' }], { title: 'かてなく なったら もんしょうを てに いれよう', dismiss: false });
+        if (v === 'em') return emblemScreen(app, title);
       }
       title();
     },
@@ -366,7 +371,7 @@ function fight() {
         return packs();
       }
       if (A.continues > 0) {
-        const v = await sheet(`<p>コンティニューすると、${esc(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは はじめの 数に もどる）。デッキを なおしてから いどんでも いい。</p>`,
+        const v = await sheet(`<p>コンティニューすると、${esc(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは はじめの 数に もどる）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
           [{ label: 'コンティニュー（のこり1回）', value: 'c', kind: 'primary' }, { label: 'あきらめる', value: 'x' }], { title: 'まけてしまった', dismiss: false });
         if (v === 'c') { A.continues--; save(); return tower(); }
       }
@@ -374,6 +379,9 @@ function fight() {
     },
   });
 }
+
+// まけた とき：もんしょうが ついて いなければ、しゅぎょうを すすめる
+const emblemHint = (over = false) => (activeIds().length ? '' : `<p class="em-line">かてない ときは、タイトルの「✦ もんしょう」で しゅぎょうして もんしょうを つけよう${over ? '。つぎの ぼうけんが らくに なる' : '（ぼうけんは「つづきから」で もどれる）'}。</p>`);
 
 function ending(win) {
   const reached = win ? 5 : A.idx + 1;
@@ -392,6 +400,7 @@ function ending(win) {
       <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
     </dl>
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
+    ${win ? '' : emblemHint(true)}
     <button type="button" class="btn primary" data-a="t">タイトルへ</button>
   </main>`;
   clearSave();

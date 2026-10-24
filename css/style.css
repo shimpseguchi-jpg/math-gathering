@@ -612,7 +612,7 @@ div.zk-card { cursor: default; }
 .em-node.lock { opacity: 0.55; }
 .em-big { font-family: var(--display); font-size: 18px; margin: 0 0 4px; }
 .em-line { margin: 0; font-size: 13px; color: var(--gold); }
-.sheet-content .em-line { color: #8a5a00; font-weight: 700; margin-top: 8px; }
+.sheet-content .em-line { color: var(--gold); font-weight: 700; margin-top: 8px; }
 .em-log { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .em-log li { display: flex; gap: 10px; font-size: 13px; background: var(--table-2); border-radius: 10px; padding: 6px 10px; }
 .em-log li span { color: var(--ink-dim); flex: 1; } .em-log li em { font-style: normal; color: var(--gold); font-weight: 700; min-width: 72px; text-align: right; }

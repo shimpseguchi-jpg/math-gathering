@@ -72,7 +72,7 @@ export function emblemScreen(app, back) {
     app().innerHTML = `<main class="emblem">
       <h2>もんしょう</h2>
       <p class="em-pts">もんしょうポイント <b>${M.pts}</b></p>
-      <button type="button" class="btn primary em-study" data-study="1">しゅぎょうを する（3ぷん）<small>7わりより おおく せいかいで ＋3ポイント</small></button>
+      <button type="button" class="btn primary em-study" data-study="1">しゅぎょうを する（90びょう）<small>7わりより おおく せいかいで ＋3ポイント</small></button>
       <p class="zk-note">ポイントで もんしょうを えらぶと、${EMBLEM_HOURS}じかん ぼうけんの たたかいで つよく なる（オンライン バトルでは つかえない）。レベル2・3 は まえの レベルが ついて いる ときに えらべる。</p>
       ${BRANCHES.map((b) => `<section class="em-branch"><h3>${b.mark} ${esc(b.name)}</h3><ol class="em-nodes">${EMBLEMS.filter((e) => e.branch === b.id).map(node).join('')}</ol></section>`).join('')}
       ${tries.length ? `<h3 class="zk-h">しゅぎょうの きろく</h3><ol class="em-log">${tries.map((r) => `<li><span>${new Date(r.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><b>${r.ok} / ${r.n}</b><em>${r.gain ? `＋${r.gain}ポイント` : '−'}</em></li>`).join('')}</ol>` : ''}

@@ -258,7 +258,7 @@ WEB版の せってい画面（開発モード）で、パックに 入る 弾�
 
 ### もんしょう（2026-10-24）
 
-しゅぎょう（たたかいの そとの 3分の 問題）で もらう もんしょうの つよさ。`EMBLEM=life1,basic1 node mathtcg/tools/sim.mjs runs`、冒険 1000回ずつ。くわしくは [`EMBLEMS.md`](EMBLEMS.md) 5章。
+しゅぎょう（たたかいの そとの 90秒の 問題）で もらう もんしょうの つよさ。`EMBLEM=life1,basic1 node mathtcg/tools/sim.mjs runs`、冒険 1000回ずつ。くわしくは [`EMBLEMS.md`](EMBLEMS.md) 5章。
 
 | もんしょう | ポイント | ふつう | ちがい |
 |---|---|---|---|
