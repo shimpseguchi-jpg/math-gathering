@@ -20,8 +20,8 @@ for f in sorted(glob.glob(os.path.join(docs, 'cards', '*.md'))):
             cards[row['ID']] = {'name': row['名前'], 'type': row.get('タイプ', ''), 'text': row.get('テキスト', '').replace('<br>', '\n'), 'motif': row.get('元のカード', ''), 'math': row.get('算数', '')}
 
 # 第3弾から あと（案の 表）：画面の 文と、エンジン用の 土台（js/data/skel.js）
-DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7)]
-TYPES = {'クリーチャー': 'creature', 'インスタント': 'instant', 'ソーサリー': 'sorcery', 'アーティファクト': 'artifact', 'エンチャント': 'enchantment'}
+DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8)]
+TYPES = {'プレインズウォーカー': 'planeswalker', 'クリーチャー': 'creature', 'インスタント': 'instant', 'ソーサリー': 'sorcery', 'アーティファクト': 'artifact', 'エンチャント': 'enchantment'}
 KW = {'飛行': 'flying', '速攻': 'haste', '警戒': 'vigilance', '到達': 'reach', '接死': 'deathtouch', '絆魂': 'lifelink', 'トランプル': 'trample',
       '先制攻撃': 'first', '二段攻撃': 'double', '防衛': 'defender', '破壊不能': 'indestructible', '召集': 'convoke', '果敢': 'prowess'}
 SUB = {'人間': 'human', '戦士': 'warrior', '兵士': 'soldier', 'スピリット': 'spirit', '神': 'god', 'エルフ': 'elf', 'ゴブリン': 'goblin', 'ドラゴン': 'dragon',
@@ -58,6 +58,7 @@ for fname, set_id in DRAFTS:
         if m: d['pow'], d['tou'] = int(m.group(1)), int(m.group(2))
         elif 'creature' in types: d['pow'] = d['tou'] = 0
         if xs: d['x'] = True
+        if row.get('ちゅうせい', '').isdigit(): d['loyalty'] = int(row['ちゅうせい'])
         if xs > 1: d['xMul'] = xs
         if '瞬速' in first.split('、'): d['flash'] = True
         if '伝説' in main: d['legend'] = True

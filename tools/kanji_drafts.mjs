@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { bareHard } from './kanji.mjs';
 
 const DOCS = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs');
-const FILES = ['SET3.md', 'SET4.md', 'SET5.md', 'SET6.md', 'ALCHEMY.md', 'PROMO.md'];
+const FILES = ['SET3.md', 'SET4.md', 'SET5.md', 'SET6.md', 'ALCHEMY.md', 'PROMO.md', 'PLANESWALKERS.md'];
 let rows = 0, bad = 0;
 for (const f of FILES) {
   const path = join(DOCS, f);

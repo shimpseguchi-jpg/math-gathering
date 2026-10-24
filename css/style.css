@@ -277,6 +277,9 @@ span.pile { cursor: default; }
 .bt-head .chips { justify-content: flex-end; }
 .menu-btn { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--table-2); font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0; }
 .menu-btn:disabled { opacity: 0.4; cursor: default; }
+.mull-hand { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; } .mull-hand .card { min-height: 0; font-size: 9px; }
+.card-pt.loy { background: #3b2f6b; color: #fff; }
+.goal-btn { cursor: pointer; color: var(--gold); border-color: var(--gold); font-weight: 700; }
 .erow { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); gap: 6px; }
 .erow .zone { min-height: 0; }
 .zone { grid-auto-rows: max-content; }
@@ -610,6 +613,8 @@ div.zk-card { cursor: default; }
 .em-node.on em { color: var(--gold); font-weight: 700; }
 .em-node.can { border-color: var(--good); } .em-node.can em { color: var(--good); font-weight: 700; }
 .em-node.lock { opacity: 0.55; }
+.em-branch.one .em-nodes { grid-template-columns: repeat(2, 1fr); } .em-branch.one .em-nodes li + li::before { content: none; } .em-branch h3 small { font-size: 11px; color: var(--ink-dim); font-weight: 500; margin-left: 6px; }
+.em-pts small { display: block; font-size: 12px; color: var(--ink-dim); }
 .em-big { font-family: var(--display); font-size: 18px; margin: 0 0 4px; }
 .em-line { margin: 0; font-size: 13px; color: var(--gold); }
 .sheet-content .em-line { color: var(--gold); font-weight: 700; margin-top: 8px; }

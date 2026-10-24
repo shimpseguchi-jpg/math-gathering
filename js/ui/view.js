@@ -110,7 +110,7 @@ export function cardFace(def, o = {}) {
     <div class="card-top"><span class="cost">${esc(costLabel(def))}</span>${pipsOf(def)}<span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
     <div class="card-name">${ruby(i.name)}</div>
     <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
-    ${pts ? `<div class="card-pt">${pts}</div>` : `<div class="card-type">${esc(typeShort(def))}</div>`}
+    ${pts ? `<div class="card-pt">${pts}</div>` : def.loyalty ? `<div class="card-pt loy" title="ちゅうせい">◆${def.loyalty}</div>` : `<div class="card-type">${esc(typeShort(def))}</div>`}
   </div>`;
 }
 
@@ -174,7 +174,8 @@ export function permFace(s, p, o = {}) {
     const [P, T] = pt(s, p);
     const left = T - p.dmg;
     ptHtml = `<div class="card-pt ${p.dmg ? 'hurt' : ''}">${P}/${left}${p.dmg ? `<small>/${T}</small>` : ''}</div>`;
-  } else if (p.def.factory) ptHtml = `<div class="card-pt key">かぎ ${s.E.key}</div>`;
+  } else if (p.def.loyalty) ptHtml = `<div class="card-pt loy" title="ちゅうせい">◆${p.loy}</div>`; // プレインズウォーカーの ちゅうせい
+  else if (p.def.factory) ptHtml = `<div class="card-pt key">かぎ ${s.E.key}</div>`;
   else if (p.def.clock) ptHtml = `${clockFace(s.E.hour)}<div class="card-pt key">${s.E.hour}時</div>`;
   else ptHtml = `<div class="card-type">${esc(typeShort(p.def))}</div>`;
   if (p.def.medusa) ptHtml = `<div class="card-pt key">ライフ ${s.E.life}</div>`;

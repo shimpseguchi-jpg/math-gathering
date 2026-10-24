@@ -362,3 +362,13 @@ export const doubleTeam = {
     if (c) perp(c, (d) => { d.doubleTeam = false; });
   },
 };
+
+// ---- プレインズウォーカー（REQUIREMENTS 3.6・docs/PLANESWALKERS.md） ----
+// ちゅうせいの のうりょく：1ターンに 1かい、自分の メインの とき。＋は ちゅうせいが ふえ、−は へる（0 に なると 墓地へ）
+const loyStep = (s, p, n, E) => { p.flags.turn.pw = true; p.loy += n; E.L(s, `${p.def.name}：ちゅうせい ${p.loy - n} ${n > 0 ? '＋' : '−'} ${Math.abs(n)} ＝ ${p.loy}`); };
+export const pwAbility = (n, label, o) => ({
+  cost: 0, when: [1, 2], loyalty: n, label: `${n > 0 ? '＋' : '−'}${Math.abs(n)}：${label}`,
+  can: (s, p) => !p.flags.turn.pw && p.loy + n >= 0, cantWhy: 'この ターンは もう つかった か、ちゅうせいが たりない',
+  play: (s, p, E, ctx) => { const r = o.play(s, p, E, ctx); return r && { ...r, run: (x) => { loyStep(s, p, n, E); return r.run(x); } }; },
+  ...(o.tgt ? { tgt: o.tgt, apply: (s, E, picks, x, p) => { loyStep(s, p, n, E); return o.apply(s, E, picks, x, p); } } : {}),
+});

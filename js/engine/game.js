@@ -7,6 +7,8 @@ export const COLORS = ['W', 'U', 'K', 'G', 'R'];
 export const colorsOf = (d) => [...(d.color || '')].filter((c) => COLORS.includes(c));
 export const is = (p, t) => (p.def.types || []).includes(t);
 export const isCreature = (p) => is(p, 'creature');
+// プレインズウォーカー：ちゅうせい（p.loy）が ある。ダメージで へって、0で 墓地へ（REQUIREMENTS 3.6）
+export const isPW = (p) => is(p, 'planeswalker');
 export const onBf = (s, p) => s[p.side].bf.includes(p);
 export const card = (def) => ({ uid: UID++, def });
 // 攻撃・ブロック できない（門の 五神は 数の 条件で かわる：関数）
@@ -23,16 +25,28 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20 + (em.life || 0), lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em },
+    P: { side: 'P', life: 20 + (em.life || 0), handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {} },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
   floor.setup(s, api);
-  for (let i = 0; i < 5; i++) drawCard(s);
+  for (let i = 0; i < s.P.handSize; i++) drawCard(s);
+  // マリガン（もんしょう）：人は 画面で きめる（ai.manualMulligan）。AI は きほんカードと 3マナ いかの カードが なければ ひきなおす
+  if (em.mulligan && !ai?.manualMulligan && wantMulligan(s)) mulligan(s);
   // はじまりの もんしょう：はじめの てふだに たいようの ゆびわ（6まいめ）・さいしょから マナゾーンに きほんカード
-  for (const d of em.hand || []) { s.P.hand.push(card(d)); L(s, `もんしょう：${d.name} を てふだに`); }
+  for (const d of em.hand || []) { const c = card(d); c.emblem = true; s.P.hand.push(c); L(s, `もんしょう：${d.name} を てふだに`); }
   if (em.startMana) rampBasic(s, em.startMana);
   return s;
+}
+
+const wantMulligan = (s) => !s.P.hand.some((c) => c.def.basic) || !s.P.hand.some((c) => !c.def.basic && c.def.cost <= 3);
+// はじめの てふだを やまふだに もどして、おなじ まいすう ひきなおす（もんしょうの カードは のこす）
+export function mulligan(s) {
+  const back = s.P.hand.filter((c) => !c.emblem);
+  s.P.hand = s.P.hand.filter((c) => c.emblem);
+  s.P.lib = shuffle(s.rng, [...s.P.lib, ...back]);
+  drawCard(s, back.length);
+  L(s, `マリガン：てふだを ${back.length}まい ひきなおした`);
 }
 
 export function L(s, msg) { if (s.logOn) s.logs.push(`[${s.turn}${s.active}] ${msg}`); }
@@ -81,6 +95,10 @@ export function beginPlayerTurn(s) {
   for (const c of P.hand) c.locked = false;
   for (const p of P.bf) { untap(s, p); p.sick = false; p.flags.turn = {}; }
   for (const m of P.mana) m.tapped = false;
+  // ヴァンガード（もんしょう）：ターンの はじめに てきに 1点・こぶ1
+  if (P.emblem?.turnPing) { L(s, `ヴァンガード：てきに ${P.emblem.turnPing}点`); hitEnemy(s, P.emblem.turnPing, null); }
+  if (P.emblem?.turnBolster) bolster(s, P.emblem.turnBolster);
+  if (P.emblem?.turnTap) for (const t of s.E.bf.filter((p) => isCreature(p) && !p.tapped).sort((a, b) => power(s, b) - power(s, a)).slice(0, P.emblem.turnTap)) { t.tapped = true; L(s, `ヴァンガード：${t.def.name} を タップ`); }
   s.floor.playerUpkeep?.(s, api);
   const waits = [];
   for (const p of [...P.bf]) if (onBf(s, p) && p.def.upkeep) { const r = p.def.upkeep(s, p, api); if (r && r.then) waits.push(r); }
@@ -156,7 +174,7 @@ export const LOW_LIBRARY = 5; // 山札が これより 少ないと、画面で
 // ぼちを まぜて もどす ときに 失う ライフ（1回め 2、2回め 4、3回め 6…）。next は つぎに まぜたときの 数
 export const reshuffleCost = (P, next = false) => 2 * ((P.reshuffles || 0) + (next ? 1 : 0));
 export function refill(s) {
-  const size = s.P.flags.refill7 === s.stats.playerTurns ? 7 : HAND_SIZE;
+  const size = s.P.flags.refill7 === s.stats.playerTurns ? 7 : (s.P.handSize || HAND_SIZE); // ヴァンガードで 4〜6まい
   const n = size - s.P.hand.filter((c) => !c.advDone).length; // 出来事を つかった カードは かぞえない
   if (n <= 0) return;
   drawCard(s, n);
@@ -207,6 +225,7 @@ function makePerm(side, def, o = {}) {
   return {
     uid: UID++, def, card: o.card || def, side, tapped: !!o.tapped, sick: true, ctr: o.ctr || 0, level: 0, dmg: 0, dt: false, dmgBy: [],
     mP: 0, mT: 0, kwT: new Set(), frozen: false, token: !!o.token, monstrous: false, attached: null, links: [], flags: { turn: {} },
+    loy: (def.types || []).includes('planeswalker') ? def.loyalty || 0 : 0,
   };
 }
 
@@ -369,6 +388,7 @@ export function damage(s, p, n, src, o = {}) {
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
   if (p.shieldT === s.turn) return 0; // ダメージは 0 に なる（ニンフの 犬）
   if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
+  if (isPW(p)) { p.loy = Math.max(0, p.loy - n); L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} の ちゅうせいが ${n} へった（のこり ${p.loy}）`); return n; }
   if (p.def.dmgToCounters) { const k = Math.min(n, p.ctr); p.ctr -= k; L(s, `${foe(s, p.side)}${p.def.name} の ＋1/＋1カウンターが ${k}こ へった`); }
   else if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
   if (p.side === 'E' && !s.swapped) noteDmg(s, n);
@@ -429,6 +449,7 @@ export function sba(s) {
   for (let loop = 0; loop < 50 && !s.over; loop++) {
     let changed = false;
     for (const side of ['P', 'E']) for (const p of [...s[side].bf]) {
+      if (onBf(s, p) && isPW(p) && p.loy <= 0 && leave(s, p, 'gy')) { changed = true; continue; }
       if (!onBf(s, p) || !isCreature(p)) continue;
       const [, T] = pt(s, p);
       const lethal = T <= 0 || ((p.dmg >= T || p.dt) && !hasKw(s, p, 'indestructible'));
@@ -671,7 +692,20 @@ export async function enemyAttack(s, attackers) {
   const blocks = await s.ai.blocks(s, attackers);
   await s.ai.duringBlocks(s, attackers, blocks);
   attackers = attackers.filter((p) => onBf(s, p));
-  resolveCombat(s, attackers.map((p) => ({ p, t: 'player' })), blocks);
+  resolveCombat(s, pwTargets(s, attackers, blocks), blocks);
+}
+// てきの こうげき先：ブロックされなかった ものは、たおせる プレインズウォーカーが あれば そちらへ（ちゅうせいの 大きい ものから）、なければ プレイヤーへ
+function pwTargets(s, attackers, blocks) {
+  const left = new Map(s.P.bf.filter((p) => isPW(p) && onBf(s, p)).map((p) => [p, p.loy]));
+  return attackers.map((p) => {
+    if (blocks.get(p.uid) || hasKw(s, p, 'trample')) return { p, t: 'player' };
+    const P = power(s, p);
+    const w = [...left].filter(([, l]) => l > 0 && P >= l).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!w) return { p, t: 'player' };
+    left.set(w, 0);
+    L(s, `${p.def.name} は ${w.def.name} を こうげき`);
+    return { p, t: w };
+  });
 }
 
 export function resolveCombat(s, atk, blocks) {
@@ -717,7 +751,7 @@ Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
-  shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
+  shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),

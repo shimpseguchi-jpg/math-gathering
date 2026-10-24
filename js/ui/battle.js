@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -23,10 +23,21 @@ export function startBattle(o) {
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
-  const go = () => (floor.first === 'E' ? enemyFirst() : startTurn());
+  const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
   if (!floor.goal || o.tutorial) return go();
   render();
   sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${esc(o.floorName)}：かちかた`, dismiss: false }).then(go);
+}
+
+// マリガン（もんしょう）：はじめの てふだを 見て、1かいだけ ひきなおせる
+async function askMulligan() {
+  const s = B.s;
+  if (!s.P.emblem?.mulligan) return;
+  render();
+  const hand = s.P.hand.filter((c) => !c.emblem);
+  const v = await sheet(`<p>はじめの てふだ。ひきなおすと、やまふだに もどして ${hand.length}まい ひく（1かいだけ）。</p><div class="mull-hand">${hand.map((c) => cardFace(c.def)).join('')}</div>`,
+    [{ label: 'このまま はじめる', value: 0, kind: 'primary' }, { label: 'ひきなおす（マリガン）', value: 1 }], { title: 'マリガン', dismiss: false });
+  if (v) { mulligan(s); render(); await sheet(`<p>あたらしい てふだ。</p><div class="mull-hand">${s.P.hand.filter((c) => !c.emblem).map((c) => cardFace(c.def)).join('')}</div>`, [{ label: 'はじめる', value: 0, kind: 'primary' }], { title: 'マリガン', dismiss: false }); }
 }
 
 // オンラインバトルで あいてが 先に うごく とき
@@ -38,6 +49,7 @@ async function enemyFirst() {
 // ---- 敵のターン中にプレイヤーに聞くこと ----
 function humanAI() {
   return {
+    manualMulligan: true, // マリガンは 画面で きく（askMulligan）
     // 待機が おわった 呪文：対象を えらんで ただで 唱える
     castSuspended: async (s, c) => {
       const d = c.def;
@@ -415,6 +427,7 @@ async function doCast(c, from = 'hand') {
 async function onClick(e) {
   if (B.swiped) { B.swiped = false; return; } // スワイプの おわりの タップは むし
   const b = e.target.closest('[data-act],[data-uid],[data-hand]');
+  if (b?.dataset.act === 'goal' && document.getElementById('sheet').hidden) return showGoal(); // てきの ターン中も 見られる
   if (!b || (B.busy && B.mode !== 'block') || document.getElementById('sheet').hidden === false) return;
   const s = B.s;
   const t = B.tut;
@@ -426,10 +439,16 @@ async function onClick(e) {
 }
 
 // たたかいの とちゅうで メニューへ もどる（o.quit：{ label, note, go }。冒険は つづきが のこる、オンラインは こうさん）
+// かちかた（ボスの たおしかた）を いつでも 見られる
+const showGoal = () => sheet(`<p class="goal">${ruby(B.s.floor.goal(B.s))}</p>`, [{ label: 'とじる', value: 0, kind: 'primary' }], { title: `${esc(B.floorName)}：かちかた` });
+
 async function menu() {
   const q = B.quit || { label: 'タイトルへ もどる', note: '', go: () => {} };
+  const goal = B.s.floor.goal && !B.tut;
   const v = await sheet(`<p>${esc(q.note || 'たたかいを やめて もどる？')}</p>`,
-    [{ label: 'たたかいを つづける', value: 0, kind: 'primary' }, { label: q.label, value: 1 }], { title: 'メニュー' });
+    [{ label: 'たたかいを つづける', value: 0, kind: 'primary' }, ...(goal ? [{ label: 'かちかたを 見る', value: 'goal' }] : []), { label: q.label, value: 1 }], { title: 'メニュー' });
+  // かちかた：たたかいの とちゅうでも ボスの たおしかたを 見られる
+  if (v === 'goal') return showGoal();
   if (!v) return;
   B.left = true;
   q.go();
@@ -440,6 +459,7 @@ async function action(a) {
   if (a === 'end') return endTurn();
   if (a === 'tutnext') { B.tut?.next(); return render(); }
   if (a === 'menu') return menu();
+  if (a === 'goal') return showGoal();
   if (a === 'attack') {
     combatStart(s); B.combatDone = true;
     if (checkOver()) return;
@@ -640,8 +660,8 @@ async function tapPerm_(p) {
       const o = { exclude: a.tap || a.sac ? p : null };
       let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
       const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
-      const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x });
-      const label = a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
+      const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x, human: true });
+      const label = a.loyalty != null ? `${ruby(a.label)}（ちゅうせい ${p.loy} ${a.loyalty > 0 ? '＋' : '−'} ${Math.abs(a.loyalty)} ＝ ${p.loy + a.loyalty}）` : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip) choices.push({ label: `そうびする（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
@@ -931,7 +951,7 @@ function render() {
     <header class="bt-head">
       <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
       <div class="bt-title"><span class="floor">${esc(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
-      <div class="chips">${enemyStatus()}</div>
+      <div class="chips">${s.floor.goal && !B.tut ? '<button type="button" class="chip goal-btn" data-act="goal">かちかた</button>' : ''}${enemyStatus()}</div>
     </header>
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの てき'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
     <div class="erow">

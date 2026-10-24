@@ -19,7 +19,7 @@ const RESHUFFLE = process.env.RESHUFFLE !== '0';
 const SEED = Number(process.env.SEED ?? 1);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : undefined;
 // もんしょう（12章）：EMBLEM=life1,basic1 など。all で ぜんぶ
-const EM = process.env.EMBLEM ? (process.env.EMBLEM === 'all' ? EMBLEMS.map((e) => e.id) : process.env.EMBLEM.split(',')) : [];
+const EM = process.env.EMBLEM ? (process.env.EMBLEM === 'all' ? EMBLEMS.filter((e) => e.branch !== 'leader').map((e) => e.id) : process.env.EMBLEM.split(',')) : [];
 const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM) };
 
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);

@@ -1,4 +1,4 @@
-// しゅぎょう（REQUIREMENTS 12章）：90びょうで もんだいを とく。7わりより おおく せいかいで もんしょうポイント（ui/emblem.js）
+// しゅぎょう（REQUIREMENTS 12章）：60びょうで もんだいを とく。7わりより おおく せいかいで もんしょうポイント（ui/emblem.js）
 // たたかいの なかでは もんだいを 出さない（5章）。ここは たたかいの そとの「しゅぎょうの へや」
 import { CATS, QUIZ_SECONDS, PASS_MIN, quizSession, passed } from '../data/quiz.js';
 import { esc, sheet } from './view.js';
@@ -24,7 +24,7 @@ export function studyScreen(app, o) {
   const intro = () => {
     app().innerHTML = `<main class="study">
       <p class="eyebrow">しゅぎょうの へや</p>
-      <h2>90びょう しゅぎょう</h2>
+      <h2>${QUIZ_SECONDS}びょう しゅぎょう</h2>
       <p class="qz-lead">${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）。${PASS_MIN}もん いじょう とこう。</p>
       <h3 class="zk-h">もんだいの しゅるい</h3>
       <div class="qz-cats">${Object.entries(CATS).map(([k, c]) => `<button type="button" class="qz-cat ${cats.includes(k) ? 'on' : ''}" data-cat="${k}" aria-pressed="${cats.includes(k)}"><b>${esc(c.name)}</b><small>${esc(c.note)}</small></button>`).join('')}</div>
@@ -70,7 +70,7 @@ export function studyScreen(app, o) {
       const t = $('.qz-time b'); if (!t) return;
       t.textContent = secs(left);
       $('.qz-bar i').style.width = `${(left / (QUIZ_SECONDS * 1000)) * 100}%`;
-      $('.qz-time').classList.toggle('low', left <= 15000);
+      $('.qz-time').classList.toggle('low', left <= 10000);
       if (left <= 0 && !wait) finish();
     };
     const answer = (given) => {
