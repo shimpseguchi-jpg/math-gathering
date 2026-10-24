@@ -106,7 +106,7 @@ export function cardFace(def, o = {}) {
   const pts = def.types?.includes('creature') ? basePT(def) : '';
   const kws = (def.kw || []).map((k) => KW[k]).filter(Boolean);
   return `<div class="card ${colorClass(def, o.enemy)} ${o.cls || ''}" data-id="${esc(o.dataId ?? '')}">
-    <div class="card-top"><span class="cost">${esc(costLabel(def))}</span><span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
+    <div class="card-top"><span class="cost">${esc(costLabel(def))}</span>${pipsOf(def)}<span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
     <div class="card-name">${ruby(i.name)}</div>
     <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
     ${pts ? `<div class="card-pt">${pts}</div>` : `<div class="card-type">${esc(typeShort(def))}</div>`}
@@ -123,6 +123,8 @@ const EMBLEM = {
   C: '<path d="M12 2l8 10-8 10-8-10z"/>',
 };
 const emblem = (c) => `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${EMBLEM[c]}</svg>`;
+// 2色・3色の カードは、色の まるを ならべて 何色か わかるように する（旗は その 3色）
+const pipsOf = (def) => { const cs = def.banner ? [...def.banner] : colorsOf(def); return cs.length > 1 ? `<span class="card-pips" aria-label="${cs.map((c) => COLOR_NAME[c]).join('・')}">${cs.map((c) => `<i class="m-${c}"></i>`).join('')}</span>` : ''; };
 
 // 本物の カードの ような 大きい 表（パックを あけた とき）：名前・コスト・絵の わく・タイプ・文・算数・P/T
 // 文が 長い カードは 字を 小さく する（それでも 入らなければ 文の ところだけ スクロール）
@@ -134,7 +136,7 @@ export function fullCard(def) {
   const pts = def.types?.includes('creature') ? basePT(def) : '';
   return `<div class="fcard ${colorClass(def)}">
     <div class="fc-head"><span class="fc-name">${ruby(i.name)}</span><span class="cost">${esc(costLabel(def))}</span></div>
-    <div class="fc-art">${(cs.length ? cs : ['C']).map(emblem).join('')}</div>
+    <div class="fc-art">${cs.length > 1 ? cs.map((c) => `<span class="emb m-${c}">${emblem(c)}</span>`).join('') : (cs.length ? cs : ['C']).map(emblem).join('')}</div>
     <div class="fc-type"><span>${ruby(i.type)}</span><span class="fc-rar r-${def.rar}">${esc(def.rar || '')}</span></div>
     <div class="fc-text ${size}">
       <p>${richText(i.text) || '（とくべつな のうりょくは ない）'}</p>
