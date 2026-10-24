@@ -48,7 +48,7 @@ export const S5 = {
     ],
   },
   // ---- 青 ----
-  U58: { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 6, run: () => { E.drawCard(s); learn(s, E); } } : null) },
+  U58: { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 6, run: () => { E.drawCard(s); return learn(s, E); } } : null) },
   U59: {
     tgt: [{ side: 'E', label: 'タップして つぎの ターン 起きない クリーチャー' }],
     etb: (s, p, E, o) => { if (p.side !== 'P') return; let t = chosen1(o); if (t === undefined) t = bestFreeze(s, E) || foeBest(s, E)?.t; tapFreeze(s, E, t); },
@@ -68,7 +68,7 @@ export const S5 = {
   },
   // ---- 黒 ----
   K55: { onDie: (s, p, E) => { if (p.side === 'P') learn(s, E); } },
-  K56: { play: (s, E) => ({ score: 6, run: () => { E.token(s, 'P', T.pest); learn(s, E); } }) },
+  K56: { play: (s, E) => ({ score: 6, run: () => { E.token(s, 'P', T.pest); return learn(s, E); } }) },
   K57: { onAttack: (s, p, E) => { if (s.P.life > 10 && !E.hasKw(s, p, 'flying')) { E.hurt(s, 2); E.pump(p, 0, 0, ['flying']); } } },
   K58: { onAnyCast: (s, p, d, side, E) => { if (side === 'E' && p.side === 'P' && isSpellDef(d)) E.hitEnemy(s, 1, p); } },
   K59: aura('E', '−2/−2 する てきの クリーチャー', { p: -2, t: -2 }),

@@ -252,16 +252,34 @@ export const magecraft = (f) => ({
 });
 // フラクタル（0/0 に ＋1/＋1カウンター X こ）
 export const fractal = (s, E, x) => (x > 0 ? E.token(s, 'P', T.fractal, 1, { ctr: x }) : []);
-// 学習：レッスンの 3まいから 1まいを えらんで 手札に（人が 遊ぶ ときも AI が えらぶ）
+// ---- 3まいから 1まいを えらぶ（学習・呪文書） ----
+// プレイヤーの デッキの 色（色の 合わない カードは 出さない）
+function deckColors(s, E) {
+  const all = [...s.P.lib, ...s.P.hand, ...s.P.gy, ...s.P.mana, ...s.P.bf.map((p) => ({ def: p.card || p.def }))];
+  return new Set(all.flatMap((c) => E.colorsOf(c.def)));
+}
+// ちがう カードを 3まいまで ランダムに。デッキの 色で 唱えられる もの（なければ ぜんぶから）
+function threeOf(s, E, defs) {
+  const cols = deckColors(s, E);
+  let list = [...new Set(defs.filter(Boolean))];
+  const ok = list.filter((d) => E.colorsOf(d).every((c) => cols.has(c)));
+  if (ok.length) list = ok;
+  const out = [];
+  while (out.length < 3 && list.length) out.push(list.splice(Math.floor(s.rng() * list.length), 1)[0]);
+  return out;
+}
+const aiChoice = (s, defs) => { const mana = s.P.mana.length; return [...defs].sort((a, b) => (b.cost <= mana + 1) - (a.cost <= mana + 1) || (RANK[b.rar] || 0) - (RANK[a.rar] || 0) || b.cost - a.cost)[0]; };
+// 人が 遊ぶ ときは 画面で えらぶ（s.ai.pickCard。えらぶ まで まつ）。then(えらんだ カード) の けっかを かえす
+function chooseOne(s, E, defs, title, then) {
+  if (!defs.length) return null;
+  E.L(s, `${title}：${defs.map((d) => d.name).join('・')}`);
+  if (s.ai.pickCard && !s.swapped) return s.ai.pickCard(s, defs, title).then((d) => then(d || defs[0]));
+  return then(aiChoice(s, defs));
+}
+// 学習：レッスンの 3まいから 1まいを えらんで 手札に
 export const LESSONS = [];
 export function learn(s, E) {
-  if (!LESSONS.length) return;
-  const three = [];
-  for (let i = 0; i < 3; i++) three.push(LESSONS[Math.floor(s.rng() * LESSONS.length)]);
-  const mana = s.P.mana.length;
-  const d = three.sort((a, b) => (b.cost <= mana + 1) - (a.cost <= mana + 1) || (RANK[b.rar] || 0) - (RANK[a.rar] || 0) || b.cost - a.cost)[0];
-  s.P.hand.push(E.card(d));
-  E.L(s, `がくしゅう：${three.map((x) => x.name).join('・')} から ${d.name}`);
+  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：レッスンを 1まい えらぶ', (d) => { s.P.hand.push(E.card(d)); E.L(s, `がくしゅう：${d.name}`); });
 }
 // 再帰（さいき）を ふせぐ（パワーの 合計で 強く なる カードどうし）
 export function guard(s, k, f, dflt) {
@@ -313,17 +331,14 @@ export const BOOKS = {
   dragon: ['R23', 'R26', 'R36', 'R37', 'WU04', 'RW04', 'UR03', 'KR01', 'R54', 'R63', 'WK06', 'UR06', 'KG06', 'RW06', 'GU06'],
   meikai: ['K03', 'K04', 'K05', 'K06', 'K11', 'K12', 'K13', 'K14', 'K17', 'K19', 'K21', 'K23', 'K24', 'K25', 'K38'],
 };
+export const BOOK_NAME = {
+  tashizan: 'たし算の 呪文書（じゅもんしょ）', kuku: '九九（くく）の 呪文書（じゅもんしょ）', pittari: 'ぴったりの 呪文書（じゅもんしょ）',
+  dragon: 'ドラゴンの 呪文書（じゅもんしょ）', meikai: '冥界（めいかい）の 呪文書（じゅもんしょ）', all: '無限（むげん）の 秘本（ひほん）',
+};
+// 呪文書から ドラフト：デッキの 色に 合う ちがう 3まいから 1まい えらんで 手札に 創出
 export function draft(s, E, book, after) {
   const ids = book === 'all' ? REG.all.map((d) => d.id) : BOOKS[book];
-  const three = [];
-  for (let i = 0; i < 3; i++) three.push(REG.byId[ids[Math.floor(s.rng() * ids.length)]]);
-  const mana = s.P.mana.length;
-  const d = three.filter(Boolean).sort((a, b) => (b.cost <= mana + 1) - (a.cost <= mana + 1) || (RANK[b.rar] || 0) - (RANK[a.rar] || 0) || b.cost - a.cost)[0];
-  if (!d) return null;
-  E.L(s, `ドラフト：${three.map((x) => x?.name).join('・')} から ${d.name}`);
-  const c = conjure(s, E, d);
-  after?.(c);
-  return c;
+  return chooseOne(s, E, threeOf(s, E, ids.map((id) => REG.byId[id])), `${BOOK_NAME[book]}から 1まい えらぶ`, (d) => { const c = conjure(s, E, d); after?.(c); return c; });
 }
 // 強度：同じ 名前の カードで いっしょ（たたかいの あいだ）
 export const intensity = (s, d) => s.P.flags.int?.[d.id] ?? d.intensity ?? 0;

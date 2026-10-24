@@ -43,7 +43,7 @@ export const SY = {
     },
     onOtherLeave: (s, p, q, E, o) => { if (p.side === 'P' && q.side === 'P' && o.died && E.isCreature(q)) addIntensity(s, REG.byId.YK04, 1); },
   },
-  YK05: { upkeep: (s, p, E) => { if (p.side !== 'P') return; draft(s, E, 'meikai'); E.hurt(s, 1); } },
+  YK05: { upkeep: (s, p, E) => { if (p.side !== 'P') return; E.hurt(s, 1); return draft(s, E, 'meikai'); } },
   YR01: {
     intensity: 3,
     play: (s, E, ctx = {}) => { const n = intensity(s, REG.byId.YR01); const b = E.burnTarget(s, n, { mustHit: !!ctx.human }); return b ? { score: 6 + b.score, run: () => { hit(s, E, b.t, n); addIntensity(s, REG.byId.YR01, 1); } } : null; },

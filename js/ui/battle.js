@@ -93,6 +93,14 @@ function humanAI() {
     },
     dice: (rolls) => sheet(`<p class="big-result dice">サイコロ：${rolls.join(' ＋ ')}${rolls.length > 1 ? ` ＝ ${rolls.reduce((a, b) => a + b, 0)}` : ''}</p>${rolls.length > 1 ? '<p>6が 出たので もう1回 ふった！</p>' : ''}`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'サイコロ', dismiss: false }),
     // 占術：上から1まいずつ「上に のこす／いちばん下へ」
+    // 学習・呪文書：3まいから 1まいを えらぶ（色も 見える）。えらんだ あとで 手札に 入るので、すこし あとで 画面を かきなおす
+    pickCard: async (s, defs, title) => {
+      if (B) render();
+      const v = await sheet(`<p>${defs.length}まいから 1まいを えらんで、てふだに 入れる。</p><div class="pick3">${defs.map((d) => detail(d)).join('')}</div>`,
+        defs.map((d) => ({ label: `${ruby(info(d).name)} を えらぶ`, value: d, kind: 'primary' })), { title: ruby(title), dismiss: false });
+      setTimeout(() => { if (B && !checkOver()) render(); }, 0);
+      return v;
+    },
     scry: async (s, n) => {
       const top = s.P.lib.splice(0, n);
       const keep = [], bottom = [];

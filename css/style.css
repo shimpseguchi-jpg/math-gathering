@@ -233,6 +233,9 @@ span.pile { cursor: default; }
 .detail-colors .dc { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px 2px 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.07); font-size: 13px; font-weight: 700; }
 .detail-colors .dc i { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
 .detail-colors .dc-note { font-size: 12px; opacity: 0.8; }
+/* 3まいから 1まい（学習・呪文書） */
+.pick3 { display: flex; flex-direction: column; gap: 8px; }
+.pick3 .detail-hint { display: none; }
 .detail h2 { font-size: 19px; line-height: 1.6; }
 .detail-type { font-size: 13px; opacity: 0.75; margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pt-big { font-family: var(--display); font-size: 17px; opacity: 1; }
@@ -548,3 +551,41 @@ span.pile { cursor: default; }
 .trophy-pop.out { opacity: 0; transform: translate(-50%, -20px); transition: opacity 0.35s, transform 0.35s; }
 @keyframes tro-in { from { opacity: 0; transform: translate(-50%, -24px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .trophy-pop { animation: none; } .trophy-pop.out { transition: none; } }
+
+/* ---- ずかん ---- */
+.zukan { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 720px; }
+.zukan h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); margin: 0; }
+.zk-total { margin: 0; font-size: 15px; } .zk-total b { font-family: var(--display); font-size: 26px; color: var(--gold); margin-right: 2px; }
+.zk-tabs, .zk-sets { display: flex; flex-wrap: wrap; gap: 6px; }
+.zukan .chip { font-size: 14px; padding: 6px 14px; cursor: pointer; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; }
+.zukan .chip.on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 700; }
+.zukan .chip small { font-size: 10px; color: var(--bad); font-weight: 700; }
+.zukan .chip.on small { color: var(--gold-ink); }
+.zk-count { margin: 0; font-size: 14px; } .zk-count b { color: var(--gold); font-size: 18px; }
+.zk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.zk-card { position: relative; border: 0; padding: 0; background: none; cursor: pointer; text-align: left; }
+div.zk-card { cursor: default; }
+/* まだの カード：紙を うすい 灰色に して「？」。色の 帯と まる・レアリティは そのまま 見える */
+.zk-unknown { --paper: #cfc9b8; box-shadow: none; }
+.zk-unknown .cost { opacity: 0.45; }
+.zk-unknown .zk-q { flex: 1; display: grid; place-items: center; font-family: var(--display); font-size: 28px; opacity: 0.3; }
+.zk-dots { display: inline-flex; gap: 2px; margin-right: auto; margin-left: 3px; }
+.zk-dots i { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.zk-sp { position: absolute; top: -6px; right: -4px; background: #ff8ad8; color: #2a0b22; font-weight: 700; font-size: 10px; border-radius: 999px; padding: 1px 6px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+.zk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.zk-list li { display: flex; align-items: center; gap: 10px; background: var(--table-2); border-radius: 12px; padding: 10px 12px; }
+.zk-list li b { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.zk-list li b small { font-size: 12px; color: var(--ink-dim); font-weight: 500; }
+.zk-list li em { font-style: normal; font-size: 12px; color: var(--ink-dim); }
+.zk-list li.got em { color: var(--gold); font-weight: 700; }
+.zk-list li:not(.got) b { color: var(--ink-dim); }
+.zk-pips { display: inline-flex; gap: 3px; } .zk-pips i { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.zk-pips .m-W, .zk-dots .m-W { background: var(--W); } .zk-pips .m-U, .zk-dots .m-U { background: var(--U); } .zk-pips .m-K, .zk-dots .m-K { background: var(--K); } .zk-pips .m-G, .zk-dots .m-G { background: var(--G); } .zk-pips .m-R, .zk-dots .m-R { background: var(--R); }
+.zk-note { margin: 0; font-size: 12.5px; color: var(--ink-dim); }
+.sheet-content .zk-note { color: inherit; opacity: 0.75; margin-top: 8px; }
+.zk-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+.zk-stats div { background: var(--table-2); border-radius: 10px; padding: 8px; }
+.zk-stats dt { font-size: 11px; color: var(--ink-dim); } .zk-stats dd { margin: 0; font-family: var(--display); font-size: 22px; } .zk-stats small { font-family: var(--body); font-size: 12px; margin-left: 2px; }
+.zk-h { margin: 6px 0 0; font-size: 16px; }
+.zk-runs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.zk-runs li { font-size: 13px; } .zk-runs b { font-family: var(--display); color: var(--gold); margin-right: 8px; font-size: 16px; } .zk-runs em { font-style: normal; color: var(--ink-dim); margin-left: 8px; font-size: 11px; }

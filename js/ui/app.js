@@ -10,6 +10,7 @@ import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
+import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -47,6 +48,7 @@ export function title() {
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
+      <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
       <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>
       <button type="button" class="btn ghost" data-go="settings">せってい</button>
     </div>
@@ -60,6 +62,7 @@ export function title() {
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title);
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
+    if (b.dataset.go === 'zukan') return zukanScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     A = { diff, pool: [], deck: null, floors: pickFloors(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
@@ -178,6 +181,7 @@ function packs() {
     if (b.dataset.done) {
       A.pool.push(...ids); A.toOpen--; A.opened++; save();
       onPack(cards); // トロフィー（めくりおわってから）
+      zukanPack(cards);
       return A.toOpen > 0 ? packs() : deckBuilder();
     }
     if (b.dataset.i != null) await sheet(detail(BY_ID[ids[+b.dataset.i]]), [{ label: 'とじる', value: 0 }]);
@@ -349,6 +353,7 @@ function fight() {
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
       onBattle(r, { advExact: A.exact, floorIdx: A.idx, points: deckStats(A.deck).points });
+      zukanBattle(r);
       if (r.win) {
         A.idx++;
         if (A.idx >= A.floors.length) { A.over = 'clear'; save(); return ending(true); }
@@ -368,7 +373,9 @@ function fight() {
 
 function ending(win) {
   const reached = win ? 5 : A.idx + 1;
-  if (win && A.deck) onClear({ diff: A.diff, continued: A.continues < 1, pair: [...deckStats(A.deck).colors].sort((a, b) => 'WUKRG'.indexOf(a) - 'WUKRG'.indexOf(b)).join('') });
+  const pair = A.deck ? [...deckStats(A.deck).colors].sort((a, b) => 'WUKRG'.indexOf(a) - 'WUKRG'.indexOf(b)).join('') : '';
+  if (win && A.deck) onClear({ diff: A.diff, continued: A.continues < 1, pair });
+  zukanRun({ diff: A.diff, reached, exact: A.exact || 0, pair, win });
   // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
   if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
