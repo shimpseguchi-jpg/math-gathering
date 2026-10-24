@@ -33,6 +33,12 @@ const setSets = (v) => {
   sets = v;
   try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* 保存できなくても この あいだは つかえる */ }
 };
+// ぼうけんの まえと おわりの しゅぎょう（広告。docs/EMBLEMS.md 8章）。開発モードでは せっていで オフに できる
+const AD_KEY = 'mtg-ads-off';
+let adsOff = (() => { try { return localStorage.getItem(AD_KEY) === '1'; } catch { return false; } })();
+export const adsOn = () => !(DEV && adsOff);
+const setAdsOff = (v) => { adsOff = v; try { localStorage.setItem(AD_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } };
+
 // タイトルに 出す みじかい 説明（ぜんぶの ときは なし）
 export const setsNote = () => (String(enabledSets()) === String(RELEASED) ? '' : SETS.filter((x) => sets.includes(x.id)).map((x) => x.name.replace(/「.*$/, '')).join('・'));
 
@@ -48,6 +54,11 @@ export function settingsScreen(app, back) {
         <button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button>
       </section>
       ${DEV ? `<section class="st-sec">
+        <h3><span class="dev-badge">開発モード</span>こうこく（しゅぎょう）</h3>
+        <p class="st-note">ぼうけんの まえと おわりに 出る 60びょうの しゅぎょう。オフに すると すぐ パックに すすむ。</p>
+        <button type="button" class="btn" data-ads="1" aria-pressed="${adsOn()}">こうこく ${adsOn() ? 'あり' : 'なし'}</button>
+      </section>
+      <section class="st-sec">
         <h3><span class="dev-badge">開発モード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
@@ -63,6 +74,7 @@ export function settingsScreen(app, back) {
   app().onclick = (e) => {
     if (e.target.closest('[data-back]')) { app().onchange = null; return back(); }
     if (e.target.closest('[data-snd]')) { setSound(!soundOn()); draw(); }
+    if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
   };
   app().onchange = (e) => {
     const b = e.target.closest('[data-set]'); if (!b) return;

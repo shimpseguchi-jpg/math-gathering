@@ -9,7 +9,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
+import { DEV, enabledSets, setsNote, settingsScreen, adsOn } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy } from './emblem.js';
@@ -75,7 +75,7 @@ export function title() {
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
     // ぼうけんの まえに しゅぎょう（広告の ように）→ もんしょうを えらぶ → パック
-    gateStudy(app, plane, () => {
+    const start = () => {
       // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
       const pk = activeEffects()?.pack;
       const cols = packColors(enabledSets());
@@ -83,7 +83,8 @@ export function title() {
       A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
       save();
       packs();
-    });
+    };
+    if (adsOn()) gateStudy(app, plane, start); else start(); // 開発モードの せっていで こうこく なし
   };
 }
 
@@ -426,8 +427,8 @@ function ending(win) {
       <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
     </dl>
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
-    <p class="say"><b>${A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
-    <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>
+    ${adsOn() ? `<p class="say"><b>${A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
+    <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>` : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
   </main>`;
   clearSave();
   const plane = A.plane;
