@@ -61,4 +61,5 @@ export const sfx = {
     for (let i = 0; i < 8; i++) tone(NOTE(96 + (i % 4) * 2), 0.6 + i * 0.06, 0.12, { gain: 0.03 });
   },
   surprise: () => { tone(300, 0, 0.5, { type: 'square', gain: 0.04, to: 1200 }); noise(0.45, 0.15, 0.15); },
+  trophy: () => { [67, 72, 76, 79].forEach((n, i) => tone(NOTE(n), i * 0.09, 0.3, { type: 'triangle', gain: 0.08 })); tone(NOTE(84), 0.4, 0.6, { type: 'sine', gain: 0.07 }); },
 };

@@ -95,6 +95,7 @@ export function beginPlayerTurn(s) {
 }
 
 export function endPlayerTurn(s) {
+  notePower(s);
   for (const p of [...s.P.bf]) if (onBf(s, p) && p.def.endStep) p.def.endStep(s, p, api);
   endTurn(s);
 }
@@ -191,7 +192,7 @@ export function enter(s, side, def, o = {}) {
   if (def.etb) def.etb(s, p, api, o);
   if (!onBf(s, p)) return p;
   if (isCreature(p)) {
-    if (side === 'P') s.P.flags.enteredThisTurn = true;
+    if (side === 'P') { s.P.flags.enteredThisTurn = true; s.stats.maxCreatures = Math.max(s.stats.maxCreatures || 0, s.P.bf.filter(isCreature).length); }
     const [a, b] = pt(s, p);
     for (const q of s[side].bf) if (q !== p && hasKw(s, q, 'evolve')) { const [c, d] = pt(s, q); if (a > c || b > d) addCounters(s, q, 1); }
   }
@@ -445,6 +446,8 @@ export function leave(s, p, to = 'gy', o = {}) {
   L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${p.token && to !== 'gy' ? 'きえた' : { gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだの 上へ' }[to] || to}）`);
   if (exact) {
     s.stats.exact++; p.exact = true;
+    if (s.stats.exactTurn !== s.turn) { s.stats.exactTurn = s.turn; s.stats.exactNow = 0; }
+    s.stats.exactNow++; s.stats.exactTurnMax = Math.max(s.stats.exactTurnMax || 0, s.stats.exactNow); // 1ターンの ぴったり（トロフィー）
     L(s, `ぴったり！ ${p.def.name}（タフネス ${p.dmg}）`);
     for (const by of new Set(p.dmgBy)) {
       if (by?.pittari) by.pittari(s, api, p);
@@ -596,7 +599,10 @@ export function attackTriggers(s, atk) {
   for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onAttacks) q.def.onAttacks(s, q, atk, api); // 讃美（1体だけで 攻撃）
   battleCry(s, atk);
   attackCounters(s, atk);
+  notePower(s);
 }
+// トロフィー用：自分の クリーチャーの パワーの 合計の いちばん 大きい とき
+function notePower(s) { s.stats.maxPower = Math.max(s.stats.maxPower || 0, totalPower(s, s.P.bf.filter(isCreature))); }
 
 // 喊声：これが 攻撃するたび、ほかの 攻撃している クリーチャーは みんな ＋1/＋0
 function battleCry(s, atk) {
@@ -673,6 +679,8 @@ export function resolveCombat(s, atk, blocks) {
   if (!s.over) s.floor.afterCombat?.(s, api);
   for (const a of atk) a.p.attacking = false;
   s.lastCombat = s.combat.events;
+  // トロフィー用：1回の こうげきで 敵の 本体に あたえた ダメージ
+  s.stats.bigHit = Math.max(s.stats.bigHit || 0, s.combat.events.filter((e) => e.t === 'face').reduce((t, e) => t + e.n, 0));
   s.combat = null;
   sba(s);
 }

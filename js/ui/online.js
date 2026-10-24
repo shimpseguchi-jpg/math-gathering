@@ -9,6 +9,7 @@ import { pvp } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
 import { startBattle } from './battle.js';
 import { sheet, esc, ruby, COLOR_NAME } from './view.js';
+import { onBattle, onOnline } from './trophies.js';
 
 const KEY = 'mtg-online-v1';
 // ニックネームは 自由入力に しない。定型語を 2つ えらんで くみあわせる（サーバーも この ならびの 番号で うけとる）
@@ -168,6 +169,7 @@ async function findOpponent(app, back, o, mine) {
   });
   async function end(r) {
     const res = r.draw ? 'd' : r.win ? 'w' : 'l';
+    onOnline(r); if (r.turns != null) onBattle(r, { online: true }); // トロフィー（こうさんの ときは たたかいの きろくは なし）
     if (res === 'w') o.wins++; else if (res === 'l') o.losses++; else o.draws++;
     // 点が つくのは ほかの 人の ゴーストと たたかった とき（れんしゅう あいては 点なし）
     const deck = o.decks.find((x) => x === mine);

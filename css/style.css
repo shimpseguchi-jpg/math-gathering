@@ -515,3 +515,30 @@ span.pile { cursor: default; }
 .ol-selects select { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font: inherit; font-weight: 700; padding: 4px 8px; }
 .ol-empty { margin: 0; padding: 12px; border-radius: 12px; border: 2px dashed var(--line); color: var(--ink-dim); font-size: 13px; line-height: 1.9; }
 .ol-found { font-family: var(--display); font-size: 22px; color: var(--gold); margin: 0 0 4px; }
+
+/* ---- トロフィー ---- */
+.cup { width: 22px; height: 22px; flex: none; fill: currentColor; }
+.cup.tg-B { color: #c98a4b; } .cup.tg-S { color: #c9d3df; } .cup.tg-G { color: #f2c04f; } .cup.tg-P { color: #9fe3ff; } .cup.tg-X { color: rgba(255, 255, 255, 0.22); }
+.tro-btn { flex-direction: row; gap: 8px; }
+.tro-btn small { margin-left: 4px; }
+.trophies { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 560px; }
+.trophies h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); margin: 0; }
+.tro-count { margin: 0; font-size: 15px; } .tro-count b { font-family: var(--display); font-size: 30px; color: var(--gold); margin-right: 4px; }
+.tro-prog { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+.tro-prog div { background: var(--table-2); border-radius: 10px; padding: 6px 8px; }
+.tro-prog dt { font-size: 11px; color: var(--ink-dim); } .tro-prog dd { margin: 0; font-weight: 700; }
+.tro-sec h3 { display: flex; align-items: center; gap: 6px; margin: 4px 0 6px; font-size: 15px; }
+.tro-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tro { display: flex; align-items: center; gap: 10px; background: var(--table-2); border-radius: 12px; padding: 8px 10px; border: 2px solid transparent; }
+.tro .cup { width: 30px; height: 30px; }
+.tro > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tro b { font-size: 14px; } .tro small { font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
+.tro em { flex: none; font-style: normal; font-size: 11px; color: var(--ink-dim); }
+.tro:not(.got) b { color: var(--ink-dim); }
+.tro.got.tg-G, .tro.got.tg-P { border-color: color-mix(in srgb, var(--gold) 55%, transparent); }
+.trophy-pop { position: fixed; z-index: 60; left: 50%; top: 14px; transform: translateX(-50%); width: max-content; display: flex; align-items: center; gap: 10px; max-width: min(92vw, 420px); padding: 10px 16px; border-radius: 14px; background: #10162a; color: #fff; border: 2px solid var(--gold); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); animation: tro-in 0.35s ease-out; pointer-events: none; }
+.trophy-pop .cup { width: 34px; height: 34px; }
+.trophy-pop span { display: flex; flex-direction: column; } .trophy-pop small { font-size: 11px; color: var(--gold); } .trophy-pop b { font-size: 15px; }
+.trophy-pop.out { opacity: 0; transform: translate(-50%, -20px); transition: opacity 0.35s, transform 0.35s; }
+@keyframes tro-in { from { opacity: 0; transform: translate(-50%, -24px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .trophy-pop { animation: none; } .trophy-pop.out { transition: none; } }

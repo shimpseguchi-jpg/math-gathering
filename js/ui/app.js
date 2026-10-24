@@ -9,6 +9,7 @@ import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
+import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -46,6 +47,7 @@ export function title() {
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
+      <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>
       <button type="button" class="btn ghost" data-go="settings">せってい</button>
     </div>
     ${DEV ? `<p class="fine"><span class="dev-badge">開発モード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
@@ -57,6 +59,7 @@ export function title() {
     if (b.dataset.go === 'tut') return tutorial();
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title);
+    if (b.dataset.go === 'trophy') return trophyScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     A = { diff, pool: [], deck: null, floors: pickFloors(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
     save();
@@ -72,6 +75,7 @@ function tutorial() {
     onEnd: async (r) => {
       if (r.win) {
         try { localStorage.setItem(TUTORIAL_DONE, '1'); } catch { /* 保存できなくても よい */ }
+        award('tutorial');
         await sheet(`<p>${ruby(r.exact ? 'ぴったり 10点で まとを たおした！ マナの おきかた、しょうしゅう、ブロック、あっとう、ぴったり。これで とうに いどめるよ。' : 'まとを たおした！ つぎは ぴったりを ねらってみよう。これで とうに いどめるよ。')}</p>`,
           [{ label: 'タイトルへ', value: 1, kind: 'primary' }], { title: 'チュートリアル クリア！', dismiss: false });
       }
@@ -173,6 +177,7 @@ function packs() {
     }
     if (b.dataset.done) {
       A.pool.push(...ids); A.toOpen--; A.opened++; save();
+      onPack(cards); // トロフィー（めくりおわってから）
       return A.toOpen > 0 ? packs() : deckBuilder();
     }
     if (b.dataset.i != null) await sheet(detail(BY_ID[ids[+b.dataset.i]]), [{ label: 'とじる', value: 0 }]);
@@ -343,6 +348,7 @@ function fight() {
     quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
+      onBattle(r, { advExact: A.exact, floorIdx: A.idx, points: deckStats(A.deck).points });
       if (r.win) {
         A.idx++;
         if (A.idx >= A.floors.length) { A.over = 'clear'; save(); return ending(true); }
@@ -362,6 +368,7 @@ function fight() {
 
 function ending(win) {
   const reached = win ? 5 : A.idx + 1;
+  if (win && A.deck) onClear({ diff: A.diff, continued: A.continues < 1, pair: [...deckStats(A.deck).colors].sort((a, b) => 'WUKRG'.indexOf(a) - 'WUKRG'.indexOf(b)).join('') });
   // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
   if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
@@ -371,6 +378,7 @@ function ending(win) {
       <div><dt>とどいた 階</dt><dd>${reached}<small>/5</small></dd></div>
       <div><dt>ぴったり</dt><dd>${A.exact || 0}<small>回</small></dd></div>
       <div><dt>あけた パック</dt><dd>${A.opened}</dd></div>
+      <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
     </dl>
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
     <button type="button" class="btn primary" data-a="t">タイトルへ</button>
