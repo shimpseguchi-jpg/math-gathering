@@ -1,7 +1,7 @@
 // もんしょう（REQUIREMENTS 12章）：しゅぎょう（ui/study.js）で ポイントを ためて、スキルツリーから えらぶ。えらんでから 12じかん つづく
 // こうかは ぼうけんの たたかい だけ（app.js の fight → battle.js → game.js の newGame）
 import { EMBLEMS, BRANCHES, EMBLEM_BY_ID, EMBLEM_HOURS, BANNERS, emblemEffects } from '../data/emblems.js';
-import { CATS, pointsFor } from '../data/quiz.js';
+import { CATS, pointsFor, passed } from '../data/quiz.js';
 import { sheet, esc, ruby, info, noRuby, toast } from './view.js';
 import { studyScreen } from './study.js';
 import { DEV } from './settings.js';
@@ -31,14 +31,44 @@ const bannerName = () => { const d = BANNERS.find((x) => x.id === M.pick?.pBanne
 export const leftText = (ms) => { const m = Math.max(1, Math.ceil(ms / 60000)); const h = Math.floor(m / 60); return h ? `${h}じかん${m % 60 ? ` ${m % 60}ふん` : ''}` : `${m}ふん`; };
 
 // しゅぎょうの けっかを のこして、もらった ポイントを かえす
-function recordQuiz({ n, ok, stat }) {
-  const gain = pointsFor(n, ok);
+// mode：'gate'＝ぼうけんの まえ（ごうかくで ＋1）、'bonus'＝ボーナス（ふつうの ポイント ＋2）
+function recordQuiz(r, mode) {
+  const { n, ok, stat } = r;
+  const pass = passed(n, ok);
+  const gain = mode === 'gate' ? (pass ? GATE_PTS : 0) : pointsFor(n, ok) + (mode === 'bonus' && pass ? BONUS_PTS : 0);
+  if (mode === 'bonus' && pass) r.bonus = BONUS_PTS;
   M.pts += gain;
   M.total.quiz++; if (gain) { M.total.pass++; M.total.pts += gain; }
   M.log = [{ t: Date.now(), n, ok, gain }, ...M.log].slice(0, 20);
   for (const [c, [a, b]] of Object.entries(stat)) { const x = M.stat[c] || (M.stat[c] = [0, 0]); x[0] += a; x[1] += b; }
   save();
   return gain;
+}
+
+// ---- ぼうけんの まえと おわりの しゅぎょう（広告の ように 1かい はさむ。docs/EMBLEMS.md 8章） ----
+export const GATE_PTS = 1, BONUS_PTS = 2;
+const GATE_SAY = {
+  theros: { who: 'テーロスの 神々', text: 'ちしきの ない ものは、かみに えっけんする ことは できない' },
+  ravnica: { who: 'ジェイス', text: 'ぼくの とうに のぼりたいなら、さいていげんの ちえを みせてくれ' },
+};
+const MORE_SAY = {
+  theros: { who: 'テーロスの 神々', text: 'もっと つよく なりたいか？' },
+  ravnica: { who: 'ジェイス', text: 'もっと つよく なりたいかい？' },
+};
+// ぼうけんの まえ：しゅぎょう（ごうかくで ＋1）→ もんしょうを えらぶ（ここで もう いちど やると ボーナス ＋2）→ next（パックへ）
+export function gateStudy(app, plane, next) {
+  const toEmblems = () => emblemScreen(app, next, { bonus: true, goLabel: 'ぼうけんへ すすむ' });
+  studyScreen(app, {
+    cats: quizCats(), setCats: (c) => { M.cats = c; save(); }, record: (r) => recordQuiz(r, 'gate'), back: toEmblems,
+    eyebrow: 'ぼうけんの まえに', say: GATE_SAY[plane] || GATE_SAY.theros, reward: `もんしょうポイント ＋${GATE_PTS}`, noBack: true, noAgain: true, doneLabel: 'もんしょうを えらぶ',
+  });
+}
+// ぼうけんの おわり：「もっと つよく なりたいか？」→ ボーナスの しゅぎょう → もんしょうを えらぶ
+export function moreStudy(app, plane, back) {
+  studyScreen(app, {
+    cats: quizCats(), setCats: (c) => { M.cats = c; save(); }, record: (r) => recordQuiz(r, 'bonus'), back: () => emblemScreen(app, back), quit: back,
+    eyebrow: 'ぼうけんの おわりに', say: MORE_SAY[plane] || MORE_SAY.theros, reward: `もんしょうポイント ＋3 と ボーナス ＋${BONUS_PTS}`, backLabel: 'やめて タイトルへ', noAgain: true,
+  });
 }
 
 // えらべない わけ（なければ ''）
@@ -94,7 +124,8 @@ function respec() {
   return back;
 }
 
-export function emblemScreen(app, back) {
+// o.bonus：つぎの しゅぎょう 1かいだけ ボーナス ＋2（ぼうけんの まえ）。o.goLabel：もどる ボタンの ことば
+export function emblemScreen(app, back, o = {}) {
   const draw = () => {
     const now = Date.now();
     const node = (e) => {
@@ -110,17 +141,17 @@ export function emblemScreen(app, back) {
     app().innerHTML = `<main class="emblem">
       <h2${DEV ? ' data-admin="1"' : ''}>もんしょう</h2>
       <p class="em-pts">もんしょうポイント <b>${emblemPoints()}</b>${retPts(now) ? `<small>（ふりなおした ${retPts(now)}ポイントは のこり ${leftText(M.ret.until - now)}で きえる）</small>` : ''}</p>
-      <button type="button" class="btn primary em-study" data-study="1">しゅぎょうを する（60びょう）<small>7わりより おおく せいかいで ＋3ポイント</small></button>
+      <button type="button" class="btn primary em-study ${o.bonus ? 'em-bonus' : ''}" data-study="1">${o.bonus ? `いま やると ＋${BONUS_PTS}ポイント ボーナス！` : 'しゅぎょうを する（60びょう）'}<small>7わりより おおく せいかいで ＋3ポイント${o.bonus ? `、さらに ＋${BONUS_PTS}` : ''}</small></button>
       <p class="zk-note">ポイントで もんしょうを えらぶと、${EMBLEM_HOURS}じかん ぼうけんの たたかいで つよく なる（オンライン バトルでは つかえない）。レベル2・3 は まえの レベルが ついて いる ときに えらべる。</p>
       ${BRANCHES.map((b) => `<section class="em-branch ${b.one || b.named ? 'one' : ''}"><h3>${b.mark} ${esc(b.name)}${b.one ? '<small>（1つだけ えらぶ）</small>' : b.max ? `<small>（${b.max}つまで）</small>` : ''}</h3><ol class="em-nodes">${EMBLEMS.filter((e) => e.branch === b.id).map(node).join('')}</ol></section>`).join('')}
       ${tries.length ? `<h3 class="zk-h">しゅぎょうの きろく</h3><ol class="em-log">${tries.map((r) => `<li><span>${new Date(r.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><b>${r.ok} / ${r.n}</b><em>${r.gain ? `＋${r.gain}ポイント` : '−'}</em></li>`).join('')}</ol>` : ''}
       ${stats.length ? `<h3 class="zk-h">しゅるいごとの せいかい</h3><ul class="qz-break">${stats.map(([k, c]) => `<li><span>${esc(c.name)}</span><b>${M.stat[k][1]} / ${M.stat[k][0]}</b></li>`).join('')}</ul>` : ''}
       ${activeIds(now).length ? '<button type="button" class="btn" data-respec="1">ポイントを ふりなおす<small>ついて いる もんしょうを はずして ポイントを もどす（のこり じかんは そのまま）</small></button>' : ''}
       <p class="zk-note">ぜんぶで しゅぎょう ${M.total.quiz}かい・ごうかく ${M.total.pass}かい・もらった ポイント ${M.total.pts}</p>
-      <button type="button" class="btn" data-back="1">タイトルへ もどる</button>
+      <button type="button" class="btn ${o.goLabel ? 'primary' : ''}" data-back="1">${esc(o.goLabel || 'タイトルへ もどる')}</button>
     </main>`;
   };
-  const again = () => emblemScreen(app, back);
+  const again = () => emblemScreen(app, back, { ...o, bonus: false }); // ボーナスは 1かいだけ
   draw();
   // 12じかんが すぎたら 画面も かわる（1ぷん ごと）
   const iv = setInterval(() => { if (!document.querySelector('main.emblem')) clearInterval(iv); else if (!document.getElementById('sheet') || document.getElementById('sheet').hidden) draw(); }, 60000);
@@ -144,7 +175,7 @@ export function emblemScreen(app, back) {
     }
     if (b.dataset.study) {
       clearInterval(iv);
-      return studyScreen(app, { cats: quizCats(), setCats: (c) => { M.cats = c; save(); }, record: recordQuiz, back: again });
+      return studyScreen(app, { cats: quizCats(), setCats: (c) => { M.cats = c; save(); }, record: (r) => recordQuiz(r, o.bonus ? 'bonus' : ''), back: again, ...(o.bonus ? { reward: `もんしょうポイント ＋3 と ボーナス ＋${BONUS_PTS}`, eyebrow: 'ボーナスの しゅぎょう' } : {}) });
     }
     if (b.dataset.id) {
       const em = EMBLEM_BY_ID[b.dataset.id];

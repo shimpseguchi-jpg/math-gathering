@@ -18,22 +18,24 @@ const pct = (n, ok) => (n ? Math.round((ok / n) * 100) : 0);
 const marked = (t) => esc(t).replace(/［(.+?)］/g, '<b class="qz-target">$1</b>').replace(/□/g, '<b class="qz-blank">□</b>');
 
 // o = { cats, setCats(cats), record({ n, ok, stat }) → もらった ポイント, back() }
+//   ぼうけんの まえ・おわりの しゅぎょう（emblem.js）：say { who, text }（ふきだし）・eyebrow・reward（ポイントの せつめい）・backLabel・doneLabel・noBack（もどる ボタンなし）
 export function studyScreen(app, o) {
   let cats = [...o.cats];
   // ---- はじめる まえ：もんだいの しゅるいを えらぶ（学校で ならった ものだけに できる） ----
   const intro = () => {
     app().innerHTML = `<main class="study">
-      <p class="eyebrow">しゅぎょうの へや</p>
+      <p class="eyebrow">${esc(o.eyebrow || 'しゅぎょうの へや')}</p>
+      ${o.say ? `<p class="say qz-say"><b>${esc(o.say.who)}</b><span>${esc(o.say.text)}</span></p>` : ''}
       <h2>${QUIZ_SECONDS}びょう しゅぎょう</h2>
-      <p class="qz-lead">${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）。${PASS_MIN}もん いじょう とこう。</p>
+      <p class="qz-lead">${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると ${o.reward || 'もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）'}。${PASS_MIN}もん いじょう とこう。</p>
       <h3 class="zk-h">もんだいの しゅるい</h3>
       <div class="qz-cats">${Object.entries(CATS).map(([k, c]) => `<button type="button" class="qz-cat ${cats.includes(k) ? 'on' : ''}" data-cat="${k}" aria-pressed="${cats.includes(k)}"><b>${esc(c.name)}</b><small>${esc(c.note)}</small></button>`).join('')}</div>
       <p class="zk-note">まだ ならって いない ものは タップして はずせる。</p>
-      <div class="row-btns"><button type="button" class="btn primary" data-start="1" ${cats.length ? '' : 'disabled'}>はじめる</button><button type="button" class="btn" data-back="1">もどる</button></div>
+      <div class="row-btns"><button type="button" class="btn primary" data-start="1" ${cats.length ? '' : 'disabled'}>はじめる</button>${o.noBack ? '' : `<button type="button" class="btn" data-back="1">${esc(o.backLabel || 'もどる')}</button>`}</div>
     </main>`;
     app().onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.back) return o.back();
+      if (b.dataset.back) return (o.quit || o.back)(); // quit：はじめる まえに やめた とき（なければ back）
       if (b.dataset.cat) { const k = b.dataset.cat; cats = cats.includes(k) ? cats.filter((x) => x !== k) : [...cats, k]; o.setCats(cats); return intro(); }
       if (b.dataset.start && cats.length) run();
     };
@@ -125,10 +127,10 @@ export function studyScreen(app, o) {
       <h2>${pass ? 'ごうかく！' : r.n < PASS_MIN ? 'もう すこし とこう' : 'あと すこし！'}</h2>
       <p class="qz-result"><b>${r.ok}</b> / ${r.n}もん せいかい<small>（${pct(r.n, r.ok)}%）</small></p>
       <p class="zk-note">ごうかく：${PASS_MIN}もん いじょう といて、7わりより おおく せいかい（${r.n}もんなら ${Math.max(need, PASS_MIN)}もん いじょう）</p>
-      ${gain ? `<p class="qz-gain">もんしょうポイント <b>＋${gain}</b>${gain > 3 ? '<small>ぜんぶ せいかい！</small>' : ''}</p>` : ''}
+      ${gain ? `<p class="qz-gain">もんしょうポイント <b>＋${gain}</b>${r.bonus ? `<small>ボーナス ＋${r.bonus} こみ</small>` : r.n === r.ok && gain > 3 ? '<small>ぜんぶ せいかい！</small>' : ''}</p>` : ''}
       <ul class="qz-break">${Object.entries(r.stat).map(([k, [a, b]]) => `<li><span>${esc(CATS[k].name)}</span><b>${b} / ${a}</b></li>`).join('')}</ul>
       ${r.miss.length ? `<h3 class="zk-h">まちがえた もんだい</h3><ul class="qz-miss">${r.miss.map(({ q, given }) => `<li>${q.clock ? `とけい（${esc(q.answer)}）` : q.kind === 'num' ? esc(q.text.includes('□') ? q.text.replace('□', `［${q.answer}］`) : `${q.text} ＝ ${q.answer}`) : marked(q.text.replace('□', `［${q.answer}］`))}<small>こたえ：${esc(q.answer)}・あなた：${esc(given)}</small></li>`).join('')}</ul>` : ''}
-      <div class="row-btns"><button type="button" class="btn primary" data-back="1">${gain ? 'もんしょうを えらぶ' : 'もどる'}</button><button type="button" class="btn" data-again="1">もう いちど</button></div>
+      <div class="row-btns"><button type="button" class="btn primary" data-back="1">${esc(o.doneLabel || (gain ? 'もんしょうを えらぶ' : 'もどる'))}</button>${o.noAgain ? '' : '<button type="button" class="btn" data-again="1">もう いちど</button>'}</div>
     </main>`;
     app().onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return;

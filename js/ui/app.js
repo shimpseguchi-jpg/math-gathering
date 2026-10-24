@@ -12,7 +12,7 @@ import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
-import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints } from './emblem.js';
+import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy } from './emblem.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
 
@@ -74,13 +74,16 @@ export function title() {
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
-    // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
-    const pk = activeEffects()?.pack;
-    const cols = packColors(enabledSets());
-    const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
-    A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
-    save();
-    packs();
+    // ぼうけんの まえに しゅぎょう（広告の ように）→ もんしょうを えらぶ → パック
+    gateStudy(app, plane, () => {
+      // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
+      const pk = activeEffects()?.pack;
+      const cols = packColors(enabledSets());
+      const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
+      A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
+      save();
+      packs();
+    });
   };
 }
 
@@ -423,11 +426,12 @@ function ending(win) {
       <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
     </dl>
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
-    ${win ? '' : emblemHint(true)}
-    <button type="button" class="btn primary" data-a="t">タイトルへ</button>
+    <p class="say"><b>${A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
+    <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>
   </main>`;
   clearSave();
-  app().onclick = (e) => { if (e.target.closest('[data-a]')) title(); };
+  const plane = A.plane;
+  app().onclick = (e) => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'more') moreStudy(app, plane, title); else title(); };
 }
 
 initTerms();

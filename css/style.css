@@ -661,3 +661,9 @@ div.zk-card { cursor: default; }
 .say b { flex: none; color: var(--accent, #ffd166); font-size: 11px; }
 .say span { position: relative; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; padding: 2px 8px; }
 .sheet .say { margin-top: 8px; font-size: 14px; }
+/* しゅぎょうの まえ・おわりの ことば、ボーナスの ボタン */
+.qz-say { font-size: 15px; margin-bottom: 4px; }
+.ending .say { justify-content: center; font-size: 15px; }
+.em-study.em-bonus { animation: em-bonus 1.6s ease-in-out infinite; }
+@keyframes em-bonus { 50% { box-shadow: 0 0 0 4px rgba(242, 192, 79, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .em-study.em-bonus { animation: none; } }

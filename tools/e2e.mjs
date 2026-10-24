@@ -39,6 +39,10 @@ if (process.env.START) {
 let ended = false, battles = 0;
 for (let i = 0; i < STEPS && !ended; i++) {
   await page.waitForTimeout(30);
+  // ぼうけんの まえの しゅぎょう：はじめて すぐ やめる → もんしょうの 画面 →「ぼうけんへ すすむ」
+  if (await page.locator('main.study [data-start]').count()) { await shot('gate'); await page.click('main.study [data-start]'); continue; }
+  if (await page.locator('main.study.run [data-quit]').count() && !(await page.locator('#sheet:not([hidden])').count())) { await page.click('main.study.run [data-quit]'); await page.click('#sheet button:has-text("やめる")'); continue; }
+  if (await page.locator('main.emblem [data-back]').count()) { await shot('gate_emblem'); await page.click('main.emblem [data-back]'); continue; }
   if (await page.locator('#sheet:not([hidden]) .pick-list').count()) {
     await shot(`pick${battles}`);
     const picks = page.locator('#sheet .pick');
