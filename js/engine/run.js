@@ -24,7 +24,7 @@ export function packPool(sets) {
 }
 
 // ごほうびパック：クリアした階の数（cleared）だけ 上のレアリティが 少し出やすくなり、favor の色が 出やすくなる
-export const REWARD = { cToU: 0.05, uToR: 0.04, rToL: 0.04, surprise: 0.01, favor: 2 };
+export const REWARD = { cToU: 0.05, uToR: 0.04, rToL: 0.04, surprise: 0.01, favor: 4 };
 export function packOdds(cleared = 0) {
   return {
     cToU: REWARD.cToU * cleared, uToR: REWARD.uToR * cleared,
