@@ -2,8 +2,9 @@
 // こうかは ぼうけんの たたかい だけ（app.js の fight → battle.js → game.js の newGame）
 import { EMBLEMS, BRANCHES, EMBLEM_BY_ID, EMBLEM_HOURS, BANNERS, emblemEffects } from '../data/emblems.js';
 import { CATS, pointsFor } from '../data/quiz.js';
-import { sheet, esc, ruby, info, noRuby } from './view.js';
+import { sheet, esc, ruby, info, noRuby, toast } from './view.js';
 import { studyScreen } from './study.js';
+import { DEV } from './settings.js';
 
 const KEY = 'mtg-emblem-v1';
 const HOUR = 3600 * 1000;
@@ -107,7 +108,7 @@ export function emblemScreen(app, back) {
     const tries = M.log.slice(0, 5);
     const stats = Object.entries(CATS).filter(([k]) => M.stat[k]);
     app().innerHTML = `<main class="emblem">
-      <h2>もんしょう</h2>
+      <h2${DEV ? ' data-admin="1"' : ''}>もんしょう</h2>
       <p class="em-pts">もんしょうポイント <b>${emblemPoints()}</b>${retPts(now) ? `<small>（ふりなおした ${retPts(now)}ポイントは のこり ${leftText(M.ret.until - now)}で きえる）</small>` : ''}</p>
       <button type="button" class="btn primary em-study" data-study="1">しゅぎょうを する（60びょう）<small>7わりより おおく せいかいで ＋3ポイント</small></button>
       <p class="zk-note">ポイントで もんしょうを えらぶと、${EMBLEM_HOURS}じかん ぼうけんの たたかいで つよく なる（オンライン バトルでは つかえない）。レベル2・3 は まえの レベルが ついて いる ときに えらべる。</p>
@@ -123,7 +124,15 @@ export function emblemScreen(app, back) {
   draw();
   // 12じかんが すぎたら 画面も かわる（1ぷん ごと）
   const iv = setInterval(() => { if (!document.querySelector('main.emblem')) clearInterval(iv); else if (!document.getElementById('sheet') || document.getElementById('sheet').hidden) draw(); }, 60000);
+  // 管理者の けんしょう用（開発モードだけ）：上の「もんしょう」を 10かい つづけて おすと ポイント ＋999
+  let taps = 0, tapAt = 0;
   app().onclick = async (e) => {
+    if (DEV && e.target.closest('[data-admin]')) {
+      const now = Date.now();
+      taps = now - tapAt < 1500 ? taps + 1 : 1; tapAt = now;
+      if (taps >= 10) { taps = 0; M.pts += 999; save(); draw(); toast('かんりしゃ：もんしょうポイント ＋999'); }
+      return;
+    }
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.back) { clearInterval(iv); return back(); }
     if (b.dataset.respec) {
