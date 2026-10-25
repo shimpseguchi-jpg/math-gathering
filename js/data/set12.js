@@ -10,7 +10,8 @@ export function addBon(s, E, n) {
   s.P.bon = now;
   if (now !== was) E.L(s, `エネルギー ${was} ${n > 0 ? '＋' : '−'} ${Math.abs(n)} ＝ ${now}`);
 }
-const ninjutsu = (cost, req) => ({ ninjutsu: { cost, req }, permScore: (s, E, ctx) => (ctx.phase === 1 && E.readyAttackers(s).length ? null : 12) });
+// 交代（＝忍術）：攻撃の とちゅうに くわえて、ブロックしている クリーチャーとも いれかえられる（swapBlock）
+const ninjutsu = (cost, req) => ({ ninjutsu: { cost, req }, swapBlock: true, permScore: (s, E, ctx) => (ctx.phase === 1 && E.readyAttackers(s).length ? null : 12) });
 const canSwing = (s, E, p) => !p.tapped && (!p.sick || E.hasKw(s, p, 'haste'));
 const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
 const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
@@ -43,6 +44,9 @@ const left = (s, E, q) => E.pt(s, q)[1] - q.dmg;
 // 2体を えらぶ（じぶんの クリーチャー ＋ てきの クリーチャー）
 const pair = (labelA, labelB) => [{ side: 'P', label: labelA }, { side: 'E', label: labelB }];
 
+// 終結スキル：召集（じぶんの クリーチャーを タップして はらう）＋ タップ状態の 敵の クリーチャー 1体につき コスト −1（色の 1つぶんは のこる）
+export const tappedFoes = (s) => s.E.bf.filter((p) => isCre(p) && p.tapped).length;
+const ULT = { kw: ['convoke'], tapLess: true, costMin: 1, costLess: (s) => tappedFoes(s) };
 const TK = {
   boar: cr('t_boar', 'イノシシ', null, 'R', 0, 1, 1, ['boar']),
   ethereal: cr('t_ethereal', 'エーテリアス', null, 'K', 0, 1, 1, ['ethereal']),
@@ -166,25 +170,25 @@ export const S12 = {
     tgt: [{ side: 'P', label: '＋1/＋0 で ブロックされない クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 1, 0); t.flags.turn.unblockable = true; },
   },
   // ---- 終結スキル（召集） ----
-  ZZ71: { ...(foe1('ついほうする タップした てきの クリーチャー', exileIt, { filter: (s, E, p) => p.tapped })), kw: ['convoke'] }, // 封じ込め
-  ZZ72: { kw: ['convoke'], play: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 6, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0, ['indestructible']); } } : null) }, // 抵抗の決意
-  ZZ73: { kw: ['convoke'], // 凍える突風（X体を タップ・つぎも おきない）
+  ZZ71: { ...(foe1('ついほうする タップした てきの クリーチャー', exileIt, { filter: (s, E, p) => p.tapped })), ...ULT }, // 封じ込め
+  ZZ72: { ...ULT, play: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 6, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0, ['indestructible']); } } : null) }, // 抵抗の決意
+  ZZ73: { ...ULT, // 凍える突風（X体を タップ・つぎも おきない）
     play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.frozen).sort((a, b) => E.power(s, b) - E.power(s, a)); const x = Math.min(ctx.xMax || 0, ts.length); return x ? { score: 2 + x * 2, x, run: (xx) => { for (const t of ts.slice(0, xx)) detain(s, E, t); } } : null; },
     tgt: [{ side: 'E', max: 9, label: 'タップする クリーチャー（X体まで・つぎも おきない）' }], apply: (s, E, [ts], x) => { for (const t of ts.slice(0, x)) detain(s, E, t); },
   },
-  ZZ74: { kw: ['convoke'], // 潮の波（ひこうの ない てきを 3体まで タップ）
+  ZZ74: { ...ULT, // 潮の波（ひこうの ない てきを 3体まで タップ）
     play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying')).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) t.tapped = true; } } : null; },
     tgt: [{ side: 'E', max: 3, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: 'タップする ひこうの ない クリーチャー（3体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) t.tapped = true; },
   },
-  ZZ75: { ...(foe1('ついほうする クリーチャー', (s, E, t) => { exileIt(s, E, t); E.gain(s, 2); })), kw: ['convoke'] }, // ヴラスカの侮辱
-  ZZ76: { kw: ['convoke'], play: (s, E, ctx) => { const v = wipeValue(s, E, (q) => left(s, E, q) <= 4); return v > 4 || (ctx.human && theirs(s, E).length) ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.pump(q, -4, -4); E.sba(s); } } : null; } }, // 衰滅
-  ZZ77: { ...(bolt(4)), kw: ['convoke'] }, // 炎の稲妻
-  ZZ78: { kw: ['convoke'], play: (s, E, ctx) => { const v = wipeValue(s, E, (q) => left(s, E, q) <= 2); return v > 3 || (ctx.human && theirs(s, E).length) ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.damage(s, q, 2, null); E.sba(s); } } : null; } }, // 焦熱の砲撃
-  ZZ79: { kw: ['convoke'], // 狂乱の噛みつき
+  ZZ75: { ...(foe1('ついほうする クリーチャー', (s, E, t) => { exileIt(s, E, t); E.gain(s, 2); })), ...ULT }, // ヴラスカの侮辱
+  ZZ76: { ...ULT, play: (s, E, ctx) => { const v = wipeValue(s, E, (q) => left(s, E, q) <= 4); return v > 4 || (ctx.human && theirs(s, E).length) ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.pump(q, -4, -4); E.sba(s); } } : null; } }, // 衰滅
+  ZZ77: { ...(bolt(4)), ...ULT }, // 炎の稲妻
+  ZZ78: { ...ULT, play: (s, E, ctx) => { const v = wipeValue(s, E, (q) => left(s, E, q) <= 2); return v > 3 || (ctx.human && theirs(s, E).length) ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.damage(s, q, 2, null); E.sba(s); } } : null; } }, // 焦熱の砲撃
+  ZZ79: { ...ULT, // 狂乱の噛みつき
     play: (s, E) => { const me = E.bestBuffTarget(s, null); if (!me) return null; const b = foeBest(s, E, E.power(s, me)); return b ? { score: 5 + b.score, run: () => { E.damage(s, b.t, E.power(s, me), me); E.sba(s); } } : null; },
     tgt: pair('ダメージを あたえる あなたの クリーチャー', 'ダメージを うける てきの クリーチャー'), apply: (s, E, [[a], [b]]) => { E.damage(s, b, E.power(s, a), a); E.sba(s); },
   },
-  ZZ80: { kw: ['convoke'], // 原初の力（＋X/＋X して 格闘）
+  ZZ80: { ...ULT, // 原初の力（＋X/＋X して 格闘）
     play: (s, E, ctx) => { const me = E.bestBuffTarget(s, null); if (!me || !ctx.xMax) return null; const x = ctx.xMax; const b = foeBest(s, E, E.power(s, me) + x, (p) => E.power(s, p) < left(s, E, me) + x); return b ? { score: 5 + b.score, x, run: (xx) => { E.pump(me, xx, xx); E.fight(s, me, b.t); E.sba(s); } } : null; },
     tgt: pair('＋X/＋X して かくとうする あなたの クリーチャー', 'かくとうする てきの クリーチャー'), apply: (s, E, [[a], [b]], x) => { E.pump(a, x, x); E.fight(s, a, b); E.sba(s); },
   },

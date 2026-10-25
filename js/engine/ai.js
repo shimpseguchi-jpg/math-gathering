@@ -547,6 +547,31 @@ export function ninjutsu(s, c, a) {
   return true;
 }
 
+// 交代（ゼンゼロ。swapBlock の ある カード）：ブロックしている じぶんの クリーチャー（blocks の aUid の もの）を 手札に もどして、c を かわりに ブロックさせる
+export function swapBlocker(s, c, aUid, blocks) {
+  const nj = c.def.ninjutsu;
+  const pl = plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 }); if (!pl) return false;
+  const old = blocks.get(aUid); if (!old || !onBf(s, old)) return false;
+  pay(s, pl);
+  s.P.hand.splice(s.P.hand.indexOf(c), 1);
+  leave(s, old, 'hand');
+  const n = enter(s, 'P', c.def, { card: c.def });
+  blocks.set(aUid, n);
+  L(s, `こうたい（ブロック）：${old.def.name} → ${c.def.name}`);
+  return true;
+}
+// AI：ブロックした クリーチャーが たおれて しまう とき、たおれない か あいてを たおせる エージェントと 交代
+function swapBlocks(s, attackers, bl) {
+  for (const a of attackers) {
+    const b = bl.get(a.uid); if (!b || !onBf(s, b) || !onBf(s, a)) continue;
+    if (blockFacts(s, b, a).survives) continue; // ブロックした ものが たおれない なら そのまま
+    const P = power(s, a), T = pt(s, a)[1] - a.dmg;
+    const c = s.P.hand.filter((x) => x.def.swapBlock && plan(s, x.def.ninjutsu.cost, x.def.ninjutsu.req, { req2: x.def.ninjutsu.req.length > 1 }) && ((x.def.tou ?? 0) > P || (x.def.pow ?? 0) >= T))
+      .sort((x, y) => (y.def.pow ?? 0) + (y.def.tou ?? 0) - (x.def.pow ?? 0) - (x.def.tou ?? 0))[0];
+    if (c) swapBlocker(s, c, a.uid, bl);
+  }
+}
+
 // ---- ブロック（プレイヤー） ----
 function valueP(s, p) { return power(s, p) + pt(s, p)[1] / 2 + (p.token ? 0 : rarityV(p.def)); }
 
@@ -602,7 +627,7 @@ function beforeBlocks(s, attackers) {
   reactLoop(s, { attackers, blocks: new Map(), when: 'attack' });
 }
 
-function duringBlocks(s, attackers, bl) { reactLoop(s, { attackers, blocks: bl, when: 'blocks' }); }
+function duringBlocks(s, attackers, bl) { swapBlocks(s, attackers, bl); reactLoop(s, { attackers, blocks: bl, when: 'blocks' }); }
 
 function counter(s, c) {
   const threat = s.floor.castThreat?.(s, c.def, api) ?? (c.def.types.includes('creature') ? (typeof c.def.pow === 'number' ? c.def.pow : 3) + 1 : (c.def.danger ?? 2));
@@ -695,7 +720,7 @@ Object.assign(api, {
     L(s, `マッドネス：${d.name}`);
     castCard(s, c, pl, { from: 'madness', run: r.run });
   },
-  ninjutsu, castAdventure, castBestow, stealable, copySpell, unearth,
+  ninjutsu, swapBlocker, castAdventure, castBestow, stealable, copySpell, unearth,
   castSuspended,
   // 諜報（第7弾）：占術と 同じ きじゅんで、のこさない カードは ぼちへ。人は s.ai.surveil が 画面で 聞く
   surveil: (s, n) => {
