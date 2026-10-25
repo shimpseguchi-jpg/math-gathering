@@ -1049,9 +1049,6 @@ const ACT_TARGETS = {
 };
 for (const [id, h] of Object.entries(TARGETS)) Object.assign(BY_ID[id], h);
 for (const [id, h] of Object.entries(ACT_TARGETS)) Object.assign(BY_ID[id].acts[0], h);
-// 光円錐（番外編 スターレイル）：元の カードの うごきを うつす（名前・コスト・色・タイプは 表の まま）
-const OWN = ['id', 'name', 'rar', 'color', 'cost', 'types', 'sub', 'kw', 'legend', 'copyOf'];
-for (const d of SET11) if (d.copyOf) for (const [k, v] of Object.entries(BY_ID[d.copyOf])) if (!OWN.includes(k) && !(k in d)) d[k] = v;
 // 歩く バリスタ：2つめの のうりょく（カウンターを とって 1点）
 Object.assign(BY_ID.C15.acts[1], { tgt: [{ side: 'E', face: true, label: '1点を あたえる 相手' }], apply: (s, E, [[t]], x, p) => { p.ctr--; hit(s, E, t, 1); } });
 

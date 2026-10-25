@@ -184,7 +184,6 @@ export function permFace(s, p, o = {}) {
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
     p.def.npFx ? `<span class="b np${(p.np || 0) >= 100 ? ' ready' : ''}">NP ${p.np || 0}${(p.np || 0) >= 100 ? '・ほうぐOK' : p.def.np ? `・あと${Math.ceil((100 - (p.np || 0)) / p.def.np)}回` : ''}</span>` : '', // 番外編 FGO：宝具の NP と あと なん回 攻撃で 宝具（100 いじょうで ボタンが つかえる）
-    p.def.ult && p.side === 'P' ? `<span class="b np${(p.en || 0) >= 3 ? ' ready' : ''}">${(p.en || 0) >= 3 ? 'ひっさつわざOK' : `エネルギー ${p.en || 0}/3`}</span>` : '', // 番外編 スターレイル：必殺技
     p.shin ? `<span class="b time">しんくん ${p.shin}</span>` : '',
     p.trial != null ? `<span class="b time">しれん ${p.trial}</span>` : '',
     p.seals != null ? `<span class="b time">れいじゅ ${p.seals}</span>` : '',
@@ -200,7 +199,7 @@ export function permFace(s, p, o = {}) {
     p.def.dragon && !s.E.flags.awake ? '<span class="b zz">ねている</span>' : '',
     p.token ? '<span class="b tok">トークン</span>' : '',
   ].join('');
-  return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${(p.def.npFx && (p.np || 0) >= 100) || (p.def.ult && (p.en || 0) >= 3 && p.side === 'P') ? 'hogu' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">
+  return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${(p.def.npFx && (p.np || 0) >= 100) ? 'hogu' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">
     <div class="card-top">${head}<span class="badges">${badges}</span></div>
     <div class="card-name">${ruby(i.name)}</div>
     <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>

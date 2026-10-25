@@ -567,7 +567,9 @@ async function tapHand(c) {
   if (B.mode === 'main') {
     const ci = castInfo(c);
     const verb = d.types.includes('creature') ? 'せんじょうに 出す' : '使う', lf = ci.ok && ci.pl?.life;
-    choices.push({ label: lf ? `ライフを ${lf} はらって ${verb}` : verb, value: 'cast', kind: 'primary', disabled: !ci.ok, note: !ci.ok ? ci.why : lf ? lifeNote(d, lf) : '' });
+    // 必殺技（番外編 スターレイル）：キャラが いて 安く なった ときは ひき算を 見せる
+    const less = d.ultOf && !d.x ? d.cost - costOf(s, d) : 0;
+    choices.push({ label: lf ? `ライフを ${lf} はらって ${verb}` : less ? `${verb}（${d.cost} − ${less} ＝ ${d.cost - less}マナ）` : verb, value: 'cast', kind: 'primary', disabled: !ci.ok, note: !ci.ok ? ci.why : lf ? lifeNote(d, lf) : '' });
     if (d.suspend && s.active === 'P') { const ok = !!plan(s, d.suspend.cost, d.suspend.req || []); choices.push({ label: `たいきする（${d.suspend.cost}マナ・${d.suspend.turns}ターン あとに ただで 使う）`, value: 'suspend', kind: 'primary', disabled: !ok, note: ok ? '' : 'マナが たりない' }); }
     // 出来事（カードの 下の 呪文）・授与（オーラとして つける）
     if (d.adv && !c.advDone) { const ok = !!plan(s, d.adv.cost, d.adv.req); choices.push({ label: `できごと「${ruby(d.adv.name)}」を 使う（${d.adv.cost}マナ）`, value: 'adv', kind: 'primary', disabled: !ok, note: ok ? 'あとで クリーチャーとしても 出せる' : 'マナが たりない' }); }
@@ -697,7 +699,7 @@ async function tapPerm_(p) {
       let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
       const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
       const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x, human: true });
-      const label = a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.ultUse ? `${ruby(a.label)}（エネルギー ${p.en || 0} − 3 ＝ ${(p.en || 0) - 3}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? `${ruby(a.label)}（ちゅうせい ${p.loy} ${a.loyalty > 0 ? '＋' : '−'} ${Math.abs(a.loyalty)} ＝ ${p.loy + a.loyalty}）` : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
+      const label = a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? `${ruby(a.label)}（ちゅうせい ${p.loy} ${a.loyalty > 0 ? '＋' : '−'} ${Math.abs(a.loyalty)} ＝ ${p.loy + a.loyalty}）` : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip) choices.push({ label: `そうびする（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
