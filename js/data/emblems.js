@@ -41,6 +41,7 @@ export const EMBLEMS = [
   // 番外編パック：番外編の カードが いまの パックに まざる（docs/EXTRA.md）
   { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（70しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
   { id: 'pHSR', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） 崩壊（ほうかい）：スターレイル', text: 'パックに スターレイルの カード（70しゅるい）が まざる', detail: 'キャラ（ピノコニーまで）・モブ・光円錐（こうえんすい）が 出る。せんぎポイントは みんなで 1つ（5まで）', fx: { packExtra: 11 } },
+  { id: 'pZZZ', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） ゼンレスゾーンゼロ', text: 'パックに ゼンゼロの カード（80しゅるい）が まざる', detail: 'エージェント（Ver.1まで）・モブ・ボンプ・音動機（おんどうき）・終結（しゅうけつ）スキルが 出る。ブレイクを 10 ためると てきの 本体に 10点。エネルギーは みんなで 1つ（10まで）', fx: { packExtra: 12 } },
   // いろ：えらんだ 色の カードが 出やすい（2つまで。2色とも ある カードは 5ばい）
   ...Object.entries(COLOR_JA).map(([c, ja]) => ({
     id: `c${c}`, branch: 'color', lv: 1, cost: 2, name: `${ja}の いろ`, color: c,

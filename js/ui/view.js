@@ -105,7 +105,7 @@ const costLabel = (def) => (def.x ? `${def.xMul > 1 ? def.xMul : ''}X+${def.cost
 export function cardFace(def, o = {}) {
   const i = info(def);
   const pts = def.types?.includes('creature') ? basePT(def) : '';
-  const kws = (def.kw || []).map((k) => KW[k]).filter(Boolean);
+  const kws = (def.kw || []).map((k) => (k === 'convoke' && /^ZZ/.test(def.id || '') ? '終結スキル' : KW[k])).filter(Boolean); // ゼンゼロの 召集は「終結スキル」
   return `<div class="card ${colorClass(def, o.enemy)} ${o.cls || ''}" data-id="${esc(o.dataId ?? '')}">
     <div class="card-top"><span class="cost">${esc(costLabel(def))}</span>${pipsOf(def)}<span class="rar r-${def.rar}">${def.rar && def.rar !== 'B' ? def.rar : ''}</span></div>
     <div class="card-name">${ruby(i.name)}</div>

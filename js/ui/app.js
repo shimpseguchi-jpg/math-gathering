@@ -118,7 +118,7 @@ function emblemPackNote(em) {
   const out = [];
   if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
   if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
-  for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`番外編（ばんがいへん） ${{ 10: 'Fate/Grand Order', 11: '崩壊（ほうかい）：スターレイル' }[x]} の カードも 出る（もんしょう）`)}</span>`);
+  for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`番外編（ばんがいへん） ${{ 10: 'Fate/Grand Order', 11: '崩壊（ほうかい）：スターレイル', 12: 'ゼンレスゾーンゼロ' }[x]} の カードも 出る（もんしょう）`)}</span>`);
   if (em.leg) out.push(`<span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(A.idx, em) * 100)}%</b>（もんしょう）</span>`);
   return out.join('');
 }

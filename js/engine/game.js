@@ -26,7 +26,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20 + (em.life || 0) + (bless?.life || 0), bless, handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')) },
+    P: { side: 'P', life: 20 + (em.life || 0) + (bless?.life || 0), bless, handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')), zzDeck: deck.some((d) => /^ZZ\d/.test(d.id || '')) },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {}, buff },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
@@ -322,6 +322,33 @@ export function proliferate(s) {
     if (p.level > 0) p.level++;
     if (p.flags.muster) p.flags.muster++;
   }
+  // ゼンゼロ：敵の −1/−1カウンター・ブレイクカウンター・エネルギーも 1つ ふえる
+  for (const p of [...s.E.bf]) if (p.mctr > 0 && onBf(s, p)) addMinus(s, p, 1);
+  if (s.P.bon > 0 && s.P.bon < BON_MAX) { s.P.bon++; L(s, `ぞうしょく：エネルギー ${s.P.bon}`); }
+  if (s.E.brk > 0) addBreak(s, 1);
+  sba(s);
+}
+
+// ゼンゼロ：エネルギー（みんなで 1つの 数。0〜10）
+export const BON_MAX = 10;
+// ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって 本体に 10点（階の きまりの まま）。
+// 本体の ない 階では、かわりに いちばん つよい 敵の クリーチャーに −1/−1カウンター
+export const BREAK_AT = 10;
+export function addBreak(s, n) {
+  if (n <= 0 || s.over) return;
+  if (!s.floor.face) {
+    const t = s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0];
+    if (t) { L(s, `ブレイク：本体が ない ので ${t.def.name} に −1/−1カウンター ${n}こ`); addMinus(s, t, n); sba(s); }
+    return;
+  }
+  const was = s.E.brk || 0;
+  s.E.brk = was + n;
+  L(s, `ブレイクカウンター ${was} ＋ ${n} ＝ ${s.E.brk}`);
+  while (s.E.brk >= BREAK_AT && !s.over) {
+    s.E.brk -= BREAK_AT;
+    L(s, `ブレイク！ ${BREAK_AT}こ とって 本体に ${BREAK_AT}点`);
+    hitTarget(s, 'face', BREAK_AT, null);
+  }
 }
 
 export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); }
@@ -453,6 +480,9 @@ export function hitTarget(s, t, n, src, combat = false) {
     L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
     s.floor.face(s, n, api);
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
+    // ゼンゼロ：ブレイク N（本体に ダメージを あたえるたび ブレイクカウンター）
+    if (src?.side === 'P' && src.def.brk && !s.over) addBreak(s, src.def.brk);
+    if (src?.side === 'P' && !s.over) src.def.onFaceHit?.(s, src, api);
   } else damage(s, t, n, src);
   if (combat && src?.side === 'P') {
     src.def.onCombatHit?.(s, src, api);
@@ -780,5 +810,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, attach, steal, unsteal, auraFlag,
 });

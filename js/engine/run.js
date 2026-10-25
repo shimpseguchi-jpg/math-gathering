@@ -86,7 +86,8 @@ export function openPack(rng, o = {}) {
 
 // デッキ構築AI：2色を選び、キャパシティ内で価値の合計がいちばん大きくなるように選ぶ（ナップサック）
 const VALUE = { C: 3, U: 4.5, R: 6, L: 8 };
-export const cardValue = (d) => VALUE[d.rar] + (colorsOf(d).length === 2 ? 0.5 : 0);
+// 装備品は クリーチャーが いないと はたらかない ので 少し ひくく（ゼンゼロで 装備品が 多いと デッキの クリーチャーが へって クリアが 下がった）
+export const cardValue = (d) => VALUE[d.rar] + (colorsOf(d).length === 2 ? 0.5 : 0) - (d.equip ? 2 : 0);
 
 export function buildDeck(pool, o = {}) {
   const cap = o.capacity ?? CAPACITY;

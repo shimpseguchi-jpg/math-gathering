@@ -453,7 +453,7 @@ async function doCast(c, from = 'hand') {
   const pl = (extra || x !== ci.x) ? await payable(base + x * mul + extra, req, o) : plan(s, base + x * mul, req, o);
   if (!pl) return stop();
   discard(s, drop);
-  const run = mode ? mode.run : (d.apply && picks ? () => d.apply(s, api, picks, x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined);
+  const run = mode ? mode.run : (d.apply && (picks || !d.tgt) ? () => d.apply(s, api, picks || [], x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined); // 対象の ない キッカーの 呪文（苗木の 移住）も apply で キッカーを うけとる
   await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile });
   B.busy = false;
   if (!checkOver()) render();
@@ -581,7 +581,7 @@ async function tapHand(c) {
     if (d.ninjutsu) {
       const ok = !!plan(s, d.ninjutsu.cost, d.ninjutsu.req, { req2: d.ninjutsu.req.length > 1 });
       const free = B.atk.some((a) => onBf(s, a.p) && !B.blocks.get(a.p.uid) && !a.p.token);
-      choices.push({ label: `にんじゅつ（${d.ninjutsu.cost}マナ）`, value: 'ninja', kind: 'primary', disabled: !ok || !free, note: !ok ? 'マナが たりない' : free ? 'ブロックされなかった クリーチャーと 入れかえる' : 'ブロックされなかった クリーチャーが いない' });
+      choices.push({ label: `${/^ZZ/.test(d.id) ? 'こうたい' : 'にんじゅつ'}（${d.ninjutsu.cost}マナ）`, value: 'ninja', kind: 'primary', disabled: !ok || !free, note: !ok ? 'マナが たりない' : free ? 'ブロックされなかった クリーチャーと 入れかえる' : 'ブロックされなかった クリーチャーが いない' });
     }
     if (tr || (d.modes && d.types.includes('instant'))) { // モードの ある ソーサリー（プルフォロスの 介入）は たたかいの とちゅうには 使えない
       const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
@@ -699,7 +699,7 @@ async function tapPerm_(p) {
       let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
       const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
       const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x, human: true });
-      const label = a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? `${ruby(a.label)}（ちゅうせい ${p.loy} ${a.loyalty > 0 ? '＋' : '−'} ${Math.abs(a.loyalty)} ＝ ${p.loy + a.loyalty}）` : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
+      const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? `${ruby(a.label)}（ちゅうせい ${p.loy} ${a.loyalty > 0 ? '＋' : '−'} ${Math.abs(a.loyalty)} ＝ ${p.loy + a.loyalty}）` : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip) choices.push({ label: `そうびする（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
@@ -1006,6 +1006,7 @@ function render() {
       <div class="me-mana">
         <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
         ${s.P.srDeck ? `<span class="pile sp" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
+        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span>${s.floor.face ? `<span class="pile sp brk" title="ブレイク：10 たまると てきの 本体に 10点">ブレイク <b>${s.E.brk || 0}</b>/10</span>` : ''}` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}</div>
