@@ -22,7 +22,7 @@ export function npNote(p) {
   const g = p.def.np, n = p.np || 0, k = npLeft(p);
   return `NP ${n} ／ 100。こうげき 1回で ＋${g}。あと ${k}回 こうげき すると ほうぐ（${[n, ...Array(k).fill(g)].filter((x, i) => i || x).join(' ＋ ')} ＝ ${n + g * k}）。ほうぐは じどうで おきる`;
 }
-// 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP。npFx(s, E, p)
+// 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP（40 いじょう。30 だと 4回 攻撃が いって ほぼ 出ない）。npFx(s, E, p)
 const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
 // NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）
 const bestServant = (s, E) => servants(s, E).filter((p) => p.def.npFx).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
@@ -45,7 +45,7 @@ const npSpell = (n, more) => ({
 export const S10 = {
   FG01: np(40, (s, E) => { for (const q of mine(s, E)) q.shieldT = s.turn; E.L(s, 'いまは 遥（はる）か 理想（りそう）の 城（しろ）：ダメージ 0'); }),
   FG02: np(50, (s, E) => allFoes(s, E, 4)),
-  FG03: np(30, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.pump(q, 0, 0, ['indestructible']); }),
+  FG03: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.pump(q, 0, 0, ['indestructible']); }),
   FG04: np(40, (s, E) => { const b = foeBest(s, E, 4) || foeBest(s, E); if (b) hit(s, E, b.t, 4); }),
   FG05: np(30, (s, E) => { E.hitEnemy(s, 3, null); allFoes(s, E, 3); }, { upkeep: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 20); } }),
   FG06: np(40, (s, E) => { for (const d of E.divide(s, 6, theirs(s, E))) hit(s, E, d.t, d.n); }),
@@ -125,37 +125,38 @@ export const S10 = {
   FG35: np(40, (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); E.gain(s, 3); }),
   FG36: np(30, (s, E) => { for (const t of theirs(s, E)) t.tapped = true; E.L(s, 'てきの クリーチャーを ぜんぶ タップ'); }, { upkeep: (s, p, E) => { if (p.side === 'P') for (const q of servants(s, E)) addNP(s, E, q, 10); } }),
   FG38: np(40, (s, E) => allFoes(s, E, 3)),
-  FG39: np(30, (s, E) => E.drawCard(s, 2), { etb: (s, p, E) => { if (p.side === 'P') E.drawCard(s); } }),
+  FG39: np(40, (s, E) => E.drawCard(s, 2), { etb: (s, p, E) => { if (p.side === 'P') E.drawCard(s); } }),
   FG40: { acts: [{ cost: 0, sac: true, when: [1, 2], label: 'ぼちに おいて 1まい 引く', play: (s, p, E) => (s.P.hand.length <= 2 ? { score: 3, run: () => { E.leave(s, p, 'gy'); E.drawCard(s); } } : null) }] },
   // ---- 70種に ふやした ぶん（FG41〜FG70） ----
   FG41: np(50, (s, E) => detain(s, E, biggest(s, E, (p) => !p.frozen))),
   FG42: { etb: (s, p, E) => { if (p.side === 'P') for (const q of servants(s, E)) addNP(s, E, q, 10); } },
   FG43: np(40, (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 1); }),
   FG44: np(40, (s, E) => allFoes(s, E, 2)),
-  FG45: np(30, (s, E) => E.gain(s, 3), { anthem: (s, q, p) => (p !== q && p.side === q.side && isServant(p) ? [0, 1] : null) }),
+  FG45: np(40, (s, E) => E.gain(s, 3), { anthem: (s, q, p) => (p !== q && p.side === q.side && isServant(p) ? [0, 1] : null) }),
   FG46: npSpell(30),
   FG47: np(50, (s, E) => E.token(s, 'P', TK.kaima, 2)),
   FG48: npSpell(20, (s, E) => E.drawCard(s)),
   FG49: np(40, (s, E) => { const t = biggest(s, E, (p) => E.power(s, p) >= 2); if (t) { E.bounce(s, t); E.sba(s); } }),
-  FG50: np(30, (s, E) => { for (const t of theirs(s, E)) detain(s, E, t); }),
+  FG50: np(40, (s, E) => { for (const t of theirs(s, E)) detain(s, E, t); }),
   FG51: np(50, (s, E) => E.hitEnemy(s, 2, null), { onAttack: (s, p) => { p.flags.turn.unblockable = true; } }),
   FG52: np(40, (s, E, p) => { E.drawCard(s); for (const q of servants(s, E)) if (q !== p) addNP(s, E, q, 20); }),
   FG53: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.assassin, 2); } },
   FG54: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b && E.onBf(s, b.t)) { E.addMinus(s, b.t, 2); E.sba(s); } }),
   FG55: np(40, (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) <= 4); if (b) killIt(s, E, b.t); }),
   FG56: foe1('−2/−2 する クリーチャー', (s, E, t) => shrink(s, E, t, 2), { n: 2 }),
-  FG57: np(30, (s, E) => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); }),
+  FG57: np(40, (s, E) => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); }),
   FG58: np(50, (s, E) => { const t = biggest(s, E, (p) => !s.floor.untargetable?.(s, p, E)); if (t) killIt(s, E, t); }),
   FG59: np(50, (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 0); }),
   FG60: np(50, (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
   FG61: np(40, (s, E) => { E.hitEnemy(s, 3, null); const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
   FG62: npSpell(50),
   FG63: np(50, (s, E, p) => E.pump(p, 4, 0)),
-  FG64: np(30, (s, E) => E.token(s, 'P', TK.soldier22, 5)),
+  // 出たとき NP ＋20、攻撃で ＋40：2回の 攻撃で 王の軍勢（20 ＋ 40 ＋ 40 ＝ 100）
+  FG64: np(40, (s, E) => E.token(s, 'P', TK.soldier22, 5), { etb: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 20); } }),
   FG65: np(50, (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
   FG66: np(40, (s, E) => { const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 3); }),
   FG67: np(50, (s, E, p) => { const b = foeBest(s, E, E.power(s, p)) || foeBest(s, E); if (b && E.onBf(s, b.t)) E.fight(s, p, b.t); }),
   FG68: { play: (s, E) => (E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) },
   FG69: np(40, (s, E) => { const b = foeBest(s, E); if (b) killIt(s, E, b.t); }),
-  FG70: np(30, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.addCounters(s, q, 1); }),
+  FG70: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.addCounters(s, q, 1); }),
 };
