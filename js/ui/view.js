@@ -183,7 +183,7 @@ export function permFace(s, p, o = {}) {
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
-    p.def.npFx ? `<span class="b np">NP ${p.np || 0}</span>` : '', // 番外編 FGO：宝具の NP
+    p.def.npFx ? `<span class="b np">NP ${p.np || 0}${p.def.np ? `・あと${Math.max(1, Math.ceil((100 - (p.np || 0)) / p.def.np))}回` : ''}</span>` : '', // 番外編 FGO：宝具の NP と あと なん回 攻撃で 宝具
     p.trial != null ? `<span class="b time">しれん ${p.trial}</span>` : '',
     p.seals != null ? `<span class="b time">れいじゅ ${p.seals}</span>` : '',
     p.def.levels ? `<span class="b lv">Lv${p.level}</span>` : '',

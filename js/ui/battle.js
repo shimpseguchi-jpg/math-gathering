@@ -6,6 +6,7 @@ import {
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
 import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
+import { npNote } from '../data/set10.js';
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
 import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
@@ -700,7 +701,7 @@ async function tapPerm_(p) {
   }
   if (p.side === 'P' && B.mode === 'tricks') for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !p.attacking });
   choices.push({ label: 'とじる', value: null });
-  const v = await sheet(detail(p.def, { enemy: p.side === 'E' }), choices);
+  const v = await sheet(`${detail(p.def, { enemy: p.side === 'E' })}${p.def.npFx && p.def.np ? `<p class="what">${esc(npNote(p))}</p>` : ''}`, choices);
   if (!v) return;
   if (v === 'equip') {
     const t = await sheet('<p>どの クリーチャーに そうびする？</p>', [...s.P.bf.filter(isCreature).map((q) => ({ label: (nm(q)), value: q })), { label: 'やめる', value: null }]);

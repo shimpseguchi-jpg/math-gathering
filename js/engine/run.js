@@ -50,9 +50,11 @@ export function favorColor(deck) {
 
 // いろの もんしょう：えらんだ 色 1つにつき 重み ＋2（1色 3ばい、2色とも ある カードは 5ばい）
 export const EMBLEM_COLOR = 2;
-function pickFavored(rng, list, favor, colors = []) {
-  if (!favor && !colors.length) return pick(rng, list);
-  const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length); });
+// 番外編パックの もんしょう：番外編の カードは 4ばい 出やすい（まぜると かずが 少なくて シナジーが できにくい ため）
+export const EXTRA_WEIGHT = 4;
+function pickFavored(rng, list, favor, colors = [], extra = []) {
+  if (!favor && !colors.length && !extra.length) return pick(rng, list);
+  const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length) * (extra.includes(SET_OF[d.id]) ? EXTRA_WEIGHT : 1); });
   let r = rng() * w.reduce((t, x) => t + x, 0);
   for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; }
   return list[list.length - 1];
@@ -63,7 +65,7 @@ export function openPack(rng, o = {}) {
   const em = o.em || {};
   const odds = packOdds(o.cleared || 0, em);
   const pool = packPool(o.sets);
-  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || []);
+  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || []);
   for (let tries = 0; ; tries++) {
     const cards = [];
     for (let i = 0; i < PACK.C; i++) cards.push(take(rng() < odds.cToU ? 'U' : 'C'));

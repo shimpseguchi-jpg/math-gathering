@@ -130,7 +130,7 @@ function packs() {
   const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
   // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
   const pk = activeEffects()?.pack;
-  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0 };
+  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [] };
   const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em });
   // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
   const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;

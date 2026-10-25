@@ -16,6 +16,12 @@ export function addNP(s, E, p, n) {
     E.sba(s);
   }
 }
+// 宝具まで あと なん回 攻撃するか（NP 40・1回 ＋40 → 40 ＋ 40 ＋ 40 ＝ 120 で あと 2回）
+export const npLeft = (p) => { const g = p.def.np || 0, n = p.np || 0; return g ? Math.max(1, Math.ceil((100 - n) / g)) : null; };
+export function npNote(p) {
+  const g = p.def.np, n = p.np || 0, k = npLeft(p);
+  return `NP ${n} ／ 100。こうげき 1回で ＋${g}。あと ${k}回 こうげき すると ほうぐ（${[n, ...Array(k).fill(g)].filter((x, i) => i || x).join(' ＋ ')} ＝ ${n + g * k}）。ほうぐは じどうで おきる`;
+}
 // 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP。npFx(s, E, p)
 const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
 // NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）
