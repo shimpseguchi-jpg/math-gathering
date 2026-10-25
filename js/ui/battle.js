@@ -705,7 +705,7 @@ async function tapPerm_(p) {
   if (v === 'equip') {
     const t = await sheet('<p>どの クリーチャーに そうびする？</p>', [...s.P.bf.filter(isCreature).map((q) => ({ label: (nm(q)), value: q })), { label: 'やめる', value: null }]);
     if (!t) return;
-    pay(s, plan(s, p.def.equip, [])); p.attached = t.uid; return render();
+    pay(s, plan(s, p.def.equip, [])); p.attached = t.uid; p.def.onEquip?.(s, p, t, api); return render();
   }
   if (v.pump) { pay(s, plan(s, v.a.cost, v.a.req || [])); api.pump(p, v.a.pumpP, 0); return render(); }
   let picks;

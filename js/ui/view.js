@@ -183,6 +183,9 @@ export function permFace(s, p, o = {}) {
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
+    p.def.npFx ? `<span class="b np">NP ${p.np || 0}</span>` : '', // 番外編 FGO：宝具の NP
+    p.trial != null ? `<span class="b time">しれん ${p.trial}</span>` : '',
+    p.seals != null ? `<span class="b time">れいじゅ ${p.seals}</span>` : '',
     p.def.levels ? `<span class="b lv">Lv${p.level}</span>` : '',
     p.def.saga ? `<span class="b lore">${['', 'I', 'II', 'III'][p.lore] || ''}/${['', 'I', 'II', 'III'][p.def.saga.length]}</span>` : '',
     p.def.vanishing ? `<span class="b time">じかん ${p.time || 0}</span>` : '',

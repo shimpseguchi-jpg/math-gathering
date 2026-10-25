@@ -468,6 +468,7 @@ const isExact = (s, p) => p.side === 'E' && isCreature(p) && !p.dt && p.dmg > 0 
 export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
+  if (o.died && p.def.saveDeath?.(s, p, api)) return false; // 死亡の かわりに（ヘラクレスの 十二の試練）
   // 死亡の かわりに：アナフェンザ（てきは 追放）・墓の タイタン など（ライブラリーの 一番下）
   if (o.died && to === 'gy' && !p.token) {
     if ((p.side === 'E' && s.P.bf.some((q) => q.def.exileEnemyDead)) || p.exileT === s.turn) to = 'exile';

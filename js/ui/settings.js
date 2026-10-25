@@ -62,7 +62,7 @@ export function settingsScreen(app, back) {
         <h3><span class="dev-badge">開発モード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
-          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${on.length === 1 && on.includes(x.id) ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}</small></span></label></li>`).join('')}
+          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${on.length === 1 && on.includes(x.id) ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}${x.extra ? '・ほかの だんと まぜない' : ''}</small></span></label></li>`).join('')}
           ${PLANNED.map(([id, name, k]) => `<li class="planned"><label><input type="checkbox" id="plan-${id}" disabled><span><b>${ruby(name)}</b><small>じゅんびちゅう（あんは ${k}しゅるい）</small></span></label></li>`).join('')}
         </ul>
         <p class="st-pool">パックに 出る カード：<b>${n('C') + n('U') + n('R') + n('L')}しゅるい</b>（コモン ${n('C')}・アンコモン ${n('U')}・レア ${n('R')}・レジェンド ${n('L')}）</p>
@@ -79,7 +79,9 @@ export function settingsScreen(app, back) {
   app().onchange = (e) => {
     const b = e.target.closest('[data-set]'); if (!b) return;
     const id = +b.dataset.set, on = enabledSets();
-    const next = b.checked ? ALL_SETS.filter((x) => x === id || on.includes(x)) : on.filter((x) => x !== id);
+    // 番外編は ほかの 弾と まぜない：番外編を えらぶと それだけ、いつもの 弾を えらぶと 番外編は はずれる
+    const extra = (x) => SETS.find((y) => y.id === x)?.extra;
+    const next = !b.checked ? on.filter((x) => x !== id) : extra(id) ? [id] : ALL_SETS.filter((x) => x === id || (on.includes(x) && !extra(x)));
     if (next.length) setSets(next);
     draw();
   };

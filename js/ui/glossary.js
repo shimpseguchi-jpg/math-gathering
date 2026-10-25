@@ -87,6 +87,9 @@ export const GLOSSARY = [
   { key: '暴動', yomi: 'ぼうどう', text: '出す ときに「そっこう」か「＋1/＋1カウンター 1こ」の どちらかを えらぶ。' },
   { key: '諜報', yomi: 'ちょうほう', text: 'やまふだの 上を 見て、いらない カードを ぼちへ おく。数は 見る まいすう。' },
   { key: '宿根', yomi: 'しゅっこん', text: 'じぶんの ぼちに ある クリーチャーの カードを かぞえて つかう。' },
+  // 番外編「Fate/Grand Order」（docs/EXTRA.md 2章）
+  { key: '宝具', yomi: 'ほうぐ', text: 'サーヴァントの ひっさつわざ。こうげき するたび NP が ふえて、100 いじょうに なると NP を 100 へらして こうかが おきる（30 ＋ 30 ＋ 40 ＝ 100）。' },
+  { key: '令呪', yomi: 'れいじゅ', text: '3つの しるし。1つ つかうと サーヴァントの NP が 100 ふえて、すぐ ほうぐ。' },
 ];
 
 export const TERM = Object.fromEntries(GLOSSARY.map((g) => [g.key, g]));

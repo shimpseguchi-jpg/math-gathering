@@ -667,3 +667,4 @@ div.zk-card { cursor: default; }
 .em-study.em-bonus { animation: em-bonus 1.6s ease-in-out infinite; }
 @keyframes em-bonus { 50% { box-shadow: 0 0 0 4px rgba(242, 192, 79, 0.35); } }
 @media (prefers-reduced-motion: reduce) { .em-study.em-bonus { animation: none; } }
+.b.np { background: #b8860b; color: #fff8e1; } /* 番外編 FGO：宝具の NP */

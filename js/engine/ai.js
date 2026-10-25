@@ -325,7 +325,7 @@ function actOptions(s, phase) {
     if (host && onBf(s, host)) continue;
     const t = api.bestBuffTarget(s, null, { ready: true });
     if (!t || !plan(s, p.def.equip, [])) continue;
-    out.push({ score: 4, name: `${p.def.name} の そうび`, exec: () => { const pl = plan(s, p.def.equip, []); if (!pl) return; pay(s, pl); p.attached = t.uid; } });
+    out.push({ score: 4, name: `${p.def.name} の そうび`, exec: () => { const pl = plan(s, p.def.equip, []); if (!pl) return; pay(s, pl); p.attached = t.uid; p.def.onEquip?.(s, p, t, api); } });
   }
   return out;
 }

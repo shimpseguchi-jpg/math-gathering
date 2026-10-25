@@ -20,7 +20,8 @@ for f in sorted(glob.glob(os.path.join(docs, 'cards', '*.md'))):
             cards[row['ID']] = {'name': row['名前'], 'type': row.get('タイプ', ''), 'text': row.get('テキスト', '').replace('<br>', '\n'), 'motif': row.get('元のカード', ''), 'math': row.get('算数', '')}
 
 # 第3弾から あと（案の 表）：画面の 文と、エンジン用の 土台（js/data/skel.js）
-DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8), ('SET7.md', 9)]
+# 3つめは ID の 頭（その 表の 中で この 頭の カードだけ。番外編は 1つの 案に 3つの パックが ある）
+DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8), ('SET7.md', 9), ('EXTRA.md', 10, 'FG')]
 TYPES = {'プレインズウォーカー': 'planeswalker', 'クリーチャー': 'creature', 'インスタント': 'instant', 'ソーサリー': 'sorcery', 'アーティファクト': 'artifact', 'エンチャント': 'enchantment'}
 KW = {'飛行': 'flying', '速攻': 'haste', '警戒': 'vigilance', '到達': 'reach', '接死': 'deathtouch', '絆魂': 'lifelink', 'トランプル': 'trample',
       '先制攻撃': 'first', '二段攻撃': 'double', '防衛': 'defender', '破壊不能': 'indestructible', '召集': 'convoke', '果敢': 'prowess'}
@@ -28,16 +29,17 @@ SUB = {'人間': 'human', '戦士': 'warrior', '兵士': 'soldier', 'スピリ�
        'ウィザード': 'wizard', '騎士': 'knight', '巨人': 'giant', 'クレリック': 'cleric', 'ゾンビ': 'zombie', '吸血鬼': 'vampire', 'ヴァンパイア': 'vampire', '天使': 'angel',
        'ペガサス': 'pegasus', 'サテュロス': 'satyr', 'ビースト': 'beast', 'ワーム': 'wurm', 'ハイドラ': 'hydra', 'エレメンタル': 'elemental', '猫': 'cat', '鳥': 'bird',
        '狼': 'wolf', 'マイア': 'myr', 'クラーケン': 'kraken', '壁': 'wall', 'ニンフ': 'nymph', '半神': 'demigod', 'デーモン': 'demon', '忍者': 'ninja', 'オーラ': 'aura',
-       '旗': 'banner', 'レッスン': 'lesson', '祠': 'shrine', '英雄譚': 'saga', '装備品': 'equipment', 'フラクタル': 'fractal', 'エルダー': 'elder', '昆虫': 'insect'}
+       '旗': 'banner', 'レッスン': 'lesson', '祠': 'shrine', '英雄譚': 'saga', '装備品': 'equipment', 'フラクタル': 'fractal', 'エルダー': 'elder', '昆虫': 'insect', 'サーヴァント': 'servant'}
 plainT = lambda t: re.sub(r'（[ぁ-ゖー]+）', '', t)
 skel, sets = {}, {}
-for fname, set_id in DRAFTS:
+for fname, set_id, *only in DRAFTS:
     head = None
     for line in open(os.path.join(docs, fname), encoding='utf-8'):
         if not line.startswith('|'): head = None; continue
         c = cells(line)
         if c[0] == 'ID' and '名前' in c: head = c; continue
         if not head or set(c[0]) <= set('-:') or not re.fullmatch(r'[A-Z]{1,2}\d\d', c[0]): continue
+        if only and not c[0].startswith(only[0]): continue
         row = dict(zip(head, c))
         text = row.get('テキスト', row.get('テキスト（案）', '')).replace('<br>', '\n')
         cards[row['ID']] = {'name': row['名前'], 'type': row.get('タイプ', ''), 'text': text, 'motif': row.get('元のカード', ''), 'math': row.get('算数', '')}

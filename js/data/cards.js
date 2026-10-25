@@ -11,6 +11,7 @@ import { S5 } from './set5.js';
 import { S6 } from './set6.js';
 import { SY } from './alchemy.js';
 import { S9 } from './set9.js';
+import { S10 } from './set10.js';
 import { SPW } from './pw.js';
 import { LESSONS, REG, foe1, shrink } from './kit.js';
 
@@ -921,7 +922,7 @@ function build(id, b = {}) {
   if ([...d.color].length >= 3) d.req2 = true; // 3色の カードは、3色の うち 2つの マナが いる
   return d;
 }
-const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9 };
+const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10 };
 const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
 BASICS.K = build('B06', B06);
 
@@ -943,6 +944,7 @@ export const SET6 = setOf(6);
 export const SET7 = setOf(7);
 export const SET8 = setOf(8);
 export const SET9 = setOf(9);
+export const SET10 = setOf(10);
 LESSONS.push(...SET5.filter((d) => isSub({ def: d }, 'lesson')));
 // 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ。released が ない 弾は 開発中（開発モードで えらんだ ときだけ パックに 入る）
 export const SETS = [
@@ -955,6 +957,8 @@ export const SETS = [
   { id: 7, name: 'アルケミー（デジタル 限定（げんてい））', cards: SET7 },
   { id: 8, name: 'プレインズウォーカー', cards: SET8 },
   { id: 9, name: '第7弾（だん）「ラヴニカ：ギルドの 都（みやこ）」', cards: SET9 },
+  // 番外編（extra）：ほかの 弾とは まぜない（せっていで えらぶと その 番外編 だけの パック）
+  { id: 10, name: '番外編（ばんがいへん）「Fate/Grand Order」', cards: SET10, extra: true },
 ];
 // ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない レッスンなどは のぞく）
 export const ALL = SETS.filter((x) => x.released).flatMap((x) => x.cards);

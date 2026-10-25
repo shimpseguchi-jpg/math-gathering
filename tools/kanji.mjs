@@ -54,7 +54,7 @@ export function lex(src) {
 }
 
 // 画面に 出る 文字列（js/）と カードの 文章（texts.js）で、ふりがなの ない 習わない 漢字を さがす
-const UI_FILES = ['js/ui/app.js', 'js/ui/battle.js', 'js/ui/view.js', 'js/ui/online.js', 'js/ui/tutorial.js', 'js/ui/settings.js', 'js/ui/trophies.js', 'js/ui/zukan.js', 'js/ui/emblem.js', 'js/ui/study.js', 'js/data/quiz.js', 'js/data/emblems.js', 'js/engine/game.js', 'js/engine/ai.js', 'js/engine/run.js', 'js/data/cards.js', 'js/data/enemies.js', 'js/data/kit.js', 'js/data/set3.js', 'js/data/set4.js', 'js/data/set5.js', 'js/data/set6.js', 'js/data/alchemy.js', 'js/data/ravnica.js', 'js/data/pw.js', 'js/data/set9.js'];
+const UI_FILES = ['js/ui/app.js', 'js/ui/battle.js', 'js/ui/view.js', 'js/ui/online.js', 'js/ui/tutorial.js', 'js/ui/settings.js', 'js/ui/trophies.js', 'js/ui/zukan.js', 'js/ui/emblem.js', 'js/ui/study.js', 'js/data/quiz.js', 'js/data/emblems.js', 'js/engine/game.js', 'js/engine/ai.js', 'js/engine/run.js', 'js/data/cards.js', 'js/data/enemies.js', 'js/data/kit.js', 'js/data/set3.js', 'js/data/set4.js', 'js/data/set5.js', 'js/data/set6.js', 'js/data/alchemy.js', 'js/data/ravnica.js', 'js/data/pw.js', 'js/data/set9.js', 'js/data/set10.js'];
 export async function check(root) {
   const bad = [];
   const { GLOSSARY } = await import(join(root, 'js/ui/glossary.js'));
