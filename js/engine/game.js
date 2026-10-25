@@ -25,7 +25,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20 + (em.life || 0), handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em },
+    P: { side: 'P', life: 20 + (em.life || 0), handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')) },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {} },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
@@ -391,10 +391,16 @@ export function damage(s, p, n, src, o = {}) {
   if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
   if (isPW(p)) { p.loy = Math.max(0, p.loy - n); L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} の ちゅうせいが ${n} へった（のこり ${p.loy}）`); return n; }
   if (p.def.dmgToCounters) { const k = Math.min(n, p.ctr); p.ctr -= k; L(s, `${foe(s, p.side)}${p.def.name} の ＋1/＋1カウンターが ${k}こ へった`); }
-  else if (isCreature(p)) { p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true; }
+  else if (isCreature(p)) {
+    // 符玄（番外編 スターレイル）：ほかの クリーチャーが うける ダメージを へらす
+    for (const q of s[p.side].bf) if (q !== p && q.def.allyDmgLess) n = Math.max(0, n - q.def.allyDmgLess);
+    if (n <= 0) return 0;
+    p.dmg += n; p.dmgBy.push(src || o.spell || null); if (src && hasKw(s, src, 'deathtouch')) p.dt = true;
+  }
   if (p.side === 'E' && !s.swapped) noteDmg(s, n);
   if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: p, n });
   if (s.combat && src && isCreature(p)) src.def.onDamageCreature?.(s, src, p, api);
+  if (isCreature(p) && !p.def.dmgToCounters) p.def.onHurt?.(s, p, n, src, api); // ダメージを うけたとき（スターレイルの エネルギー・クラーラ）
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);

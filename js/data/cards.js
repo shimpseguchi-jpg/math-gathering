@@ -12,6 +12,7 @@ import { S6 } from './set6.js';
 import { SY } from './alchemy.js';
 import { S9 } from './set9.js';
 import { S10 } from './set10.js';
+import { S11 } from './set11.js';
 import { SPW } from './pw.js';
 import { LESSONS, REG, foe1, shrink } from './kit.js';
 
@@ -922,7 +923,7 @@ function build(id, b = {}) {
   if ([...d.color].length >= 3) d.req2 = true; // 3色の カードは、3色の うち 2つの マナが いる
   return d;
 }
-const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10 };
+const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11 };
 const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
 BASICS.K = build('B06', B06);
 
@@ -945,6 +946,7 @@ export const SET7 = setOf(7);
 export const SET8 = setOf(8);
 export const SET9 = setOf(9);
 export const SET10 = setOf(10);
+export const SET11 = setOf(11);
 LESSONS.push(...SET5.filter((d) => isSub({ def: d }, 'lesson')));
 // 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ。released が ない 弾は 開発中（開発モードで えらんだ ときだけ パックに 入る）
 export const SETS = [
@@ -959,6 +961,7 @@ export const SETS = [
   { id: 9, name: '第7弾（だん）「ラヴニカ：ギルドの 都（みやこ）」', cards: SET9 },
   // 番外編（extra）：ほかの 弾とは まぜない（せっていで えらぶと その 番外編 だけの パック）
   { id: 10, name: '番外編（ばんがいへん）「Fate/Grand Order」', cards: SET10, extra: true },
+  { id: 11, name: '番外編（ばんがいへん）「崩壊（ほうかい）：スターレイル」', cards: SET11, extra: true },
 ];
 // ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない レッスンなどは のぞく）
 export const ALL = SETS.filter((x) => x.released).flatMap((x) => x.cards);
@@ -1046,6 +1049,9 @@ const ACT_TARGETS = {
 };
 for (const [id, h] of Object.entries(TARGETS)) Object.assign(BY_ID[id], h);
 for (const [id, h] of Object.entries(ACT_TARGETS)) Object.assign(BY_ID[id].acts[0], h);
+// 光円錐（番外編 スターレイル）：元の カードの うごきを うつす（名前・コスト・色・タイプは 表の まま）
+const OWN = ['id', 'name', 'rar', 'color', 'cost', 'types', 'sub', 'kw', 'legend', 'copyOf'];
+for (const d of SET11) if (d.copyOf) for (const [k, v] of Object.entries(BY_ID[d.copyOf])) if (!OWN.includes(k) && !(k in d)) d[k] = v;
 // 歩く バリスタ：2つめの のうりょく（カウンターを とって 1点）
 Object.assign(BY_ID.C15.acts[1], { tgt: [{ side: 'E', face: true, label: '1点を あたえる 相手' }], apply: (s, E, [[t]], x, p) => { p.ctr--; hit(s, E, t, 1); } });
 
