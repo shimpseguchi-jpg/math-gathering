@@ -525,7 +525,7 @@ export const SKEL = {
   SR71: {"id": "SR71", "name": "開拓者（かいたくしゃ）「スターダストエース」", "rar": "U", "color": "W", "cost": 4, "types": ["instant"], "sub": [], "kw": []},
   SR72: {"id": "SR72", "name": "景元（けいげん）「吾（わ）が身（み）の 光明（こうみょう）」", "rar": "U", "color": "W", "cost": 4, "types": ["sorcery"], "sub": [], "kw": []},
   SR73: {"id": "SR73", "name": "鏡流（きょうりゅう）「曇華（どんげ）生滅（しょうめつ）」", "rar": "R", "color": "U", "cost": 4, "types": ["sorcery"], "sub": [], "kw": []},
-  SR74: {"id": "SR74", "name": "丹恒（たんこう）・飲月（いんげつ）「盤拏（ばんだ）耀躍（ようやく）」", "rar": "U", "color": "U", "cost": 6, "types": ["instant"], "sub": [], "kw": []},
+  SR74: {"id": "SR74", "name": "丹恒（たんこう）・飲月（いんげつ）「盤拏（ばんだ）耀躍（ようやく）」", "rar": "U", "color": "U", "cost": 4, "types": ["instant"], "sub": [], "kw": []},
   SR75: {"id": "SR75", "name": "カフカ「悲劇（ひげき）の 果（は）ての 顫音（せんおん）」", "rar": "R", "color": "K", "cost": 3, "types": ["sorcery"], "sub": [], "kw": []},
   SR76: {"id": "SR76", "name": "黄泉（よみ）「一刀（いっとう）繚断（りょうだん）」", "rar": "U", "color": "K", "cost": 3, "types": ["instant"], "sub": [], "kw": []},
   SR77: {"id": "SR77", "name": "刃（じん）「大辟（たいへき）万死（ばんし）」", "rar": "U", "color": "K", "cost": 5, "types": ["sorcery"], "sub": [], "kw": []},

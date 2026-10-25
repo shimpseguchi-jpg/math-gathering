@@ -175,7 +175,8 @@ export const S11 = {
   SR71: ult('SR01', 2, foe1('はかいする パワー4いじょうの クリーチャー', killIt, { filter: (s, E, p) => E.power(s, p) >= 4 })), // 巨怪 退治
   SR72: ult('SR06', 2, { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', T.soldier, 3) }) }), // 隊長の 号令
   SR73: ult('SR07', 2, { play: (s, E, ctx) => { const n = theirs(s, E).filter((t) => !t.frozen).length; return n || ctx.human ? { score: 2 + n * 2, run: () => { for (const t of theirs(s, E)) detain(s, E, t); } } : null; } }), // 眠り
-  SR74: ult('SR14', 2, { play: (s, E, ctx) => { const v = theirs(s, E).reduce((a, q) => a + E.power(s, q) + q.def.cost, 0); return v >= 6 || (ctx.human && v) ? { score: v, run: () => { for (const q of [...theirs(s, E)]) E.bounce(s, q); E.sba(s); } } : null; } }), // サイクロンの 裂け目（超過）
+  // 岸の 飲み込み：タフネスが 青の マナの 数 いかの クリーチャーを ぜんぶ もどす（じぶんの ものも）。2026-10-25 に サイクロンの裂け目から かえた（ゼンゼロの 星見雅「なごり雪」と かぶる ため）
+  SR74: ult('SR14', 2, { play: (s, E, ctx) => { const n = blueMana(s, E); const hit = (q) => E.pt(s, q)[1] <= n; const v = (q) => E.power(s, q) + q.def.cost; const val = theirs(s, E).filter(hit).reduce((a, q) => a + v(q), 0) - 1.2 * mine(s, E).filter(hit).reduce((a, q) => a + v(q), 0); return val >= 4 || (ctx.human && theirs(s, E).some(hit)) ? { score: val, run: () => { E.L(s, `あおの マナ ${n}：タフネス ${n} いかを もどす`); for (const q of [...theirs(s, E), ...mine(s, E)].filter(hit)) E.bounce(s, q); E.sba(s); } } : null; } }),
   SR75: ult('SR09', 1, { play: (s, E, ctx) => { const v = wipeValue(s, E, (s2, q) => E.pt(s, q)[1] - q.dmg <= 2); return v > 3 || ctx.human ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.pump(q, -2, -2); E.sba(s); } } : null; } }), // 蔓延
   SR76: ult('SR21', 1, foe1('はかいする クリーチャー', killIt)), // 英雄の 破滅
   SR77: ult('SR08', 2, { play: (s, E) => ({ score: 7, run: () => { E.hitEnemy(s, 4, null); E.gain(s, 4); } }) }), // 魂の 饗宴
@@ -183,6 +184,8 @@ export const S11 = {
   SR79: ult('SR15', 2, foe1('5点を あたえる クリーチャー', (s, E, t) => hit(s, E, t, 5), { n: 5 })), // 炎で 戦う
   SR80: ult('SR22', 2, { play: (s, E) => (E.basicsInLib(s) ? { score: 9, run: () => E.rampBasic(s, 2) } : null) }), // 爆発的 植生
 };
+// あなたの マナゾーンの 青の カードの 数（岸の 飲み込み）
+function blueMana(s, E) { return s.P.mana.filter((m) => E.colorsOf(m.def).includes('U')).length; }
 function E_isCr(p) { return (p.def.types || []).includes('creature'); }
 // 必殺技：その キャラ（who）が あなたの 戦場に いれば コスト − n（色の 1つぶんは のこる）
 function ult(who, n, beh) { return { ...beh, ultOf: who, costMin: 1, costLess: (s) => (s.P.bf.some((q) => q.def.id === who) ? n : 0) }; }
