@@ -180,8 +180,9 @@ export const S3 = {
     acts: [{ cost: 4, req: ['W'], when: [1, 2], label: '戦士（せんし）を 出す', play: (s, p, E) => ({ score: 5, run: () => E.token(s, 'P', T.warriorV) }) }],
   },
   U44: {
-    ...godUnless((s, p) => (s[p.side].hand || []).length >= 6),
-    acts: [{ cost: 4, req: ['U'], when: [2], label: '1まい 引く', play: (s, p, E) => ({ score: 4, run: () => E.drawCard(s) }) }],
+    // 手札は 毎ターン 5まいに もどるので 4まい いじょう（2026-10-25 に 6 から）。引く 能力も 2マナに
+    ...godUnless((s, p) => (s[p.side].hand || []).length >= 4),
+    acts: [{ cost: 2, req: ['U'], when: [1, 2], label: '1まい 引く', play: (s, p, E, ctx) => (ctx.phase === 2 || s.P.hand.length < 4 ? { score: 4, run: () => E.drawCard(s) } : null) }],
   },
   K40: {
     ...godUnless((s, p) => (s[p.side].gy || []).filter((c) => isCr(c.def)).length >= 3),
@@ -193,7 +194,7 @@ export const S3 = {
     }],
   },
   R43: {
-    ...godUnless((s, p) => (s[p.side].hand || []).length <= 1),
+    ...godUnless((s, p) => (s[p.side].hand || []).length <= 2), // 2026-10-25 に 1 から
     acts: [{ cost: 3, req: ['R'], discard: 1, when: [1, 2], label: 'てきに 2点', play: (s, p, E) => (s.P.hand.length <= 2 ? { score: 4, run: () => E.hitEnemy(s, 2, p) } : null) }],
   },
   G44: {
