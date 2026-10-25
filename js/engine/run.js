@@ -5,6 +5,7 @@ import { AI, ptsOf } from './ai.js';
 import { ALL, ALL_DEV, BASICS, SET_OF, SETS, BY_ID, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
 import { pickRavnica } from '../data/ravnica.js';
+import { blessChoices, blessFx, endlessBuff, ENDLESS } from '../data/blessings.js';
 import { api } from './game.js';
 
 bindEngine(api);
@@ -125,7 +126,7 @@ export function buildDeck(pool, o = {}) {
 }
 
 export async function fight(deck, floorId, o = {}) {
-  const s = newGame({ deck, floor: o.floor || FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log, emblem: o.emblem });
+  const s = newGame({ deck, floor: o.floor || FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log, emblem: o.emblem, bless: o.bless, buff: o.buff });
   await play(s, o.maxTurns || 40);
   return s;
 }
@@ -158,4 +159,39 @@ export async function runAdventure(o = {}) {
   }
   log.cleared = true;
   return log;
+}
+
+// むげんの とう（docs/ENDLESS.md）：とうを クリアした あと、負けるまで 5階ずつ のぼる。AI の 試し：
+// 1階ごとに ごほうびパック、ぴったり 3回で 祝福（ランダム）、5階ごとの 休けい所は もう 1パック か しゅぎょう（半分の かくりつで ごうかく → 祝福）
+export async function runEndless(o = {}) {
+  const rng = seeded(o.seed || 1);
+  const pk = o.emblem?.pack;
+  o = { ...o, sets: withExtra(o.sets, pk?.extra) };
+  const em = pk ? { ...pk, colors: [...pk.colors, ...(pk.rand ? [pick(rng, packColors(o.sets))] : [])] } : undefined;
+  const pool = pk?.banner ? [BY_ID[pk.banner]] : [];
+  for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets, em }));
+  let b = buildDeck(pool, o);
+  const pickF = o.plane === 'ravnica' ? pickRavnica : pickFloors;
+  let continues = o.continues ?? 1, floor = 1, lap = 0, exactBank = 0;
+  const have = {};
+  const bless = () => { const c = blessChoices(rng, have); if (c.length) { const p = c[Math.floor(rng() * c.length)]; have[p.id] = (have[p.id] || 0) + 1; } };
+  for (;; lap++) {
+    const floors = pickF(rng);
+    for (let i = 0; i < floors.length; i++, floor++) {
+      for (;;) {
+        const s = await fight(b.deck, floors[i], { ...o, seed: Math.floor(rng() * 1e9), bless: lap ? blessFx(have) : null, buff: lap ? endlessBuff(lap) : 0 });
+        if (lap) { exactBank += s.stats.exact; while (exactBank >= ENDLESS.exactPer) { exactBank -= ENDLESS.exactPer; bless(); } }
+        if (s.over === 'win') break;
+        if (continues > 0) { continues--; continue; }
+        return { floor, lap, have, cleared: lap > 0 };
+      }
+      if (!lap && i < 4) { pool.push(...openPack(rng, { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, o); }
+      else if (lap) {
+        // ごほうびパック 1つ（5階ごとの 休けい所は 祝福か もう 1パック）
+        pool.push(...openPack(rng, { cleared: 5, favor: favorColor(b.deck), sets: o.sets, em }));
+        if (floor % ENDLESS.rest === 0) { if (rng() < 0.5) bless(); else pool.push(...openPack(rng, { cleared: 5, sets: o.sets, em })); }
+        b = buildDeck(pool, o);
+      }
+    }
+  }
 }

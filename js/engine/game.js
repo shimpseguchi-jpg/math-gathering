@@ -18,15 +18,16 @@ export const cant = (s, p, k) => { const v = p.def[k]; return typeof v === 'func
 export const api = {};
 
 // emblem：もんしょう（data/emblems.js の emblemEffects。REQUIREMENTS 12章）。ぼうけんの たたかい だけ
-export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null }) {
+// bless：むげんの とうの 祝福（data/blessings.js の blessFx）。buff：むげんの とうで てきの クリーチャーが ＋buff/＋buff
+export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null, bless = null, buff = 0 }) {
   const em = emblem || {};
   if (em.swap) deck = deck.map((d) => em.swap[d.id] || d);
   const rng = seeded(seed);
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20 + (em.life || 0), handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')) },
-    E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {} },
+    P: { side: 'P', life: 20 + (em.life || 0) + (bless?.life || 0), bless, handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')) },
+    E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {}, buff },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
   floor.setup(s, api);
@@ -36,6 +37,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   // はじまりの もんしょう：はじめの てふだに たいようの ゆびわ（6まいめ）・さいしょから マナゾーンに きほんカード
   for (const d of em.hand || []) { const c = card(d); c.emblem = true; s.P.hand.push(c); L(s, `もんしょう：${d.name} を てふだに`); }
   if (em.startMana) rampBasic(s, em.startMana);
+  if (bless?.startMana) { rampBasic(s, bless.startMana); L(s, `しゅくふく：マナゾーンに きほんカード ${bless.startMana}まい`); }
   return s;
 }
 
@@ -98,6 +100,11 @@ export function beginPlayerTurn(s) {
   // ヴァンガード（もんしょう）：ターンの はじめに てきに 1点・こぶ1
   if (P.emblem?.turnPing) { L(s, `ヴァンガード：てきに ${P.emblem.turnPing}点`); hitEnemy(s, P.emblem.turnPing, null); }
   if (P.emblem?.turnBolster) bolster(s, P.emblem.turnBolster);
+  // むげんの とうの 祝福：ターンの はじめ
+  const bl = P.bless;
+  if (bl?.ping) { L(s, `しゅくふく：てきに ${bl.ping}点`); hitEnemy(s, bl.ping, null); }
+  if (bl?.bolster) { L(s, `しゅくふく：＋1/＋1カウンター ${bl.bolster}こ`); bolster(s, bl.bolster); }
+  if (bl?.wither) { const t = s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0]; if (t) { L(s, `しゅくふく：${t.def.name} に −1/−1カウンター ${bl.wither}こ`); addMinus(s, t, bl.wither); sba(s); } }
   if (P.emblem?.turnTap) for (const t of s.E.bf.filter((p) => isCreature(p) && !p.tapped).sort((a, b) => power(s, b) - power(s, a)).slice(0, P.emblem.turnTap)) { t.tapped = true; L(s, `ヴァンガード：${t.def.name} を タップ`); }
   s.floor.playerUpkeep?.(s, api);
   const waits = [];
@@ -268,6 +275,7 @@ export function pt(s, p) {
   if (p.base2) P = 2;
   if (p.setPT) [P, T] = p.setPT;
   P += p.ctr - (p.mctr || 0) + p.mP; T += p.ctr - (p.mctr || 0) + p.mT;
+  if (p.side === 'E' && s.E.buff && isCreature(p)) { P += s.E.buff; T += s.E.buff; } // むげんの とう：しゅうかいごとに つよく なる
   for (const q of s[p.side].bf) if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
   // 装備品・オーラ（あいての オーラも）
   for (const q of [...s.P.bf, ...s.E.bf]) if (q.attached === p.uid) {
@@ -511,6 +519,7 @@ export function leave(s, p, to = 'gy', o = {}) {
     // ぴったりの もんしょう：ライフ ＋1（レベル2 は ＋2）。カードを 引く 案は 山札が 早く へって 弱く なった（docs/EMBLEMS.md）
     const em = s.P.emblem;
     if (em?.exactLife) { gainLife(s, em.exactLife); L(s, `もんしょう：ぴったりで ライフ ＋${em.exactLife}`); }
+    if (s.P.bless?.exactPing) { L(s, `しゅくふく：ぴったりで てきに ${s.P.bless.exactPing}点`); hitEnemy(s, s.P.bless.exactPing, null); }
   }
   for (const l of p.links) returnLinked(s, l);
   const twice = o.died && s[p.side].bf.some((q) => q.def.doubleDeath) ? 2 : 1; // テイサ：死亡したときの 能力が 2回

@@ -71,6 +71,20 @@ export function moreStudy(app, plane, back) {
   });
 }
 
+// むげんの とうの 休けい所：しゅぎょうに ごうかくすると 祝福（docs/ENDLESS.md）。done(ごうかく したか)
+const BLESS_SAY = {
+  theros: { who: 'テーロスの 神々', text: 'ちえを しめせば、しゅくふくを さずけよう' },
+  ravnica: { who: 'ジェイス', text: 'ここまで きたのか。ちえを みせて くれたら、しゅくふくを あげよう' },
+};
+export function blessStudy(app, plane, done) {
+  let pass = false;
+  studyScreen(app, {
+    cats: quizCats(), setCats: (c) => { M.cats = c; save(); }, record: (r) => { pass = passed(r.n, r.ok); return recordQuiz(r, 'bless'); },
+    back: () => done(pass), quit: () => done(false),
+    eyebrow: 'むげんの とう 休けい所', say: BLESS_SAY[plane] || BLESS_SAY.theros, reward: 'しゅくふくを 1つ（もんしょうポイントも もらえる）', backLabel: 'しゅぎょうしないで すすむ', doneLabel: 'つぎへ', noAgain: true,
+  });
+}
+
 // えらべない わけ（なければ ''）
 function why(e, now = Date.now()) {
   if ((M.got[e.id] || 0) > now) return 'ついて いる';

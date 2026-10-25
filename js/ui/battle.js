@@ -24,7 +24,7 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
-  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem });
+  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff });
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
