@@ -110,6 +110,13 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .c-E .card-pt { background: var(--enemy-ink); color: var(--enemy); }
 .card-pt.hurt { background: var(--bad); color: #fff; }
 .card-pt small { font-size: 10px; opacity: 0.8; }
+/* 修整が ある パワー・タフネス：上がった 赤、下がった 青（くらい わくの 上で 見える 明るさ） */
+.card-pt .up { color: #ff6b6b; font-weight: inherit; }
+.card-pt .down { color: #74c0fc; font-weight: inherit; }
+.card-pt.hurt .up { color: #ffe066; }
+.card-pt small.up, .card-pt small.down { opacity: 1; }
+.c-E .card-pt .up { color: #c92a2a; }
+.c-E .card-pt .down { color: #1864ab; }
 .card-pt.key { background: var(--gold); color: var(--gold-ink); }
 .card-type { align-self: flex-end; font-size: 9px; opacity: 0.7; }
 .badges { display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }

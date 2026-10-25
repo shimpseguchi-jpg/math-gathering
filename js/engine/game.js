@@ -268,6 +268,13 @@ export function token(s, side, def, n = 1, o = {}) {
 // Lvアップ：いまの レベルで 使う 段（なければ null）
 export const levelRow = (p) => (p.def.levels ? [...p.def.levels].reverse().find((r) => p.level >= r.at) || null : null);
 
+// もとの パワー・タフネス（カウンター・修整・装備・オーラの まえ）。画面で 上がった・下がったを 色に する
+export function basePT(s, p) {
+  const d = levelRow(p) || p.def;
+  const P = p.setPT ? p.setPT[0] : p.base2 ? 2 : typeof d.pow === 'function' ? d.pow(s, p, api) : (d.pow ?? 0);
+  const T = p.setPT ? p.setPT[1] : typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
+  return [P, T];
+}
 export function pt(s, p) {
   const d = levelRow(p) || p.def;
   let P = typeof d.pow === 'function' ? d.pow(s, p, api) : (d.pow ?? 0);

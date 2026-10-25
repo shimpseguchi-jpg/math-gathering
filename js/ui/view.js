@@ -1,6 +1,6 @@
 // 画面の部品：カードの見た目・ルビ・下から出るシート
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
-import { colorsOf, pt, hasKw, isCreature } from '../engine/game.js';
+import { colorsOf, pt, basePT as rawPT, hasKw, isCreature } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
 import { mapRuby } from './ruby.js';
 
@@ -171,9 +171,12 @@ export function permFace(s, p, o = {}) {
   const i = info(p.def);
   let ptHtml = '';
   if (isCreature(p)) {
-    const [P, T] = pt(s, p);
+    const [P, T] = pt(s, p), [P0, T0] = rawPT(s, p);
     const left = T - p.dmg;
-    ptHtml = `<div class="card-pt ${p.dmg ? 'hurt' : ''}">${P}/${left}${p.dmg ? `<small>/${T}</small>` : ''}</div>`;
+    // 修整が ある 数は 色を かえる（上がった：赤、下がった：青）。もとの 数は ながおしの せつめいで
+    const mod = (v, b) => (v > b ? 'up' : v < b ? 'down' : '');
+    const num = (v, b) => (mod(v, b) ? `<b class="${mod(v, b)}">${v}</b>` : `${v}`);
+    ptHtml = `<div class="card-pt ${p.dmg ? 'hurt' : ''}" ${P !== P0 || T !== T0 ? `title="もとは ${P0}/${T0}"` : ''}>${num(P, P0)}/${p.dmg ? left : num(T, T0)}${p.dmg ? `<small class="${mod(T, T0)}">/${T}</small>` : ''}</div>`;
   } else if (p.def.loyalty) ptHtml = `<div class="card-pt loy" title="ちゅうせい">◆${p.loy}</div>`; // プレインズウォーカーの ちゅうせい
   else if (p.def.factory) ptHtml = `<div class="card-pt key">かぎ ${s.E.key}</div>`;
   else if (p.def.clock) ptHtml = `${clockFace(s.E.hour)}<div class="card-pt key">${s.E.hour}時</div>`;
