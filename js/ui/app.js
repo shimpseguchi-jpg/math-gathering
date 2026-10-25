@@ -1,5 +1,5 @@
 // 冒険の流れ：タイトル → パック開封 → デッキ構築 → 塔 → たたかい → …
-import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, packColors } from '../engine/run.js';
+import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, packColors, withExtra } from '../engine/run.js';
 import { BY_ID, BASICS } from '../data/cards.js';
 import { pickFloors } from '../data/enemies.js';
 import { RAV_NAMES, pickRavnica } from '../data/ravnica.js';
@@ -78,7 +78,7 @@ export function title() {
     const start = () => {
       // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
       const pk = activeEffects()?.pack;
-      const cols = packColors(enabledSets());
+      const cols = packColors(withExtra(enabledSets(), pk?.extra));
       const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
       A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
       save();
@@ -114,6 +114,7 @@ function emblemPackNote(em) {
   const out = [];
   if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
   if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
+  if (activeEffects()?.pack?.extra?.length) out.push(`<span>${ruby('番外編（ばんがいへん） Fate/Grand Order の カードも 出る（もんしょう）')}</span>`);
   if (em.leg) out.push(`<span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(A.idx, em) * 100)}%</b>（もんしょう）</span>`);
   return out.join('');
 }
@@ -130,7 +131,7 @@ function packs() {
   // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
   const pk = activeEffects()?.pack;
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0 };
-  const cards = openPack(Math.random, { cleared, favor, sets: enabledSets(), em });
+  const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em });
   // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
   const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;
   const surprise = !!cards.surprise;

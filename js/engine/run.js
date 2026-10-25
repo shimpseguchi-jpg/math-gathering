@@ -2,7 +2,7 @@
 import { seeded, shuffle, pick } from './rng.js';
 import { newGame, play, colorsOf, COLORS } from './game.js';
 import { AI, ptsOf } from './ai.js';
-import { ALL, ALL_DEV, BASICS, SET_OF, BY_ID, bindEngine } from '../data/cards.js';
+import { ALL, ALL_DEV, BASICS, SET_OF, SETS, BY_ID, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
 import { pickRavnica } from '../data/ravnica.js';
 import { api } from './game.js';
@@ -36,6 +36,8 @@ export function packOdds(cleared = 0, em = {}) {
 // 1パックに レジェンドが 1まい以上 出る かくりつ
 export const legendChance = (cleared = 0, em = {}) => { const o = packOdds(cleared, em); return 1 - (1 - o.rToL) * (1 - o.surprise); };
 
+// 番外編パックの もんしょう：いまの 弾に 番外編を 足す（sets が なければ 出ている 弾）
+export const withExtra = (sets, extra = []) => (extra.length ? [...new Set([...(sets || SETS.filter((x) => x.released).map((x) => x.id)), ...extra])] : sets);
 // パックに 出る 色（黒は 第3弾から）
 export const packColors = (sets) => { const pool = packPool(sets); return COLORS.filter((c) => Object.values(pool).some((l) => l.some((d) => colorsOf(d).includes(c)))); };
 
@@ -131,6 +133,7 @@ export async function runAdventure(o = {}) {
   const pool = [];
   // パックの もんしょう：きまぐれの 色は ぼうけんの はじめに きめる。はじめの 旗は さいしょから もつ
   const pk = o.emblem?.pack;
+  o = { ...o, sets: withExtra(o.sets, pk?.extra) };
   const em = pk ? { ...pk, colors: [...pk.colors, ...(pk.rand ? [pick(rng, packColors(o.sets))] : [])] } : undefined;
   if (pk?.banner) pool.push(BY_ID[pk.banner]);
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets, em }));

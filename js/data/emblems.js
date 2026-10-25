@@ -38,6 +38,8 @@ export const EMBLEMS = [
   { id: 'pUnc', branch: 'pack', lv: 1, cost: 1, name: 'アンコモン', text: 'パックに アンコモンが 1まい ふえる（8まい ＋ 1まい ＝ 9まい）', detail: 'はじめの 3パックと ごほうびパックの どれも 9まい いりに なる', fx: { packUnc: 1 } },
   { id: 'pLeg', branch: 'pack', lv: 1, cost: 3, name: 'レジェンド', text: 'レジェンドが 出る かくりつが 3ばい', detail: 'レアの わくが レジェンドに かわる かくりつ 8まいに 1まい → 8まいに 3まい', fx: { packLeg: 0.25 } },
   { id: 'pBanner', branch: 'pack', lv: 1, cost: 2, name: 'はじめの 旗（はた）', text: 'えらんだ はたを 1まい もって ぼうけんを はじめる（その 3色の デッキが くめる）', detail: 'えらぶ ときに 10まいの はたから 1つ えらぶ。はたは 4点', fx: { banner: true } },
+  // 番外編パック：番外編の カードが いまの パックに まざる（docs/EXTRA.md）
+  { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（40しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
   // いろ：えらんだ 色の カードが 出やすい（2つまで。2色とも ある カードは 5ばい）
   ...Object.entries(COLOR_JA).map(([c, ja]) => ({
     id: `c${c}`, branch: 'color', lv: 1, cost: 2, name: `${ja}の いろ`, color: c,
@@ -50,17 +52,18 @@ export const EMBLEM_BY_ID = Object.fromEntries(EMBLEMS.map((e) => [e.id, e]));
 //   life：はじめの ライフに たす。swap：デッキの カードを おきかえる（きほんカード）。hand：はじめの てふだに 足す カード
 //   basicCharge：きほんカードを マナに おくと その こうかも。startMana：さいしょから マナゾーンに きほんカード。exactLife：ぴったりで たおした とき
 //   handSize：てふだの まいすう（ヴァンガード）。mulligan：はじめの てふだを ひきなおせる かいすう。turnPing・turnBolster：ターンの はじめ
-//   pack：パックの もんしょう（run.js の openPack）{ colors, rand, unc, leg, banner：旗の ID }
+//   pack：パックの もんしょう（run.js の openPack）{ colors, extra：まぜる 番外編の 弾, rand, unc, leg, banner：旗の ID }
 //   picks：えらんだ もの（{ pBanner: 'AB01' }）
 export function emblemEffects(ids, picks = {}) {
-  const fx = {}, colors = [];
+  const fx = {}, colors = [], extra = [];
   for (const e of EMBLEMS) {
     if (!ids.includes(e.id)) continue;
     if (e.fx.packColor) { colors.push(e.fx.packColor); continue; }
+    if (e.fx.packExtra) { extra.push(e.fx.packExtra); continue; }
     for (const [k, v] of Object.entries(e.fx)) fx[k] = typeof v === 'number' && k[0] !== 'v' ? Math.max(fx[k] || 0, v) : v;
   }
   const banner = fx.banner ? picks.pBanner || BANNERS[0]?.id : null;
-  const pack = colors.length || fx.packRand || fx.packUnc || fx.packLeg || banner ? { colors, rand: !!fx.packRand, unc: fx.packUnc || 0, leg: fx.packLeg || 0, banner } : null;
+  const pack = colors.length || extra.length || fx.packRand || fx.packUnc || fx.packLeg || banner ? { colors, extra, rand: !!fx.packRand, unc: fx.packUnc || 0, leg: fx.packLeg || 0, banner } : null;
   if (!Object.keys(fx).length && !pack) return null;
   return {
     life: (fx.life || 0) + (fx.vLife || 0),
