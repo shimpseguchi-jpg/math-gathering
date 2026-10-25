@@ -1,5 +1,5 @@
 // 冒険の流れ：タイトル → パック開封 → デッキ構築 → 塔 → たたかい → …
-import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, packColors, withExtra } from '../engine/run.js';
+import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, packColors, withExtra, rareLegendChance } from '../engine/run.js';
 import { BY_ID, BASICS } from '../data/cards.js';
 import { pickFloors } from '../data/enemies.js';
 import { RAV_NAMES, pickRavnica } from '../data/ravnica.js';
@@ -15,7 +15,8 @@ import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zuk
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy, blessStudy } from './emblem.js';
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
-import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, byColorCost, toast } from './view.js';
+import { loadFilter, filterPanel, applyFilter, onFilterClick, filterCount, saveFilter } from './deckfilter.js';
+import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
 
 const SAVE = 'mtg-adventure-v1';
 const ENDLESS_BEST = 'mtg-endless-best'; // むげんの とうの いちばんの きろく { floor, exact, score }
@@ -134,7 +135,8 @@ function packs() {
   // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
   const pk = activeEffects()?.pack;
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [] };
-  const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em });
+  const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
+  const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare });
   // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
   const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;
   const surprise = !!cards.surprise;
@@ -143,18 +145,20 @@ function packs() {
   const best = cards.some((d) => d.rar === 'L') ? 'L' : 'R';
   let stage = 'pack', k = 0, cracked = false, flipped = false;
   const st = { aura: best === 'L' ? 'aura-L' : 'aura-R' };
-  const top = () => `<div class="pk-top"><p class="eyebrow">パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}</p>
+  const top = () => `<div class="pk-top"><p class="eyebrow">${rare ? 'レアパック' : `パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}`}</p>
     <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>`;
   const burst = (n = 22) => Array.from({ length: n }, (_, i) => `<i style="--a:${(360 / n) * i + Math.random() * 12}deg;--d:${70 + Math.random() * 90}px;--h:${Math.floor(Math.random() * 360)}"></i>`).join('');
 
   const draw = () => {
     if (stage === 'pack') {
       app().innerHTML = `<main class="gacha">${top()}
-        <button type="button" class="foil ${st.aura}" data-open="1" aria-label="パックを あける">
+        <button type="button" class="foil ${st.aura} ${rare ? 'rare-pack' : ''}" data-open="1" aria-label="パックを あける">
           <span class="foil-shine"></span><span class="foil-title">MATHEMATIC<br>THE GATHERING</span><span class="foil-sub">${ids.length}まい いり</span>
         </button>
         <p class="gacha-hint">${best === 'L' ? 'パックが にじいろに 光っている…！？' : 'タップして パックを やぶろう'}</p>
-        ${cleared > 0 ? `<div class="bonus"><p class="bonus-title">${A.endless ? A.endless.floor - 1 : cleared}階 クリアの ごほうびパック</p>
+        ${rare ? `<div class="bonus"><p class="bonus-title">むげんの とう さんせんの レアパック</p>
+          <span>レジェンドが 出る かくりつ <b>${Math.round(rareLegendChance() * 100)}%</b><small>（ふつうは ${Math.round(legendChance(0) * 100)}%）</small></span>
+          <span>コモンの はんぶんが アンコモンに、アンコモンの はんぶんが レアに かわる</span></div>` : cleared > 0 ? `<div class="bonus"><p class="bonus-title">${A.endless ? A.endless.floor - 1 : cleared}階 クリアの ごほうびパック</p>
           <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared, em) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
           <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
           ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">もんしょうの パック</p>${emblemPackNote(em)}</div>` : ''}
@@ -218,7 +222,7 @@ function packs() {
       return draw();
     }
     if (b.dataset.done) {
-      A.pool.push(...ids); A.toOpen--; A.opened++; save();
+      A.pool.push(...ids); A.toOpen--; A.opened++; A.rarePack = 0; save();
       onPack(cards); // トロフィー（めくりおわってから）
       zukanPack(cards);
       return A.toOpen > 0 ? packs() : deckBuilder();
@@ -290,11 +294,18 @@ function whyNotPts(sel, i) {
 
 function deckBuilder() {
   if (!A.deck) { A.deck = autoDeck(); save(); }
-  const order = A.pool.map((id, i) => i).sort((a, b) => byColorCost(BY_ID[A.pool[a]], BY_ID[A.pool[b]]));
+  const F = loadFilter(); // こまかく：ならべかえ・しぼりこみ（deckfilter.js）
+  const shownIdx = () => applyFilter(F, A.pool.map((id, i) => { const inDeck = A.deck.includes(i); return { i, d: BY_ID[id], inDeck, no: !inDeck && whyNot(A.deck, i) }; }));
+  const poolHtml = (list) => (list.length ? list.map((i) => {
+    const inDeck = A.deck.includes(i);
+    const no = !inDeck && whyNot(A.deck, i);
+    return `<button type="button" class="pool-item ${inDeck ? 'in' : ''} ${no ? 'no' : ''}" data-i="${i}">${cardFace(BY_ID[A.pool[i]])}<span class="pts">${ptsOf(BY_ID[A.pool[i]])}点</span></button>`;
+  }).join('') : '<p class="pool-empty">あてはまる カードが ない。しぼりこみを へらそう。</p>');
   let mode = (() => { try { return localStorage.getItem(TAP_MODE) === 'quick' ? 'quick' : 'detail'; } catch { return 'detail'; } })();
   const draw = () => {
     const st = deckStats(A.deck);
     const left = CAPACITY - st.points;
+    const list = shownIdx();
     app().innerHTML = `<main class="builder">
       <header class="b-head">
         <h2>デッキを くむ</h2>
@@ -307,14 +318,12 @@ function deckBuilder() {
           <span>タップで</span>
           <button type="button" data-mode="detail" aria-pressed="${mode === 'detail'}">せつめいを 見る</button>
           <button type="button" data-mode="quick" aria-pressed="${mode === 'quick'}">すぐ 入れる・はずす</button>
+          <button type="button" class="fine" data-fine="1" aria-pressed="${F.open}" aria-expanded="${F.open}">こまかく${filterCount(F) ? `<b>${filterCount(F)}</b>` : ''}</button>
         </div>
         <p class="hint">${mode === 'quick' ? 'タップで 入れる ⇔ はずす。長おしで せつめい。' : 'タップで せつめい → 入れる・はずす。'}点数は コモン1・アンコモン2・レア3・レジェンド4。</p>
       </header>
-      <div class="pool ${mode}">${order.map((i) => {
-        const inDeck = A.deck.includes(i);
-        const no = !inDeck && whyNot(A.deck, i);
-        return `<button type="button" class="pool-item ${inDeck ? 'in' : ''} ${no ? 'no' : ''}" data-i="${i}">${cardFace(BY_ID[A.pool[i]])}<span class="pts">${ptsOf(BY_ID[A.pool[i]])}点</span></button>`;
-      }).join('')}</div>
+      ${filterPanel(F, A.pool.map((id) => BY_ID[id]), list.length, A.pool.length)}
+      <div class="pool ${mode}">${poolHtml(list)}</div>
       <footer class="actions"><button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
     </main>`;
   };
@@ -339,8 +348,18 @@ function deckBuilder() {
     press = setTimeout(() => { pressed = true; showDetail(+el.dataset.i); }, 450);
   };
   app().onpointerup = app().onpointercancel = () => clearTimeout(press);
+  // なまえで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
+  app().oninput = (e) => {
+    if (!e.target.dataset?.fq) return;
+    F.q = e.target.value; saveFilter(F);
+    const list = shownIdx();
+    app().querySelector('.pool').innerHTML = poolHtml(list);
+    const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${A.pool.length}まい を 見せて いる`;
+  };
   app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.fine) { F.open = !F.open; saveFilter(F); return draw(); }
+    if (onFilterClick(F, b)) return draw();
     if (b.dataset.mode) { mode = b.dataset.mode; try { localStorage.setItem(TAP_MODE, mode); } catch { /* 保存できなくても 切りかえられる */ } return draw(); }
     if (b.dataset.a === 'auto') { A.deck = autoDeck(); save(); return draw(); }
     if (b.dataset.a === 'clear') { A.deck = []; save(); return draw(); }
@@ -462,8 +481,10 @@ async function askEndless() {
   if (v !== 'go') return ending(true);
   A.over = null;
   A.endless = { floor: ENDLESS.start, idx: 0, floors: pickPlane(), have: {}, bank: 0, exact: 0 };
-  save();
-  return endlessTower();
+  // さんせんの ごほうび：レアパック
+  A.toOpen = 1; A.rarePack = 1; save();
+  await sheet('<p>さんせんの ごほうびに <b>レアパック</b>（いつもより いい カードが 出やすい）を 1つ あけよう！</p>', [{ label: 'レアパックを あける', value: 1, kind: 'primary' }], { title: 'むげんの とうへ ようこそ', dismiss: false });
+  return packs();
 }
 
 function endlessTower() {

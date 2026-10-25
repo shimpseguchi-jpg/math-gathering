@@ -684,3 +684,19 @@ div.zk-card { cursor: default; }
 @keyframes hogu-glow { 50% { box-shadow: 0 0 0 2px #ffe58f, 0 0 22px 8px rgba(255, 214, 102, .95); } }
 @media (prefers-reduced-motion: reduce) { .card.perm.hogu { animation: none; } }
 
+/* むげんの とう さんせんの レアパック */
+.foil.rare-pack { filter: hue-rotate(40deg) saturate(1.4); }
+/* デッキ構築の こまかく（ならべかえ・しぼりこみ） */
+.tapmode .fine b { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 4px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; }
+.fpanel { display: flex; flex-direction: column; gap: 6px; padding: 10px; margin-top: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--table-2); }
+.frow { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; overflow-x: auto; scrollbar-width: none; padding-bottom: 1px; } /* 1行ずつ、よこに スクロール */
+.frow::-webkit-scrollbar { display: none; }
+.flabel { flex: 0 0 62px; font-size: 11px; line-height: 1.2; color: var(--ink-dim); font-weight: 700; position: sticky; left: 0; background: var(--table-2); z-index: 1; padding-right: 4px; }
+.fscroll { display: flex; gap: 5px; }
+.chip-f { flex: 0 0 auto; white-space: nowrap; border: 1px solid var(--line); background: var(--table); color: var(--ink); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; min-height: 30px; }
+.chip-f[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.chip-f .pip { pointer-events: none; }
+.chip-f.dir { border-style: dashed; }
+.fq { flex: 1 1 200px; min-width: 0; border: 1px solid var(--line); background: var(--table); color: var(--ink); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 14px; }
+.fsum { justify-content: space-between; flex-wrap: wrap; overflow: visible; font-size: 12px; color: var(--ink-dim); }
+.pool-empty { grid-column: 1 / -1; text-align: center; color: var(--ink-dim); padding: 24px 0; }

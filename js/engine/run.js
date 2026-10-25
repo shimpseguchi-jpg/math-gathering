@@ -36,6 +36,9 @@ export function packOdds(cleared = 0, em = {}) {
 }
 // 1パックに レジェンドが 1まい以上 出る かくりつ
 export const legendChance = (cleared = 0, em = {}) => { const o = packOdds(cleared, em); return 1 - (1 - o.rToL) * (1 - o.surprise); };
+// レアパック（むげんの とうに さんせんした ごほうび）：コモンの はんぶんが アンコモン、アンコモンの はんぶんが レア、レアの はんぶんが レジェンド
+export const RARE_ODDS = { cToU: 0.5, uToR: 0.5, rToL: 0.5, surprise: 0.1 };
+export const rareLegendChance = () => 1 - (1 - RARE_ODDS.rToL) * (1 - RARE_ODDS.surprise);
 
 // 番外編パックの もんしょう：いまの 弾に 番外編を 足す（sets が なければ 出ている 弾）
 export const withExtra = (sets, extra = []) => (extra.length ? [...new Set([...(sets || SETS.filter((x) => x.released).map((x) => x.id)), ...extra])] : sets);
@@ -64,7 +67,7 @@ function pickFavored(rng, list, favor, colors = [], extra = []) {
 // o.em：パックの もんしょう { colors：出やすい 色, unc, leg }
 export function openPack(rng, o = {}) {
   const em = o.em || {};
-  const odds = packOdds(o.cleared || 0, em);
+  const odds = o.rare ? RARE_ODDS : packOdds(o.cleared || 0, em);
   const pool = packPool(o.sets);
   const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || []);
   for (let tries = 0; ; tries++) {
