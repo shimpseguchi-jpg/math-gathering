@@ -669,3 +669,7 @@ div.zk-card { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .em-study.em-bonus { animation: none; } }
 .b.np { background: #b8860b; color: #fff8e1; } /* 番外編 FGO：宝具の NP */
 .b.np.ready { background: #d4380d; box-shadow: 0 0 0 2px #ffd666; } /* NP 100 いじょう：ほうぐ ボタンが つかえる */
+/* 宝具が うてる サーヴァント：わくが 金色に ひかる */
+.card.perm.hogu { border-color: #ffd666; box-shadow: 0 0 0 2px #ffd666, 0 0 14px 4px rgba(255, 196, 0, .75); animation: hogu-glow 1.4s ease-in-out infinite; }
+@keyframes hogu-glow { 50% { box-shadow: 0 0 0 2px #ffe58f, 0 0 22px 8px rgba(255, 214, 102, .95); } }
+@media (prefers-reduced-motion: reduce) { .card.perm.hogu { animation: none; } }

@@ -198,7 +198,7 @@ export function permFace(s, p, o = {}) {
     p.def.dragon && !s.E.flags.awake ? '<span class="b zz">ねている</span>' : '',
     p.token ? '<span class="b tok">トークン</span>' : '',
   ].join('');
-  return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">
+  return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${p.def.npFx && (p.np || 0) >= 100 ? 'hogu' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">
     <div class="card-top">${head}<span class="badges">${badges}</span></div>
     <div class="card-name">${ruby(i.name)}</div>
     <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
