@@ -1,6 +1,6 @@
 // 番外編「Fate/Grand Order」のうごき（名前・コスト・P/T は skel.js、文は docs/EXTRA.md 2章）
 // 宝具：攻撃するたび NP が ふえて、100 いじょうで NP を 100 へらして 宝具の こうか（あいては 自動で えらぶ）
-import { hit, mine, theirs, isSub, isCr, chosen1, foeBest, shrink, killIt, single, dig } from './kit.js';
+import { cr, hit, mine, theirs, isSub, isCr, chosen1, foeBest, shrink, killIt, single, dig, foe1 } from './kit.js';
 
 const isServant = (p) => isSub(p, 'servant');
 const servants = (s, E) => mine(s, E).filter(isServant);
@@ -30,6 +30,18 @@ const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen
 const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
 const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, null); E.sba(s); };
 
+// トークン（FG47 海魔・FG53 アサシン・FG64 王の軍勢）
+const TK = {
+  kaima: cr('t_kaima', '海魔（かいま）', null, 'U', 0, 1, 1, ['horror']),
+  assassin: cr('t_assassin', 'アサシン', null, 'K', 0, 1, 1, ['assassin']),
+  soldier22: cr('t_soldier22', '兵士（へいし）', null, 'R', 0, 2, 2, ['soldier']),
+};
+// サーヴァント1体の NP を ふやす 呪文（いちばん 宝具に ちかい サーヴァント）
+const npSpell = (n, more) => ({
+  play: (s, E) => { const t = bestServant(s, E); return t ? { score: 3 + Math.round(((t.np || 0) + n >= 100 ? 6 : n / 20)), run: () => { addNP(s, E, t, n); more?.(s, E); } } : null; },
+  tgt: [{ side: 'P', label: `NP ＋${n} する サーヴァント`, filter: (s, E, q) => isServant(q) && !!q.def.npFx }],
+  apply: (s, E, [[t]]) => { E.target(s, t); addNP(s, E, t, n); more?.(s, E); },
+});
 export const S10 = {
   FG01: np(40, (s, E) => { for (const q of mine(s, E)) q.shieldT = s.turn; E.L(s, 'いまは 遥（はる）か 理想（りそう）の 城（しろ）：ダメージ 0'); }),
   FG02: np(50, (s, E) => allFoes(s, E, 4)),
@@ -115,4 +127,35 @@ export const S10 = {
   FG38: np(40, (s, E) => allFoes(s, E, 3)),
   FG39: np(30, (s, E) => E.drawCard(s, 2), { etb: (s, p, E) => { if (p.side === 'P') E.drawCard(s); } }),
   FG40: { acts: [{ cost: 0, sac: true, when: [1, 2], label: 'ぼちに おいて 1まい 引く', play: (s, p, E) => (s.P.hand.length <= 2 ? { score: 3, run: () => { E.leave(s, p, 'gy'); E.drawCard(s); } } : null) }] },
+  // ---- 70種に ふやした ぶん（FG41〜FG70） ----
+  FG41: np(50, (s, E) => detain(s, E, biggest(s, E, (p) => !p.frozen))),
+  FG42: { etb: (s, p, E) => { if (p.side === 'P') for (const q of servants(s, E)) addNP(s, E, q, 10); } },
+  FG43: np(40, (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 1); }),
+  FG44: np(40, (s, E) => allFoes(s, E, 2)),
+  FG45: np(30, (s, E) => E.gain(s, 3), { anthem: (s, q, p) => (p !== q && p.side === q.side && isServant(p) ? [0, 1] : null) }),
+  FG46: npSpell(30),
+  FG47: np(50, (s, E) => E.token(s, 'P', TK.kaima, 2)),
+  FG48: npSpell(20, (s, E) => E.drawCard(s)),
+  FG49: np(40, (s, E) => { const t = biggest(s, E, (p) => E.power(s, p) >= 2); if (t) { E.bounce(s, t); E.sba(s); } }),
+  FG50: np(30, (s, E) => { for (const t of theirs(s, E)) detain(s, E, t); }),
+  FG51: np(50, (s, E) => E.hitEnemy(s, 2, null), { onAttack: (s, p) => { p.flags.turn.unblockable = true; } }),
+  FG52: np(40, (s, E, p) => { E.drawCard(s); for (const q of servants(s, E)) if (q !== p) addNP(s, E, q, 20); }),
+  FG53: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.assassin, 2); } },
+  FG54: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b && E.onBf(s, b.t)) { E.addMinus(s, b.t, 2); E.sba(s); } }),
+  FG55: np(40, (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) <= 4); if (b) killIt(s, E, b.t); }),
+  FG56: foe1('−2/−2 する クリーチャー', (s, E, t) => shrink(s, E, t, 2), { n: 2 }),
+  FG57: np(30, (s, E) => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); }),
+  FG58: np(50, (s, E) => { const t = biggest(s, E, (p) => !s.floor.untargetable?.(s, p, E)); if (t) killIt(s, E, t); }),
+  FG59: np(50, (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 0); }),
+  FG60: np(50, (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
+  FG61: np(40, (s, E) => { E.hitEnemy(s, 3, null); const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
+  FG62: npSpell(50),
+  FG63: np(50, (s, E, p) => E.pump(p, 4, 0)),
+  FG64: np(30, (s, E) => E.token(s, 'P', TK.soldier22, 5)),
+  FG65: np(50, (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
+  FG66: np(40, (s, E) => { const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 3); }),
+  FG67: np(50, (s, E, p) => { const b = foeBest(s, E, E.power(s, p)) || foeBest(s, E); if (b && E.onBf(s, b.t)) E.fight(s, p, b.t); }),
+  FG68: { play: (s, E) => (E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) },
+  FG69: np(40, (s, E) => { const b = foeBest(s, E); if (b) killIt(s, E, b.t); }),
+  FG70: np(30, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.addCounters(s, q, 1); }),
 };

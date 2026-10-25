@@ -39,7 +39,7 @@ export const EMBLEMS = [
   { id: 'pLeg', branch: 'pack', lv: 1, cost: 3, name: 'レジェンド', text: 'レジェンドが 出る かくりつが 3ばい', detail: 'レアの わくが レジェンドに かわる かくりつ 8まいに 1まい → 8まいに 3まい', fx: { packLeg: 0.25 } },
   { id: 'pBanner', branch: 'pack', lv: 1, cost: 2, name: 'はじめの 旗（はた）', text: 'えらんだ はたを 1まい もって ぼうけんを はじめる（その 3色の デッキが くめる）', detail: 'えらぶ ときに 10まいの はたから 1つ えらぶ。はたは 4点', fx: { banner: true } },
   // 番外編パック：番外編の カードが いまの パックに まざる（docs/EXTRA.md）
-  { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（40しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
+  { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（70しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
   // いろ：えらんだ 色の カードが 出やすい（2つまで。2色とも ある カードは 5ばい）
   ...Object.entries(COLOR_JA).map(([c, ja]) => ({
     id: `c${c}`, branch: 'color', lv: 1, cost: 2, name: `${ja}の いろ`, color: c,

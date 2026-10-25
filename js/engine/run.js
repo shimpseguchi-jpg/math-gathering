@@ -50,8 +50,8 @@ export function favorColor(deck) {
 
 // いろの もんしょう：えらんだ 色 1つにつき 重み ＋2（1色 3ばい、2色とも ある カードは 5ばい）
 export const EMBLEM_COLOR = 2;
-// 番外編パックの もんしょう：番外編の カードは 4ばい 出やすい（まぜると かずが 少なくて シナジーが できにくい ため）
-export const EXTRA_WEIGHT = 4;
+// 番外編パックの もんしょう：番外編の カードは 3ばい 出やすい（1パックの はんぶん くらい。シナジーが できる ように）
+export const EXTRA_WEIGHT = 3;
 function pickFavored(rng, list, favor, colors = [], extra = []) {
   if (!favor && !colors.length && !extra.length) return pick(rng, list);
   const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length) * (extra.includes(SET_OF[d.id]) ? EXTRA_WEIGHT : 1); });
