@@ -1,29 +1,41 @@
 // 番外編「Fate/Grand Order」のうごき（名前・コスト・P/T は skel.js、文は docs/EXTRA.md 2章）
-// 宝具：攻撃するたび NP が ふえて、100 いじょうで NP を 100 へらして 宝具の こうか（あいては 自動で えらぶ）
+// 宝具：攻撃するたび NP が ふえる（さいだい 300）。100 いじょうなら メインフェイズに NP を 100 へらして 宝具の こうか（あいては 自動で えらぶ）
 import { cr, hit, mine, theirs, isSub, isCr, chosen1, foeBest, shrink, killIt, single, dig, foe1 } from './kit.js';
 
 const isServant = (p) => isSub(p, 'servant');
 const servants = (s, E) => mine(s, E).filter(isServant);
-// NP を ふやす。100 いじょうに なったら 宝具（2回ぶん たまって いれば 2回）
+// NP を ふやす（さいだい 300）。宝具は じぶんの メインフェイズに ボタンで つかう（NP −100）。
+// てきがわの サーヴァントは 100 で じどう
+export const NP_MAX = 300;
 export function addNP(s, E, p, n) {
   if (!p || !E.onBf(s, p) || !p.def.npFx) return;
-  p.np = (p.np || 0) + n;
-  E.L(s, `${p.def.name}：NP ＋${n} ＝ ${p.np}`);
-  while (p.np >= 100 && E.onBf(s, p) && !s.over) {
-    p.np -= 100;
-    E.L(s, `ほうぐ！ ${p.def.name}（NP のこり ${p.np}）`);
-    p.def.npFx(s, E, p);
-    E.sba(s);
-  }
+  const was = p.np || 0;
+  p.np = Math.min(NP_MAX, was + n);
+  E.L(s, `${p.def.name}：NP ${was} ＋ ${n} ＝ ${p.np}${was + n > NP_MAX ? `（さいだい ${NP_MAX}）` : ''}`);
+  if (p.side !== 'P') while (p.np >= 100 && E.onBf(s, p) && !s.over) fireNP(s, E, p);
 }
-// 宝具まで あと なん回 攻撃するか（NP 40・1回 ＋40 → 40 ＋ 40 ＋ 40 ＝ 120 で あと 2回）
-export const npLeft = (p) => { const g = p.def.np || 0, n = p.np || 0; return g ? Math.max(1, Math.ceil((100 - n) / g)) : null; };
+export function fireNP(s, E, p) {
+  const was = p.np;
+  p.np -= 100;
+  E.L(s, `ほうぐ！ ${p.def.name}（NP ${was} − 100 ＝ ${p.np}）`);
+  p.def.npFx(s, E, p);
+  E.sba(s);
+}
+// 宝具まで あと なん回 攻撃するか（NP 40・1回 ＋40 → 40 ＋ 40 ＋ 40 ＝ 120 で あと 2回）。100 いじょうは 0
+export const npLeft = (p) => { const g = p.def.np || 0, n = p.np || 0; return n >= 100 ? 0 : g ? Math.ceil((100 - n) / g) : null; };
 export function npNote(p) {
   const g = p.def.np, n = p.np || 0, k = npLeft(p);
-  return `NP ${n} ／ 100。こうげき 1回で ＋${g}。あと ${k}回 こうげき すると ほうぐ（${[n, ...Array(k).fill(g)].filter((x, i) => i || x).join(' ＋ ')} ＝ ${n + g * k}）。ほうぐは じどうで おきる`;
+  const how = `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう（NP − 100）。NP は ${NP_MAX} まで ためられる`;
+  if (!k) return `NP ${n} ／ 100。ほうぐ を ${Math.floor(n / 100)}回 つかえる。${how}`;
+  return `NP ${n} ／ 100。こうげき 1回で ＋${g}。あと ${k}回 こうげき すると ほうぐ（${[n, ...Array(k).fill(g)].filter((x, i) => i || x).join(' ＋ ')} ＝ ${n + g * k}）。${how}`;
 }
+// 宝具の ボタン（ソーサリーと 同じ：じぶんの メインフェイズ）。AI は たまったら すぐ つかう
+const hogu = {
+  cost: 0, npUse: true, when: [1, 2], label: 'ほうぐ（NP − 100）', can: (s, p) => (p.np || 0) >= 100, cantWhy: 'NP が 100 に たりない',
+  play: (s, p, E) => ((p.np || 0) >= 100 ? { score: 8, run: () => fireNP(s, E, p) } : null),
+};
 // 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP（40 いじょう。30 だと 4回 攻撃が いって ほぼ 出ない）。npFx(s, E, p)
-const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
+const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, acts: [hogu, ...(x.acts || [])], onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
 // NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）
 const bestServant = (s, E) => servants(s, E).filter((p) => p.def.npFx).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
 const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
@@ -73,7 +85,7 @@ export const S10 = {
   FG13: np(50, (s, E, p) => { E.pump(p, 0, 0, ['double']); E.L(s, `${p.def.name}：にだんこうげき`); }),
   FG14: np(40, (s, E) => { for (const t of [...theirs(s, E)]) E.pump(t, -2, -2); E.sba(s); }),
   FG15: np(40, (s, E) => { for (const q of servants(s, E)) if (q.def.id !== 'FG15') addNP(s, E, q, 50); }),
-  // 令呪：3画。1画 つかうと サーヴァント1体の NP ＋100（すぐ 宝具）
+  // 令呪：3画。1画 つかうと サーヴァント1体の NP ＋100（すぐ 宝具を つかえる）
   FG16: {
     etb: (s, p) => { p.seals = 3; },
     acts: [{
