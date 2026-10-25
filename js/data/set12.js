@@ -55,45 +55,45 @@ const TK = {
 
 export const S12 = {
   // ---- エージェント ----
-  ZZ01: { brk: 1, onAttack: atkBon(1) },
-  ZZ02: { etb: etbBon(2), acts: [bonAct(3, {
+  ZZ01: { brk: 2, onAttack: atkBon(1) },
+  ZZ02: { brk: 1, etb: etbBon(2), acts: [bonAct(3, {
     label: 'エネルギー 3：てきの クリーチャーに −1/−1カウンター 2こ',
     play: (s, p, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); return b ? { score: 4 + Math.min(3, E.power(s, b.t)), run: () => E.addMinus(s, b.t, 2) } : null; },
     tgt: [{ side: 'E', label: '−1/−1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addMinus(s, t, 2); },
   })] },
-  ZZ03: { onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 3) E.pump(p, 2, 0); } },
-  ZZ04: { ...ninjutsu(1, ['G']), brk: 1 },
-  ZZ05: { ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => biggest(s, E, (t) => !t.frozen)), ...ninjutsu(2, ['U']), brk: 1 },
-  ZZ06: { onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
-  ZZ07: { etb: etbBon(2), acts: [bonAct(2, {
+  ZZ03: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 3) E.pump(p, 2, 0); } },
+  ZZ04: { brk: 1, ...ninjutsu(1, ['G']) },
+  ZZ05: { brk: 2, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => biggest(s, E, (t) => !t.frozen)), ...ninjutsu(2, ['U']) },
+  ZZ06: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
+  ZZ07: { brk: 1, etb: etbBon(2), acts: [bonAct(2, {
     label: 'エネルギー 2：クリーチャー1体 ＋1/＋1',
     play: (s, p, E, ctx) => { if (ctx.phase !== 1) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && canSwing(s, E, t) ? { score: 3, run: () => E.pump(t, 1, 1) } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1 する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 1, 1); },
   })] },
   ZZ08: { brk: 1 },
-  ZZ09: { etb: etbBon(1), anthem: lord('白祇重工', 1, 0) },
-  ZZ10: { etb: prolif },
-  ZZ11: { onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
-  ZZ12: { allyDmgLess: 1 },
-  ZZ13: { brk: 2, onAttack: (s, p, E) => { if (p.side !== 'P') return; const b = foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
-  ZZ14: { ...ninjutsu(1, ['W']), brk: 1 },
+  ZZ09: { brk: 2, etb: etbBon(1), anthem: lord('白祇重工', 1, 0) },
+  ZZ10: { brk: 1, etb: prolif },
+  ZZ11: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
+  ZZ12: { brk: 1, allyDmgLess: 1 },
+  ZZ13: { brk: 3, onAttack: (s, p, E) => { if (p.side !== 'P') return; const b = foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  ZZ14: { brk: 1, ...ninjutsu(1, ['W']) },
   ZZ15: { brk: 2, etb: prolif },
-  ZZ16: { anthem: lord(null, 1, 0) },
+  ZZ16: { brk: 1, anthem: lord(null, 1, 0) },
   ZZ17: { brk: 2, onAttack: (s, p, E) => { if (p.side !== 'P') return; const b = foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
-  ZZ18: { onAttack: atkBon(1) },
-  ZZ19: { ...ninjutsu(1, ['G']), brk: 2 },
-  ZZ20: { etb: etbBon(2), acts: [bonAct(2, {
+  ZZ18: { brk: 2, onAttack: atkBon(1) },
+  ZZ19: { brk: 2, ...ninjutsu(1, ['G']) },
+  ZZ20: { brk: 1, etb: etbBon(2), acts: [bonAct(2, {
     label: 'エネルギー 2：つぎの てきの ターン、1体は ダメージを うけない',
     play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== s.turn + 1 ? { score: 2, run: () => { t.shieldT = s.turn + 1; } } : null; },
     tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = s.turn + 1; E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
   })] },
-  ZZ21: { anthem: lord('カリュドーンの子', 1, 1) },
-  ZZ22: { brk: 1, onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const t of [...theirs(s, E)]) E.damage(s, t, 1, p); E.sba(s); } },
-  ZZ23: { onAttack: atkBon(1) },
-  ZZ24: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
-  ZZ25: { brk: 1 },
-  ZZ26: { ...ninjutsu(2, ['R']), brk: 2, onFaceHit: (s, p, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
-  ZZ27: { etb: etbBon(2), acts: [bonAct(3, {
+  ZZ21: { brk: 1, anthem: lord('カリュドーンの子', 1, 1) },
+  ZZ22: { brk: 2, onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const t of [...theirs(s, E)]) E.damage(s, t, 1, p); E.sba(s); } },
+  ZZ23: { brk: 1, onAttack: atkBon(1) },
+  ZZ24: { brk: 1, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
+  ZZ25: { brk: 2 },
+  ZZ26: { brk: 2, ...ninjutsu(2, ['R']), onFaceHit: (s, p, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  ZZ27: { brk: 1, etb: etbBon(2), acts: [bonAct(3, {
     label: 'エネルギー 3：みんな ＋1/＋1',
     play: (s, p, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 5, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 1); } } : null),
   })] },
@@ -187,6 +187,21 @@ export const S12 = {
   ZZ79: { ...ULT, // 狂乱の噛みつき
     play: (s, E) => { const me = E.bestBuffTarget(s, null); if (!me) return null; const b = foeBest(s, E, E.power(s, me)); return b ? { score: 5 + b.score, run: () => { E.damage(s, b.t, E.power(s, me), me); E.sba(s); } } : null; },
     tgt: pair('ダメージを あたえる あなたの クリーチャー', 'ダメージを うける てきの クリーチャー'), apply: (s, E, [[a], [b]]) => { E.damage(s, b, E.power(s, a), a); E.sba(s); },
+  },
+  // 星見雅「なごり雪」（製作者の すきな キャラの ぶん）：サイクロンの裂け目。1体 もどす か、超過（＋5マナ）で 敵を ぜんぶ もどす
+  ZZ81: {
+    ...ULT,
+    play: (s, E, ctx = {}) => {
+      const all = theirs(s, E), v = all.reduce((a, q) => a + E.power(s, q) + q.def.cost, 0);
+      if ((ctx.manaLeft ?? 0) >= 5 && all.length >= 2 && v >= 6) return { score: v, extra: 5, run: () => { for (const q of [...theirs(s, E)]) E.bounce(s, q); E.sba(s); } };
+      // 1体：てきは やまふだの 上に もどって また 出る ので、こうげきの まえに 大きな ブロッカーを どかす とき だけ
+      const b = ctx.phase === 1 && E.readyAttackers(s).length ? biggest(s, E, (q) => E.power(s, q) >= 3) : null;
+      return b ? { score: 3 + E.power(s, b), run: () => { E.bounce(s, b); E.sba(s); } } : null;
+    },
+    modes: [
+      { label: 'てきの クリーチャー1体を てふだに もどす', tgt: [{ side: 'E', label: 'もどす クリーチャー' }], apply: (s, E, [[t]]) => { E.bounce(s, t); E.sba(s); } },
+      { label: 'ちょうか（＋5マナ）：てきの クリーチャーを ぜんぶ もどす', extra: 5, apply: (s, E) => { for (const q of [...theirs(s, E)]) E.bounce(s, q); E.sba(s); } },
+    ],
   },
   ZZ80: { ...ULT, // 原初の力（＋X/＋X して 格闘）
     play: (s, E, ctx) => { const me = E.bestBuffTarget(s, null); if (!me || !ctx.xMax) return null; const x = ctx.xMax; const b = foeBest(s, E, E.power(s, me) + x, (p) => E.power(s, p) < left(s, E, me) + x); return b ? { score: 5 + b.score, x, run: (xx) => { E.pump(me, xx, xx); E.fight(s, me, b.t); E.sba(s); } } : null; },

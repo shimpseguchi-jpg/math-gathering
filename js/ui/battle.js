@@ -349,7 +349,7 @@ async function chooseMode(d, ctx = {}) {
     const all = [];
     for (const m of ms) { const picks = m.tgt ? await pickAll(m.tgt, ctx) : []; if (!picks) break; all.push([m, picks]); }
     if (all.length < ms.length) continue;
-    return { run: (x) => { for (const [m, picks] of all) m.apply(B.s, api, picks, x); }, extra: (d.escalate || 0) * (ms.length - 1) };
+    return { run: (x) => { for (const [m, picks] of all) m.apply(B.s, api, picks, x); }, extra: (d.escalate || 0) * (ms.length - 1) + ms.reduce((n, m) => n + (m.extra || 0), 0) }; // m.extra：超過（なごり雪）など、その モードだけ 多く はらう
   }
 }
 
