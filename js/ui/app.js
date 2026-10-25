@@ -306,7 +306,7 @@ function deckBuilder() {
     const st = deckStats(A.deck);
     const left = CAPACITY - st.points;
     const list = shownIdx();
-    app().innerHTML = `<main class="builder">
+    app().innerHTML = `<main class="builder ${F.open ? 'has-filter' : ''}">
       <header class="b-head">
         <h2>デッキを くむ</h2>
         <div class="meters">
