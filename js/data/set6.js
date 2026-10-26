@@ -167,9 +167,12 @@ function blast(s, E, ts) {
   E.L(s, `こごえる とっぷう：${ts.length}体を タップ${fz ? '（どうもう：つぎも アンタップしない）' : ''}`);
 }
 
-function naga(s, E) {
-  const m = E.mill(s, 3);
-  if (m.some((c) => isCr(c.def))) E.token(s, 'P', T.zombie);
+// 上から 3まいを 見て、クリーチャーは 墓地へ（あれば ゾンビ）、のこりは 一番下（2026-10-26：ぜんぶ 墓地だと すぐ デッキが なくなる）
+export function naga(s, E, zombie = true) {
+  const top = s.P.lib.splice(0, 3), crs = top.filter((c) => isCr(c.def));
+  s.P.gy.push(...crs); s.P.lib.push(...top.filter((c) => !crs.includes(c)));
+  E.L(s, `3まい 見て クリーチャー ${crs.length}まいを ぼちへ`);
+  if (zombie && crs.length) E.token(s, 'P', T.zombie);
 }
 function bottom(s, E, t) {
   if (!t || !E.onBf(s, t)) return;

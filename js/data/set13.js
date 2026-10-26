@@ -2,6 +2,7 @@
 // パックには 出ない。統率者 ごとの カードプール（js/ui/commander.js の cmdPool）に だけ 入る
 import { T, hit, mine, theirs, foeBest, killIt, bolt, delve, ferocious, isSub, chosen1, regrow, shrink, single, isCr } from './kit.js';
 import { detain } from './set9.js';
+import { naga } from './set6.js';
 
 // 増強 n：n マナ（色 c）・タップで ＋1/＋1カウンター。戦闘の あと だけ（三つの 旗と 同じ）
 const outlast = (n, c) => ({ cost: n, req: [c], tap: true, when: [2], label: `増強（ぞうきょう）：＋1/＋1カウンター（${n}マナ）`, play: (s, p, E) => ({ score: 2, run: () => E.addCounters(s, p, 1) }) });
@@ -72,7 +73,7 @@ export const S13 = {
 
   // ---- シディシ（墓地） ----
   CM17: { ...delve(), kw: ['trample'] },
-  CM18: { etb: (s, p, E) => { if (p.side === 'P') E.mill(s, 3); } },
+  CM18: { etb: (s, p, E) => { if (p.side === 'P') naga(s, E, false); } },
   CM19: { etb: (s, p, E) => { if (p.side === 'P' && gyCr(s) >= 3) E.token(s, 'P', T.zombie, 2); } },
   CM20: { etb: (s, p, E) => { if (p.side === 'P') lookToGy(s, E, 4); } },
   CM21: { upkeep: (s, p, E) => { if (p.side === 'P' && gyCr(s) >= 3) regrow(s, E, isCr); } },
