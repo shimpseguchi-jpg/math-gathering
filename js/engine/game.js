@@ -346,11 +346,13 @@ export const BON_MAX = 10;
 // ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって 本体に 10点（階の きまりの まま）。
 // 本体の ない 階では、かわりに いちばん つよい 敵の クリーチャーに 10点
 export const BREAK_AT = 10;
-// 属性ブレイク（2026-10-26 ためし）：ゼンゼロの カードが ある デッキでは、色ごとの きっかけでも 1こ たまる。交代すると 3こ
+// 属性ブレイク（2026-10-26 ためし）：ゼンゼロの クリーチャーが 場に いると、その クリーチャーの 色の きっかけで 1こ たまる。交代すると 3こ
 // 白：ライフを えた　青：敵に マイナスの 修整・−1/−1　黒：敵の クリーチャーが ぼちへ　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
 export const ZZ_BREAK = { W: 1, U: 1, K: 1, R: 1, G: 1, swap: 3 };
 export function zzBreak(s, k, why) {
   if (!s?.P.zzDeck || s.over || s.inBreak || !ZZ_BREAK[k]) return;
+  // 色の きっかけは、その 色の ゼンゼロの クリーチャーが 場に いる ときだけ（交代は いつでも）
+  if (k !== 'swap' && !s.P.bf.some((q) => /^ZZ/.test(q.def.id || '') && isCreature(q) && colorsOf(q.def).includes(k))) return;
   s.stats.zz = s.stats.zz || {}; s.stats.zz[k] = (s.stats.zz[k] || 0) + ZZ_BREAK[k];
   L(s, `ブレイク ＋${ZZ_BREAK[k]}（${why}）`);
   addBreak(s, ZZ_BREAK[k]);
