@@ -322,7 +322,7 @@ const advCtx = () => ({
   // 統率者戦：デッキを なおす ときに 統率者も かえられる。色が あわない カードは デッキから はずす
   cmd: A.cmd ? { label: `統率者（とうそつしゃ）：${info(cmdDef()).name}`, change: async () => {
     const id = await pickLegend({ cur: A.cmd, eyebrow: '統率者（とうそつしゃ）を かえる', back: 'かえない' });
-    if (id && id !== A.cmd) { A.cmd = id; const ok = cmdIdent(); A.deck = (A.deck || []).filter((i) => colorsOf(BY_ID[A.pool[i]]).every((c) => ok.includes(c))); save(); }
+    if (id && id !== A.cmd) { A.cmd = id; const ok = cmdIdent(); A.deck = (A.deck || []).filter((i) => colorsOf(BY_ID[A.pool[i]]).every((c) => ok.includes(c))); if (!A.deck.length) A.deck = autoDeck(); save(); }
     deckBuilder();
   } } : null,
 });
@@ -400,7 +400,7 @@ export function deckBuilder(C = advCtx()) {
     if (b.dataset.a === 'auto') { C.deck = C.auto(); C.save(); return draw(); }
     if (b.dataset.a === 'clear') { C.deck = []; C.save(); return draw(); }
     if (b.dataset.a === 'ok') {
-      if (!C.deck.length) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
+      if (!C.deck.length && !C.cmd) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
       C.save(); return C.ok();
     }
     if (b.dataset.i == null) return;
