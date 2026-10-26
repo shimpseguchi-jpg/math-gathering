@@ -13,6 +13,7 @@ const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
 import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
+import * as fx from './fx.js';
 
 let B = null; // いまのたたかい
 const app = () => document.getElementById('app');
@@ -208,6 +209,7 @@ async function startTurn() {
   B.busy = false;
   if (checkOver()) return;
   render();
+  fx.banner('あなたの ターン');
 }
 
 async function endTurn() {
@@ -228,6 +230,7 @@ async function enemyPhase() {
   const s = B.s;
   B.busy = true;
   B.mode = 'enemy'; render();
+  fx.banner(s.floor.id === 'pvp' ? 'あいての ターン' : 'てきの ターン', true);
   const from = s.logs.length;
   await enemyTurn(s);
   const lines = s.logs.slice(from).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
@@ -244,13 +247,13 @@ function checkOver(lines) {
   if (!s.over) return false;
   render();
   const win = s.over === 'win', draw = s.over === 'draw';
-  sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
+  fx.result(win ? 'win' : draw ? 'draw' : 'lose').then(() => sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
     .then(() => B.onEnd({
       win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish,
       // トロフィー用
       life: s.P.life, floor: s.floor.id, exactTurnMax: s.stats.exactTurnMax || 0, bigHit: s.stats.bigHit || 0, maxPower: s.stats.maxPower || 0, maxCreatures: s.stats.maxCreatures || 0,
-    }));
+    })));
   return true;
 }
 
@@ -461,6 +464,7 @@ async function doCast(c, from = 'hand') {
   if (!pl) return stop();
   discard(s, drop);
   const run = mode ? mode.run : (d.apply && (picks || !d.tgt) ? () => d.apply(s, api, picks || [], x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined); // 対象の ない キッカーの 呪文（苗木の 移住）も apply で キッカーを うけとる
+  if (from === 'hand') { const perm = !(d.types || []).some((t) => t === 'instant' || t === 'sorcery'); await fx.flyCard(app().querySelector(`[data-hand="${s.P.hand.indexOf(c)}"]`), app().querySelector(perm ? '.zone.mine' : '.battle'), !perm); }
   await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile });
   B.busy = false;
   if (!checkOver()) render();
@@ -526,16 +530,21 @@ async function action(a) {
   }
   if (a === 'damage') {
     B.busy = true;
+    await fx.lunge(B.atk.map(({ p, t }) => { const bl = B.blocks?.get?.(p.uid); return { from: permEl(p.uid), to: bl ? permEl(bl.uid) : t === 'face' ? app().querySelector('[data-face]') || app().querySelector('.zone.enemy') : t?.uid ? permEl(t.uid) : app().querySelector('.zone.enemy') }; }));
     finishCombat(s, B.atk, B.blocks);
     B.mode = 'main'; B.phase = 2; B.atk = [];
     render();
+    await fx.pause(s.lastCombat.length ? 700 : 0); // ダメージの 数字・ぴったり！を 見せてから
     await combatResult(s); // かった 攻撃も、けっかを 見せてから
     B.busy = false;
     if (!checkOver()) render();
     return;
   }
   if (a === 'blockdone') {
-    const done = B.blockDone; B.blockDone = null; B.mode = 'enemy';
+    const done = B.blockDone; if (!done) return; // 演出の あいだの 2どおし
+    B.blockDone = null;
+    await fx.lunge(B.blockAttackers.map((p) => { const bl = B.blockMap.get(p.uid); return { from: permEl(p.uid), to: bl ? permEl(bl.uid) : app().querySelector('.me-bar .life') }; }));
+    B.mode = 'enemy';
     render();
     return done(new Map(B.blockMap));
   }
@@ -1017,6 +1026,7 @@ function render() {
   if (B.mode === 'tricks') btns = '<button type="button" class="btn primary" data-act="damage">ダメージ！</button>';
   if (B.mode === 'block') btns = '<button type="button" class="btn" data-act="blockauto">おまかせ</button><button type="button" class="btn primary" data-act="blockdone">ブロック けってい</button>';
   if (B.mode === 'enemy') btns = `<span class="wait">${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ターン…</span>`;
+  const snap = fx.capture(app());
   app().innerHTML = `<div class="battle">
     <header class="bt-head">
       <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
@@ -1043,12 +1053,28 @@ function render() {
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
-    <div class="hand" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}${lifeNeed(s, c) ? `<span class="life-cost" aria-label="ライフ ${lifeNeed(s, c)}で 色を はらう">♥${lifeNeed(s, c)}</span>` : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
+    <div class="hand" style="--n:${s.P.hand.length}" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i};--o:${i - (s.P.hand.length - 1) / 2};--oy:${Math.abs(i - (s.P.hand.length - 1) / 2)}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}${lifeNeed(s, c) ? `<span class="life-cost" aria-label="ライフ ${lifeNeed(s, c)}で 色を はらう">♥${lifeNeed(s, c)}</span>` : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
     <footer class="actions">${btns}</footer>
   </div>`;
   B.tut?.highlight(app());
+  // 演出：まえに 描いた ときと くらべる（ダメージの 数字・たおれた カード・ライフ）
+  const now = fxState(s);
+  fx.play(app(), snap, B.fxPrev, now);
+  B.fxPrev = now;
   B.prev = { perms: new Set([...s.P.bf, ...s.E.bf].map((p) => p.uid)), hand: new Set(s.P.hand.map((c) => c.uid)), life: s.P.life, elife: s.E.life, gy: s.P.gy.length };
 }
+
+// 演出の ための いまの ようす：場の カードの のこりの タフネス（プレインズウォーカーは ちゅうせい）・ライフ・墓地に いった カード
+function fxState(s) {
+  const hp = new Map(), objs = new Map();
+  for (const p of [...s.P.bf, ...s.E.bf]) {
+    if (isCreature(p)) hp.set(p.uid, pt(s, p)[1] - p.dmg); else if (p.def.types?.includes('planeswalker')) hp.set(p.uid, p.loy); else continue;
+    objs.set(p.uid, p);
+  }
+  return { hp, objs, life: s.P.life, elife: s.E.life ?? 0, gy: new Set([...s.P.gy, ...s.E.gy].map((c) => c.uid)) };
+}
+// 要素：場の カード（uid）
+const permEl = (uid) => app().querySelector(`.perm[data-uid="${uid}"]`);
 
 // テスト用：いまの たたかいを さわってから 描きなおす（ブラウザの しらべで 場を つくる）
 export function debugBattle(fn) { if (B) { fn(B, api); render(); } }

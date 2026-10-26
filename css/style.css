@@ -753,3 +753,78 @@ div.zk-card { cursor: default; }
 .cp-dots button.on { border-color: var(--gold); background: var(--gold); box-shadow: inset 0 0 0 3px var(--table, #111); }
 .cp-info { margin: 0; font-size: 14px; color: var(--ink-dim); text-align: center; }
 @media (prefers-reduced-motion: reduce) { .cp-card.from-r, .cp-card.from-l { animation: none; } }
+
+/* ---- バトルの 演出（js/ui/fx.js）2026-10-26 ---- */
+#fx { position: fixed; inset: 0; z-index: 18; pointer-events: none; overflow: hidden; }
+.fx-num { position: fixed; transform: translate(-50%, -50%); font-family: var(--display); font-size: 30px; line-height: 1; color: #fff; -webkit-text-stroke: 1.5px #5b0e06; text-shadow: 0 3px 0 #5b0e06, 0 0 12px rgba(255, 90, 60, 0.8); animation: fx-num 1.05s cubic-bezier(.2, .9, .3, 1) forwards; white-space: nowrap; }
+.fx-num.big { font-size: 40px; }
+.fx-num.heal { -webkit-text-stroke-color: #0d4a26; text-shadow: 0 3px 0 #0d4a26, 0 0 12px rgba(99, 211, 145, 0.9); color: #e9fff1; }
+@keyframes fx-num { 0% { transform: translate(-50%, -20%) scale(0.4); opacity: 0; } 18% { transform: translate(-50%, -60%) scale(1.25); opacity: 1; } 35% { transform: translate(-50%, -70%) scale(1); } 100% { transform: translate(-50%, -160%) scale(0.95); opacity: 0; } }
+.perm.fx-hurt { animation: fx-hurt 0.45s ease-out; }
+@keyframes fx-hurt { 0%, 100% { transform: none; filter: none; } 20% { transform: translateX(-4px) rotate(-2deg); filter: brightness(1.8) saturate(1.6) drop-shadow(0 0 6px #ff4d3a); } 45% { transform: translateX(4px) rotate(2deg); } 70% { transform: translateX(-2px); } }
+.fx-ghost { position: fixed; display: block; }
+.fx-ghost > .perm, .fx-ghost > .card { width: 100%; height: 100%; margin: 0; }
+.fx-ghost.fade { animation: fx-fade 0.42s ease-in forwards; }
+@keyframes fx-fade { to { opacity: 0; transform: translateY(-10px) scale(0.92); } }
+.fx-ghost.shatter > :not(.fx-shard) { animation: fx-break 0.6s ease-in forwards; }
+@keyframes fx-break { 0% { filter: brightness(2.2) saturate(0.4); } 30% { transform: scale(1.06) rotate(-3deg); filter: brightness(1.6) grayscale(0.6); opacity: 1; } 100% { transform: translateY(24px) scale(0.7) rotate(10deg); filter: grayscale(1) blur(2px); opacity: 0; } }
+.fx-shard { position: absolute; left: 50%; top: 45%; width: 9px; height: 13px; border-radius: 2px; background: var(--paper); box-shadow: 0 0 6px rgba(255, 255, 255, 0.7); animation: fx-shard 0.6s ease-out forwards; }
+.fx-ghost.foe .fx-shard { background: #f0b7d4; }
+@keyframes fx-shard { from { transform: rotate(var(--a)) translateX(0) rotate(0); opacity: 1; } to { transform: rotate(var(--a)) translateX(var(--d)) rotate(200deg); opacity: 0; } }
+.fx-hit { position: fixed; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 210, 120, 0.7) 30%, transparent 65%); animation: fx-hit 0.38s ease-out forwards; }
+@keyframes fx-hit { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+.fx-stamp { position: fixed; transform: translate(-50%, -50%); }
+.fx-stamp b { display: block; font-family: var(--display); font-weight: 400; font-size: 34px; white-space: nowrap; color: var(--gold); -webkit-text-stroke: 1.5px #5a3a00; text-shadow: 0 3px 0 #5a3a00, 0 0 18px rgba(242, 192, 79, 0.95); animation: fx-stamp 1.25s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+@keyframes fx-stamp { 0% { transform: scale(2.6) rotate(-14deg); opacity: 0; } 22% { transform: scale(0.95) rotate(-8deg); opacity: 1; } 30% { transform: scale(1.05) rotate(-8deg); } 80% { opacity: 1; } 100% { transform: scale(1) rotate(-8deg) translateY(-14px); opacity: 0; } }
+.fx-fly { position: fixed; z-index: 2; border-radius: 10px; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55); }
+.fx-fly > .card { width: 100%; height: 100%; margin: 0; }
+.fx-spell { position: fixed; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(160, 200, 255, 0.6) 35%, transparent 70%); animation: fx-hit 0.6s ease-out forwards; transform-origin: center; }
+.fx-banner { position: fixed; left: 0; right: 0; top: 38%; display: grid; place-items: center; height: 76px; background: linear-gradient(90deg, transparent, rgba(16, 24, 46, 0.92) 18%, rgba(16, 24, 46, 0.92) 82%, transparent); border-block: 2px solid var(--gold); animation: fx-banner 1.25s ease-in-out forwards; }
+.fx-banner.foe { border-color: var(--bad); background: linear-gradient(90deg, transparent, rgba(59, 28, 51, 0.94) 18%, rgba(59, 28, 51, 0.94) 82%, transparent); }
+.fx-banner b { font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 0.1em; color: var(--gold); text-shadow: 0 2px 0 #000; animation: fx-banner-t 1.25s ease-in-out forwards; }
+.fx-banner.foe b { color: #ffd2e4; }
+@keyframes fx-banner { 0% { transform: scaleY(0); opacity: 0; } 15%, 80% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(0.2); opacity: 0; } }
+@keyframes fx-banner-t { 0% { transform: translateX(60px); opacity: 0; } 18%, 78% { transform: none; opacity: 1; } 100% { transform: translateX(-60px); opacity: 0; } }
+.battle.fx-shake { animation: fx-shake 0.42s ease-out; }
+.battle.fx-shake.hard { animation: fx-shake-h 0.5s ease-out; }
+@keyframes fx-shake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-3px, 2px); } 80% { transform: translate(2px, -1px); } }
+@keyframes fx-shake-h { 0%, 100% { transform: none; } 15% { transform: translate(-12px, 6px) rotate(-0.6deg); } 35% { transform: translate(10px, -6px) rotate(0.5deg); } 55% { transform: translate(-6px, 4px); } 75% { transform: translate(4px, -2px); } }
+.fx-result { position: fixed; inset: 0; z-index: 3; display: grid; place-items: center; background: radial-gradient(circle, rgba(10, 14, 28, 0.55), rgba(5, 8, 18, 0.88)); animation: fx-res-in 0.3s ease-out; cursor: pointer; }
+.fx-result.out { animation: fx-res-out 0.25s ease-in forwards; }
+.fx-result b { position: relative; font-family: var(--display); font-weight: 400; font-size: clamp(56px, 13vw, 112px); color: var(--gold); -webkit-text-stroke: 2px #5a3a00; text-shadow: 0 6px 0 #5a3a00, 0 0 40px rgba(242, 192, 79, 0.9); animation: fx-res-t 0.7s cubic-bezier(.2, 1.5, .4, 1); }
+.fx-result.lose b { color: #c9cfe2; -webkit-text-stroke-color: #1b2033; text-shadow: 0 6px 0 #1b2033; animation: fx-res-lose 1s ease-out; }
+.fx-result.draw b { color: var(--ink); -webkit-text-stroke-color: #1b2033; text-shadow: 0 6px 0 #1b2033; }
+.fx-rays { position: absolute; width: 160vmax; height: 160vmax; background: repeating-conic-gradient(rgba(242, 192, 79, 0.18) 0 10deg, transparent 10deg 20deg); animation: fx-spin 8s linear infinite; -webkit-mask: radial-gradient(circle, #000 0%, transparent 55%); mask: radial-gradient(circle, #000 0%, transparent 55%); }
+.fx-result.lose .fx-rays, .fx-result.draw .fx-rays { display: none; }
+.fx-confetti { position: absolute; top: -20px; left: var(--x); width: 10px; height: 16px; border-radius: 2px; background: hsl(var(--h) 85% 62%); animation: fx-fall var(--t) ease-in forwards; }
+@keyframes fx-fall { to { transform: translateY(110vh) rotate(var(--r)); } }
+@keyframes fx-spin { to { transform: rotate(360deg); } }
+@keyframes fx-res-in { from { opacity: 0; } }
+@keyframes fx-res-out { to { opacity: 0; } }
+@keyframes fx-res-t { from { transform: scale(0.2) rotate(-10deg); opacity: 0; } }
+@keyframes fx-res-lose { from { transform: translateY(-80px); opacity: 0; } 60% { transform: translateY(6px); } }
+
+/* ---- バトルの 見た目（2026-10-26）：卓の フェルト・カードの かげ・ボタンの 押しごこち ---- */
+.zone.enemy { background: radial-gradient(ellipse at 50% 0%, rgba(150, 55, 105, 0.32), rgba(70, 25, 52, 0.22) 70%); box-shadow: inset 0 0 0 1px rgba(255, 180, 220, 0.07), inset 0 10px 26px rgba(0, 0, 0, 0.35); }
+.zone.mine { background: radial-gradient(ellipse at 50% 100%, rgba(95, 159, 226, 0.22), rgba(40, 70, 120, 0.12) 70%); box-shadow: inset 0 0 0 1px rgba(160, 200, 255, 0.08), inset 0 -10px 26px rgba(0, 0, 0, 0.3); }
+.zone .card, .hand .card { box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), 0 8px 16px rgba(0, 0, 0, 0.28); }
+.banner { text-shadow: 0 0 12px rgba(242, 192, 79, 0.45); }
+.btn { transition: transform 0.08s, box-shadow 0.08s, filter 0.15s; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+.btn.primary { background: linear-gradient(#ffd56e, var(--gold) 55%, #d9a531); box-shadow: 0 3px 0 #8a6416, 0 0 14px rgba(242, 192, 79, 0.25); }
+.btn.primary:active:not(:disabled) { box-shadow: 0 1px 0 #8a6416; }
+.life { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 0 14px rgba(99, 211, 145, 0.35); }
+.life.low { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 122, 105, 0.55); }
+@media (hover: hover) { .hand-slot:hover .card { transform: translateY(-6px); } .hand-slot .card { transition: transform 0.15s; } }
+
+/* iPad の よこ画面：バトルを 画面いっぱいに。手札は おうぎ形に ならべる */
+@media (min-width: 960px) and (orientation: landscape) {
+  #app:has(> .battle) { max-width: 1180px; }
+  .battle .zone { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; padding: 10px; }
+  .battle .card { font-size: 12.5px; }
+  .battle .hand { justify-content: center; overflow: visible; gap: 0; padding: 14px 8px 6px; }
+  .battle .hand-slot { flex: 0 0 106px; margin-inline: calc(max(0, var(--n) - 7) * -4px - 4px); transform-origin: 50% 120%; transform: translateY(calc(var(--oy) * var(--oy) * 1.2px)) rotate(calc(var(--o) * 2.2deg)); transition: transform 0.15s; z-index: 0; }
+  .battle .hand-slot:hover, .battle .hand-slot:focus-visible { transform: translateY(-16px) scale(1.07); z-index: 2; }
+  .battle .hand-slot:hover .card { transform: none; }
+  .battle .actions .btn { min-width: 180px; }
+}
