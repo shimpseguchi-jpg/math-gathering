@@ -319,6 +319,7 @@ export function addCounters(s, p, n) {
 export function proliferate(s) {
   for (const p of s.P.bf) {
     if (p.ctr > 0) addCounters(s, p, 1);
+    if (isPW(p) && p.loy > 0) { p.loy++; L(s, `ぞうしょく：${p.def.name} の ちゅうせい ${p.loy}`); }
     if (p.level > 0) p.level++;
     if (p.flags.muster) p.flags.muster++;
   }
@@ -759,6 +760,7 @@ function pwTargets(s, attackers, blocks) {
     if (!w) return { p, t: 'player' };
     left.set(w, 0);
     L(s, `${p.def.name} は ${w.def.name} を こうげき`);
+    for (const q of [...s.P.bf]) q.def.onPWAttacked?.(s, q, p, api); // ケイヤの 誓い
     return { p, t: w };
   });
 }
