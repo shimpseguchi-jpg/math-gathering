@@ -971,3 +971,20 @@ div.zk-card { cursor: default; }
 .pile.brk { font: inherit; color: inherit; }
 .pile.brk.ready { border-color: var(--gold); background: linear-gradient(#ffd56e, var(--gold)); color: var(--gold-ink); font-weight: 700; animation: ab-big 1.2s ease-in-out infinite; }
 :root[data-theme="gba"] .pile.brk.ready { background: var(--gold); color: var(--gold-ink); animation: gba-blink-o 0.8s steps(1) infinite; outline: 2px solid #fff8c0; }
+
+/* ---- ドラフト（2026-10-26）：3まいから 1まい ---- */
+.draft { min-height: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-block: 16px 24px; }
+.draft h2 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 5.5vw, 28px); color: var(--gold); text-align: center; }
+.draft .pk-top { align-self: stretch; }
+.draft-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 760px; }
+.draft-card { position: relative; border: 0; padding: 0; background: none; cursor: pointer; transition: transform 0.12s; }
+.draft-card:hover, .draft-card:focus-visible { transform: translateY(-6px); }
+.draft-card .fcard { font-size: clamp(8px, 2.2vw, 12px); }
+.dr-have { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--table-3); color: var(--ink); }
+.draft .hint { text-align: center; }
+/* スマホ：3まいを よこに スワイプして 見る（大きさは パックの カードと おなじ くらい） */
+@media (max-width: 639px) {
+  .draft-row { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; padding: 6px 12% 14px; box-sizing: border-box; }
+  .draft-card { flex: 0 0 min(72vw, 262px); scroll-snap-align: center; }
+  .draft-card .fcard { font-size: 11px; }
+}

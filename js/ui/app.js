@@ -35,6 +35,9 @@ const PLANES = [['theros', 'テーロス'], ['ravnica', 'ラヴニカ']];
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
 // ルール：統率者戦（2026-10-26）は さいしょに 伝説の クリーチャーを 統率者に えらぶ（A.cmd）
 const RULES = [['normal', 'ふつう'], ['cmd', '統率者（とうそつしゃ）戦']];
+// カードの あつめかた：パック（ぜんぶ もらう）か ドラフト（2026-10-26。パック 1つの かわりに「3まいから 1まい」を 7回）
+const GETS = [['pack', 'パック'], ['draft', 'ドラフト']];
+const DRAFT_PER_PACK = 7, DRAFT_SHOW = 3; // 7回：5回だと カードが たりず 勝率が 9ポイント 下がった（AI ドラフト 30回）
 const cmdDef = () => (A?.cmd ? BY_ID[A.cmd] : null);
 const cmdIdent = () => (A?.cmd ? colorsOf(BY_ID[A.cmd]) : null);
 
@@ -61,6 +64,7 @@ export function title() {
     <fieldset class="seg"><legend>せかい</legend>${PLANES.map(([k, l]) => `<label><input type="radio" name="plane" id="plane-${k}" value="${k}" ${(pref.plane || 'theros') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <fieldset class="seg"><legend>ルール</legend>${RULES.map(([k, l]) => `<label><input type="radio" name="rule" id="rule-${k}" value="${k}" ${(pref.cmd ? 'cmd' : 'normal') === k ? 'checked' : ''}><span>${ruby(l)}</span></label>`).join('')}</fieldset>
+    <fieldset class="seg"><legend>カードの あつめかた</legend>${GETS.map(([k, l]) => `<label><input type="radio" name="get" id="get-${k}" value="${k}" ${(pref.draft ? 'draft' : 'pack') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <div class="title-btns">
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階`}）</button>` : ''}
@@ -89,6 +93,7 @@ export function title() {
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
     const rule = app().querySelector('input[name=rule]:checked')?.value;
+    const draft = app().querySelector('input[name=get]:checked')?.value === 'draft';
     // 統率者戦：さいしょに 統率者を えらぶ → しゅぎょう（広告の ように）→ もんしょうを えらぶ → パック
     const begin = async () => {
     const cmd = rule === 'cmd' ? await pickLegend({ back: 'タイトルへ' }) : null;
@@ -98,7 +103,7 @@ export function title() {
       const pk = activeEffects()?.pack;
       const cols = packColors(withExtra(enabledSets(), pk?.extra));
       const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
-      A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0, cmd };
+      A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0, cmd, draft };
       save();
       packs();
     };
@@ -154,7 +159,9 @@ function packs() {
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
   const only = A.cmd && A.opened === 0 ? cmdIdent() : null; // 統率者戦の さいしょの パックは 統率者の 色の カードだけ
-  const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare, only });
+  const roll = () => openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare, only });
+  if (A.draft) return draftPick(roll);
+  const cards = roll();
   // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
   const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;
   const surprise = !!cards.surprise;
@@ -246,6 +253,36 @@ function packs() {
       return A.toOpen > 0 ? packs() : deckBuilder();
     }
     if (b.dataset.i != null) await sheet(detail(BY_ID[ids[+b.dataset.i]]), [{ label: 'とじる', value: 0 }]);
+  };
+}
+// ---- ドラフト：パックから 3まい 見せて 1まい えらぶ。パック 1つぶんで 7回（A.pick に とちゅうを のこす） ----
+function draftPick(roll) {
+  if (!A.pick) A.pick = { n: 0, opts: null };
+  if (!A.pick.opts) {
+    const ids = [...new Set(roll().map((d) => d.id))];
+    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    A.pick.opts = ids.slice(0, DRAFT_SHOW); save();
+  }
+  const opts = A.pick.opts, st = deckStats(A.pool.map((_, i) => i));
+  const have = (id) => A.pool.filter((x) => x === id).length;
+  app().innerHTML = `<main class="draft">
+    <div class="pk-top"><p class="eyebrow">ドラフト　パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}　えらぶ ${A.pick.n + 1} / ${DRAFT_PER_PACK}</p>
+      <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>
+    <h2>${DRAFT_SHOW}まいから 1まい えらぼう</h2>
+    <div class="draft-row">${opts.map((id) => `<button type="button" class="draft-card" data-pick="${id}">${fullCard(BY_ID[id])}${have(id) ? `<span class="dr-have">もって いる ${have(id)}まい</span>` : ''}</button>`).join('')}</div>
+    <p class="hint">タップで せつめい → えらぶ。${A.cmd ? ruby(`統率者（とうそつしゃ）の 色：${cmdIdent().map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}。`) : ''}いま もって いる カード ${A.pool.length}まい（${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}）</p>
+  </main>`;
+  app().onclick = async (e) => {
+    if (e.target.closest('[data-snd]')) { setSound(!soundOn()); return draftPick(roll); }
+    const b = e.target.closest('[data-pick]'); if (!b) return;
+    const d = BY_ID[b.dataset.pick];
+    const v = await sheet(detail(d), [{ label: 'これに する', value: 1, kind: 'primary' }, { label: 'もどる', value: 0 }]);
+    if (!v) return;
+    sfx.tap();
+    A.pool.push(d.id); zukanPack([d]);
+    A.pick.n++; A.pick.opts = null;
+    if (A.pick.n >= DRAFT_PER_PACK) { A.pick = null; A.toOpen--; A.opened++; A.rarePack = 0; save(); return A.toOpen > 0 ? packs() : deckBuilder(); }
+    save(); return draftPick(roll);
   };
 }
 const RAR_NAME = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド' };
