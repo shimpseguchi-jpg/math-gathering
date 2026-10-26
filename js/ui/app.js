@@ -11,7 +11,7 @@ import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
 import { RAID, raidOpen, raidShown, raidFree } from './raidstore.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { DEV, enabledSets, setsNote, settingsScreen, adsOn } from './settings.js';
+import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy, blessStudy } from './emblem.js';
@@ -600,5 +600,6 @@ function endlessEnd() {
   app().onclick = (e) => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'more') moreStudy(app, plane, title); else title(); };
 }
 
+applyTheme();
 initTerms();
 title();

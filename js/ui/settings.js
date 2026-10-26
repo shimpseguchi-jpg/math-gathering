@@ -34,6 +34,11 @@ const setSets = (v) => {
   sets = v;
   try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* 保存できなくても この あいだは つかえる */ }
 };
+// みため（2026-10-26）：'classic'（いまの みため）か 'gba'（ドット。ゲームボーイアドバンスの ころの カードゲーム ふう）
+const THEME_KEY = 'mtg-theme';
+export const theme = () => { try { return localStorage.getItem(THEME_KEY) === 'gba' ? 'gba' : 'classic'; } catch { return 'classic'; } };
+export const applyTheme = (t = theme()) => { document.documentElement.dataset.theme = t; };
+const setTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できなくても この あいだは かわる */ } applyTheme(t); };
 // ぼうけんの まえと おわりの しゅぎょう（広告。docs/EMBLEMS.md 8章）。開発モードでは せっていで オフに できる
 const AD_KEY = 'mtg-ads-off';
 let adsOff = (() => { try { return localStorage.getItem(AD_KEY) === '1'; } catch { return false; } })();
@@ -50,6 +55,10 @@ export function settingsScreen(app, back) {
     const n = (r) => pool[r].length;
     app().innerHTML = `<main class="settings">
       <h2>せってい</h2>
+      <section class="st-sec">
+        <h3>みため</h3>
+        <div class="row-btns st-theme">${[['classic', 'いまの みため'], ['gba', 'ドット（GBA ふう）']].map(([k, l]) => `<button type="button" class="btn ${theme() === k ? 'primary' : ''}" data-look="${k}" aria-pressed="${theme() === k}">${l}</button>`).join('')}</div>
+      </section>
       <section class="st-sec">
         <h3>おと</h3>
         <button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button>
@@ -75,6 +84,7 @@ export function settingsScreen(app, back) {
   app().onclick = (e) => {
     if (e.target.closest('[data-back]')) { app().onchange = null; return back(); }
     if (e.target.closest('[data-snd]')) { setSound(!soundOn()); draw(); }
+    const th = e.target.closest('[data-look]'); if (th) { setTheme(th.dataset.look); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
   };
   app().onchange = (e) => {

@@ -828,3 +828,117 @@ div.zk-card { cursor: default; }
   .battle .hand-slot:hover .card { transform: none; }
   .battle .actions .btn { min-width: 180px; }
 }
+
+/* ==== みため：ドット（GBA ふう）2026-10-26 ==== */
+/* せっていの「みため」で <html data-theme="gba">。画面の つくりは おなじで、色・文字・わく・うごきだけ かえる */
+/* 見出し・数字・ボタン・メッセージは ドットの 文字。カードの 文と ふりがなは 読みやすい 丸ゴシックの まま */
+:root[data-theme="gba"] {
+  --table: #141848; --table-2: #24308a; --table-3: #3448b8; --line: #f8f8f8;
+  --ink: #f8f8f8; --ink-dim: #b0b8e8; --gold: #f8d038; --gold-ink: #301800;
+  --good: #48e070; --bad: #f86048; --paper: #f8f0d8; --paper-ink: #182040;
+  --W: #f0e0a0; --U: #4890f0; --K: #7858a8; --G: #38b858; --R: #f05838; --C: #a8b0c0;
+  --enemy: #481838; --enemy-2: #782850; --enemy-ink: #ffe8f0;
+  --display: 'DotGothic16', 'Zen Maru Gothic', sans-serif;
+  --px: #080820; /* ドットの りんかく */
+  --win: linear-gradient(#3040b0, #1c2480); /* RPG の まど */
+  --dither: conic-gradient(rgba(8, 8, 32, 0.82) 25%, rgba(8, 8, 32, 0.4) 0 50%, rgba(8, 8, 32, 0.82) 0 75%, rgba(8, 8, 32, 0.4) 0) 0 0 / 4px 4px;
+  font-synthesis: none;
+}
+:root[data-theme="gba"] body { background: #141848 conic-gradient(#141848 25%, #1a2058 0 50%, #141848 0 75%, #1a2058 0) 0 0 / 4px 4px; }
+:root[data-theme="gba"] rt, :root[data-theme="gba"] .card-name, :root[data-theme="gba"] .detail h2 { font-family: var(--body); }
+:root[data-theme="gba"] :is(h1, h2, h3, .sheet-title, .floor, .eyebrow, .big-result, .banner, .turn, .wait, legend) { font-family: var(--display); font-weight: 400; }
+:root[data-theme="gba"] :is(h1, h2, .sheet-title, .big-result) { text-shadow: 2px 2px 0 var(--px); }
+/* まど：白い 二重の わく・かどの 小さい 四角・かたい かげ */
+:root[data-theme="gba"] :is(.st-sec, .meter, .floors li, .cres li) { background: var(--win); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .floors li.now { background: linear-gradient(#5068d8, #2c3ca8); border-color: var(--gold); }
+:root[data-theme="gba"] .sheet-back { background: var(--dither); }
+:root[data-theme="gba"] .sheet-body { background: var(--win); border: 3px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; box-shadow: 0 0 0 3px var(--px); }
+:root[data-theme="gba"] .detail { border-radius: 4px; box-shadow: 0 0 0 2px var(--px); }
+/* ボタン：四角い わく。えらんで いる ボタンには ▶ */
+:root[data-theme="gba"] .btn { position: relative; font-family: var(--display); font-weight: 400; border: 2px solid var(--line); border-radius: 4px; background: var(--win); box-shadow: 0 0 0 2px var(--px), 0 4px 0 2px var(--px); transition: none; }
+:root[data-theme="gba"] .btn small { font-family: var(--body); }
+:root[data-theme="gba"] .btn.primary { background: linear-gradient(#ffe878, #f0b020); color: var(--gold-ink); border-color: #fff8d0; box-shadow: 0 0 0 2px var(--px), 0 4px 0 2px #6a3c00; }
+:root[data-theme="gba"] .btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 2px var(--px), 0 1px 0 2px var(--px); }
+:root[data-theme="gba"] .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+:root[data-theme="gba"] .btn:is(:hover, :focus-visible):not(:disabled)::before { content: '▶'; position: absolute; left: 4px; top: 50%; font-size: 11px; line-height: 1; transform: translateY(-50%); animation: gba-nudge 0.6s steps(1) infinite; }
+@keyframes gba-nudge { 50% { transform: translate(3px, -50%); } }
+:root[data-theme="gba"] :is(.chip, .mana, .pile, .menu-btn, .seg span, .tapmode button) { font-family: var(--display); font-weight: 400; border: 2px solid var(--line); border-radius: 3px; background: var(--table); box-shadow: 0 0 0 1px var(--px); }
+:root[data-theme="gba"] .chip.hot { background: var(--enemy-2); border-color: #f8a0c8; }
+:root[data-theme="gba"] :is(.seg input:checked + span, .tapmode button[aria-pressed="true"], .chip.on, .chip-f[aria-pressed="true"]) { background: var(--gold); color: var(--gold-ink); border-color: #fff8d0; }
+:root[data-theme="gba"] .pile.low { border-color: var(--gold); }
+/* カード：かどを 小さく、黒い りんかくと かたい かげ */
+:root[data-theme="gba"] .card { border-radius: 3px; box-shadow: 0 0 0 2px var(--px), 3px 3px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] :is(.cost, .card-pt, .card-kw span, .b, .card-label, .cb, .gyc) { border-radius: 2px; }
+:root[data-theme="gba"] .cost { font-family: var(--display); font-weight: 400; }
+:root[data-theme="gba"] .perm.can { outline: 2px dashed var(--gold); animation: gba-blink-o 0.8s steps(1) infinite; }
+@keyframes gba-blink-o { 50% { outline-color: transparent; } }
+/* 卓：ます目の 場 */
+:root[data-theme="gba"] .zone { border-radius: 4px; border: 2px solid rgba(248, 248, 248, 0.75); background-color: #1c2868; background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: 16px 16px; box-shadow: 0 0 0 2px var(--px), inset 0 0 0 2px rgba(0, 0, 0, 0.35); }
+:root[data-theme="gba"] .zone.enemy { background-color: #4a1840; border-color: #f8a0c8; }
+:root[data-theme="gba"] .life { border-radius: 4px; width: 62px; height: 52px; background: var(--px); border: 2px solid var(--line); box-shadow: 0 0 0 2px var(--px), 3px 3px 0 2px rgba(0, 0, 0, 0.5); }
+:root[data-theme="gba"] .life small { font-family: var(--display); }
+:root[data-theme="gba"] .life b { color: var(--good); text-shadow: 2px 2px 0 #0a3a18; }
+:root[data-theme="gba"] .life.low { background: #3a0810; border-color: var(--bad); }
+:root[data-theme="gba"] .life.low b { color: var(--bad); text-shadow: 2px 2px 0 #3a0810; animation: gba-blink 1s steps(1) infinite; }
+@keyframes gba-blink { 50% { opacity: 0; } }
+/* メッセージの まど：さいごの 行は 1文字ずつ 出て、▼ が てんめつ */
+:root[data-theme="gba"] .logline { position: relative; font-family: var(--display); font-size: 13px; line-height: 1.7; color: var(--ink); background: var(--px); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); padding: 3px 24px 3px 10px; }
+:root[data-theme="gba"] .logline span:first-child:not(:last-child) { color: var(--ink-dim); }
+:root[data-theme="gba"] .logline::after { content: '▼'; position: absolute; right: 7px; bottom: 4px; font-size: 10px; line-height: 1; color: var(--gold); animation: gba-blink 0.9s steps(1) infinite; }
+:root[data-theme="gba"] .logline.typed span:last-child { animation: gba-type 0.5s steps(16) both; }
+@keyframes gba-type { from { clip-path: inset(0 100% 0 0); } }
+:root[data-theme="gba"] .banner { text-shadow: 2px 2px 0 var(--px); }
+/* タイトル：ドットの 大きい 文字、マークは ぴょこぴょこ、ボタンは RPG の メニュー */
+:root[data-theme="gba"] .title h1 { color: var(--gold); text-shadow: 3px 3px 0 #b04010, 6px 6px 0 var(--px); letter-spacing: 0.04em; }
+:root[data-theme="gba"] .title-mark span { border-radius: 3px; font-family: var(--display); box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.5); animation: gba-bob 1.2s steps(1) infinite; }
+:root[data-theme="gba"] .title-mark span:nth-child(2n) { animation-delay: -0.6s; }
+@keyframes gba-bob { 50% { translate: 0 -5px; } }
+:root[data-theme="gba"] .title-btns { gap: 2px; padding: 10px 8px; background: var(--win); border: 3px solid var(--line); border-radius: 6px; box-shadow: 0 0 0 3px var(--px), 6px 6px 0 3px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .title-btns .btn { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; column-gap: 8px; text-align: left; min-height: 40px; padding: 6px 10px 6px 26px; background: transparent; border-color: transparent; box-shadow: none; color: var(--ink); }
+:root[data-theme="gba"] .title-btns .btn.primary { color: var(--gold); }
+:root[data-theme="gba"] .title-btns .btn small { color: var(--ink-dim); }
+:root[data-theme="gba"] .title-btns .btn:is(:hover, :focus-visible) { background: rgba(255, 255, 255, 0.1); }
+:root[data-theme="gba"] .title-btns .btn::before { left: 8px; }
+:root[data-theme="gba"] .title-btns .btn.primary::before { content: '▶'; position: absolute; top: 50%; font-size: 11px; line-height: 1; transform: translateY(-50%); animation: gba-nudge 0.6s steps(1) infinite; }
+@media (hover: hover) { :root[data-theme="gba"] .title-btns:hover .btn.primary:not(:hover)::before { content: none; } }
+:root[data-theme="gba"] .raid-banner { border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+/* iPad よこ：手札は かたむけずに まっすぐ ならべる */
+@media (min-width: 960px) and (orientation: landscape) {
+  :root[data-theme="gba"] .battle .hand-slot { transform: none; transition: none; margin-inline: calc(max(0, var(--n) - 8) * -6px + 3px); }
+  :root[data-theme="gba"] .battle .hand-slot:is(:hover, :focus-visible) { transform: translateY(-14px); }
+}
+/* 演出：なめらかに うごかさず、コマ送り（steps）で。数字は ドットの ふちどり */
+:root[data-theme="gba"] .fx-num { font-family: var(--display); -webkit-text-stroke: 0; text-shadow: 2px 0 var(--px), -2px 0 var(--px), 0 2px var(--px), 0 -2px var(--px), 4px 4px 0 var(--px); animation-timing-function: steps(6); }
+:root[data-theme="gba"] .fx-num:not(.heal) { color: #ffd0c0; }
+:root[data-theme="gba"] .fx-num.heal { color: #c8ffd0; }
+:root[data-theme="gba"] .perm.fx-hurt { animation: gba-hurt 0.5s steps(1); }
+@keyframes gba-hurt { 0%, 40%, 80% { opacity: 0.2; filter: brightness(2); } 20%, 60%, 100% { opacity: 1; filter: none; } }
+:root[data-theme="gba"] :is(.fx-ghost.fade, .fx-ghost.shatter > :not(.fx-shard)) { animation-timing-function: steps(5); }
+:root[data-theme="gba"] .fx-shard { width: 8px; height: 8px; border-radius: 0; box-shadow: 0 0 0 2px var(--px); animation-timing-function: steps(6); }
+:root[data-theme="gba"] .fx-hit { border-radius: 0; background: #fff8c0; clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); animation-timing-function: steps(3); }
+:root[data-theme="gba"] .fx-stamp b { font-family: var(--display); -webkit-text-stroke: 0; text-shadow: 2px 0 var(--px), -2px 0 var(--px), 0 2px var(--px), 0 -2px var(--px), 4px 4px 0 #b04010; animation-timing-function: steps(5); }
+:root[data-theme="gba"] .fx-spell { border-radius: 0; animation-timing-function: steps(4); }
+:root[data-theme="gba"] .fx-fly { border-radius: 3px; box-shadow: 0 0 0 2px var(--px), 8px 8px 0 rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .fx-banner { height: 64px; background: var(--px); border-block: 3px solid var(--line); box-shadow: 0 -3px 0 var(--px), 0 3px 0 var(--px); animation-timing-function: steps(4); }
+:root[data-theme="gba"] .fx-banner.foe { background: #2a0820; border-color: #f8a0c8; }
+:root[data-theme="gba"] .fx-banner b { font-family: var(--display); text-shadow: 3px 3px 0 #000; animation-timing-function: steps(6); }
+:root[data-theme="gba"] .fx-shake, :root[data-theme="gba"] .battle.fx-shake.hard { animation-timing-function: steps(1); }
+:root[data-theme="gba"] .fx-result { background: var(--dither); }
+:root[data-theme="gba"] .fx-result b { font-family: var(--display); -webkit-text-stroke: 0; text-shadow: 4px 0 var(--px), -4px 0 var(--px), 0 4px var(--px), 0 -4px var(--px), 8px 8px 0 #b04010; animation-timing-function: steps(5); }
+:root[data-theme="gba"] .fx-result.lose b, :root[data-theme="gba"] .fx-result.draw b { text-shadow: 4px 0 var(--px), -4px 0 var(--px), 0 4px var(--px), 0 -4px var(--px), 8px 8px 0 #303860; }
+:root[data-theme="gba"] .fx-rays { animation-timing-function: steps(12); }
+:root[data-theme="gba"] .fx-confetti { width: 8px; height: 8px; border-radius: 0; box-shadow: 0 0 0 1px var(--px); animation-timing-function: steps(16); }
+/* パック・デッキ構築・ずかん */
+:root[data-theme="gba"] :is(.foil, .big-back, .fcard, .face-tile, .zk-list li, .term-pop) { border-radius: 4px; }
+:root[data-theme="gba"] :is(.foil, .big-back, .fcard) { box-shadow: 0 0 0 2px var(--px), 6px 6px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .foil.aura-R { box-shadow: 0 0 0 2px var(--px), 0 0 0 6px var(--gold), 8px 8px 0 6px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .foil.aura-L { box-shadow: 0 0 0 2px var(--px), 0 0 0 6px #ff78dc, 8px 8px 0 6px rgba(0, 0, 0, 0.45); animation-timing-function: steps(2); }
+:root[data-theme="gba"] :is(.foil-title, .foil-sub, .gacha-hint, .new, .wow, .zk-sp, .pts, .meter span, .meter em) { font-family: var(--display); font-weight: 400; }
+:root[data-theme="gba"] :is(.bonus, .zk-list li) { background: var(--win); border: 2px solid var(--line); box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] :is(.snd, .new, .wow, .zk-sp, .pool-item .pts, .fc-head .cost, .fc-rar) { border-radius: 2px; }
+:root[data-theme="gba"] .snd { font-family: var(--display); border: 2px solid var(--line); box-shadow: 0 0 0 1px var(--px); }
+:root[data-theme="gba"] :is(.dots li, .zk-dots i) { border-radius: 0; }
+:root[data-theme="gba"] .flip.open { animation-timing-function: steps(4); }
+:root[data-theme="gba"] .pool-item.in .card { box-shadow: 0 0 0 2px var(--px), 0 0 0 5px var(--gold); }
+:root[data-theme="gba"] .meter > i { height: 6px; border-radius: 0; background: linear-gradient(90deg, var(--gold) calc(var(--v) * 100%), var(--px) 0); box-shadow: 0 0 0 1px var(--line); }
+:root[data-theme="gba"] .b-head { background: var(--table); box-shadow: 0 3px 0 var(--px); }

@@ -1017,6 +1017,7 @@ function render() {
   const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
   for (const m of s.P.mana) if (!m.tapped) { const c = colorsOf(m.def); if (!c.length) colors.C++; else for (const k of c) colors[k]++; }
   const last = s.logs.slice(-2).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
+  const typed = B.logN !== s.logs.length; B.logN = s.logs.length; // あたらしい メッセージだけ 1文字ずつ 出す（ドットの みため）
   // まえに 描いた ときから ふえた カード・かわった ライフに 印を つけて うごかす
   const pv = B.prev || { perms: null, hand: null, life: s.P.life, elife: s.E.life, gy: s.P.gy.length };
   const isNew = (set, uid) => set && !set.has(uid);
@@ -1039,7 +1040,7 @@ function render() {
       <section class="zone enemy" aria-label="てきの せんじょう">${face}${perms('E')}</section>
       <div class="piles foe">${deckPile('E')}${gravePile('E')}${cmdPile('E')}</div>
     </div>
-    <button type="button" class="logline" data-act="log">${last.map((l) => `<span>${ruby(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
+    <button type="button" class="logline ${typed ? 'typed' : ''}" data-act="log">${last.map((l) => `<span>${ruby(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
     ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}
     <section class="zone mine" aria-label="わたしの せんじょう">${perms('P')}</section>
     <div class="me-bar">
