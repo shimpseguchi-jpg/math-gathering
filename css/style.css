@@ -18,6 +18,7 @@
   --display: 'Dela Gothic One', 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
   --body: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
   color-scheme: dark;
+  --cw: 78px; /* バトルの カードの はば：場も 手札も おなじ 大きさ（画面の はばで かえる） */
 }
 
 [hidden] { display: none !important; }
@@ -197,7 +198,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--table-2); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .chip.hot { background: var(--enemy-2); border-color: #8e3b67; color: var(--enemy-ink); font-weight: 700; }
-.zone { overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; align-content: start; padding: 8px; border-radius: 12px; }
+.zone { overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, var(--cw)); justify-content: start; gap: 8px; align-content: start; padding: 8px; border-radius: 12px; }
 .zone.enemy { background: rgba(90, 40, 70, 0.22); }
 .zone.mine { background: rgba(95, 159, 226, 0.08); }
 .zone .perm { width: 100%; }
@@ -219,7 +220,7 @@ span.pile { cursor: default; }
 .pip { font-style: normal; font-size: 11px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: inline-grid; place-items: center; padding: 0 3px; color: var(--paper-ink); }
 .m-W { background: var(--W); } .m-U { background: var(--U); } .m-K { background: var(--K); color: #fff; } .m-G { background: var(--G); } .m-R { background: var(--R); } .m-C { background: var(--C); }
 .hand { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 8px; scroll-snap-type: x proximity; }
-.hand-slot { flex: 0 0 82px; min-width: 0; border: 0; padding: 0; background: none; cursor: pointer; scroll-snap-align: start; } /* min-width: 0：ながい 名前（自動機兵・戦犬 など）で 手札の カードが 大きく ならない */
+.hand-slot { flex: 0 0 var(--cw); min-width: 0; border: 0; padding: 0; background: none; cursor: pointer; scroll-snap-align: start; } /* min-width: 0：ながい 名前（自動機兵・戦犬 など）で 手札の カードが 大きく ならない */
 .card-name ruby { word-break: break-all; }
 .actions { position: sticky; bottom: 0; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding-block: 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--table); border-top: 1px solid var(--line); }
 .actions .btn { flex: 1 1 auto; }
@@ -361,8 +362,7 @@ span.pile { cursor: default; }
 .stats dd small { font-family: var(--body); font-size: 12px; color: var(--ink-dim); }
 
 @media (min-width: 640px) {
-  .zone { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
-  .hand-slot { flex-basis: 96px; }
+  :root { --cw: 94px; }
   .card { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
@@ -403,7 +403,7 @@ span.pile { cursor: default; }
 @keyframes shake { 0%, 100% { translate: 0; } 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
 @keyframes rainbow { to { filter: hue-rotate(360deg); } }
 @keyframes tear { 40% { transform: scale(1.08) rotate(-3deg); } to { transform: scale(1.3) translateY(-40px); opacity: 0; } }
-.stage { position: relative; width: min(78vw, 262px); aspect-ratio: 5 / 7; margin-top: 3vh; display: grid; place-items: center; }
+.stage { position: relative; width: min(78vw, 262px); aspect-ratio: 5 / 7; margin-top: 3vh; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; } /* minmax(0)：カードの 下の ながい 文字で ひろがらない */
 .big-back { width: 100%; height: 100%; border-radius: 14px; border: 3px solid var(--line); cursor: pointer; display: grid; place-items: center;
   background: repeating-linear-gradient(45deg, var(--table-3) 0 12px, var(--table-2) 12px 24px); font-family: var(--display); font-size: 48px; color: var(--ink-dim); }
 .big-back.g-U { border-color: #b9d7ff; box-shadow: 0 0 22px 4px rgba(150, 200, 255, 0.55); }
@@ -820,10 +820,11 @@ div.zk-card { cursor: default; }
 /* iPad の よこ画面：バトルを 画面いっぱいに。手札は おうぎ形に ならべる */
 @media (min-width: 960px) and (orientation: landscape) {
   #app:has(> .battle) { max-width: 1180px; }
-  .battle .zone { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; padding: 10px; }
+  .battle { --cw: 106px; }
+  .battle .zone { gap: 10px; padding: 10px; }
   .battle .card { font-size: 12.5px; }
   .battle .hand { justify-content: center; overflow: visible; gap: 0; padding: 14px 8px 6px; }
-  .battle .hand-slot { flex: 0 0 106px; margin-inline: calc(max(0, var(--n) - 7) * -4px - 4px); transform-origin: 50% 120%; transform: translateY(calc(var(--oy) * var(--oy) * 1.2px)) rotate(calc(var(--o) * 2.2deg)); transition: transform 0.15s; z-index: 0; }
+  .battle .hand-slot { flex: 0 0 var(--cw); margin-inline: calc(max(0, var(--n) - 7) * -4px - 4px); transform-origin: 50% 120%; transform: translateY(calc(var(--oy) * var(--oy) * 1.2px)) rotate(calc(var(--o) * 2.2deg)); transition: transform 0.15s; z-index: 0; }
   .battle .hand-slot:hover, .battle .hand-slot:focus-visible { transform: translateY(-16px) scale(1.07); z-index: 2; }
   .battle .hand-slot:hover .card { transform: none; }
   .battle .actions .btn { min-width: 180px; }
