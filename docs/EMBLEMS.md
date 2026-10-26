@@ -138,7 +138,7 @@
 | 白／赤／緑／黒／青の いろ（2） | 74%／69%／52%／50%／33%（色に よって ちがう。AI は 青が にがて） |
 | 白と 赤の いろ（4） | 80% |
 
-`EMBLEM=cR,cG node mathtcg/tools/sim.mjs runs`（旗は `BANNER=NA01`）。人は 自分で 色を えらんで デッキを くむので、AI より こうかが 大きい はず。
+`EMBLEM=cR,cG node mathtcg/tools/sim.mjs runs`（旗は `BANNER=TE01`）。人は 自分で 色を えらんで デッキを くむので、AI より こうかが 大きい はず。
 
 ## 6. 画面
 

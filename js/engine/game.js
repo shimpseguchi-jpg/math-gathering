@@ -93,7 +93,7 @@ export function beginPlayerTurn(s) {
   const P = s.P;
   s.turn++; s.active = 'P'; s.stats.playerTurns++;
   P.flags.enteredLastTurn = P.flags.enteredThisTurn; P.flags.enteredThisTurn = false;
-  P.flags.cast = 0; P.flags.charged = false;
+  P.flags.cast = 0; P.flags.charged = false; P.flags.attacked = false;
   for (const c of P.hand) c.locked = false;
   for (const p of P.bf) { untap(s, p); p.sick = false; p.flags.turn = {}; }
   for (const m of P.mana) m.tapped = false;
@@ -700,6 +700,7 @@ export function declareAttack(s, atk) {
 
 // 攻撃したときの 能力（ブリマーズ・大隊・集団戦術・訓練・教導 など）
 export function attackTriggers(s, atk) {
+  if (atk.length) s.P.flags.attacked = true; // 強襲
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
   for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onAttacks) q.def.onAttacks(s, q, atk, api); // 讃美（1体だけで 攻撃）
   battleCry(s, atk);

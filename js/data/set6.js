@@ -1,5 +1,5 @@
 // 第6弾「三つの 旗」のうごき（名前・コスト・P/T は skel.js、文は docs/SET6.md）
-import { T, hit, mine, theirs, bestIn, lowestKeep, isCr, chosen1, regrow, foeBest, shrink, killIt, exileIt, isSpellDef } from './kit.js';
+import { T, cr, hit, mine, theirs, bestIn, lowestKeep, isCr, chosen1, regrow, foeBest, shrink, killIt, exileIt, isSpellDef, edict, delve, ferocious, isSub } from './kit.js';
 
 const drain = (s, E, n, src = null) => { E.hitEnemy(s, n, src); E.gain(s, n); };
 // 旗：これが デッキに あれば その 3色の デッキに できる（4点）。タップで 3色の どれかの マナ
@@ -27,7 +27,6 @@ const tuck = (s, E, t, top) => { if (!t || !E.onBf(s, t)) return; E.leave(s, t, 
 export const S6 = {
   // ---- 旗 ----
   AB01: banner('WKG', true), JE01: banner('URW', true), SU01: banner('KGU', true), MA01: banner('RWK', true), TE01: banner('GUR', true),
-  BA01: banner('GWU'), ES01: banner('WUK'), GX01: banner('UKR'), JU01: banner('KRG'), NA01: banner('RGW'),
   // ---- 3色の 伝説 ----
   AB02: {
     exileEnemyDead: true,
@@ -52,18 +51,6 @@ export const S6 = {
   },
   MA02: { mustAttack: true, kwFn: (s) => (s.active === 'P' ? ['indestructible'] : []), onKill: (s, p, E) => E.addCounters(s, p, 1) },
   TE02: { grant: (s, q, p, E) => (p !== q && E.isCreature(p) ? ['trample'] : null) },
-  BA02: {
-    onAttacks: (s, q, atk, E) => { if (q.side !== 'P' || atk.length !== 1) return; const a = atk[0].p; E.pump(a, 1, 1, ['double']); E.L(s, `さんび：${a.def.name}`); },
-  },
-  ES02: { etb: (s, p, E) => { if (p.side !== 'P') return; const c = bestIn(s.P.gy, (x) => (x.def.types || []).includes('artifact')); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); } } },
-  GX02: { unearthAll: true, endStep: (s, p, E) => { for (const q of [...s.P.bf]) if (q.unearthed) E.exile(s, q); } },
-  JU02: { onOtherLeave: (s, p, q, E, o) => { if (p.side === 'P' && o.died && E.isCreature(q) && q !== p && (q.diedP || 0) > 0) E.addCounters(s, p, q.diedP); } },
-  NA02: {
-    acts: [{
-      cost: 6, req: ['R', 'G', 'W'], tap: true, when: [1], label: '5まい 見て パワー5いじょうを 戦場（せんじょう）に',
-      play: (s, p, E) => ({ score: 7, run: () => { const top = s.P.lib.splice(0, 5); const c = top.filter((x) => isCr(x.def) && (x.def.pow ?? 0) >= 5).sort((a, b) => b.def.cost - a.def.cost)[0]; s.P.lib.push(...top.filter((x) => x !== c)); if (c) E.enter(s, 'P', c.def, { card: c.def }); } }),
-    }],
-  },
   // ---- 3色の 魔除け ----
   AB03: charm([
     { label: 'パワー3いじょうの クリーチャー1体を 追放', tgt: [{ side: 'any', label: '追放する クリーチャー', filter: (s, E, p) => E.power(s, p) >= 3 }], ai: (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) >= 3); return b && { score: 6 + b.score, run: () => exileIt(s, E, b.t) }; }, apply: (s, E, [[t]]) => exileIt(s, E, t) },
@@ -88,30 +75,6 @@ export const S6 = {
   TE03: charm([
     { label: '自分の クリーチャーに ＋1/＋1カウンター、その あと 格闘（かくとう）', tgt: [{ side: 'P', label: '＋1/＋1カウンターを おく クリーチャー' }, { side: 'E', label: '格闘（かくとう）する 相手' }], ai: (s, E) => { const me = E.bestBuffTarget(s, null); const b = me && foeBest(s, E, E.power(s, me) + 1); return b && { score: 5 + b.score, run: () => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, b.t); } }; }, apply: (s, E, [[me], [t]]) => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, t); } },
     { label: 'この ターン、パワー3いかの クリーチャーは ブロックできない', ai: (s, E, ctx) => (ctx.phase === 1 && E.readyAttackers(s).length >= 2 ? { score: 3 + E.readyAttackers(s).length, run: () => { s.cantBlock3 = s.turn; } } : null), apply: (s) => { s.cantBlock3 = s.turn; } },
-  ]),
-  BA03: charm([
-    { label: 'アーティファクト1つを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする アーティファクト', filter: (s, E, p) => (p.def.types || []).includes('artifact') && !s.floor.cantLeave?.(s, p, E) }], ai: () => null, apply: (s, E, [[t]]) => killIt(s, E, t) },
-    { label: 'クリーチャー1体を やまふだの 一番下に', tgt: [{ side: 'E', label: 'やまふだの 下に おく クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E); return b && { score: 6 + b.score, run: () => bottom(s, E, b.t) }; }, apply: (s, E, [[t]]) => bottom(s, E, t) },
-  ]),
-  ES03: charm([
-    { label: 'エンチャント1つを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする エンチャント', filter: (s, E, p) => (p.def.types || []).includes('enchantment') && !s.floor.cantLeave?.(s, p, E) }], ai: () => null, apply: (s, E, [[t]]) => killIt(s, E, t) },
-    { label: 'カードを 2まい 引く', ai: (s, E, ctx) => (ctx.phase === 2 ? { score: 6, run: () => E.drawCard(s, 2) } : null), apply: (s, E) => E.drawCard(s, 2) },
-    { label: 'てきの やまふだの 上 2まいを ぼちへ', ai: () => null, apply: (s) => { s.E.gy.push(...s.E.lib.splice(0, 2)); } },
-  ]),
-  GX03: charm([
-    { label: 'パーマネント1つを もどす（てきは やまふだの 上へ）', tgt: [{ side: 'E', perm: true, label: 'もどす パーマネント', filter: (s, E, p) => !s.floor.cantLeave?.(s, p, E) }], ai: (s, E) => { const b = foeBest(s, E); return b && { score: 4 + b.score, run: () => { if (E.onBf(s, b.t)) E.bounce(s, b.t); E.sba(s); } }; }, apply: (s, E, [[t]]) => { if (E.onBf(s, t)) E.bounce(s, t); E.sba(s); } },
-    { label: 'クリーチャー1体を −4/−4', tgt: [{ side: 'any', label: '−4/−4 する クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 4); return b && { score: 6 + b.score, run: () => shrink(s, E, b.t, 4) }; }, apply: (s, E, [[t]]) => shrink(s, E, t, 4) },
-    { label: '自分の クリーチャーに ＋2/＋0', ai: (s, E, ctx) => (ctx.phase === 1 && E.readyAttackers(s).length >= 3 ? { score: 2 * E.readyAttackers(s).length, run: () => { for (const q of mine(s, E)) E.pump(q, 2, 0); } } : null), apply: (s, E) => { for (const q of mine(s, E)) E.pump(q, 2, 0); } },
-  ]),
-  JU03: charm([
-    { label: 'てきの ぼちを ぜんぶ 追放', ai: () => null, apply: (s) => { s.E.exile.push(...s.E.gy.splice(0)); } },
-    { label: 'クリーチャー すべてに 2点', ai: (s, E) => { const k = theirs(s, E).filter((p) => E.need(s, p) <= 2).length, l = mine(s, E).filter((p) => E.need(s, p) <= 2).length; return k - l >= 2 ? { score: 3 + 4 * (k - l), run: () => { for (const p of [...s.E.bf, ...s.P.bf]) if (E.isCreature(p)) E.damage(s, p, 2, null); E.sba(s); } } : null; }, apply: (s, E) => { for (const p of [...s.E.bf, ...s.P.bf]) if (E.isCreature(p)) E.damage(s, p, 2, null); E.sba(s); } },
-    { label: 'クリーチャー1体に ＋1/＋1カウンター 2こ', tgt: [{ side: 'P', label: '＋1/＋1カウンターを おく クリーチャー' }], ai: (s, E) => { const t = E.bestBuffTarget(s, null); return t && { score: 4, run: () => { E.target(s, t); E.addCounters(s, t, 2); } }; }, apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); } },
-  ]),
-  NA03: charm([
-    { label: 'クリーチャー1体に 3点', tgt: [{ side: 'any', label: '3点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 3); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 3) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 3) },
-    { label: 'ぼちの カード1まいを てふだに', ai: (s, E) => (s.P.gy.some((c) => !c.def.basic) ? { score: 4, run: () => regrow(s, E) } : null), apply: (s, E) => regrow(s, E) },
-    { label: 'てきの クリーチャーを ぜんぶ タップ', ai: (s, E, ctx) => (ctx.phase === 1 && theirs(s, E).filter((p) => !p.tapped).length >= 2 ? { score: 3 + theirs(s, E).length, run: () => { for (const p of theirs(s, E)) p.tapped = true; } } : null), apply: (s, E) => { for (const p of theirs(s, E)) p.tapped = true; } },
   ]),
   // ---- 龍王 ----
   RG07: { etb: (s, p, E) => { if (p.side !== 'P') return; for (const d of E.divide(s, 5, theirs(s, E).filter((q) => !s.floor.untargetable?.(s, q, E)))) E.damage(s, d.t, d.n, p); E.sba(s); } },
@@ -149,7 +112,60 @@ export const S6 = {
     tgt: [{ side: 'P', label: '＋X/＋X する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, dom(s, E), dom(s, E)); },
   },
   G71: { etb: (s, p, E) => { if (p.side === 'P') E.addCounters(s, p, conv(s)); } },
+  // ---- 龍王の 一族 ----
+  RG08: { onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const q of theirs(s, E)) if (!E.hasKw(s, q, 'flying')) E.damage(s, q, 1, p); E.sba(s); } },
+  WG08: { etb: (s, p, E) => { if (p.side === 'P') E.bolster(s, 2); } },
+  KR08: { onOtherEnter: (s, q, p, E) => { if (q.side !== 'P' || p.side !== 'P' || !E.isCreature(p)) return; const t = E.bestBuffTarget(s, null, { ready: true }) || q; E.pump(t, 2, 0); } },
+  WU08: { onCast: (s, p, d, E) => { if (p.side === 'P' && !isCr(d) && p.tapped) { p.tapped = false; E.L(s, `${p.def.name} が アンタップ`); } } },
+  UK08: { onCombatHit: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.zombie); } },
+  R71: {
+    play: (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); return b ? { score: 5 + b.score + (dragonNear(s) ? 3 : 0), run: () => roar(s, E, b.t) } : null; },
+    tgt: [{ side: 'E', label: '3点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => roar(s, E, t),
+  },
+  G72: { etb: (s, p, E) => { if (p.side === 'P' && dragonNear(s)) { E.L(s, 'りゅうえいしょう'); E.addCounters(s, p, 1); } } },
+  W71: { etb: (s, p, E) => { if (p.side === 'P' && dragonNear(s)) { E.L(s, 'りゅうえいしょう：1まい 引く'); E.drawCard(s); } } },
+  K69: { play: (s, E) => (theirs(s, E).length ? { score: 6 + (dragonNear(s) ? 2 : 0), run: () => { edict(s, E); if (dragonNear(s)) { E.L(s, 'りゅうえいしょう：ライフ ＋4'); E.gain(s, 4); } } } : null) },
+  R72: { costCut: (s, q, d) => ((d.sub || []).includes('dragon') ? 1 : 0) },
+
+  // ---- 氏族の 戦士 ----
+  W72: { acts: [outlast(2)], grant: (s, q, p, E) => (p.side === q.side && E.isCreature(p) && p.ctr > 0 ? ['first'] : null) },
+  W73: { acts: [outlast(1)], grant: (s, q, p, E) => (p.side === q.side && E.isCreature(p) && p.ctr > 0 ? ['flying'] : null) },
+  U72: { onDie: (s, p, E) => { if (p.side === 'P') E.drawCard(s); } },
+  U73: { ...delve(), play: (s, E, ctx) => (ctx.phase === 2 || s.P.hand.length <= 2 ? { score: 9, run: () => E.drawCard(s, 3) } : null) },
+  K70: {
+    ...delve(),
+    play: (s, E) => { const b = foeBest(s, E); return b ? { score: 6 + b.score, run: () => killIt(s, E, b.t) } : null; },
+    tgt: [{ side: 'E', label: 'はかいする クリーチャー' }], apply: (s, E, [[t]]) => killIt(s, E, t),
+  },
+  R73: {
+    tgt: [{ side: 'E', face: true, min: 0, label: '強襲：2点を あたえる 相手' }],
+    etb: (s, p, E, o) => { if (p.side !== 'P' || !s.P.flags.attacked) return; let t = chosen1(o); if (t === undefined) t = E.burnTarget(s, 2, { mustHit: true })?.t; if (t) { E.L(s, 'きょうしゅう：2点'); hit(s, E, t, 2); } },
+  },
+  W75: { etb: (s, p, E) => { if (p.side === 'P' && s.P.flags.attacked) { E.L(s, 'きょうしゅう：戦士'); E.token(s, 'P', TK.warrior); } } },
+  G73: { onAttack: (s, p, E) => { if (p.side === 'P' && ferocious(s, E)) E.pump(p, 1, 1); } },
+  U74: {
+    play: (s, E, ctx) => {
+      if (ctx.phase !== 1) return null;
+      const ts = theirs(s, E).filter((q) => !q.tapped).sort((a, b) => E.power(s, b) - E.power(s, a)).slice(0, ctx.xMax);
+      return ts.length >= 2 ? { score: 2 + 3 * ts.length, x: ts.length, run: (x) => blast(s, E, ts.slice(0, x)) } : null;
+    },
+    tgt: [{ side: 'E', max: 9, label: 'タップする クリーチャー（X体まで）' }], apply: (s, E, [ts], x) => blast(s, E, (ts || []).slice(0, x)),
+  },
 };
+
+// 龍詠唱：あなたの 手札か 戦場に ドラゴン
+const dragonNear = (s) => s.P.bf.some((q) => isSub(q, 'dragon')) || s.P.hand.some((c) => (c.def.sub || []).includes('dragon'));
+const roar = (s, E, t) => { if (t) hit(s, E, t, 3); if (dragonNear(s)) { E.L(s, 'りゅうえいしょう：てきに 3点'); E.hitEnemy(s, 3, null); } };
+// 増強 n：n マナ（白）・タップで ＋1/＋1カウンター。戦闘の あと だけ
+function outlast(n) {
+  return { cost: n, req: ['W'], tap: true, when: [2], label: `増強（ぞうきょう）：＋1/＋1カウンター（${n}マナ）`, play: (s, p, E) => ({ score: 2, run: () => E.addCounters(s, p, 1) }) };
+}
+const TK = { warrior: cr('t_warriorW', '戦士（せんし）', null, 'W', 0, 1, 1, ['warrior']) };
+function blast(s, E, ts) {
+  const fz = ferocious(s, E);
+  for (const t of ts) { if (!E.onBf(s, t)) continue; t.tapped = true; if (fz) t.frozen = true; }
+  E.L(s, `こごえる とっぷう：${ts.length}体を タップ${fz ? '（どうもう：つぎも アンタップしない）' : ''}`);
+}
 
 function naga(s, E) {
   const m = E.mill(s, 3);
