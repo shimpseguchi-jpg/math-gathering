@@ -10,6 +10,7 @@ import { colorsOf } from '../engine/game.js';
 import { startBattle } from './battle.js';
 import { sheet, esc, ruby, COLOR_NAME } from './view.js';
 import { onBattle, onOnline } from './trophies.js';
+import { commanderMenu } from './commander.js';
 
 const KEY = 'mtg-online-v1';
 // ニックネームは 自由入力に しない。定型語を 2つ えらんで くみあわせる（サーバーも この ならびの 番号で うけとる）
@@ -130,6 +131,7 @@ export async function onlineMenu(app, back) {
       ${deckBtns.length ? `<div class="ol-decks">${deckBtns.map(([k, a, b]) => `<button type="button" class="ol-deck ${k === pick ? 'on' : ''}" data-deck="${k}" aria-pressed="${k === pick}"><b>${esc(a)}</b><small>${esc(b)}</small></button>`).join('')}</div>`
         : `<p class="ol-empty">${ruby('まだ デッキが ない。ぼうけんを おえると、その デッキを 3つまで ほかんできる。')}</p>`}
       <div class="row-btns"><button type="button" class="btn" data-o="back">もどる</button><button type="button" class="btn primary" data-o="find" ${deckBtns.length ? '' : 'disabled'}>あいてを さがす</button></div>
+      <div class="row-btns"><button type="button" class="btn" data-o="cmdr">${ruby('統率者戦（とうそつしゃせん） れんしゅう')}</button></div>
       <h3 class="ol-h">ランキング（デッキの 点・ベスト${RANK_SIZE}）</h3>
       ${ranking()}
     </main>`;
@@ -147,6 +149,7 @@ export async function onlineMenu(app, back) {
     if (d) { pick = +d.dataset.deck; return draw(); }
     const b = e.target.closest('[data-o]'); if (!b) return;
     if (b.dataset.o === 'back') return back();
+    if (b.dataset.o === 'cmdr') return commanderMenu(() => onlineMenu(app, back));
     if (b.dataset.o === 'find' && o.decks[pick]) return findOpponent(app, back, o, o.decks[pick]);
   };
 }

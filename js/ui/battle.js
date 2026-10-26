@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -24,7 +24,7 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
-  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff });
+  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, life: o.life });
   if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
   app().onclick = onClick;
   initSwipe();
@@ -373,7 +373,7 @@ function lifeNeed(s, c) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
-  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? escapeMin(s, d) : costOf(s, d);
+  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? escapeMin(s, d) : costOf(s, d) + (from === 'cmd' ? cmdTax(s) : 0);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
   const perm = !isSpell(d);
@@ -412,7 +412,7 @@ async function doCast(c, from = 'hand') {
   const stop = () => { B.busy = false; render(); };
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
-  let base = from === 'gy' ? d.flashback.cost : costOf(s, d);
+  let base = from === 'gy' ? d.flashback.cost : costOf(s, d) + (from === 'cmd' ? cmdTax(s) : 0);
   const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
   let x = ci.x;
@@ -541,6 +541,8 @@ async function action(a) {
   }
   if (a === 'blockauto') { B.blockMap = AI.blocks(s, B.blockAttackers); return render(); }
   if (a === 'gy') return showGy();
+  if (a === 'cmd') return showCmd();
+  if (a === 'ecmd') return sheet(cmdNote(s.E, true), [{ label: 'とじる', value: 0 }], { title: 'あいての 統率者（とうそつしゃ）' });
   if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどし、ライフ −${reshuffleCost(s.P, true)}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
   if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
   if (a === 'egy') return sheet(pileList(s.E.gy, s.floor.id !== 'pvp'), [{ label: 'とじる', value: 0 }], { title: `${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ぼち（${s.E.gy.length}まい）` });
@@ -959,6 +961,28 @@ function gravePile(side) {
     <span class="gyc ${top ? (side === 'E' && s.floor.id !== 'pvp' ? 'b1-E b2-E' : band(top.def)) : 'none'} ${gy.length > 1 ? 'stack' : ''}">${top ? `<i>${ruby(info(top.def).name)}</i>` : ''}<b>${gy.length}</b></span>
     <small>${esc2 ? 'だっしゅつ' : 'ぼち'}</small></button>`;
 }
+// 統率者（統率者戦）：統率領域に いれば 名前と コスト（統率者税 こみ）
+function cmdPile(side) {
+  const S = B.s[side];
+  if (!S.cmdId) return '';
+  const c = S.cmd[0], def = c?.def || cmdOnBf(S)?.def;
+  if (!def) return '';
+  return `<button type="button" class="pile2 grave cmdz ${side === 'E' ? 'foe' : ''}" data-act="${side === 'P' ? 'cmd' : 'ecmd'}" aria-label="${side === 'P' ? '' : 'あいての '}とうそつしゃ">
+    <span class="gyc ${c ? band(def) : 'none'}">${c ? `<i>${ruby(info(def).name)}</i><b>${def.cost + 2 * (S.cmdCasts || 0)}</b>` : '<b>出</b>'}</span>
+    <small>${c ? 'とうそつ' : 'せんじょう'}</small></button>`;
+}
+const cmdOnBf = (S) => S.bf.find((p) => p.card?.id === S.cmdId);
+// 統率者の せつめい：コスト ＋ 統率者税（2 × 唱えた 回数）
+function cmdNote(S, enemy = false) {
+  const def = S.cmd[0]?.def || cmdOnBf(S)?.def, n = S.cmdCasts || 0;
+  return `${detail(def, { enemy })}<p class="what">${S.cmd.length ? `とうそつりょういきに いる。コスト ${def.cost} ＋ とうそつしゃぜい 2 × ${n} ＝ <b>${def.cost + 2 * n}マナ</b>` : 'せんじょうに いる。墓地（ぼち）などに いく ときは、かわりに とうそつりょういきに もどる'}</p>`;
+}
+async function showCmd() {
+  const s = B.s, c = s.P.cmd[0];
+  const ci = c && B.mode === 'main' ? castInfo(c, 'cmd') : { why: c ? 'いまは 使えない' : 'せんじょうに いる' };
+  const v = await sheet(cmdNote(s.P), [...(c ? [{ label: `となえる（${c.def.cost} ＋ ${cmdTax(s)} ＝ ${costOf(s, c.def) + cmdTax(s)}マナ）`, value: 1, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why }] : []), { label: 'とじる', value: 0 }], { title: '統率者（とうそつしゃ）' });
+  if (v) doCast(c, 'cmd');
+}
 // やまふだ・ぼちの 中身：おなじ カードは まとめて「×2」。じゅんばんは デッキ構築と おなじ（色 → コスト）
 function pileList(cards, enemy = false) {
   const groups = new Map();
@@ -1003,7 +1027,7 @@ function render() {
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの てき'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>
     <div class="erow">
       <section class="zone enemy" aria-label="てきの せんじょう">${face}${perms('E')}</section>
-      <div class="piles foe">${deckPile('E')}${gravePile('E')}</div>
+      <div class="piles foe">${deckPile('E')}${gravePile('E')}${cmdPile('E')}</div>
     </div>
     <button type="button" class="logline" data-act="log">${last.map((l) => `<span>${ruby(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
     ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}
@@ -1016,7 +1040,7 @@ function render() {
         ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span>${s.floor.face ? `<span class="pile sp brk" title="ブレイク：10 たまると てきの 本体に 10点">ブレイク <b>${s.E.brk || 0}</b>/10</span>` : ''}` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
-      <div class="piles">${deckPile('P')}${gravePile('P')}</div>
+      <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
     <div class="hand" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}${lifeNeed(s, c) ? `<span class="life-cost" aria-label="ライフ ${lifeNeed(s, c)}で 色を はらう">♥${lifeNeed(s, c)}</span>` : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>

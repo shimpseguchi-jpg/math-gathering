@@ -109,6 +109,8 @@ export function buildDeck(pool, o = {}) {
   // 旗（第6弾）：その 3色の デッキに できる（旗は かならず 入れる）
   const banners = [...new Map(pool.filter((d) => d.banner).map((d) => [d.banner, d])).values()];
   if (o.banners !== false) for (const bn of banners) { const pair = [...bn.banner]; tries.push({ pair, items: inside(pair).filter((d) => d !== bn), forced: bn }); }
+  // o.pair：その 色だけ（統率者戦：統率者の 色）
+  if (o.pair) tries.splice(0, tries.length, { pair: [...o.pair], items: inside([...o.pair]) });
   for (const { pair, items, forced } of tries) {
     // dp[n][pts] = { v, pick }
     const dp = Array.from({ length: DECK_SIZE + 1 }, () => Array(cap + 1).fill(null));
@@ -133,7 +135,7 @@ export function buildDeck(pool, o = {}) {
 }
 
 export async function fight(deck, floorId, o = {}) {
-  const s = newGame({ deck, floor: o.floor || FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log, emblem: o.emblem, bless: o.bless, buff: o.buff });
+  const s = newGame({ deck, floor: o.floor || FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, life: o.life });
   await play(s, o.maxTurns || 40);
   return s;
 }

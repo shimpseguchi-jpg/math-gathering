@@ -19,7 +19,7 @@ export const api = {};
 
 // emblem：もんしょう（data/emblems.js の emblemEffects。REQUIREMENTS 12章）。ぼうけんの たたかい だけ
 // bless：むげんの とうの 祝福（data/blessings.js の blessFx）。buff：むげんの とうで てきの クリーチャーが ＋buff/＋buff
-export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null, bless = null, buff = 0 }) {
+export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null, bless = null, buff = 0, cmd = null, life = null }) {
   const em = emblem || {};
   if (em.swap) deck = deck.map((d) => em.swap[d.id] || d);
   const rng = seeded(seed);
@@ -30,6 +30,8 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {}, buff },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
+  if (cmd) setCommander(s.P, cmd);
+  if (life) s.P.life = life;
   floor.setup(s, api);
   for (let i = 0; i < s.P.handSize; i++) drawCard(s);
   // マリガン（もんしょう）：人は 画面で きめる（ai.manualMulligan）。AI は きほんカードと 3マナ いかの カードが なければ ひきなおす
@@ -41,6 +43,9 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   return s;
 }
 
+// 統率者戦（RAID.md 3.2）：統率者は 統率領域（cmd）に いて、いつでも 唱えられる。唱える たびに ＋2マナ（統率者税）
+export function setCommander(side, def) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; }
+export const cmdTax = (s) => 2 * (s.P.cmdCasts || 0);
 const wantMulligan = (s) => !s.P.hand.some((c) => c.def.basic) || !s.P.hand.some((c) => !c.def.basic && c.def.cost <= 3);
 // はじめの てふだを やまふだに もどして、おなじ まいすう ひきなおす（もんしょうの カードは のこす）
 export function mulligan(s) {
@@ -534,7 +539,9 @@ export function leave(s, p, to = 'gy', o = {}) {
   if ((to === 'hand' && !side.hand) || to === 'lib') to = 'lib';
   if (!p.token) {
     const c = { uid: p.uid, def: p.card };
-    if (to === 'hand') side.hand.push(c); else if (to === 'lib') side.lib.unshift(c); else if (to === 'bottom') side.lib.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
+    // 統率者は 墓地・追放・手札・やまふだの かわりに 統率領域へ もどる
+    if (side.cmdId && p.card?.id === side.cmdId) { side.cmd.push(c); L(s, `${foe(s, p.side)}${p.def.name} は とうそつりょういきに もどった`); to = 'cmd'; }
+    else if (to === 'hand') side.hand.push(c); else if (to === 'lib') side.lib.unshift(c); else if (to === 'bottom') side.lib.push(c); else if (to === 'exile') side.exile.push(c); else side.gy.push(c);
   }
   // ついていた オーラ・装備品：授与は クリーチャーに もどる、オーラは 墓地へ、装備品は はずれる
   for (const q of [...s.P.bf, ...s.E.bf]) {
@@ -543,7 +550,7 @@ export function leave(s, p, to = 'gy', o = {}) {
     if (q.def.bestowBase) { q.def = q.def.bestowBase; q.card = q.def; L(s, `${q.def.name} が クリーチャーに もどった`); }
     else if (q.def.aura) leave(s, q, 'gy');
   }
-  L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${p.token && to !== 'gy' ? 'きえた' : { gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだの 上へ' }[to] || to}）`);
+  L(s, `${foe(s, p.side)}${p.def.name} が せんじょうを はなれた（${p.token && to !== 'gy' ? 'きえた' : { gy: 'ぼちへ', exile: 'ついほう', hand: 'てふだへ', lib: 'やまふだの 上へ', cmd: 'とうそつりょういきへ' }[to] || to}）`);
   if (exact) {
     s.stats.exact++; p.exact = true;
     if (s.stats.exactTurn !== s.turn) { s.stats.exactTurn = s.turn; s.stats.exactNow = 0; }
@@ -807,6 +814,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  setCommander, cmdTax,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
