@@ -41,8 +41,8 @@ export const EMBLEMS = [
   // 番外編パック：番外編の カードが いまの パックに まざる（docs/EXTRA.md）
   // サブセット：小さい 弾が いまの パックに まざる（ふつうの 出やすさ）
   { id: 'pRav', branch: 'pack', lv: 1, cost: 1, name: 'サブセット ラヴニカ', text: 'パックに ラヴニカの カード（50しゅるい）が まざる', detail: '10の ギルドの 2色の カード。2色の デッキが くみやすく なる', fx: { packExtra: 9 } },
-  { id: 'pFlag', branch: 'pack', lv: 1, cost: 1, name: 'サブセット 三つの 旗（はた）', text: 'パックに 三つの 旗の カード（45しゅるい）が まざる', detail: '旗が あれば 3色の デッキが くめる', fx: { packExtra: 6 } },
-  { id: 'pAlc', branch: 'pack', lv: 1, cost: 1, name: 'サブセット アルケミー', text: 'パックに アルケミーの カード（31しゅるい）が まざる', detail: 'デジタルだけの カード（永久・創出・ドラフト）', fx: { packExtra: 7 } },
+  { id: 'pFlag', branch: 'pack', lv: 1, cost: 1, name: 'サブセット 三つの 旗（はた）', text: 'パックに 三つの 旗（はた）の カード（50しゅるい）が まざる', detail: '旗（はた）が あれば 3色の デッキが くめる', fx: { packExtra: 6 } },
+  { id: 'pAlc', branch: 'pack', lv: 1, cost: 1, name: 'サブセット アルケミー', text: 'パックに アルケミーの カード（31しゅるい）が まざる', detail: 'デジタルだけの カード（永久（えいきゅう）・創出（そうしゅつ）・ドラフト）', fx: { packExtra: 7 } },
   { id: 'pPW', branch: 'pack', lv: 1, cost: 1, name: 'サブセット プレインズウォーカー', text: 'パックに プレインズウォーカー（5しゅるい）が まざる', detail: 'ちゅうせいを つかう つよい カード。どれも レジェンド', fx: { packExtra: 8 } },
   { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（70しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
   { id: 'pHSR', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） 崩壊（ほうかい）：スターレイル', text: 'パックに スターレイルの カード（70しゅるい）が まざる', detail: 'キャラ（ピノコニーまで）・モブ・光円錐（こうえんすい）が 出る。せんぎポイントは みんなで 1つ（5まで）', fx: { packExtra: 11 } },

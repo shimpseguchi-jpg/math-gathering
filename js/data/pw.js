@@ -81,24 +81,24 @@ export const SPW = {
   },
   PW07: {
     acts: [
-      pwAbility(1, 'みんな ＋1/＋0 と 絆魂', { play: (s, p, E, ctx) => (mine(s, E).length || ctx?.human ? { score: 3 + mine(s, E).length, run: () => undefined } : null) }),
-      pwAbility(-2, '2/2 の 飛行の 吸血鬼を 1体', { play: (s, p, E, ctx) => (p.loy > 2 || ctx?.human ? { score: 6, run: () => undefined } : null) }),
+      pwAbility(1, 'みんな ＋1/＋0 と 絆魂（はんこん）', { play: (s, p, E, ctx) => (mine(s, E).length || ctx?.human ? { score: 3 + mine(s, E).length, run: () => undefined } : null) }),
+      pwAbility(-2, '2/2 の 飛行（ひこう）の 吸血鬼（きゅうけつき）を 1体', { play: (s, p, E, ctx) => (p.loy > 2 || ctx?.human ? { score: 6, run: () => undefined } : null) }),
     ],
   },
   PW08: {
     acts: [
-      pwAbility(1, '1体に ＋2/＋0 と 飛行', {
+      pwAbility(1, '1体に ＋2/＋0 と 飛行（ひこう）', {
         play: (s, p, E) => { const t = E.bestBuffTarget(s, null, { ready: true }); return t ? { score: 4, run: () => undefined, t } : null; },
-        tgt: [{ side: 'P', label: '＋2/＋0 と 飛行を つける クリーチャー' }], apply: () => undefined,
+        tgt: [{ side: 'P', label: '＋2/＋0 と 飛行（ひこう）を つける クリーチャー' }], apply: () => undefined,
       }),
-      pwAbility(-3, '4/4 の 飛行の ドラゴンを 1体', { play: (s, p, E, ctx) => (p.loy >= 3 || ctx?.human ? { score: 9, run: () => undefined } : null) }),
+      pwAbility(-3, '4/4 の 飛行（ひこう）の ドラゴンを 1体', { play: (s, p, E, ctx) => (p.loy >= 3 || ctx?.human ? { score: 9, run: () => undefined } : null) }),
     ],
   },
   PW09: {
     acts: [
-      pwAbility(1, 'てきを 1体 留置', {
+      pwAbility(1, 'てきを 1体 留置（りゅうち）', {
         play: (s, p, E) => { const t = theirs(s, E).filter((q) => !q.frozen).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; return t ? { score: 3 + E.power(s, t), run: () => undefined, t } : null; },
-        tgt: [{ side: 'E', label: '留置する クリーチャー' }], apply: () => undefined,
+        tgt: [{ side: 'E', label: '留置（りゅうち）する クリーチャー' }], apply: () => undefined,
       }),
       pwAbility(-2, '3てん', {
         play: (s, p, E) => { const b = E.burnTarget(s, 3, { mustHit: true }); return b && p.loy > 2 ? { score: 5 + (b.score || 0), run: () => undefined, t: b.t } : null; },

@@ -138,10 +138,10 @@ export const S6 = {
     tgt: [{ side: 'E', label: 'はかいする クリーチャー' }], apply: (s, E, [[t]]) => killIt(s, E, t),
   },
   R73: {
-    tgt: [{ side: 'E', face: true, min: 0, label: '強襲：2点を あたえる 相手' }],
+    tgt: [{ side: 'E', face: true, min: 0, label: 'きょうしゅう：2点を あたえる 相手' }],
     etb: (s, p, E, o) => { if (p.side !== 'P' || !s.P.flags.attacked) return; let t = chosen1(o); if (t === undefined) t = E.burnTarget(s, 2, { mustHit: true })?.t; if (t) { E.L(s, 'きょうしゅう：2点'); hit(s, E, t, 2); } },
   },
-  W75: { etb: (s, p, E) => { if (p.side === 'P' && s.P.flags.attacked) { E.L(s, 'きょうしゅう：戦士'); E.token(s, 'P', TK.warrior); } } },
+  W75: { etb: (s, p, E) => { if (p.side === 'P' && s.P.flags.attacked) { E.L(s, 'きょうしゅう：せんし'); E.token(s, 'P', TK.warrior); } } },
   G73: { onAttack: (s, p, E) => { if (p.side === 'P' && ferocious(s, E)) E.pump(p, 1, 1); } },
   U74: {
     play: (s, E, ctx) => {
