@@ -14,6 +14,7 @@ import { S9 } from './set9.js';
 import { S10 } from './set10.js';
 import { S11 } from './set11.js';
 import { S12 } from './set12.js';
+import { S13 } from './set13.js';
 import { SPW } from './pw.js';
 import { LESSONS, REG, foe1, shrink } from './kit.js';
 
@@ -927,7 +928,7 @@ function build(id, b = {}) {
   if ([...d.color].length >= 3) d.req2 = true; // 3色の カードは、3色の うち 2つの マナが いる
   return d;
 }
-const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11, ...S12 };
+const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11, ...S12, ...S13 };
 const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
 BASICS.K = build('B06', B06);
 
@@ -952,6 +953,8 @@ export const SET9 = setOf(9);
 export const SET10 = setOf(10);
 export const SET11 = setOf(11);
 export const SET12 = setOf(12);
+// レイドの 統率者カード：パックには 出ない（noPack）。統率者の カードプール だけ（docs/RAID_CARDS.md）
+export const SET13 = setOf(13).map((d) => ({ ...d, noPack: true }));
 LESSONS.push(...SET5.filter((d) => isSub({ def: d }, 'lesson')));
 // 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ。released が ない 弾は 開発中（開発モードで えらんだ ときだけ パックに 入る）
 export const SETS = [
@@ -969,6 +972,8 @@ export const SETS = [
   { id: 10, name: '番外編（ばんがいへん）「Fate/Grand Order」', cards: SET10, extra: true },
   { id: 11, name: '番外編（ばんがいへん）「崩壊（ほうかい）：スターレイル」', cards: SET11, extra: true },
   { id: 12, name: '番外編（ばんがいへん）「ゼンレスゾーンゼロ」', cards: SET12, extra: true },
+  // レイド（raid）：パックにも せっていにも 出ない。レイドの 統率者デッキ だけ
+  { id: 13, name: 'レイド「タルキール大戦（たいせん）」', cards: SET13, raid: true },
 ];
 // ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない レッスンなどは のぞく）
 export const ALL = SETS.filter((x) => x.released).flatMap((x) => x.cards);

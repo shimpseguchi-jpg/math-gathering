@@ -21,7 +21,7 @@ for f in sorted(glob.glob(os.path.join(docs, 'cards', '*.md'))):
 
 # 第3弾から あと（案の 表）：画面の 文と、エンジン用の 土台（js/data/skel.js）
 # 3つめは ID の 頭（その 表の 中で この 頭の カードだけ。番外編は 1つの 案に 3つの パックが ある）
-DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8), ('SET7.md', 9), ('EXTRA.md', 10, 'FG'), ('EXTRA.md', 11, 'SR'), ('EXTRA.md', 12, 'ZZ')]
+DRAFTS = [('SET3.md', 3), ('SET4.md', 4), ('SET5.md', 5), ('SET6.md', 6), ('ALCHEMY.md', 7), ('PLANESWALKERS.md', 8), ('SET7.md', 9), ('EXTRA.md', 10, 'FG'), ('EXTRA.md', 11, 'SR'), ('EXTRA.md', 12, 'ZZ'), ('RAID_CARDS.md', 13)]
 TYPES = {'プレインズウォーカー': 'planeswalker', 'クリーチャー': 'creature', 'インスタント': 'instant', 'ソーサリー': 'sorcery', 'アーティファクト': 'artifact', 'エンチャント': 'enchantment'}
 KW = {'飛行': 'flying', '速攻': 'haste', '警戒': 'vigilance', '到達': 'reach', '接死': 'deathtouch', '絆魂': 'lifelink', 'トランプル': 'trample',
       '先制攻撃': 'first', '二段攻撃': 'double', '防衛': 'defender', '破壊不能': 'indestructible', '召集': 'convoke', '果敢': 'prowess'}

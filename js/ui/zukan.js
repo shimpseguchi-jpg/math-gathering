@@ -71,7 +71,7 @@ const unknown = (d) => `<div class="card ${colorClass(d)} zk-unknown"><div class
 
 export function zukanScreen(app, back) {
   let tab = 'cards';
-  const sets = SETS.filter((x) => x.released || DEV);
+  const sets = SETS.filter((x) => (x.released || DEV) && !x.raid);
   let setId = sets[0].id;
   const draw = () => {
     const total = SETS.filter((x) => x.released).reduce((t, x) => t + x.cards.length, 0);

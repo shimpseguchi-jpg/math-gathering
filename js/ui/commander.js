@@ -43,8 +43,8 @@ const inColors = (def) => { const ids = colorsOf(def); return (d) => colorsOf(d)
 export function cmdPool(def) {
   const ok = inColors(def);
   const all = SETS.filter((st) => st.id <= 6).flatMap((st) => st.cards).filter((d) => ok(d) && !d.banner && !d.basic && d.id !== def.id && !(d.sub || []).includes('lesson') && !Object.keys(THEMES).includes(d.id));
-  // 三つの 旗の カード：龍王は 龍族の カード、長は 氏族の カード だけ
-  const core = all.filter((d) => (FACTIONS.dragon.ids.includes(def.id) ? DRAGON_SIDE : HUMAN_SIDE).has(d.id));
+  // 三つの 旗の カード：龍王は 龍族の カード、長は 氏族の カード だけ。それと その 統率者 だけの カード 8まい（docs/RAID_CARDS.md）
+  const core = [...ownCards(def), ...all.filter((d) => (FACTIONS.dragon.ids.includes(def.id) ? DRAGON_SIDE : HUMAN_SIDE).has(d.id))];
   const theme = all.filter((d) => !core.includes(d) && THEMES[def.id].f(d)).sort((a, b) => cardValue(b) - cardValue(a));
   // テーマは THEME_MAX まで。のこりは その 色の よい クリーチャー（テーマだけだと クリーチャーが たりない デッキに なる）
   // 点あたりの よさ（コモンほど 高い）で ならべる。レア・レジェンドは テーマから 4まいまで
@@ -57,6 +57,8 @@ export function cmdPool(def) {
   pool.push(...crs.slice(0, (colorsOf(def).length >= 3 ? POOL_SIZE3 : POOL_SIZE) - pool.length));
   return pool;
 }
+// 統率者 だけの カード：CM01〜CM80 を THEMES の じゅんに 8まいずつ
+const ownCards = (def) => { const k = Object.keys(THEMES).indexOf(def.id); return SETS.find((st) => st.id === 13).cards.slice(k * 8, k * 8 + 8); };
 const DRAGON_SIDE = new Set(['RG08', 'WG08', 'KR08', 'WU08', 'UK08', 'R71', 'G72', 'W71', 'K69', 'R72']);
 const HUMAN_SIDE = new Set([...SETS.find((st) => st.id === 6).cards.map((d) => d.id)].filter((id) => !DRAGON_SIDE.has(id)));
 
