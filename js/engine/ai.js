@@ -1,6 +1,7 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
   api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost,
+  zzBreak,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -548,6 +549,7 @@ export function ninjutsu(s, c, a) {
   n.attacking = true;
   a.p = n;
   L(s, `にんじゅつ：${old.def.name} → ${c.def.name}`);
+  if (/^ZZ/.test(c.def.id)) zzBreak(s, 'swap', '交代');
   return true;
 }
 
@@ -562,6 +564,7 @@ export function swapBlocker(s, c, aUid, blocks) {
   const n = enter(s, 'P', c.def, { card: c.def });
   blocks.set(aUid, n);
   L(s, `こうたい（ブロック）：${old.def.name} → ${c.def.name}`);
+  zzBreak(s, 'swap', '交代');
   return true;
 }
 // AI：ブロックした クリーチャーが たおれて しまう とき、たおれない か あいてを たおせる エージェントと 交代

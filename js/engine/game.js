@@ -3,6 +3,7 @@
 import { seeded, shuffle } from './rng.js';
 
 let UID = 1;
+let CUR = null; // いまの ゲーム（s を うけとらない pump から ゼンゼロの ブレイクを ためる ため）
 export const COLORS = ['W', 'U', 'K', 'G', 'R'];
 export const colorsOf = (d) => [...(d.color || '')].filter((c) => COLORS.includes(c));
 export const is = (p, t) => (p.def.types || []).includes(t);
@@ -40,6 +41,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   for (const d of em.hand || []) { const c = card(d); c.emblem = true; s.P.hand.push(c); L(s, `もんしょう：${d.name} を てふだに`); }
   if (em.startMana) rampBasic(s, em.startMana);
   if (bless?.startMana) { rampBasic(s, bless.startMana); L(s, `しゅくふく：マナゾーンに きほんカード ${bless.startMana}まい`); }
+  CUR = s;
   return s;
 }
 
@@ -322,6 +324,7 @@ export function addCounters(s, p, n) {
   for (const q of s[p.side].bf) if (q.def.counterMult) n *= q.def.counterMult; // 重ねる 季節（カウンターが 2倍）
   p.ctr += n;
   p.def.onCounters?.(s, p, api, n);
+  if (p.side === 'P') zzBreak(s, 'G', '緑：＋1/＋1カウンター');
 }
 
 export function proliferate(s) {
@@ -343,11 +346,21 @@ export const BON_MAX = 10;
 // ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって 本体に 10点（階の きまりの まま）。
 // 本体の ない 階では、かわりに いちばん つよい 敵の クリーチャーに 10点
 export const BREAK_AT = 10;
+// 属性ブレイク（2026-10-26 ためし）：ゼンゼロの カードが ある デッキでは、色ごとの きっかけでも 1こ たまる。交代すると 3こ
+// 白：ライフを えた　青：敵に マイナスの 修整・−1/−1　黒：敵の クリーチャーが ぼちへ　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
+export const ZZ_BREAK = { W: 1, U: 1, K: 1, R: 1, G: 1, swap: 3 };
+export function zzBreak(s, k, why) {
+  if (!s?.P.zzDeck || s.over || s.inBreak || !ZZ_BREAK[k]) return;
+  s.stats.zz = s.stats.zz || {}; s.stats.zz[k] = (s.stats.zz[k] || 0) + ZZ_BREAK[k];
+  L(s, `ブレイク ＋${ZZ_BREAK[k]}（${why}）`);
+  addBreak(s, ZZ_BREAK[k]);
+}
 export function addBreak(s, n) {
   if (n <= 0 || s.over) return;
   const was = s.E.brk || 0;
   s.E.brk = was + n;
   L(s, `ブレイクカウンター ${was} ＋ ${n} ＝ ${s.E.brk}`);
+  s.inBreak = true;
   while (s.E.brk >= BREAK_AT && !s.over) {
     s.E.brk -= BREAK_AT;
     const t = !s.floor.face && s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0];
@@ -355,9 +368,10 @@ export function addBreak(s, n) {
     L(s, `ブレイク！ ${BREAK_AT}こ とって ${t ? t.def.name : '本体'}に ${BREAK_AT}点`);
     if (t) { damage(s, t, BREAK_AT, null); sba(s); } else hitTarget(s, 'face', BREAK_AT, null);
   }
+  s.inBreak = false;
 }
 
-export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); }
+export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) zzBreak(CUR, 'U', '青：てきを よわく した'); }
 
 // 来世の スピリット（白黒 1/1 飛行）
 const AFTERLIFE = { id: 't_spiritWK', name: 'スピリット', rar: null, color: 'WK', cost: 0, types: ['creature'], pow: 1, tou: 1, sub: ['spirit'], kw: ['flying'] };
@@ -367,6 +381,7 @@ export function addMinus(s, p, n, by = 'P') {
   const k = Math.min(n, p.ctr); p.ctr -= k;
   p.mctr = (p.mctr || 0) + (n - k);
   L(s, `${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`);
+  if (p.side === 'E') zzBreak(s, 'U', '青：てきを よわく した');
   if (by === 'P') for (const q of [...s.P.bf]) if (q.def.onMinus && onBf(s, q)) q.def.onMinus(s, q, api, p, n);
 }
 // 信心：あなたの 戦場の その 色の パーマネントの 数
@@ -468,7 +483,7 @@ export function hurt(s, n, src) {
 // ライフが 0：オンラインバトルで あいても 0 なら ひきわけ
 const dead = (s) => (s.floor.id === 'pvp' && s.E.life <= 0 ? 'draw' : 'lose');
 
-export function gainLife(s, n) { if (!s.P.noLifeGain && n > 0) s.P.life += n; }
+export function gainLife(s, n) { if (!s.P.noLifeGain && n > 0) { s.P.life += n; zzBreak(s, 'W', '白：ライフを えた'); } }
 
 // 「敵に～点」（本体がある階は本体、ない階はAIが選んだ敵のパーマネント）
 export function hitEnemy(s, n, src, o = {}) {
@@ -480,6 +495,7 @@ export function hitEnemy(s, n, src, o = {}) {
 
 export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
+  if (!combat && t !== 'player' && (t === 'face' || t.side === 'E') && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文・能力で ダメージ');
   if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
     n = boostDmg(s, n, src, true);
@@ -521,6 +537,8 @@ export function sba(s) {
     if (!s.over) s.floor.check?.(s, api, 'sba');
     if (!changed) break;
   }
+  // 黒の 属性ブレイク：たおした あとで まとめて（leave の とちゅうで ダメージを 出さない）
+  if (s.zzK && !s.over) { const k = s.zzK; s.zzK = 0; for (let i = 0; i < k; i++) zzBreak(s, 'K', '黒：てきを たおした'); }
 }
 
 // ぴったり：敵の クリーチャーが、タフネスと ちょうど 同じ ダメージで 倒れた（あまりが 0）
@@ -530,6 +548,7 @@ export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
   if (o.died && p.def.saveDeath?.(s, p, api)) return false; // 死亡の かわりに（ヘラクレスの 十二の試練）
+  if (o.died && p.side === 'E' && s.P.zzDeck && isCreature(p)) s.zzK = (s.zzK || 0) + 1;
   // 死亡の かわりに：アナフェンザ（てきは 追放）・墓の タイタン など（ライブラリーの 一番下）
   if (o.died && to === 'gy' && !p.token) {
     if ((p.side === 'E' && s.P.bf.some((q) => q.def.exileEnemyDead)) || p.exileT === s.turn) to = 'exile';
