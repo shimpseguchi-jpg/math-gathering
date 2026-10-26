@@ -9,7 +9,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
-import { RAID, raidOpen } from './raidstore.js';
+import { RAID, raidOpen, raidShown } from './raidstore.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
@@ -60,7 +60,7 @@ export function title() {
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
       <button type="button" class="btn tro-btn em-btn" data-go="emblem"><span aria-hidden="true">✦</span>もんしょう<small>${activeIds().length ? `${activeIds().length}こ ついて いる` : 'しゅぎょうで てに いれる'}・ポイント ${emblemPoints()}</small></button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
-      ${raidOpen() ? `<button type="button" class="btn raid-btn" data-go="raid">レイド<small>${ruby(RAID.name)}</small></button>` : ''}
+      ${raidShown() ? `<button type="button" class="btn raid-btn" data-go="raid">レイド${raidOpen() ? '' : '（けっか）'}<small>${ruby(RAID.name)}</small></button>` : ''}
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
       <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
       <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>

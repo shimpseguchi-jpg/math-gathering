@@ -207,17 +207,21 @@ function mtgMyGhosts(ids) {
 // ───── レイド（docs/RAID.md）：タルキール大戦（統率者戦）─────
 // 陣営の 点 'raid:<id>:score' = { f: { dragon, human }, c: { 統率者ID: 点 } }
 // ゴースト 'raid:<id>:g:<陣営>' = [{ c: 統率者ID, d: [カードID×20], n: [なまえ, なまえ], u: 時刻 }]（陣営ごとに RAID_KEEP まで）
-var RAID_IDS = { 'tarkir-1': 1 };
+// レイドの ID と おわる 時刻（js/ui/raidstore.js の RAID.ends と そろえる）。おわった あとも 30分は たたかいの けっかを うけとる
+var RAID_IDS = { 'tarkir-1': 1793530800000 }; // 2026-11-01 20:00（日本時間）
+var RAID_GRACE = 30 * 60 * 1000;
 var RAID_CMD = { dragon: ['RG07', 'WG07', 'KR07', 'WU07', 'UK07'], human: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] };
 var RAID_KEEP = 20;
 function raidId_(q) { var id = String(q && q.id); if (!RAID_IDS[id]) throw new Error('レイドが ない'); return id; }
 function raidFaction_(q) { var f = String(q && q.f); if (!RAID_CMD[f]) throw new Error('陣営が おかしい'); return f; }
 function raidCmd_(f, c) { c = String(c || ''); if (RAID_CMD[f].indexOf(c) < 0) throw new Error('統率者が おかしい'); return c; }
+function raidLive_(id, grace) { if (Date.now() > RAID_IDS[id] + (grace ? RAID_GRACE : 0)) throw new Error('レイドは おわった'); }
 function raidScore_(props, id) { var v = props.getProperty('raid:' + id + ':score'); return v ? JSON.parse(v) : { f: { dragon: 0, human: 0 }, c: {} }; }
 
 // 点を たす：{ id, f, c, w: 1（かった）, fin: 1（統率者で とどめ）, q: といた 問題の 数 } → { f, c }
 function mtgRaidAdd(q) {
   var id = raidId_(q), f = raidFaction_(q), c = raidCmd_(f, q.c);
+  raidLive_(id, true);
   var add = (Number(q.w) === 1 ? 10 : 0) + (Number(q.w) === 1 && Number(q.fin) === 1 ? 5 : 0) + Math.max(0, Math.min(200, Math.floor(Number(q.q) || 0)));
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -237,6 +241,7 @@ function mtgRaidState(q) { return raidScore_(PropertiesService.getScriptProperti
 // じぶんの 統率者デッキを ゴーストに：{ id, f, c, d: [カードID×20], n: [なまえ, なまえ] }。色は 統率者の 色だけ
 function mtgRaidSubmit(q) {
   var id = raidId_(q), f = raidFaction_(q), c = raidCmd_(f, q.c);
+  raidLive_(id, false);
   var d = q && q.d;
   if (!Array.isArray(d) || d.length !== DECK_SIZE) throw new Error('デッキは 20まい');
   var ok = CARDS[c][1];

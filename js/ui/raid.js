@@ -24,7 +24,7 @@ const myName = () => { try { return JSON.parse(localStorage.getItem('mtg-online-
 
 export async function raidMenu(app, back) {
   let r = loadRaid();
-  if (!r.f) return join(app, back);
+  if (!r.f && raidOpen()) return join(app, back); // おわった あとは けっかだけ 見られる
   // 陣営の 点（サーバー）
   let st = null;
   if (hasServer()) { try { st = await call('mtgRaidState', { id: RAID.id }); } catch { st = null; } }
@@ -44,11 +44,12 @@ export async function raidMenu(app, back) {
     ${over ? `<p class="ol-news">${winner ? `${ruby(FACTIONS[winner].name)}の かち！` : 'ひきわけ！'}</p><p class="say"><b>ニコル・ボーラス</b><span>${ruby(BOLAS[winner || 'human'])}</span></p>` : ''}
     <div class="rd-bars">${bar('dragon')}${bar('human')}</div>
     <p class="ol-help">${ruby(sum ? lead : 'まだ だれも 点を とって いない')}</p>
-    <div class="ol-me">
+    ${r.f ? `<div class="ol-me">
       <div><span class="ol-name">${ruby(FACTIONS[r.f].name)}・${cname(r.c)}</span><small>${r.w}かち ${r.l}まけ${r.d ? ` ${r.d}ひきわけ` : ''}・といた 問題 ${r.q}もん</small></div>
       <div class="ol-score"><b>${mine}<small>点</small></b><span>${ruby(formula)}</span></div>
-    </div>
-    <p class="ol-help">${ruby(`かつと ＋${WIN_PTS}点、統率者（とうそつしゃ）で とどめを さすと さらに ＋${FINISH_PTS}点。しゅぎょうで せいかいした 問題も 1もん ＋1点。`)}</p>
+    </div>` : ''}
+    ${over ? '' : `<p class="ol-help">${ruby(`かつと ＋${WIN_PTS}点、統率者（とうそつしゃ）で とどめを さすと さらに ＋${FINISH_PTS}点。しゅぎょうで せいかいした 問題も 1もん ＋1点。`)}</p>`}
+    ${RAID.ends && !over ? `<p class="ol-help">${ruby(`${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`)}</p>` : ''}
     <div class="row-btns"><button type="button" class="btn" data-r="back">もどる</button><button type="button" class="btn primary" data-r="fight" ${over ? 'disabled' : ''}>たたかう</button></div>
     <h3 class="ol-h">5つの 対決（たいけつ）</h3>
     <ul class="rd-duels">${duels}</ul>
