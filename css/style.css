@@ -849,6 +849,7 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] rt, :root[data-theme="gba"] .card-name, :root[data-theme="gba"] .detail h2 { font-family: var(--body); }
 :root[data-theme="gba"] :is(h1, h2, h3, .sheet-title, .floor, .eyebrow, .big-result, .banner, .turn, .wait, legend) { font-family: var(--display); font-weight: 400; }
 :root[data-theme="gba"] :is(h1, h2, .sheet-title, .big-result) { text-shadow: 2px 2px 0 var(--px); }
+:root[data-theme="gba"] .detail h2 { text-shadow: none; } /* カード名は 丸ゴシックの まま。かげを つけると ブレて 見える */
 /* まど：白い 二重の わく・かどの 小さい 四角・かたい かげ */
 :root[data-theme="gba"] :is(.st-sec, .meter, .floors li, .cres li) { background: var(--win); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
 :root[data-theme="gba"] .floors li.now { background: linear-gradient(#5068d8, #2c3ca8); border-color: var(--gold); }
