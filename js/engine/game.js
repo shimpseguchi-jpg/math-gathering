@@ -364,6 +364,7 @@ function zzAmount(s, k) {
 export function zzBreak(s, k, why) {
   if (!s?.P.zzDeck || s.over || s.inBreak) return;
   const n = zzAmount(s, k); if (!n) return;
+  if (k === 'W') { const tk = `${s.turn}${s.active}`; if (s.zzWTurn === tk) return; s.zzWTurn = tk; } // 白は 1ターンに 1回まで（ライフを える 効果は 回数が 多い）
   s.stats.zz = s.stats.zz || {}; s.stats.zz[k] = (s.stats.zz[k] || 0) + n;
   L(s, `ブレイク ＋${n}（${why}）`);
   addBreak(s, n);

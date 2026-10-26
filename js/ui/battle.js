@@ -686,7 +686,7 @@ async function showBreak() {
   const s = B.s, ok = s.P.brkReady > 0 && B.mode === 'main' && s.active === 'P';
   const cr = s.E.bf.filter(isCreature);
   const v = await sheet(`<p>${ruby('ブレイクカウンターが 10こ たまると ブレイクが 1回 つかえる。じぶんの ターンに 3つから えらぶ。')}</p>
-    <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた・青 てきに マイナスの 修整・黒 てきに −1/−1カウンター・赤 呪文や 能力で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
+    <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた（1ターンに 1回）・青 てきに マイナスの 修整・黒 てきに −1/−1カウンター・赤 呪文や 能力で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
     { label: `ぜんたい：てきの クリーチャー ぜんぶに ${BREAK_ALL}点`, value: 'all', kind: 'primary', disabled: !ok || !cr.length },
     { label: `たんたい：てき 1つに ${BREAK_AT}点`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
     { label: 'かいしゅう：マナゾーンの カード 1まいを てふだに', value: 'mana', kind: 'primary', disabled: !ok || !s.P.mana.length },
