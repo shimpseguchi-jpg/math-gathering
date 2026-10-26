@@ -1069,7 +1069,7 @@ function render() {
       <div class="me-mana">
         <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
         ${s.P.srDeck ? `<span class="pile sp" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
-        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span>${s.floor.face ? `<span class="pile sp brk" title="ブレイク：10 たまると てきの 本体に 10点">ブレイク <b>${s.E.brk || 0}</b>/10</span>` : ''}` : ''}
+        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><span class="pile sp brk" title="ブレイク：10 たまると ${s.floor.face ? 'てきの 本体' : 'いちばん つよい てき'}に 10点">ブレイク <b>${s.E.brk || 0}</b>/10</span>` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>

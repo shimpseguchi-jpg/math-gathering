@@ -341,22 +341,19 @@ export function proliferate(s) {
 // ゼンゼロ：エネルギー（みんなで 1つの 数。0〜10）
 export const BON_MAX = 10;
 // ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって 本体に 10点（階の きまりの まま）。
-// 本体の ない 階では、かわりに いちばん つよい 敵の クリーチャーに −1/−1カウンター
+// 本体の ない 階では、かわりに いちばん つよい 敵の クリーチャーに 10点
 export const BREAK_AT = 10;
 export function addBreak(s, n) {
   if (n <= 0 || s.over) return;
-  if (!s.floor.face) {
-    const t = s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0];
-    if (t) { L(s, `ブレイク：本体が ない ので ${t.def.name} に −1/−1カウンター ${n}こ`); addMinus(s, t, n); sba(s); }
-    return;
-  }
   const was = s.E.brk || 0;
   s.E.brk = was + n;
   L(s, `ブレイクカウンター ${was} ＋ ${n} ＝ ${s.E.brk}`);
   while (s.E.brk >= BREAK_AT && !s.over) {
     s.E.brk -= BREAK_AT;
-    L(s, `ブレイク！ ${BREAK_AT}こ とって 本体に ${BREAK_AT}点`);
-    hitTarget(s, 'face', BREAK_AT, null);
+    const t = !s.floor.face && s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0];
+    if (!s.floor.face && !t) { s.E.brk = BREAK_AT; break; } // てきが いない：つぎの クリーチャーまで とっておく
+    L(s, `ブレイク！ ${BREAK_AT}こ とって ${t ? t.def.name : '本体'}に ${BREAK_AT}点`);
+    if (t) { damage(s, t, BREAK_AT, null); sba(s); } else hitTarget(s, 'face', BREAK_AT, null);
   }
 }
 
@@ -455,6 +452,8 @@ export function damage(s, p, n, src, o = {}) {
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
+  // ゼンゼロ：ブレイク N は 敵の クリーチャー・PW に ダメージを あたえても たまる（2026-10-26。本体だけ では ほとんど たまらなかった）
+  if (src?.side === 'P' && p.side === 'E' && src.def.brk && !s.over) addBreak(s, src.def.brk);
   return n;
 }
 
