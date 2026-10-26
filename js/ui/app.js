@@ -132,7 +132,7 @@ function tutorial() {
 // パックの もんしょうの せつめい（パックを あける 画面）
 function emblemPackNote(em) {
   const out = [];
-  if (em.ident) out.push(`<span>${ruby(`統率者（とうそつしゃ）${info(cmdDef()).name}の 色`)}（${em.ident.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ') || 'むしょく'}）の カードが 出やすい</span>`);
+  if (em.ident) out.push(`<span>${ruby(`統率者（とうそつしゃ）${info(cmdDef()).name}の 色`)}（${em.ident.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ') || 'むしょく'}）の カード${A.opened === 0 && em.ident.length ? 'だけが 出る（さいしょの パック）' : 'が 出やすい'}</span>`);
   if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
   if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
   for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`${SETS.find((z) => z.id === x)?.name || ''} の カードも 出る（もんしょう）`)}</span>`);
@@ -153,7 +153,8 @@ function packs() {
   const pk = activeEffects()?.pack;
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
-  const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare });
+  const only = A.cmd && A.opened === 0 ? cmdIdent() : null; // 統率者戦の さいしょの パックは 統率者の 色の カードだけ
+  const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare, only });
   // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
   const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;
   const surprise = !!cards.surprise;

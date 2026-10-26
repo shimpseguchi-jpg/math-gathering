@@ -72,7 +72,11 @@ function pickFavored(rng, list, favor, colors = [], extra = [], ident = null) {
 export function openPack(rng, o = {}) {
   const em = o.em || {};
   const odds = o.rare ? RARE_ODDS : packOdds(o.cleared || 0, em);
-  const pool = packPool(o.sets);
+  const base = packPool(o.sets);
+  // o.only：この 色だけで できた カードしか 出さない（塔の 統率者戦の さいしょの パック）
+  const inOnly = (d) => { const cs = colorsOf(d); return cs.length && cs.every((c) => o.only.includes(c)); };
+  const pool = o.only?.length ? Object.fromEntries(Object.entries(base).map(([r, l]) => [r, l.filter(inOnly)])) : base;
+  if (pool !== base && !pool.C.length) pool.C = pool.U.length ? pool.U : base.C;
   const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || [], em.ident || null);
   for (let tries = 0; ; tries++) {
     const cards = [];
@@ -84,7 +88,7 @@ export function openPack(rng, o = {}) {
     if (em.unc) cards.push(take(rng() < odds.uToR ? 'R' : 'U')); // アンコモンの もんしょう：9まいめ
     // 1パックに 4色 いじょう（5色の ときも 4色で よい）
     const cols = new Set(cards.flatMap(colorsOf));
-    if (cols.size >= 4 || tries >= 20) { cards.surprise = surprise; return cards; }
+    if (cols.size >= 4 || pool !== base || tries >= 20) { cards.surprise = surprise; return cards; }
   }
 }
 
