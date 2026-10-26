@@ -83,28 +83,31 @@ const STEPS = [
 ];
 
 // たたかいの 画面（battle.js）から 使う
-export function makeTutorial() {
+// steps：ストーリーモードの コーチ（js/ui/story.js）も これを 使う。lock：false なら ことばだけ 出して、そうさは しぼらない
+export function makeTutorial(steps = STEPS, { lock = true } = {}) {
   let k = 0, free = false;
-  const step = () => (free ? null : STEPS[k]);
+  const step = () => (free ? null : steps[k]);
+  const gate = () => (lock ? step() : null);
   const ALWAYS = ['gy', 'mana', 'log', 'tutnext', 'menu', 'lib', 'elib', 'egy'];
   return {
     get active() { return !free; },
+    lock,
     // done を 見て すすめる（描く まえに よぶ）
-    update(s, B) { if (s.over) { free = true; return; } while (!free && STEPS[k].done && STEPS[k].done(s, B)) { k++; if (k >= STEPS.length) free = true; } },
-    next() { if (free || !STEPS[k].next) return; k++; if (k >= STEPS.length) free = true; },
-    allowAct(a) { const st = step(); return !st || ALWAYS.includes(a) || (st.acts || []).includes(a); },
-    allowHand(c) { const st = step(); return !st || !!st.hand?.[c.def.id]; },
+    update(s, B) { if (s.over) { free = true; return; } while (!free && steps[k].done && steps[k].done(s, B)) { k++; if (k >= steps.length) free = true; } },
+    next() { if (free || !steps[k].next) return; k++; if (k >= steps.length) free = true; },
+    allowAct(a) { const st = gate(); return !st || ALWAYS.includes(a) || (st.acts || []).includes(a); },
+    allowHand(c) { const st = gate(); return !st || !!st.hand?.[c.def.id]; },
     filterChoices(c, choices) {
-      const st = step(); if (!st) return choices;
+      const st = gate(); if (!st) return choices;
       const ok = st.hand?.[c.def.id] || [];
       return choices.map((ch) => (ch.value == null || ok.includes(ch.value) ? ch : { ...ch, disabled: true, note: 'いまは ほかの ことを しよう' }));
     },
-    allowPerm(p) { const st = step(); if (!st) return true; if (p.side === 'E') return true; return st.perms === true || (st.perms || []).includes(p.def.id); },
-    allowDrag(p) { const st = step(); return !st || st.drag === true || (st.drag || []).includes(p.def.id); },
-    hint() { return step() ? '光っている ところを タップしよう' : ''; },
+    allowPerm(p) { const st = gate(); if (!st) return true; if (p.side === 'E') return true; return st.perms === true || (st.perms || []).includes(p.def.id); },
+    allowDrag(p) { const st = gate(); return !st || st.drag === true || (st.drag || []).includes(p.def.id); },
+    hint() { return gate() ? '光っている ところを タップしよう' : ''; },
     html(ruby) {
       const st = step(); if (!st) return '';
-      return `<div class="coach" role="status"><p>${ruby(st.text)}</p>${st.next ? '<button type="button" class="btn primary" data-act="tutnext">つぎへ</button>' : ''}</div>`;
+      return `<div class="coach ${lock ? '' : 'story'}" role="status">${st.who ? `<b class="coach-who">${ruby(st.who)}</b>` : ''}<p>${ruby(st.text)}</p>${st.next ? '<button type="button" class="btn primary" data-act="tutnext">つぎへ</button>' : ''}</div>`;
     },
     highlight(root) { const st = step(); if (st?.hl) root.querySelectorAll(st.hl).forEach((el) => el.classList.add('tut-hl')); },
   };

@@ -988,3 +988,29 @@ div.zk-card { cursor: default; }
   .draft-card { flex: 0 0 min(72vw, 262px); scroll-snap-align: center; }
   .draft-card .fcard { font-size: 11px; }
 }
+
+/* ---- ストーリーモード「せかいめぐり」（2026-10-26：js/ui/story.js） ---- */
+.story { min-height: 100%; display: flex; flex-direction: column; gap: 14px; padding-block: 20px; max-width: 640px; }
+.story h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 7vw, 36px); color: var(--gold); }
+.st-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
+.st-ch { background: var(--table-2); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.st-ch h3 { margin: 0; font-size: 15px; display: flex; flex-direction: column; gap: 2px; }
+.st-guide { font-size: 11px; font-weight: 500; color: var(--gold); }
+.st-ch ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.st-ep { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); background: var(--table); cursor: pointer; }
+.st-ep b { font-family: var(--display); font-weight: 400; color: var(--gold); }
+.st-ep span { display: flex; flex-direction: column; font-weight: 700; }
+.st-title { font-style: normal; }
+.st-ep small { font-size: 11px; font-weight: 500; color: var(--ink-dim); }
+.st-ep em { font-style: normal; font-size: 12px; color: var(--ink-dim); white-space: nowrap; }
+.st-ep.open { border-color: var(--gold); }
+.st-ep.open em { color: var(--gold); font-weight: 700; }
+.st-ep.done em { color: var(--good); }
+.st-ep.lock { opacity: 0.45; cursor: default; }
+.coach.story { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 2px; padding: 5px 10px; font-size: 13px; line-height: 1.6; border-radius: 10px; }
+.coach.story p { flex: 1 1 260px; }
+.coach.story .btn { align-self: center; min-height: 34px; padding: 4px 16px; }
+.coach-who { flex: 0 0 100%; font-size: 10.5px; line-height: 1.3; color: #9a6a00; }
+:root[data-theme="gba"] .st-ch { background: var(--win); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .st-ep { border-radius: 3px; }
+:root[data-theme="gba"] :is(.st-ep b, .st-ep em) { font-family: var(--display); }

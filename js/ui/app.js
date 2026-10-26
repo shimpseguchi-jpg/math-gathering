@@ -10,6 +10,7 @@ import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
+import { storyMenu, storyCount, STORY_TOTAL } from './story.js';
 import { RAID, raidOpen, raidShown, raidFree } from './raidstore.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme } from './settings.js';
@@ -72,6 +73,7 @@ export function title() {
       <button type="button" class="btn tro-btn em-btn" data-go="emblem"><span aria-hidden="true">✦</span>もんしょう<small>${activeIds().length ? `${activeIds().length}こ ついて いる` : 'しゅぎょうで てに いれる'}・ポイント ${emblemPoints()}</small></button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
+      <button type="button" class="btn tro-btn" data-go="story">ストーリー<small>せかいめぐり ${storyCount()} / ${STORY_TOTAL}話</small></button>
       <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
       <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>
       <button type="button" class="btn ghost" data-go="settings">せってい</button>
@@ -86,6 +88,7 @@ export function title() {
     if (b.dataset.go === 'tut') return tutorial();
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
+    if (b.dataset.go === 'story') return storyMenu(title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title);
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
@@ -327,7 +330,7 @@ function whyNot(sel, i, pool = A.pool, free = false) {
   const st = deckStats(sel, pool);
   const d = BY_ID[pool[i]];
   if (free) return whyNotPts(sel, i, pool); // 統率者戦：プールが 統率者の 色だけ なので 色は 見ない
-  const id = pool === A.pool && cmdIdent();
+  const id = pool === A?.pool && cmdIdent();
   if (id) return colorsOf(d).every((c) => id.includes(c)) ? whyNotPts(sel, i, pool) : `統率者の 色（${id.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`;
   const nc = [...new Set([...st.colors, ...colorsOf(d)])];
   // 旗（第6弾）が あれば、その 3色まで
@@ -339,7 +342,7 @@ function whyNot(sel, i, pool = A.pool, free = false) {
 // はたを はずすと 3色の デッキに なれない
 function whyNotOut(sel, i, pool = A.pool, free = false) {
   const d = BY_ID[pool[i]];
-  if (!d.banner || free || (pool === A.pool && A.cmd)) return '';
+  if (!d.banner || free || (pool === A?.pool && A.cmd)) return '';
   const rest = deckStats(sel.filter((k) => k !== i), pool);
   return rest.colors.length > 2 && !rest.banner ? '3色めの カードを さきに はずそう（はたが ないと 2色まで）' : '';
 }

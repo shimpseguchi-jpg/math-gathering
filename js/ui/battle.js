@@ -26,7 +26,9 @@ export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
-  if (o.tutorial) { B.tut = makeTutorial(); o.setup?.(B.s, api); }
+  // チュートリアル（o.tutorial：ボタンを しぼる）・ストーリーの コーチ（o.coach：ことばだけ。どの そうさも できる）
+  if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach });
+  o.setup?.(B.s, api);
   app().onclick = onClick;
   initSwipe();
   const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
@@ -491,7 +493,7 @@ const showGoal = () => sheet(`<p class="goal">${ruby(B.s.floor.goal(B.s))}</p>`,
 
 async function menu() {
   const q = B.quit || { label: 'タイトルへ もどる', note: '', go: () => {} };
-  const goal = B.s.floor.goal && !B.tut;
+  const goal = B.s.floor.goal && !B.tut?.lock;
   const v = await sheet(`<p>${esc(q.note || 'たたかいを やめて もどる？')}</p>`,
     [{ label: 'たたかいを つづける', value: 0, kind: 'primary' }, ...(goal ? [{ label: 'かちかたを 見る', value: 'goal' }] : []), { label: q.label, value: 1 }], { title: 'メニュー' });
   // かちかた：たたかいの とちゅうでも ボスの たおしかたを 見られる
@@ -1078,7 +1080,7 @@ function render() {
     <header class="bt-head">
       <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
       <div class="bt-title"><span class="floor">${ruby(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
-      <div class="chips">${s.floor.goal && !B.tut ? '<button type="button" class="chip goal-btn" data-act="goal">かちかた</button>' : ''}${enemyStatus()}</div>
+      <div class="chips">${s.floor.goal && !B.tut?.lock ? '<button type="button" class="chip goal-btn" data-act="goal">かちかた</button>' : ''}${enemyStatus()}</div>
     </header>
     ${s.over ? '' : sayBox(s.E.say)}
     <p class="intent">${B.mode === 'main' || B.mode === 'attack' ? `<b>${s.floor.id === 'pvp' ? 'あいての よてい' : 'つぎの てき'}</b>${intent().map((t) => `<span>${esc(t)}</span>`).join('')}` : ''}</p>

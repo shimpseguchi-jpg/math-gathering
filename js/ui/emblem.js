@@ -23,6 +23,7 @@ export const activeIds = (now = Date.now()) => EMBLEMS.filter((e) => (M.got[e.id
 export const activeEffects = () => emblemEffects(activeIds(), M.pick || {});
 const retPts = (now = Date.now()) => (M.ret && M.ret.until > now ? M.ret.pts : 0);
 export const emblemPoints = () => M.pts + retPts();
+export const addEmblemPoints = (n) => { M.pts += n; save(); }; // ストーリーモードの ごほうび
 const quizCats = () => (M.cats?.length ? M.cats.filter((c) => CATS[c]) : Object.keys(CATS));
 const LV = (n) => `レベル${n}`; // 1ねんせいは ローマ数字を ならわないので すうじで
 const branchOf = (e) => BRANCHES.find((b) => b.id === e.branch);
