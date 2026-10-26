@@ -507,6 +507,7 @@ async function action(a) {
   const s = B.s;
   if (a === 'end') return endTurn();
   if (a === 'tutnext') { B.tut?.next(); return render(); }
+  if (a === 'tutread') { B.tut?.read(); return render(); }
   if (a === 'menu') return menu();
   if (a === 'goal') return showGoal();
   if (a === 'attack') {

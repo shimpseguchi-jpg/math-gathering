@@ -85,16 +85,17 @@ const STEPS = [
 // たたかいの 画面（battle.js）から 使う
 // steps：ストーリーモードの コーチ（js/ui/story.js）も これを 使う。lock：false なら ことばだけ 出して、そうさは しぼらない
 export function makeTutorial(steps = STEPS, { lock = true } = {}) {
-  let k = 0, free = false;
+  let k = 0, free = false, readK = -1; // readK：大きい まどを よみおえた ステップ
   const step = () => (free ? null : steps[k]);
   const gate = () => (lock ? step() : null);
-  const ALWAYS = ['gy', 'mana', 'log', 'tutnext', 'menu', 'lib', 'elib', 'egy'];
+  const ALWAYS = ['gy', 'mana', 'log', 'tutnext', 'tutread', 'menu', 'lib', 'elib', 'egy'];
   return {
     get active() { return !free; },
     lock,
     // done を 見て すすめる（描く まえに よぶ）
     update(s, B) { if (s.over) { free = true; return; } while (!free && steps[k].done && steps[k].done(s, B)) { k++; if (k >= steps.length) free = true; } },
     next() { if (free || !steps[k].next) return; k++; if (k >= steps.length) free = true; },
+    read() { readK = k; },
     allowAct(a) { const st = gate(); return !st || ALWAYS.includes(a) || (st.acts || []).includes(a); },
     allowHand(c) { const st = gate(); return !st || !!st.hand?.[c.def.id]; },
     filterChoices(c, choices) {
@@ -107,7 +108,11 @@ export function makeTutorial(steps = STEPS, { lock = true } = {}) {
     hint() { return gate() ? '光っている ところを タップしよう' : ''; },
     html(ruby) {
       const st = step(); if (!st) return '';
-      return `<div class="coach ${lock ? '' : 'story'}" role="status">${st.who ? `<b class="coach-who">${ruby(st.who)}</b>` : ''}<p>${ruby(st.text)}</p>${st.next ? '<button type="button" class="btn primary" data-act="tutnext">つぎへ</button>' : ''}</div>`;
+      const who = st.who ? `<b class="coach-who">${ruby(st.who)}</b>` : '';
+      // あたらしい ことばは まず 画面の 下 半分に 大きく 出す（よみおえたら 小さい おびに なる）
+      const big = readK !== k ? `<div class="coach-big" role="dialog" aria-label="せつめい"><div class="cb-in">${who}<p>${ruby(st.text)}</p>
+        <button type="button" class="btn primary" data-act="${st.next ? 'tutnext' : 'tutread'}">${st.next ? 'つぎへ' : 'わかった'}</button></div></div>` : '';
+      return `<div class="coach ${lock ? '' : 'story'}" role="status">${who}<p>${ruby(st.text)}</p>${st.next ? '<button type="button" class="btn primary" data-act="tutnext">つぎへ</button>' : ''}</div>${big}`;
     },
     highlight(root) { const st = step(); if (st?.hl) root.querySelectorAll(st.hl).forEach((el) => el.classList.add('tut-hl')); },
   };

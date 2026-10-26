@@ -1014,3 +1014,22 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] .st-ch { background: var(--win); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
 :root[data-theme="gba"] .st-ep { border-radius: 3px; }
 :root[data-theme="gba"] :is(.st-ep b, .st-ep em) { font-family: var(--display); }
+
+/* ---- チュートリアル・ストーリーの せつめい（2026-10-26）：あたらしい ことばは 画面の 下 半分に 大きく 出す ---- */
+.coach-big { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; height: 50vh; display: flex; justify-content: center; padding: 0 10px; background: linear-gradient(transparent, rgba(5, 8, 18, 0.55) 30%); animation: cb-up 0.28s ease-out; }
+.cb-in { width: 100%; max-width: 920px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; background: var(--paper); color: var(--paper-ink); border-radius: 18px 18px 0 0; border-top: 8px solid var(--gold); padding: 16px 18px calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 18px; line-height: 2.1; overflow-y: auto; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45); }
+.cb-in p { margin: 0; flex: 1 1 auto; }
+.cb-in .coach-who { font-size: 13px; color: #9a6a00; }
+.cb-in .btn { align-self: flex-end; min-width: 160px; min-height: 54px; font-size: 18px; }
+@keyframes cb-up { from { transform: translateY(100%); } }
+/* タブレット：すこし ひくめ（45%）で 文字を 大きく */
+@media (min-width: 640px) {
+  .coach-big { height: 45vh; padding: 0 24px; }
+  .cb-in { padding: 22px 30px calc(18px + env(safe-area-inset-bottom, 0px)); font-size: 23px; line-height: 2; }
+  .cb-in .coach-who { font-size: 16px; }
+  .cb-in .btn { min-width: 220px; min-height: 60px; font-size: 20px; }
+}
+:root[data-theme="gba"] .cb-in { background: var(--win); color: var(--ink); border: 3px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; box-shadow: 0 0 0 3px var(--px); font-family: var(--display); }
+:root[data-theme="gba"] .cb-in .coach-who { color: var(--gold); }
+:root[data-theme="gba"] .coach-big { animation-timing-function: steps(4); }
+.coach:has(+ .coach-big) { visibility: hidden; } /* 大きい まどを 出して いる あいだは 小さい おびを かくす（場所は のこす） */
