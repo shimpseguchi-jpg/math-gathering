@@ -5,7 +5,7 @@ import { pvp } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
 import { buildDeck } from '../engine/run.js';
 import { startBattle } from './battle.js';
-import { sheet, ruby, info, detail, COLOR_NAME } from './view.js';
+import { sheet, ruby, info, detail, fullCard, COLOR_NAME } from './view.js';
 
 // ライフ：どちらも 30（長の なかまの カードを 足して、AI どうし 100戦で 龍族 47%：docs/SIMULATION.md）
 export const FACTIONS = {
@@ -25,14 +25,50 @@ export function cmdDeck(def) {
   return buildDeck(pool, { pair: ids }).deck;
 }
 
+// 統率者を えらぶ：5まいの カードを ならべて、スワイプ（か ‹ ›）で めくる。□□▣□□ は いまの 位置
+// o = { title, note(def) → 下に 出す 文, ok: 決定ボタンの 文 } → えらんだ ID（もどるは null）
+export function pickCommander(ids, o = {}) {
+  return new Promise((resolve) => {
+    const el = document.getElementById('app');
+    let i = 0;
+    const draw = (dir = 0) => {
+      const d = BY_ID[ids[i]];
+      el.innerHTML = `<main class="cmd-pick">
+        <p class="eyebrow">${ruby('統率者（とうそつしゃ）を えらぶ')}</p>
+        <h2>${o.title || ''}</h2>
+        <div class="cp-stage">
+          <button type="button" class="cp-arrow" data-cp="-1" aria-label="まえの 統率者">‹</button>
+          <div class="cp-card ${dir > 0 ? 'from-r' : dir < 0 ? 'from-l' : ''}">${fullCard(d)}</div>
+          <button type="button" class="cp-arrow" data-cp="1" aria-label="つぎの 統率者">›</button>
+        </div>
+        <div class="cp-dots" role="tablist">${ids.map((x, k) => `<button type="button" class="${k === i ? 'on' : ''}" data-cpi="${k}" aria-label="${k + 1}まいめ" aria-selected="${k === i}"></button>`).join('')}</div>
+        <p class="cp-info">${colorText(d)}・${d.cost}マナ${o.note ? `・${o.note(d)}` : ''}</p>
+        <div class="row-btns"><button type="button" class="btn" data-cpgo="back">もどる</button><button type="button" class="btn primary" data-cpgo="ok">${o.ok || 'この 統率者に する'}</button></div>
+      </main>`;
+    };
+    const go = (n) => { const dir = n; i = (i + n + ids.length) % ids.length; draw(dir); };
+    const done = (v) => { el.onclick = null; el.onpointerdown = null; el.onpointerup = null; window.removeEventListener('keydown', key); resolve(v); };
+    const key = (e) => { if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1); };
+    el.onclick = (e) => {
+      const a = e.target.closest('[data-cp]'); if (a) return go(+a.dataset.cp);
+      const t = e.target.closest('[data-cpi]'); if (t) { const k = +t.dataset.cpi; const dir = k - i; i = k; return draw(dir); }
+      const b = e.target.closest('[data-cpgo]'); if (b) return done(b.dataset.cpgo === 'ok' ? ids[i] : null);
+    };
+    // スワイプ：よこに 40px いじょう うごかしたら めくる
+    let x0 = null;
+    el.onpointerdown = (e) => { if (e.target.closest('.cp-stage')) x0 = e.clientX; };
+    el.onpointerup = (e) => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) >= 40) go(dx < 0 ? 1 : -1); };
+    window.addEventListener('keydown', key);
+    draw();
+  });
+}
+
 export async function commanderMenu(back) {
   const f = await sheet(`<p>${ruby('陣営（じんえい）を えらんで、その リーダーを 統率者（とうそつしゃ）に する。統率者は デッキとは べつの「とうそつりょういき」に いて、マナが あれば いつでも 唱（とな）えられる。唱える たびに ＋2マナ（とうそつしゃぜい）。ライフは 30。')}</p>`,
     [...Object.entries(FACTIONS).map(([k, v]) => ({ label: ruby(v.name), value: k, kind: 'primary', note: k === 'dragon' ? '龍王（2色）' : '氏族の 長（3色）' })), { label: 'もどる', value: null }],
     { title: '統率者戦（とうそつしゃせん）れんしゅう' });
   if (!f) return back();
-  const id = await sheet(`<p>${ruby('デッキは 統率者の 色だけで 自動で 組む。')}</p>`,
-    [...FACTIONS[f].ids.map((x) => ({ label: `${ruby(info(BY_ID[x]).name)}（${colorText(BY_ID[x])}・${BY_ID[x].cost}マナ）`, value: x, kind: 'primary' })), { label: 'もどる', value: null }],
-    { title: `${ruby(FACTIONS[f].name)}の 統率者` });
+  const id = await pickCommander(FACTIONS[f].ids, { title: `${ruby(FACTIONS[f].name)}の 統率者`, note: () => ruby('デッキは 統率者の 色で 自動で 組む') });
   if (!id) return commanderMenu(back);
   const me = BY_ID[id];
   const other = f === 'dragon' ? 'human' : 'dragon';

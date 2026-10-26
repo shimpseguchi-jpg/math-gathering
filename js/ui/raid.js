@@ -7,7 +7,7 @@ import { colorsOf } from '../engine/game.js';
 import { startBattle } from './battle.js';
 import { sheet, esc, ruby, info, detail, COLOR_NAME } from './view.js';
 import { hasServer, call, nameOf } from './online.js';
-import { FACTIONS, RIVAL, cmdDeck } from './commander.js';
+import { FACTIONS, RIVAL, cmdDeck, pickCommander } from './commander.js';
 import { RAID, WIN_PTS, FINISH_PTS, DEF_PTS, loadRaid, saveRaid, raidOpen, raidFree, raidPoints, sendRaid } from './raidstore.js';
 
 const plain = (t) => t.replace(/（[ぁ-ゖー]+）/g, '');
@@ -77,9 +77,7 @@ async function join(app, back) {
     [...Object.entries(FACTIONS).map(([k, v]) => ({ label: ruby(v.name), value: k, kind: 'primary', note: k === 'dragon' ? '龍王（2色）' : '氏族の 長（3色）' })), { label: 'もどる', value: null }],
     { title: ruby(RAID.name) });
   if (!f) return back();
-  const id = await sheet(`<p>${ruby('デッキは 統率者の 色だけで 自動で 組む。')}</p>`,
-    [...FACTIONS[f].ids.map((x) => ({ label: `${cname(x)}（${colorText(BY_ID[x])}・${BY_ID[x].cost}マナ）`, value: x, kind: 'primary', note: `たいけつ：${plain(info(BY_ID[rivalOf(x)]).name)}` })), { label: 'もどる', value: null }],
-    { title: `${ruby(FACTIONS[f].name)}の 統率者` });
+  const id = await pickCommander(FACTIONS[f].ids, { title: `${ruby(FACTIONS[f].name)}の 統率者`, note: (d) => `${ruby('たいけつ')}：${cname(rivalOf(d.id))}` });
   if (!id) return join(app, back);
   const ok = await sheet(`${detail(BY_ID[id])}<p class="what">${ruby(`${FACTIONS[f].name}・${info(BY_ID[id]).name} で さんかする？ レイドが おわるまで かえられない。`)}</p>`,
     [{ label: 'さんかする', value: 1, kind: 'primary' }, { label: 'えらびなおす', value: 0 }], { title: 'これで いい？' });
