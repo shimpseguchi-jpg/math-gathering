@@ -1,7 +1,7 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
   api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost,
-  zzBreak,
+  zzBreak, useBreak, BREAK_AT, BREAK_ALL, ZZ_BLUE,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -355,6 +355,7 @@ export function levelUp(s, p) { p.level++; L(s, `Lvアップ：${p.def.name}（�
 // ---- メイン・フェイズ ----
 function main(s, phase) {
   if (phase === 1) chargeMana(s);
+  while (s.P.brkReady > 0 && !s.over) aiBreak(s);
   for (let guard = 0; guard < 40 && !s.over; guard++) {
     const opts = [];
     for (const c of [...s.P.hand]) if (!c.locked) opts.push(...optionsFor(s, c, phase, 'hand'));
@@ -553,6 +554,20 @@ export function ninjutsu(s, c, a) {
   return true;
 }
 
+// ゼンゼロの ブレイク：本体で かてる → 本体。たおせる てきが 2体 いじょう → ぜんたい。つよい てきを たおせる → それ。あとは 本体（なければ マナから かいしゅう）
+function aiBreak(s) {
+  const cr = s.E.bf.filter(isCreature);
+  const left = (p) => pt(s, p)[1] - p.dmg;
+  if (s.floor.face && s.E.life <= BREAK_AT) return useBreak(s, 'one', 'face');
+  if (cr.filter((p) => left(p) <= BREAK_ALL).length >= 2) return useBreak(s, 'all');
+  const big = cr.filter((p) => left(p) <= BREAK_AT).sort((a, b) => power(s, b) - power(s, a))[0];
+  if (big && power(s, big) >= 3) return useBreak(s, 'one', big);
+  if (s.floor.face) return useBreak(s, 'one', 'face');
+  if (big) return useBreak(s, 'one', big);
+  const m = [...s.P.mana].sort((a, b) => (b.def.cost || 0) - (a.def.cost || 0))[0];
+  return m ? useBreak(s, 'mana', m) : useBreak(s, 'all');
+}
+
 // 交代（ゼンゼロ。swapBlock の ある カード）：ブロックしている じぶんの クリーチャー（blocks の aUid の もの）を 手札に もどして、c を かわりに ブロックさせる
 export function swapBlocker(s, c, aUid, blocks) {
   const nj = c.def.ninjutsu;
@@ -740,6 +755,7 @@ Object.assign(api, {
   },
   // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {
+    if (ZZ_BLUE.mode === 'scry' && n > 0) zzBreak(s, 'U', '青：占術');
     L(s, `せんじゅつ ${n}`);
     if (s.ai.scry) return s.ai.scry(s, n);
     const top = s.P.lib.splice(0, n);

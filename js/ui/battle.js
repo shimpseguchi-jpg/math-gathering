@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, BREAK_AT, BREAK_ALL,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -551,6 +551,7 @@ async function action(a) {
   if (a === 'blockauto') { B.blockMap = AI.blocks(s, B.blockAttackers); return render(); }
   if (a === 'gy') return showGy();
   if (a === 'cmd') return showCmd();
+  if (a === 'brk') return showBreak();
   if (a === 'ecmd') return sheet(cmdNote(s.E, true), [{ label: 'とじる', value: 0 }], { title: 'あいての 統率者（とうそつしゃ）' });
   if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどし、ライフ −${reshuffleCost(s.P, true)}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
   if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
@@ -678,6 +679,30 @@ async function useTrick(c) {
   else castCard(s, c, pl, { run });
   B.busy = false;
   render();
+}
+
+// ゼンゼロの ブレイク：ゲージを タップ → せつめい。つかえる ときは 3つから えらぶ
+async function showBreak() {
+  const s = B.s, ok = s.P.brkReady > 0 && B.mode === 'main' && s.active === 'P';
+  const cr = s.E.bf.filter(isCreature);
+  const v = await sheet(`<p>${ruby('ブレイクカウンターが 10こ たまると ブレイクが 1回 つかえる。じぶんの ターンに 3つから えらぶ。')}</p>
+    <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた・青 てきを よわく した・黒 てきを たおした・赤 呪文や 能力で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
+    { label: `ぜんたい：てきの クリーチャー ぜんぶに ${BREAK_ALL}点`, value: 'all', kind: 'primary', disabled: !ok || !cr.length },
+    { label: `たんたい：てき 1つに ${BREAK_AT}点`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
+    { label: 'かいしゅう：マナゾーンの カード 1まいを てふだに', value: 'mana', kind: 'primary', disabled: !ok || !s.P.mana.length },
+    { label: 'とじる', value: null },
+  ], { title: `ブレイク（${s.E.brk || 0}/${BREAK_AT}・つかえる ${s.P.brkReady || 0}回）` });
+  if (!v) return;
+  if (v === 'one') {
+    const t = await sheet(`<p>どれに ${BREAK_AT}点？</p>`, [...(s.floor.face ? [{ label: faceName(), value: 'face' }] : []), ...cr.map((p) => ({ label: `${nm(p)}（のこり ${pt(s, p)[1] - p.dmg}）`, value: p })), { label: 'やめる', value: null }]);
+    if (!t) return;
+    useBreak(s, 'one', t);
+  } else if (v === 'mana') {
+    const c = await sheet('<p>どの カードを てふだに もどす？</p>', [...s.P.mana.map((m) => ({ label: `${ruby(info(m.def).name)}${m.tapped ? '（タップずみ）' : ''}`, value: m })), { label: 'やめる', value: null }]);
+    if (!c) return;
+    useBreak(s, 'mana', c);
+  } else useBreak(s, 'all');
+  if (!checkOver()) render();
 }
 
 // 起動型能力が いま 使えるか（能力の シートと、場の カードの わくの しるしで おなじ 判定を 使う）
@@ -1069,7 +1094,7 @@ function render() {
       <div class="me-mana">
         <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
         ${s.P.srDeck ? `<span class="pile sp" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
-        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><span class="pile sp brk" title="ブレイク：10 たまると ${s.floor.face ? 'てきの 本体' : 'いちばん つよい てき'}に 10点">ブレイク <b>${s.E.brk || 0}</b>/10</span>` : ''}
+        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><button type="button" class="pile sp brk ${s.P.brkReady ? 'ready' : ''}" data-act="brk">${s.P.brkReady ? `ブレイク OK！${s.P.brkReady > 1 ? `×${s.P.brkReady}` : ''}` : 'ブレイク'} <b>${s.E.brk || 0}</b>/10</button>` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>

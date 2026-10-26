@@ -47,7 +47,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 
 // 統率者戦（RAID.md 3.2）：統率者は 統率領域（cmd）に いて、いつでも 唱えられる。唱える たびに ＋2マナ（統率者税）
 // o = { step: 統率者税の 段（ふつう 2）, less: 安く なる マナ（レイドの 人間の 長は 1） }
-export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; }
+export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; if (isZZ(def)) side.zzDeck = true; }
 export const cmdTax = (s) => (s.P.cmdStep ?? 2) * (s.P.cmdCasts || 0);
 // 統率領域から 唱える コスト ＝ コスト − 安く なる ぶん ＋ 統率者税（色の ぶんは のこる）
 export const cmdCost = (s, d) => Math.max(colorsOf(d).length, costOf(s, d) - (s.P.cmdLess || 0) + cmdTax(s));
@@ -343,37 +343,56 @@ export function proliferate(s) {
 
 // ゼンゼロ：エネルギー（みんなで 1つの 数。0〜10）
 export const BON_MAX = 10;
-// ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって 本体に 10点（階の きまりの まま）。
-// 本体の ない 階では、かわりに いちばん つよい 敵の クリーチャーに 10点
-export const BREAK_AT = 10;
-// 属性ブレイク（2026-10-26 ためし）：ゼンゼロの クリーチャーが 場に いると、その クリーチャーの 色の きっかけで 1こ たまる。交代すると 3こ
+// ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって「ブレイク」が 1回 つかえる（s.P.brkReady）
+// ブレイクは じぶんの ターンに えらんで つかう（useBreak）：ぜんたい（てきの クリーチャー ぜんぶに 5点）・たんたい（てき 1つに 10点）・マナから かいしゅう
+export const BREAK_AT = 10, BREAK_ALL = 5;
+// 属性ブレイク（2026-10-26）：ゼンゼロの クリーチャーが 場に いると、その クリーチャーの 色の きっかけで 2こ。交代は 5こ
 // 白：ライフを えた　青：敵に マイナスの 修整・−1/−1　黒：敵の クリーチャーが ぼちへ　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
-export const ZZ_BREAK = { W: 1, U: 1, K: 1, R: 1, G: 1, swap: 3 };
+// 統率者が ゼンゼロの クリーチャーなら、場に いなくても その 色の きっかけが つかえる（1色 2こ・多色 1こ）。1色の 統率者が 場に いれば 3こ
+export const ZZ_BREAK = { field: 2, mono: 3, cmdMono: 2, cmdMulti: 1, swap: 5 };
+// 青の きっかけ：'minus'（てきを よわく した）か 'scry'（占術）。どちらが よいか シミュレーションで くらべる ため きりかえられる
+export const ZZ_BLUE = { mode: 'minus' };
+const isZZ = (d) => /^ZZ/.test(d?.id || '');
+function zzAmount(s, k) {
+  if (k === 'swap') return ZZ_BREAK.swap;
+  let a = 0;
+  for (const q of s.P.bf) if (isZZ(q.def) && isCreature(q) && colorsOf(q.def).includes(k)) a = Math.max(a, q.card?.id === s.P.cmdId && colorsOf(q.def).length === 1 ? ZZ_BREAK.mono : ZZ_BREAK.field);
+  const c = s.P.cmd?.[0]?.def; // とうそつりょういきに いる 統率者
+  if (isZZ(c) && colorsOf(c).includes(k)) a = Math.max(a, colorsOf(c).length === 1 ? ZZ_BREAK.cmdMono : ZZ_BREAK.cmdMulti);
+  return a;
+}
 export function zzBreak(s, k, why) {
-  if (!s?.P.zzDeck || s.over || s.inBreak || !ZZ_BREAK[k]) return;
-  // 色の きっかけは、その 色の ゼンゼロの クリーチャーが 場に いる ときだけ（交代は いつでも）
-  if (k !== 'swap' && !s.P.bf.some((q) => /^ZZ/.test(q.def.id || '') && isCreature(q) && colorsOf(q.def).includes(k))) return;
-  s.stats.zz = s.stats.zz || {}; s.stats.zz[k] = (s.stats.zz[k] || 0) + ZZ_BREAK[k];
-  L(s, `ブレイク ＋${ZZ_BREAK[k]}（${why}）`);
-  addBreak(s, ZZ_BREAK[k]);
+  if (!s?.P.zzDeck || s.over || s.inBreak) return;
+  const n = zzAmount(s, k); if (!n) return;
+  s.stats.zz = s.stats.zz || {}; s.stats.zz[k] = (s.stats.zz[k] || 0) + n;
+  L(s, `ブレイク ＋${n}（${why}）`);
+  addBreak(s, n);
 }
 export function addBreak(s, n) {
   if (n <= 0 || s.over) return;
   const was = s.E.brk || 0;
   s.E.brk = was + n;
   L(s, `ブレイクカウンター ${was} ＋ ${n} ＝ ${s.E.brk}`);
-  s.inBreak = true;
-  while (s.E.brk >= BREAK_AT && !s.over) {
+  while (s.E.brk >= BREAK_AT) {
     s.E.brk -= BREAK_AT;
-    const t = !s.floor.face && s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0];
-    if (!s.floor.face && !t) { s.E.brk = BREAK_AT; break; } // てきが いない：つぎの クリーチャーまで とっておく
-    L(s, `ブレイク！ ${BREAK_AT}こ とって ${t ? t.def.name : '本体'}に ${BREAK_AT}点`);
-    if (t) { damage(s, t, BREAK_AT, null); sba(s); } else hitTarget(s, 'face', BREAK_AT, null);
+    s.P.brkReady = (s.P.brkReady || 0) + 1;
+    s.stats.brk = (s.stats.brk || 0) + 1;
+    L(s, 'ブレイク じゅんび OK！（じぶんの ターンに えらんで つかえる）');
   }
+}
+// mode：'all' てきの クリーチャー ぜんぶに 5点／'one' t（'face' か てきの パーマネント）に 10点／'mana' マナゾーンの カード t を 手札に
+export function useBreak(s, mode, t) {
+  if (!s.P.brkReady || s.over) return false;
+  s.P.brkReady--; s.inBreak = true;
+  if (mode === 'all') { L(s, `ブレイク！ てきの クリーチャー ぜんぶに ${BREAK_ALL}点`); for (const p of s.E.bf.filter(isCreature)) damage(s, p, BREAK_ALL, null); }
+  else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${BREAK_AT}点`); hitTarget(s, t, BREAK_AT, null); }
+  else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
   s.inBreak = false;
+  sba(s);
+  return true;
 }
 
-export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) zzBreak(CUR, 'U', '青：てきを よわく した'); }
+export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) if (ZZ_BLUE.mode === 'minus') zzBreak(CUR, 'U', '青：てきを よわく した'); }
 
 // 来世の スピリット（白黒 1/1 飛行）
 const AFTERLIFE = { id: 't_spiritWK', name: 'スピリット', rar: null, color: 'WK', cost: 0, types: ['creature'], pow: 1, tou: 1, sub: ['spirit'], kw: ['flying'] };
@@ -383,7 +402,7 @@ export function addMinus(s, p, n, by = 'P') {
   const k = Math.min(n, p.ctr); p.ctr -= k;
   p.mctr = (p.mctr || 0) + (n - k);
   L(s, `${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`);
-  if (p.side === 'E') zzBreak(s, 'U', '青：てきを よわく した');
+  if (p.side === 'E' && ZZ_BLUE.mode === 'minus') zzBreak(s, 'U', '青：てきを よわく した');
   if (by === 'P') for (const q of [...s.P.bf]) if (q.def.onMinus && onBf(s, q)) q.def.onMinus(s, q, api, p, n);
 }
 // 信心：あなたの 戦場の その 色の パーマネントの 数
@@ -839,7 +858,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost,
+  setCommander, cmdTax, cmdCost, useBreak,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

@@ -967,3 +967,7 @@ div.zk-card { cursor: default; }
 .b-cmd { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--table-2); border: 1px solid var(--gold); border-radius: 10px; padding: 4px 6px 4px 10px; font-size: 13px; }
 .b-cmd .btn { min-height: 34px; padding: 4px 14px; }
 :root[data-theme="gba"] .b-cmd { background: var(--win); border: 2px solid var(--gold); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); }
+/* ゼンゼロの ブレイク：つかえる ときは ゲージが 光る（タップで えらぶ） */
+.pile.brk { font: inherit; color: inherit; }
+.pile.brk.ready { border-color: var(--gold); background: linear-gradient(#ffd56e, var(--gold)); color: var(--gold-ink); font-weight: 700; animation: ab-big 1.2s ease-in-out infinite; }
+:root[data-theme="gba"] .pile.brk.ready { background: var(--gold); color: var(--gold-ink); animation: gba-blink-o 0.8s steps(1) infinite; outline: 2px solid #fff8c0; }
