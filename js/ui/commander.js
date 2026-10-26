@@ -1,9 +1,9 @@
 // 統率者戦（とうそつしゃせん）の れんしゅう（docs/RAID.md 3.2）：陣営と 統率者を えらんで、ちがう 陣営の CPU と たたかう
 // デッキは 統率者の 色だけで 自動で 組む（第1〜6弾の カードから 20まい）。統率者は 統率領域に いて、唱える たびに ＋2マナ
-import { BY_ID, SETS } from '../data/cards.js';
+import { BY_ID, SETS, BASICS } from '../data/cards.js';
 import { pvp } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
-import { buildDeck, cardValue } from '../engine/run.js';
+import { cardValue, DECK_SIZE, CAPACITY } from '../engine/run.js';
 import { ptsOf } from '../engine/ai.js';
 import { CARD_TEXT } from '../data/texts.js';
 import { startBattle } from './battle.js';
@@ -75,11 +75,50 @@ const DRAGON_SIDE = new Set(['RG08', 'WG08', 'KR08', 'WU08', 'UK08', 'R71', 'G72
 const HUMAN_SIDE = new Set([...SETS.find((st) => st.id === 6).cards.map((d) => d.id)].filter((id) => !DRAGON_SIDE.has(id)));
 
 // 統率者の おまかせ デッキ（プールから。統率者じしんと 旗は 入れない）
+// 2026-10-26：点（レアリティ）だけで えらぶと、呪文ばかり・おもい カードばかりの デッキに なる ので、きまりを 足した
+//   クリーチャー MIN_CR まい いじょう・5マナ いじょうは HEAVY_MAX まで・2マナ いかは すこし ゆうせん。20まい・30点まで
+export const MIN_CR = 12, HEAVY_MAX = 5;
+const cache = new Map();
 export function cmdDeck(def, pool = cmdPool(def)) {
+  const key = `${def.id}:${pool.map((d) => d.id).join(',')}`;
+  if (!cache.has(key)) cache.set(key, buildCmdDeck(def, pool));
+  return cache.get(key);
+}
+function buildCmdDeck(def, pool) {
   const ids = colorsOf(def);
-  // 3色の 統率者は、2色を 中心に 3色めを すこし（3色を そろえて 入れると よわい：docs/SIMULATION.md）
-  if (ids.length >= 3) return buildDeck(pool, { splash: 4, banners: false }).deck;
-  return buildDeck(pool, { pair: ids }).deck;
+  const inside = (cs) => pool.filter((d) => colorsOf(d).every((c) => cs.includes(c)));
+  // 3色の 統率者は、2色を 中心に 3色めを 4まいまで（3色を そろえて 入れると よわい：docs/SIMULATION.md）か、3色 ぜんぶ
+  const tries = ids.length >= 3
+    ? [...[[0, 1], [0, 2], [1, 2]].map(([a, b]) => { const two = [ids[a], ids[b]]; const t = ids.find((c) => !two.includes(c)); return [...inside(two), ...inside(ids).filter((d) => colorsOf(d).includes(t)).sort((x, y) => cardValue(y) - cardValue(x)).slice(0, 4)]; }), inside(ids)]
+    : [inside(ids)];
+  let best = null;
+  for (const items of tries) { const r = pickDeck(items); if (r && (!best || r.v > best.v)) best = r; }
+  const deck = [...(best?.pick || [])];
+  const cnt = Object.fromEntries(ids.map((c) => [c, deck.filter((d) => colorsOf(d).includes(c)).length]));
+  const order = [...ids].sort((a, b) => cnt[b] - cnt[a]);
+  for (let n = 0; deck.length < DECK_SIZE; n++) deck.push(BASICS[order[n % order.length]]);
+  return deck;
+}
+// dp[まい数][点][クリーチャー（MIN_CR で とめる）][おもい カード] ＝ いちばん よい 組み合わせ
+function pickDeck(items) {
+  const score = (d) => cardValue(d) + (d.cost <= 2 ? 0.4 : 0) - (d.cost >= 6 ? 1 : 0);
+  const key = (n, p, c, h) => ((n * (CAPACITY + 1) + p) * (MIN_CR + 1) + c) * (HEAVY_MAX + 1) + h;
+  let dp = new Map([[key(0, 0, 0, 0), { v: 0, pick: [], n: 0, p: 0, c: 0, h: 0 }]]);
+  for (const d of items) {
+    const w = ptsOf(d), cr = (d.types || []).includes('creature') ? 1 : 0, hv = d.cost >= 5 ? 1 : 0, sv = score(d);
+    const next = new Map(dp);
+    for (const st of dp.values()) {
+      const n = st.n + 1, p = st.p + w, h = st.h + hv;
+      if (n > DECK_SIZE || p > CAPACITY || h > HEAVY_MAX) continue;
+      const c = Math.min(MIN_CR, st.c + cr), k = key(n, p, c, h), cur = next.get(k);
+      if (!cur || cur.v < st.v + sv) next.set(k, { v: st.v + sv, pick: [...st.pick, d], n, p, c, h });
+    }
+    dp = next;
+  }
+  // クリーチャーが MIN_CR まい いじょうの なかで いちばん よい もの（たりない ときは クリーチャーが 多い もの）
+  const all = [...dp.values()];
+  const ok = all.filter((x) => x.c >= MIN_CR);
+  return (ok.length ? ok : all).sort((a, b) => (ok.length ? 0 : b.c - a.c) || b.v - a.v)[0];
 }
 
 // 統率者を えらぶ：5まいの カードを ならべて、スワイプ（か ‹ ›）で めくる。□□▣□□ は いまの 位置
