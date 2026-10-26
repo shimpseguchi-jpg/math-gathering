@@ -56,9 +56,12 @@ export function favorColor(deck) {
 export const EMBLEM_COLOR = 2;
 // 番外編パックの もんしょう：番外編の カードは 3ばい 出やすい（1パックの はんぶん くらい。シナジーが できる ように）
 export const EXTRA_WEIGHT = 3;
+// サブセットの もんしょう：ふつうの 出やすさ（3ばいに すると 第1弾＋第2弾 63% → 44% と さがった）
+export const SUB_WEIGHT = 1;
+const IS_SUB = new Set(SETS.filter((x) => x.sub).map((x) => x.id));
 function pickFavored(rng, list, favor, colors = [], extra = []) {
   if (!favor && !colors.length && !extra.length) return pick(rng, list);
-  const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length) * (extra.includes(SET_OF[d.id]) ? EXTRA_WEIGHT : 1); });
+  const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length) * (extra.includes(SET_OF[d.id]) ? (IS_SUB.has(SET_OF[d.id]) ? SUB_WEIGHT : EXTRA_WEIGHT) : 1); });
   let r = rng() * w.reduce((t, x) => t + x, 0);
   for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; }
   return list[list.length - 1];

@@ -39,6 +39,11 @@ export const EMBLEMS = [
   { id: 'pLeg', branch: 'pack', lv: 1, cost: 3, name: 'レジェンド', text: 'レジェンドが 出る かくりつが 3ばい', detail: 'レアの わくが レジェンドに かわる かくりつ 8まいに 1まい → 8まいに 3まい', fx: { packLeg: 0.25 } },
   { id: 'pBanner', branch: 'pack', lv: 1, cost: 2, name: 'はじめの 旗（はた）', text: 'えらんだ はたを 1まい もって ぼうけんを はじめる（その 3色の デッキが くめる）', detail: 'えらぶ ときに 10まいの はたから 1つ えらぶ。はたは 4点', fx: { banner: true } },
   // 番外編パック：番外編の カードが いまの パックに まざる（docs/EXTRA.md）
+  // サブセット：小さい 弾が いまの パックに まざる（ふつうの 出やすさ）
+  { id: 'pRav', branch: 'pack', lv: 1, cost: 1, name: 'サブセット ラヴニカ', text: 'パックに ラヴニカの カード（50しゅるい）が まざる', detail: '10の ギルドの 2色の カード。2色の デッキが くみやすく なる', fx: { packExtra: 9 } },
+  { id: 'pFlag', branch: 'pack', lv: 1, cost: 1, name: 'サブセット 三つの 旗（はた）', text: 'パックに 三つの 旗の カード（45しゅるい）が まざる', detail: '旗が あれば 3色の デッキが くめる', fx: { packExtra: 6 } },
+  { id: 'pAlc', branch: 'pack', lv: 1, cost: 1, name: 'サブセット アルケミー', text: 'パックに アルケミーの カード（31しゅるい）が まざる', detail: 'デジタルだけの カード（永久・創出・ドラフト）', fx: { packExtra: 7 } },
+  { id: 'pPW', branch: 'pack', lv: 1, cost: 1, name: 'サブセット プレインズウォーカー', text: 'パックに プレインズウォーカー（5しゅるい）が まざる', detail: 'ちゅうせいを つかう つよい カード。どれも レジェンド', fx: { packExtra: 8 } },
   { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（70しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
   { id: 'pHSR', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） 崩壊（ほうかい）：スターレイル', text: 'パックに スターレイルの カード（70しゅるい）が まざる', detail: 'キャラ（ピノコニーまで）・モブ・光円錐（こうえんすい）が 出る。せんぎポイントは みんなで 1つ（5まで）', fx: { packExtra: 11 } },
   { id: 'pZZZ', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） ゼンレスゾーンゼロ', text: 'パックに ゼンゼロの カード（80しゅるい）が まざる', detail: 'エージェント（Ver.1まで）・モブ・ボンプ・音動機（おんどうき）・終結（しゅうけつ）スキルが 出る。ブレイクを 10 ためると てきの 本体に 10点。エネルギーは みんなで 1つ（10まで）', fx: { packExtra: 12 } },

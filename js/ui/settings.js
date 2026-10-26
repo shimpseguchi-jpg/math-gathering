@@ -16,8 +16,8 @@ const PLANNED = [
   [7, 'アルケミー（デジタル 限定（げんてい））', 31],
 ].filter(([id]) => !SETS.some((x) => x.id === id));
 
-// 番外編（extra）は せっていでは えらばない。もんしょう「番外編パック」で いまの 弾に まざる
-const ALL_SETS = SETS.filter((x) => !x.extra).map((x) => x.id);
+// 番外編（extra）と サブセット（sub）は せっていでは えらばない。もんしょう（パックの もんしょう）で いまの 弾に まざる
+const ALL_SETS = SETS.filter((x) => !x.extra && !x.sub).map((x) => x.id);
 // 出ている 弾（released）。開発中の 弾は 開発モードで えらんだ ときだけ
 const RELEASED = SETS.filter((x) => x.released).map((x) => x.id);
 let sets = (() => {
@@ -63,7 +63,7 @@ export function settingsScreen(app, back) {
         <h3><span class="dev-badge">開発モード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
-          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${(on.length === 1 && on.includes(x.id)) || x.extra ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}${x.extra ? '・もんしょう「番外編（ばんがいへん）パック」で まざる' : ''}</small></span></label></li>`).join('')}
+          ${SETS.map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${(on.length === 1 && on.includes(x.id)) || x.extra || x.sub ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}${x.extra ? '・もんしょう「番外編（ばんがいへん）パック」で まざる' : ''}</small></span></label></li>`).join('')}
           ${PLANNED.map(([id, name, k]) => `<li class="planned"><label><input type="checkbox" id="plan-${id}" disabled><span><b>${ruby(name)}</b><small>じゅんびちゅう（あんは ${k}しゅるい）</small></span></label></li>`).join('')}
         </ul>
         <p class="st-pool">パックに 出る カード：<b>${n('C') + n('U') + n('R') + n('L')}しゅるい</b>（コモン ${n('C')}・アンコモン ${n('U')}・レア ${n('R')}・レジェンド ${n('L')}）</p>
