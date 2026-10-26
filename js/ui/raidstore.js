@@ -11,7 +11,9 @@ export function loadRaid() {
   try { const r = JSON.parse(localStorage.getItem(KEY) || 'null'); return r && r.id === RAID.id ? { ...fresh(), ...r } : fresh(); } catch { return fresh(); }
 }
 export function saveRaid(r) { try { localStorage.setItem(KEY, JSON.stringify(r)); } catch { /* 保存できなくても あそべる */ } }
-export const raidOpen = () => !RAID.ends || Date.now() < RAID.ends;
+// WEB版（サーバーなし）は 仮モード：期間を 気に せず いつでも あそべる（点は この 端末だけ）
+export const raidFree = () => !hasServer();
+export const raidOpen = () => raidFree() || !RAID.ends || Date.now() < RAID.ends;
 // おわってから 1週間は けっかを 見られる
 export const raidShown = () => raidOpen() || Date.now() < RAID.ends + 7 * 86400000;
 // じぶんの 点 ＝ かった 数 × 10 ＋ といた 問題の 数 ＋ 統率者で とどめ × 5

@@ -8,7 +8,7 @@ import { startBattle } from './battle.js';
 import { sheet, esc, ruby, info, detail, COLOR_NAME } from './view.js';
 import { hasServer, call, nameOf } from './online.js';
 import { FACTIONS, RIVAL, cmdDeck } from './commander.js';
-import { RAID, WIN_PTS, FINISH_PTS, loadRaid, saveRaid, raidOpen, raidPoints, sendRaid } from './raidstore.js';
+import { RAID, WIN_PTS, FINISH_PTS, loadRaid, saveRaid, raidOpen, raidFree, raidPoints, sendRaid } from './raidstore.js';
 
 const plain = (t) => t.replace(/（[ぁ-ゖー]+）/g, '');
 const cname = (id) => ruby(info(BY_ID[id]).name);
@@ -39,7 +39,7 @@ export async function raidMenu(app, back) {
   const over = !raidOpen();
   const winner = tot.dragon === tot.human ? null : tot.dragon > tot.human ? 'dragon' : 'human';
   app().innerHTML = `<main class="online raid">
-    <p class="eyebrow">レイド${hasServer() ? '' : '（れんしゅう：じぶんの 点だけ）'}</p>
+    <p class="eyebrow">レイド${raidFree() ? '（WEBばんの 仮（かり）モード：いつでも あそべる・じぶんの 点だけ）' : ''}</p>
     <h2>${ruby(RAID.name)}</h2>
     ${over ? `<p class="ol-news">${winner ? `${ruby(FACTIONS[winner].name)}の かち！` : 'ひきわけ！'}</p><p class="say"><b>ニコル・ボーラス</b><span>${ruby(BOLAS[winner || 'human'])}</span></p>` : ''}
     <div class="rd-bars">${bar('dragon')}${bar('human')}</div>
@@ -49,7 +49,7 @@ export async function raidMenu(app, back) {
       <div class="ol-score"><b>${mine}<small>点</small></b><span>${ruby(formula)}</span></div>
     </div>` : ''}
     ${over ? '' : `<p class="ol-help">${ruby(`かつと ＋${WIN_PTS}点、統率者（とうそつしゃ）で とどめを さすと さらに ＋${FINISH_PTS}点。しゅぎょうで せいかいした 問題も 1もん ＋1点。`)}</p>`}
-    ${RAID.ends && !over ? `<p class="ol-help">${ruby(`${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`)}</p>` : ''}
+    ${RAID.ends && !over ? `<p class="ol-help">${ruby(`${raidFree() ? 'ほんばん（GASばん）は ' : ''}${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`)}</p>` : ''}
     <div class="row-btns"><button type="button" class="btn" data-r="back">もどる</button><button type="button" class="btn primary" data-r="fight" ${over ? 'disabled' : ''}>たたかう</button></div>
     <h3 class="ol-h">5つの 対決（たいけつ）</h3>
     <ul class="rd-duels">${duels}</ul>
