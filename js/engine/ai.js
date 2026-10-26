@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdTax,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -94,7 +94,7 @@ export function castCard(s, c, pl, o = {}) {
   const P = s.P, def = c.def, from = o.from || 'hand';
   if (from === 'hand') P.hand.splice(P.hand.indexOf(c), 1);
   else if (from === 'gy' || from === 'escape' || from === 'madness') P.gy.splice(P.gy.indexOf(c), 1);
-  else if (from === 'cmd') { P.cmd.splice(P.cmd.indexOf(c), 1); P.cmdCasts = (P.cmdCasts || 0) + 1; L(s, `${s.swapped ? 'てき：' : ''}とうそつりょういきから（つぎは ＋${2 * P.cmdCasts}マナ）`); }
+  else if (from === 'cmd') { P.cmd.splice(P.cmd.indexOf(c), 1); P.cmdCasts = (P.cmdCasts || 0) + 1; L(s, `${s.swapped ? 'てき：' : ''}とうそつりょういきから（つぎは ＋${(P.cmdStep ?? 2) * P.cmdCasts}マナ）`); }
   // 脱出：墓地の ほかの カードを N まい 追放する（古い ものから）
   if (from === 'escape') { const ex = P.gy.splice(0, o.escExile ?? Math.min(P.gy.length, def.escape.total - 1)); P.exile.push(...ex); L(s, `${s.swapped ? 'てき：' : ''}だっしゅつ：ぼちの ${ex.length}まいを ついほう`); }
   // 収斂：はらった マナの 色の 数
@@ -215,7 +215,7 @@ function bestowOptions(s, c, phase) {
 export const escapeMin = (s, d) => Math.max(1, d.escape.total - (s.P.gy.length - 1));
 function optionsFor0(s, c, phase, from) {
   const def = c.def;
-  const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? escapeMin(s, def) : costOf(s, def) + (from === 'cmd' ? cmdTax(s) : 0);
+  const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? escapeMin(s, def) : (from === 'cmd' ? cmdCost(s, def) : costOf(s, def));
   const req = from === 'gy' ? def.flashback.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
   const o = { convoke: def.kw?.includes('convoke'), sickOnly: phase === 1, req2: def.req2, lifeKeep: c.conj ? 5 : 0 };
   if (def.discardCost && from === 'hand' && s.P.hand.length - 1 < def.discardCost) return [];

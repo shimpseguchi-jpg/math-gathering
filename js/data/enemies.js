@@ -834,7 +834,7 @@ export function pvp(g) {
     id: 'pvp', name: g.name || 'あいて', faceUnit: 1, faceLabel: 'あいて', first: g.first || 'P',
     setup(s, E) {
       Object.assign(s.E, { lib: shuffle(s.rng, g.deck.map((d) => E.card(d))), cols: new Set(g.deck.flatMap(E.colorsOf)), hand: [], mana: [], suspended: [], life: g.life || 20, noLifeGain: false, flags: {} });
-      if (g.cmd) E.setCommander(s.E, g.cmd); // 統率者戦
+      if (g.cmd) E.setCommander(s.E, g.cmd, g.cmdOpt); // 統率者戦
       for (let i = 0; i < 5; i++) s.E.hand.push(s.E.lib.shift());
       s.foeStats = { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 };
     },

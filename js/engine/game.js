@@ -19,7 +19,7 @@ export const api = {};
 
 // emblem：もんしょう（data/emblems.js の emblemEffects。REQUIREMENTS 12章）。ぼうけんの たたかい だけ
 // bless：むげんの とうの 祝福（data/blessings.js の blessFx）。buff：むげんの とうで てきの クリーチャーが ＋buff/＋buff
-export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null, bless = null, buff = 0, cmd = null, life = null }) {
+export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = true, ai, log = false, emblem = null, bless = null, buff = 0, cmd = null, cmdOpt = {}, life = null }) {
   const em = emblem || {};
   if (em.swap) deck = deck.map((d) => em.swap[d.id] || d);
   const rng = seeded(seed);
@@ -30,7 +30,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {}, buff },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
-  if (cmd) setCommander(s.P, cmd);
+  if (cmd) setCommander(s.P, cmd, cmdOpt);
   if (life) s.P.life = life;
   floor.setup(s, api);
   for (let i = 0; i < s.P.handSize; i++) drawCard(s);
@@ -44,8 +44,11 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 }
 
 // 統率者戦（RAID.md 3.2）：統率者は 統率領域（cmd）に いて、いつでも 唱えられる。唱える たびに ＋2マナ（統率者税）
-export function setCommander(side, def) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; }
-export const cmdTax = (s) => 2 * (s.P.cmdCasts || 0);
+// o = { step: 統率者税の 段（ふつう 2）, less: 安く なる マナ（レイドの 人間の 長は 1） }
+export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; }
+export const cmdTax = (s) => (s.P.cmdStep ?? 2) * (s.P.cmdCasts || 0);
+// 統率領域から 唱える コスト ＝ コスト − 安く なる ぶん ＋ 統率者税（色の ぶんは のこる）
+export const cmdCost = (s, d) => Math.max(colorsOf(d).length, costOf(s, d) - (s.P.cmdLess || 0) + cmdTax(s));
 const wantMulligan = (s) => !s.P.hand.some((c) => c.def.basic) || !s.P.hand.some((c) => !c.def.basic && c.def.cost <= 3);
 // はじめの てふだを やまふだに もどして、おなじ まいすう ひきなおす（もんしょうの カードは のこす）
 export function mulligan(s) {
@@ -816,7 +819,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax,
+  setCommander, cmdTax, cmdCost,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

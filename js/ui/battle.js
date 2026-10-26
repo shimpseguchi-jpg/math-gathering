@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -373,7 +373,7 @@ function lifeNeed(s, c) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, d = c.def;
-  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? escapeMin(s, d) : costOf(s, d) + (from === 'cmd' ? cmdTax(s) : 0);
+  const cost = from === 'gy' ? d.flashback.cost : from === 'escape' ? escapeMin(s, d) : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
   const perm = !isSpell(d);
@@ -412,7 +412,7 @@ async function doCast(c, from = 'hand') {
   const stop = () => { B.busy = false; render(); };
   const req = from === 'gy' ? d.flashback.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
-  let base = from === 'gy' ? d.flashback.cost : costOf(s, d) + (from === 'cmd' ? cmdTax(s) : 0);
+  let base = from === 'gy' ? d.flashback.cost : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);
   const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
   let x = ci.x;
@@ -968,19 +968,19 @@ function cmdPile(side) {
   const c = S.cmd[0], def = c?.def || cmdOnBf(S)?.def;
   if (!def) return '';
   return `<button type="button" class="pile2 grave cmdz ${side === 'E' ? 'foe' : ''}" data-act="${side === 'P' ? 'cmd' : 'ecmd'}" aria-label="${side === 'P' ? '' : 'あいての '}とうそつしゃ">
-    <span class="gyc ${c ? band(def) : 'none'}">${c ? `<i>${ruby(info(def).name)}</i><b>${def.cost + 2 * (S.cmdCasts || 0)}</b>` : '<b>出</b>'}</span>
+    <span class="gyc ${c ? band(def) : 'none'}">${c ? `<i>${ruby(info(def).name)}</i><b>${Math.max(def.cost - (S.cmdLess || 0) + (S.cmdStep ?? 2) * (S.cmdCasts || 0), 1)}</b>` : '<b>出</b>'}</span>
     <small>${c ? 'とうそつ' : 'せんじょう'}</small></button>`;
 }
 const cmdOnBf = (S) => S.bf.find((p) => p.card?.id === S.cmdId);
 // 統率者の せつめい：コスト ＋ 統率者税（2 × 唱えた 回数）
 function cmdNote(S, enemy = false) {
   const def = S.cmd[0]?.def || cmdOnBf(S)?.def, n = S.cmdCasts || 0;
-  return `${detail(def, { enemy })}<p class="what">${S.cmd.length ? `とうそつりょういきに いる。コスト ${def.cost} ＋ とうそつしゃぜい 2 × ${n} ＝ <b>${def.cost + 2 * n}マナ</b>` : 'せんじょうに いる。墓地（ぼち）などに いく ときは、かわりに とうそつりょういきに もどる'}</p>`;
+  return `${detail(def, { enemy })}<p class="what">${S.cmd.length ? `とうそつりょういきに いる。コスト ${def.cost}${S.cmdLess ? ` − ${S.cmdLess}` : ''} ＋ とうそつしゃぜい ${S.cmdStep ?? 2} × ${n} ＝ <b>${Math.max(def.cost - (S.cmdLess || 0) + (S.cmdStep ?? 2) * n, 1)}マナ</b>` : 'せんじょうに いる。墓地（ぼち）などに いく ときは、かわりに とうそつりょういきに もどる'}</p>`;
 }
 async function showCmd() {
   const s = B.s, c = s.P.cmd[0];
   const ci = c && B.mode === 'main' ? castInfo(c, 'cmd') : { why: c ? 'いまは 使えない' : 'せんじょうに いる' };
-  const v = await sheet(cmdNote(s.P), [...(c ? [{ label: `となえる（${c.def.cost} ＋ ${cmdTax(s)} ＝ ${costOf(s, c.def) + cmdTax(s)}マナ）`, value: 1, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why }] : []), { label: 'とじる', value: 0 }], { title: '統率者（とうそつしゃ）' });
+  const v = await sheet(cmdNote(s.P), [...(c ? [{ label: `となえる（${c.def.cost}${s.P.cmdLess ? ` − ${s.P.cmdLess}` : ''} ＋ ${cmdTax(s)} ＝ ${cmdCost(s, c.def)}マナ）`, value: 1, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why }] : []), { label: 'とじる', value: 0 }], { title: '統率者（とうそつしゃ）' });
   if (v) doCast(c, 'cmd');
 }
 // やまふだ・ぼちの 中身：おなじ カードは まとめて「×2」。じゅんばんは デッキ構築と おなじ（色 → コスト）

@@ -135,7 +135,7 @@ export function buildDeck(pool, o = {}) {
 }
 
 export async function fight(deck, floorId, o = {}) {
-  const s = newGame({ deck, floor: o.floor || FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, life: o.life });
+  const s = newGame({ deck, floor: o.floor || FLOORS[floorId](), diff: o.diff || 'normal', seed: o.seed || 1, reshuffle: o.reshuffle ?? true, ai: AI, log: !!o.log, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
   await play(s, o.maxTurns || 40);
   return s;
 }
