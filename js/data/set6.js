@@ -112,11 +112,11 @@ export const S6 = {
   },
   G75: {
     play: (s, E) => { const b = foeBest(s, E, 99, (q) => E.hasKw(s, q, 'flying')); return b ? { score: 6 + b.score, run: () => { killIt(s, E, b.t); E.bolster(s, 2); } } : null; },
-    tgt: [{ side: 'E', filter: (s, E, q) => E.hasKw(s, q, 'flying'), label: 'はかいする 飛行の クリーチャー' }], apply: (s, E, [[t]]) => { killIt(s, E, t); E.bolster(s, 2); },
+    tgt: [{ side: 'E', filter: (s, E, q) => E.hasKw(s, q, 'flying'), label: 'はかいする 飛行（ひこう）の クリーチャー' }], apply: (s, E, [[t]]) => { killIt(s, E, t); E.bolster(s, 2); },
   },
   G76: {
     play: (s, E) => { const fl = theirs(s, E).filter((q) => E.hasKw(s, q, 'flying')); const plan = E.divide(s, 3, fl); return plan.length ? { score: 3 + 4 * plan.length, run: () => { for (const d of plan) E.damage(s, d.t, d.n, null); E.sba(s); } } : null; },
-    tgt: [{ side: 'E', max: 3, divide: 3, filter: (s, E, q) => E.hasKw(s, q, 'flying'), label: '3点を わりふる 飛行の クリーチャー' }],
+    tgt: [{ side: 'E', max: 3, divide: 3, filter: (s, E, q) => E.hasKw(s, q, 'flying'), label: '3点を わりふる 飛行（ひこう）の クリーチャー' }],
     apply: (s, E, [al]) => { for (const d of al || []) E.damage(s, d.t, d.n, null); E.sba(s); },
   },
 
