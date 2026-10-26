@@ -203,3 +203,61 @@ function mtgMyGhosts(ids) {
   });
   return out;
 }
+
+// ───── レイド（docs/RAID.md）：タルキール大戦（統率者戦）─────
+// 陣営の 点 'raid:<id>:score' = { f: { dragon, human }, c: { 統率者ID: 点 } }
+// ゴースト 'raid:<id>:g:<陣営>' = [{ c: 統率者ID, d: [カードID×20], n: [なまえ, なまえ], u: 時刻 }]（陣営ごとに RAID_KEEP まで）
+var RAID_IDS = { 'tarkir-1': 1 };
+var RAID_CMD = { dragon: ['RG07', 'WG07', 'KR07', 'WU07', 'UK07'], human: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] };
+var RAID_KEEP = 20;
+function raidId_(q) { var id = String(q && q.id); if (!RAID_IDS[id]) throw new Error('レイドが ない'); return id; }
+function raidFaction_(q) { var f = String(q && q.f); if (!RAID_CMD[f]) throw new Error('陣営が おかしい'); return f; }
+function raidCmd_(f, c) { c = String(c || ''); if (RAID_CMD[f].indexOf(c) < 0) throw new Error('統率者が おかしい'); return c; }
+function raidScore_(props, id) { var v = props.getProperty('raid:' + id + ':score'); return v ? JSON.parse(v) : { f: { dragon: 0, human: 0 }, c: {} }; }
+
+// 点を たす：{ id, f, c, w: 1（かった）, fin: 1（統率者で とどめ）, q: といた 問題の 数 } → { f, c }
+function mtgRaidAdd(q) {
+  var id = raidId_(q), f = raidFaction_(q), c = raidCmd_(f, q.c);
+  var add = (Number(q.w) === 1 ? 10 : 0) + (Number(q.w) === 1 && Number(q.fin) === 1 ? 5 : 0) + Math.max(0, Math.min(200, Math.floor(Number(q.q) || 0)));
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var s = raidScore_(props, id);
+    s.f[f] = Math.min(99999999, (s.f[f] || 0) + add);
+    s.c[c] = Math.min(99999999, (s.c[c] || 0) + add);
+    props.setProperty('raid:' + id + ':score', JSON.stringify(s));
+    return s;
+  } finally {
+    lock.releaseLock();
+  }
+}
+function mtgRaidState(q) { return raidScore_(PropertiesService.getScriptProperties(), raidId_(q)); }
+
+// じぶんの 統率者デッキを ゴーストに：{ id, f, c, d: [カードID×20], n: [なまえ, なまえ] }。色は 統率者の 色だけ
+function mtgRaidSubmit(q) {
+  var id = raidId_(q), f = raidFaction_(q), c = raidCmd_(f, q.c);
+  var d = q && q.d;
+  if (!Array.isArray(d) || d.length !== DECK_SIZE) throw new Error('デッキは 20まい');
+  var ok = CARDS[c][1];
+  d = d.map(String);
+  d.forEach(function (x) { var k = CARDS[x]; if (!k) throw new Error('しらない カード'); for (var i = 0; i < k[1].length; i++) if (ok.indexOf(k[1].charAt(i)) < 0) throw new Error('統率者の 色で ない'); });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var props = PropertiesService.getScriptProperties(), key = 'raid:' + id + ':g:' + f;
+    var v = props.getProperty(key), list = v ? JSON.parse(v) : [];
+    list.push({ c: c, d: d, n: checkName_(q.n), u: Date.now() });
+    props.setProperty(key, JSON.stringify(list.slice(-RAID_KEEP)));
+  } finally {
+    lock.releaseLock();
+  }
+  return true;
+}
+// あいて：ちがう 陣営の ゴーストから ランダムに 1人。いなければ null
+function mtgRaidGhost(q) {
+  var id = raidId_(q), f = raidFaction_(q);
+  var v = PropertiesService.getScriptProperties().getProperty('raid:' + id + ':g:' + (f === 'dragon' ? 'human' : 'dragon'));
+  var list = v ? JSON.parse(v) : [];
+  return list.length ? list[Math.floor(Math.random() * list.length)] : null;
+}

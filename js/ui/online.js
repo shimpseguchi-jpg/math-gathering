@@ -39,14 +39,14 @@ function state() {
   o.decks = o.decks.slice(0, KEEP_DECKS);
   return o;
 }
-const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim(); // 「ゆうかんな ドラゴン」「ほのお ドラゴン」
+export const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim(); // 「ゆうかんな ドラゴン」「ほのお ドラゴン」
 // 2色は アーキタイプの よびかた（赤白・青白…）に そろえる
 const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑赤', GU: '青緑', KW: '白黒', KU: '青黒', KR: '黒赤', GK: '黒緑' };
 const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
 
 // ---- サーバー ----
 export const hasServer = () => !!(window.google && window.google.script && window.google.script.run);
-function call(fn, arg) {
+export function call(fn, arg) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('つながらなかった')), 20000);
     window.google.script.run

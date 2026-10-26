@@ -485,6 +485,8 @@ export function hitTarget(s, t, n, src, combat = false) {
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
     L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
     s.floor.face(s, n, api);
+    // 統率者戦：統率者で とどめ（レイドの 点 ＋5）
+    if (s.over === 'win' && !s.swapped && src && s.P.cmdId && src.card?.id === s.P.cmdId) s.cmdFinish = true;
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
     // ゼンゼロ：ブレイク N（本体に ダメージを あたえるたび ブレイクカウンター）
     if (src?.side === 'P' && src.def.brk && !s.over) addBreak(s, src.def.brk);

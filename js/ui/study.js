@@ -2,6 +2,7 @@
 // たたかいの なかでは もんだいを 出さない（5章）。ここは たたかいの そとの「しゅぎょうの へや」
 import { CATS, QUIZ_SECONDS, PASS_MIN, quizSession, passed } from '../data/quiz.js';
 import { esc, sheet } from './view.js';
+import { addRaidQuiz } from './raidstore.js';
 
 // とけい：みじかい はりが「じ」、ながい はりが「ふん」。めもりは 60こ
 export function clockSvg(h, m) {
@@ -120,6 +121,7 @@ export function studyScreen(app, o) {
   // ---- けっか ----
   const result = (r) => {
     const gain = o.record(r);
+    addRaidQuiz(r.ok); // レイドに 参加中なら、せいかいの 数が 陣営の 点に なる
     const pass = passed(r.n, r.ok);
     const need = Math.floor((7 * r.n) / 10) + 1; // 7わりより おおく
     app().innerHTML = `<main class="study done">
