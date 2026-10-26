@@ -347,7 +347,7 @@ export const BON_MAX = 10;
 // ブレイクは じぶんの ターンに えらんで つかう（useBreak）：ぜんたい（てきの クリーチャー ぜんぶに 5点）・たんたい（てき 1つに 10点）・マナから かいしゅう
 export const BREAK_AT = 10, BREAK_ALL = 5;
 // 属性ブレイク（2026-10-26）：ゼンゼロの クリーチャーが 場に いると、その クリーチャーの 色の きっかけで 2こ。交代は 5こ
-// 白：ライフを えた　青：敵に マイナスの 修整・−1/−1　黒：敵の クリーチャーが ぼちへ　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
+// 白：ライフを えた　青：敵に マイナスの 修整　黒：敵に −1/−1カウンター　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
 // 統率者が ゼンゼロの クリーチャーなら、場に いなくても その 色の きっかけが つかえる（1色 2こ・多色 1こ）。1色の 統率者が 場に いれば 3こ
 export const ZZ_BREAK = { field: 2, mono: 3, cmdMono: 2, cmdMulti: 1, swap: 5 };
 // 青の きっかけ：'minus'（てきを よわく した）か 'scry'（占術）。どちらが よいか シミュレーションで くらべる ため きりかえられる
@@ -402,7 +402,7 @@ export function addMinus(s, p, n, by = 'P') {
   const k = Math.min(n, p.ctr); p.ctr -= k;
   p.mctr = (p.mctr || 0) + (n - k);
   L(s, `${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`);
-  if (p.side === 'E' && ZZ_BLUE.mode === 'minus') zzBreak(s, 'U', '青：てきを よわく した');
+  if (p.side === 'E') zzBreak(s, 'K', '黒：てきに −1/−1カウンター'); // 黒（2026-10-26）：たおした とき だと 戦闘だけで たまりすぎた
   if (by === 'P') for (const q of [...s.P.bf]) if (q.def.onMinus && onBf(s, q)) q.def.onMinus(s, q, api, p, n);
 }
 // 信心：あなたの 戦場の その 色の パーマネントの 数
@@ -488,6 +488,8 @@ export function damage(s, p, n, src, o = {}) {
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
+  // 赤の 属性ブレイク：戦闘 いがいの ダメージ（呪文・能力。攻撃したときの 能力も）
+  if (p.side === 'E' && !s.combatHit && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文・能力で ダメージ');
   // ゼンゼロ：ブレイク N は 敵の クリーチャー・PW に ダメージを あたえても たまる（2026-10-26。本体だけ では ほとんど たまらなかった）
   if (src?.side === 'P' && p.side === 'E' && src.def.brk && !s.over) addBreak(s, src.def.brk);
   return n;
@@ -516,7 +518,7 @@ export function hitEnemy(s, n, src, o = {}) {
 
 export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
-  if (!combat && t !== 'player' && (t === 'face' || t.side === 'E') && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文・能力で ダメージ');
+  if (!combat && t === 'face' && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文・能力で ダメージ');
   if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
     n = boostDmg(s, n, src, true);
@@ -530,7 +532,7 @@ export function hitTarget(s, t, n, src, combat = false) {
     // ゼンゼロ：ブレイク N（本体に ダメージを あたえるたび ブレイクカウンター）
     if (src?.side === 'P' && src.def.brk && !s.over) addBreak(s, src.def.brk);
     if (src?.side === 'P' && !s.over) src.def.onFaceHit?.(s, src, api);
-  } else damage(s, t, n, src);
+  } else { s.combatHit = combat; damage(s, t, n, src); s.combatHit = false; }
   if (combat && src?.side === 'P') {
     src.def.onCombatHit?.(s, src, api);
     for (const q of [...s.P.bf]) if (q.def.onAllyHit && onBf(s, src)) q.def.onAllyHit(s, q, src, api); // あなたの 忍者が…（ヨリオン）
@@ -558,8 +560,6 @@ export function sba(s) {
     if (!s.over) s.floor.check?.(s, api, 'sba');
     if (!changed) break;
   }
-  // 黒の 属性ブレイク：たおした あとで まとめて（leave の とちゅうで ダメージを 出さない）
-  if (s.zzK && !s.over) { const k = s.zzK; s.zzK = 0; for (let i = 0; i < k; i++) zzBreak(s, 'K', '黒：てきを たおした'); }
 }
 
 // ぴったり：敵の クリーチャーが、タフネスと ちょうど 同じ ダメージで 倒れた（あまりが 0）
@@ -569,7 +569,6 @@ export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
   if (o.died && p.def.saveDeath?.(s, p, api)) return false; // 死亡の かわりに（ヘラクレスの 十二の試練）
-  if (o.died && p.side === 'E' && s.P.zzDeck && isCreature(p)) s.zzK = (s.zzK || 0) + 1;
   // 死亡の かわりに：アナフェンザ（てきは 追放）・墓の タイタン など（ライブラリーの 一番下）
   if (o.died && to === 'gy' && !p.token) {
     if ((p.side === 'E' && s.P.bf.some((q) => q.def.exileEnemyDead)) || p.exileT === s.turn) to = 'exile';
@@ -834,7 +833,7 @@ export function resolveCombat(s, atk, blocks) {
         if (onBf(s, b)) {
           const left = hasKw(s, p, 'deathtouch') ? 1 : Math.max(0, pt(s, b)[1] - b.dmg);
           const toB = trample ? Math.min(P, left) : P;
-          damage(s, b, toB, p); P -= toB;
+          s.combatHit = true; damage(s, b, toB, p); s.combatHit = false; P -= toB;
           if (P > 0 && trample) hitTarget(s, a.t, P, p, true);
         } else if (trample) hitTarget(s, a.t, P, p, true);
       } else if (a.t === 'face' || a.t === 'player' || onBf(s, a.t)) hitTarget(s, a.t, P, p, true);
@@ -842,7 +841,7 @@ export function resolveCombat(s, atk, blocks) {
     for (const a of atk) {
       const b = blocks.get(a.p.uid);
       if (!b || !onBf(s, b) || !onBf(s, a.p) || !strikes(b)) continue;
-      damage(s, a.p, power(s, b), b);
+      s.combatHit = true; damage(s, a.p, power(s, b), b); s.combatHit = false;
     }
     sba(s);
     if (s.over) break;
