@@ -109,7 +109,7 @@ export const SPW = {
   PW10: {
     acts: [
       pwAbility(1, 'カードを 1まい 引く', { play: () => ({ score: 4, run: () => undefined }) }),
-      pwAbility(-2, 'アーティファクトの 数の 構築物', { play: (s, p, E, ctx) => (p.loy > 2 || ctx?.human ? { score: 5 + s.P.bf.filter((x) => (x.def.types || []).includes('artifact')).length, run: () => undefined } : null) }),
+      pwAbility(-2, 'アーティファクトの 数の 構築物（こうちくぶつ）', { play: (s, p, E, ctx) => (p.loy > 2 || ctx?.human ? { score: 5 + s.P.bf.filter((x) => (x.def.types || []).includes('artifact')).length, run: () => undefined } : null) }),
     ],
   },
 
