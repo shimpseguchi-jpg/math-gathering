@@ -14,6 +14,14 @@ export const FACTIONS = {
   dragon: { name: '龍族（りゅうぞく）', life: 30, ids: ['RG07', 'WG07', 'KR07', 'WU07', 'UK07'] },
   human: { name: '人間（にんげん）', life: 30, ids: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] },
 };
+// 人間の 長は 統率者の とき（レイド・れんしゅう）だけ：コスト −1・統率者税は ＋1ずつ（1の だん）。ナーセットと シディシは 大きく
+// （AI どうし 100戦で 龍族 71% → 54%：docs/SIMULATION.md。カードじしんは かえない ので パックの カードは そのまま）
+export const HUMAN_CMD = { less: 1, step: 1 };
+export const CMD_BUFF = { JE02: [4, 4], SU02: [4, 5] };
+export const cmdSetup = (def) => ({
+  cmd: CMD_BUFF[def.id] ? { ...def, pow: CMD_BUFF[def.id][0], tou: CMD_BUFF[def.id][1] } : def,
+  cmdOpt: FACTIONS.human.ids.includes(def.id) ? HUMAN_CMD : {},
+});
 // 龍王と 氏族の 長の 5つの 対決（RAID.md 3.2）
 export const RIVAL = { WG07: 'AB02', WU07: 'JE02', UK07: 'SU02', KR07: 'MA02', RG07: 'TE02' };
 const colorText = (d) => colorsOf(d).map((c) => COLOR_NAME[c]).join('・');
@@ -177,8 +185,8 @@ export async function commanderMenu(back) {
   if (!go) return commanderMenu(back);
   const name = `${info(foe).name.replace(/（[ぁ-ゖー]+）/g, '')}（CPU）`;
   startBattle({
-    deck: cmdDeck(me), cmd: me, life: FACTIONS[f].life,
-    floor: pvp({ deck: cmdDeck(foe), cmd: foe, life: FACTIONS[other].life, name, first: Math.random() < 0.5 ? 'P' : 'E' }), floorName: name, diff: 'normal',
+    deck: cmdDeck(me), ...cmdSetup(me), life: FACTIONS[f].life,
+    floor: pvp({ deck: cmdDeck(foe), ...cmdSetup(foe), life: FACTIONS[other].life, name, first: Math.random() < 0.5 ? 'P' : 'E' }), floorName: name, diff: 'normal',
     quit: { label: 'やめて もどる', note: 'れんしゅう なので まけには ならない。', go: () => end(null) },
     onEnd: (r) => end(r),
   });

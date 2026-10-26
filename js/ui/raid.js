@@ -8,7 +8,7 @@ import { colorsOf } from '../engine/game.js';
 import { startBattle } from './battle.js';
 import { sheet, esc, ruby, info, detail, COLOR_NAME } from './view.js';
 import { hasServer, call, nameOf } from './online.js';
-import { FACTIONS, RIVAL, THEMES, cmdDeck, cmdPool, pickCommander } from './commander.js';
+import { FACTIONS, RIVAL, THEMES, cmdDeck, cmdPool, pickCommander, cmdSetup } from './commander.js';
 import { deckBuilder } from './app.js';
 import { RAID, WIN_PTS, FINISH_PTS, DEF_PTS, loadRaid, saveRaid, raidOpen, raidFree, raidPoints, sendRaid } from './raidstore.js';
 
@@ -138,8 +138,8 @@ async function fight(app, back, r) {
     [{ label: 'たたかう', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: g ? 'あいてが みつかった！' : 'CPU と たたかう' });
   if (!go) return raidMenu(app, back);
   startBattle({
-    deck: myDeck(r), cmd: me, life: FACTIONS[r.f].life,
-    floor: pvp({ deck, cmd: foe, life: FACTIONS[other(r.f)].life, name, first: Math.random() < 0.5 ? 'P' : 'E' }), floorName: `レイド：${name}`, diff: 'normal',
+    deck: myDeck(r), ...cmdSetup(me), life: FACTIONS[r.f].life,
+    floor: pvp({ deck, ...cmdSetup(foe), life: FACTIONS[other(r.f)].life, name, first: Math.random() < 0.5 ? 'P' : 'E' }), floorName: `レイド：${name}`, diff: 'normal',
     quit: { label: 'こうさんして もどる', note: 'とちゅうで やめると まけ に なるよ（点は へらない）。', go: () => end({ win: false }) },
     onEnd: (x) => end(x),
   });

@@ -101,6 +101,24 @@ export const S6 = {
   W79: { play: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => !q.tapped && !q.sick).length >= 2 ? { score: 3 + 2 * mine(s, E).length, run: () => { for (const q of mine(s, E)) E.pump(q, 2, 1, isSub(q, 'warrior') ? ['lifelink'] : []); } } : null) },
   WK09: { anthem: (s, q, p, E) => (p !== q && p.side === q.side && E.isCreature(p) && isSub(p, 'warrior') ? [1, 0] : null) },
   WK10: { anthem: (s, q, p, E) => (p !== q && p.side === q.side && E.isCreature(p) && isSub(p, 'warrior') ? [0, 1] : null) },
+  // ---- 龍狩り（ドラゴン対策。2026-10-26） ----
+  W80: {
+    play: (s, E) => { const b = foeBest(s, E, 99, (q) => E.pt(s, q)[1] >= 4); return b ? { score: 6 + b.score, run: () => killIt(s, E, b.t) } : null; },
+    tgt: [{ side: 'E', filter: (s, E, q) => E.pt(s, q)[1] >= 4, label: 'はかいする タフネス4 いじょうの クリーチャー' }], apply: (s, E, [[t]]) => killIt(s, E, t),
+  },
+  W81: {
+    tgt: [{ side: 'E', min: 0, filter: (s, E, q) => E.power(s, q) >= 4, label: 'はかいする パワー4 いじょうの クリーチャー' }],
+    etb: (s, p, E, o) => { if (p.side !== 'P') return; let t = chosen1(o); if (t === undefined) t = foeBest(s, E, 99, (q) => E.power(s, q) >= 4)?.t; killIt(s, E, t); },
+  },
+  G75: {
+    play: (s, E) => { const b = foeBest(s, E, 99, (q) => E.hasKw(s, q, 'flying')); return b ? { score: 6 + b.score, run: () => { killIt(s, E, b.t); E.bolster(s, 2); } } : null; },
+    tgt: [{ side: 'E', filter: (s, E, q) => E.hasKw(s, q, 'flying'), label: 'はかいする 飛行の クリーチャー' }], apply: (s, E, [[t]]) => { killIt(s, E, t); E.bolster(s, 2); },
+  },
+  G76: {
+    play: (s, E) => { const fl = theirs(s, E).filter((q) => E.hasKw(s, q, 'flying')); const plan = E.divide(s, 3, fl); return plan.length ? { score: 3 + 4 * plan.length, run: () => { for (const d of plan) E.damage(s, d.t, d.n, null); E.sba(s); } } : null; },
+    tgt: [{ side: 'E', max: 3, divide: 3, filter: (s, E, q) => E.hasKw(s, q, 'flying'), label: '3点を わりふる 飛行の クリーチャー' }],
+    apply: (s, E, [al]) => { for (const d of al || []) E.damage(s, d.t, d.n, null); E.sba(s); },
+  },
 
   // ---- 龍王の 一族 ----
   RG08: { onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const q of theirs(s, E)) if (!E.hasKw(s, q, 'flying')) E.damage(s, q, 1, p); E.sba(s); } },
