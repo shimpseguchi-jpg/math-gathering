@@ -282,7 +282,9 @@ function mtgRaidSubmit(q) {
   if (!Array.isArray(d) || d.length !== DECK_SIZE) throw new Error('デッキは 20まい');
   var ok = CARDS[c][1];
   d = d.map(String);
-  d.forEach(function (x) { var k = CARDS[x]; if (!k) throw new Error('しらない カード'); for (var i = 0; i < k[1].length; i++) if (ok.indexOf(k[1].charAt(i)) < 0) throw new Error('統率者の 色で ない'); });
+  var pts = 0;
+  d.forEach(function (x) { var k = CARDS[x]; if (!k) throw new Error('しらない カード'); pts += k[0]; for (var i = 0; i < k[1].length; i++) if (ok.indexOf(k[1].charAt(i)) < 0) throw new Error('統率者の 色で ない'); });
+  if (pts > CAPACITY) throw new Error('点数が おおすぎる');
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {

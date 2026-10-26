@@ -30,15 +30,17 @@ export const S6 = {
   },
   JE02: {
     onAttack: (s, p, E) => {
-      const top = s.P.lib.splice(0, 4);
+      // 上から 4まいを 見て、クリーチャーでない 呪文は タダで 唱える（墓地へ）。のこりは 一番下（2026-10-26：追放だと すぐ デッキが なくなる）
+      const top = s.P.lib.splice(0, 4), rest = [];
       for (const c of top) {
-        if (isCr(c.def)) { s.P.exile.push(c); continue; }
+        if (isCr(c.def)) { rest.push(c); continue; }
         if (isSpellDef(c.def)) {
           const r = c.def.play?.(s, E, { phase: 1, c, manaLeft: 0, free: true, xMax: 0 });
           if (r && !c.def.x) { E.castCard(s, c, null, { run: r.run, from: 'lib', free: true }); continue; }
-          s.P.exile.push(c);
+          rest.push(c);
         } else E.enter(s, 'P', c.def, { card: c.def });
       }
+      s.P.lib.push(...rest);
     },
   },
   SU02: {

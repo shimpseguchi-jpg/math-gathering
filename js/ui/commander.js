@@ -3,7 +3,9 @@
 import { BY_ID, SETS } from '../data/cards.js';
 import { pvp } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
-import { buildDeck } from '../engine/run.js';
+import { buildDeck, cardValue } from '../engine/run.js';
+import { ptsOf } from '../engine/ai.js';
+import { CARD_TEXT } from '../data/texts.js';
 import { startBattle } from './battle.js';
 import { sheet, ruby, info, detail, fullCard, COLOR_NAME } from './view.js';
 
@@ -16,12 +18,53 @@ export const FACTIONS = {
 export const RIVAL = { WG07: 'AB02', WU07: 'JE02', UK07: 'SU02', KR07: 'MA02', RG07: 'TE02' };
 const colorText = (d) => colorsOf(d).map((c) => COLOR_NAME[c]).join('・');
 
-// 統率者の 色だけの デッキ（統率者じしんと 旗は 入れない）
-export function cmdDeck(def) {
-  const pool = SETS.filter((st) => st.id <= 6).flatMap((st) => st.cards).filter((d) => !d.banner && d.id !== def.id && !(d.sub || []).includes('lesson'));
+// 統率者 ごとの カードプール（2026-10-26）：統率者の 色の カードの うち、その 統率者の とくいな ことに あう もの
+// ＋ 三つの 旗の その 色の カード（龍王の 一族・氏族の 戦士・長の なかま）。POOL_SIZE まで（レアリティの 高い じゅん）
+const txt = (d) => (CARD_TEXT[d.id]?.text || '').replace(/（[ぁ-ゖー]+）/g, '');
+const kw = (d, k) => (d.kw || []).includes(k);
+const sub = (d, k) => (d.sub || []).includes(k);
+const isSp = (d) => (d.types || []).some((t) => t === 'instant' || t === 'sorcery');
+const big = (d) => (d.types || []).includes('creature') && (d.pow || 0) >= 4;
+export const THEMES = {
+  AB02: { name: '＋1/＋1カウンター', f: (d) => /＋1\/＋1カウンター|増強|鼓舞/.test(txt(d)) },
+  JE02: { name: 'クリーチャーでない 呪文（じゅもん）', f: (d) => isSp(d) || kw(d, 'prowess') },
+  SU02: { name: '墓地（ぼち）', f: (d) => d.delve || /墓地/.test(txt(d)) },
+  MA02: { name: '戦士（せんし）と 速攻（そっこう）', f: (d) => sub(d, 'warrior') || kw(d, 'haste') || /強襲|速攻/.test(txt(d)) },
+  TE02: { name: '大きな クリーチャー', f: (d) => big(d) || kw(d, 'trample') || /獰猛/.test(txt(d)) },
+  RG07: { name: 'ドラゴンと ダメージ', f: (d) => sub(d, 'dragon') || /割り振|ダメージを与/.test(txt(d)) },
+  WG07: { name: '絆魂（はんこん）と かたい クリーチャー', f: (d) => kw(d, 'lifelink') || /ライフを得/.test(txt(d)) || ((d.types || []).includes('creature') && (d.tou || 0) >= 4) },
+  KR07: { name: '速攻（そっこう）と はかい', f: (d) => kw(d, 'haste') || /破壊|墓地に置/.test(txt(d)) },
+  WU07: { name: '飛行（ひこう）と カードを 引く', f: (d) => kw(d, 'flying') || /引く/.test(txt(d)) },
+  UK07: { name: 'じゃまを する（はかい・てふだに もどす）', f: (d) => kw(d, 'deathtouch') || /破壊|手札に戻|−1\/−1|タップ/.test(txt(d)) },
+};
+// 3色の 長は 色が 多い ぶん プールも 大きく（40だと 2色ぶんの カードが たりず よわい）
+export const POOL_SIZE = 40, POOL_SIZE3 = 60, THEME_MAX = 18;
+const inColors = (def) => { const ids = colorsOf(def); return (d) => colorsOf(d).every((c) => ids.includes(c)); };
+export function cmdPool(def) {
+  const ok = inColors(def);
+  const all = SETS.filter((st) => st.id <= 6).flatMap((st) => st.cards).filter((d) => ok(d) && !d.banner && !d.basic && d.id !== def.id && !(d.sub || []).includes('lesson') && !Object.keys(THEMES).includes(d.id));
+  // 三つの 旗の カード：龍王は 龍族の カード、長は 氏族の カード だけ
+  const core = all.filter((d) => (FACTIONS.dragon.ids.includes(def.id) ? DRAGON_SIDE : HUMAN_SIDE).has(d.id));
+  const theme = all.filter((d) => !core.includes(d) && THEMES[def.id].f(d)).sort((a, b) => cardValue(b) - cardValue(a));
+  // テーマは THEME_MAX まで。のこりは その 色の よい クリーチャー（テーマだけだと クリーチャーが たりない デッキに なる）
+  // 点あたりの よさ（コモンほど 高い）で ならべる。レア・レジェンドは テーマから 4まいまで
+  const eff = (a, b) => cardValue(b) / ptsOf(b) - cardValue(a) / ptsOf(a) || cardValue(b) - cardValue(a);
+  const rares = theme.filter((d) => d.rar === 'R' || d.rar === 'L').slice(0, 4);
+  // おなじ よさの カードは 色を じゅんばんに（カード表の じゅん だと 白・青ばかりに なる）
+  const mix = (list) => { const by = colorsOf(def).map((c) => list.filter((d) => colorsOf(d)[0] === c)); const rest = list.filter((d) => !colorsOf(d).length || !colorsOf(def).includes(colorsOf(d)[0])); const out = []; for (let k = 0; by.some((g) => g[k]); k++) for (const g of by) if (g[k]) out.push(g[k]); return [...out, ...rest].sort(eff); };
+  const pool = [...core, ...rares, ...mix(theme.filter((d) => !rares.includes(d))).slice(0, THEME_MAX - rares.length)];
+  const crs = mix(all.filter((d) => !pool.includes(d) && (d.types || []).includes('creature')));
+  pool.push(...crs.slice(0, (colorsOf(def).length >= 3 ? POOL_SIZE3 : POOL_SIZE) - pool.length));
+  return pool;
+}
+const DRAGON_SIDE = new Set(['RG08', 'WG08', 'KR08', 'WU08', 'UK08', 'R71', 'G72', 'W71', 'K69', 'R72']);
+const HUMAN_SIDE = new Set([...SETS.find((st) => st.id === 6).cards.map((d) => d.id)].filter((id) => !DRAGON_SIDE.has(id)));
+
+// 統率者の おまかせ デッキ（プールから。統率者じしんと 旗は 入れない）
+export function cmdDeck(def, pool = cmdPool(def)) {
   const ids = colorsOf(def);
   // 3色の 統率者は、2色を 中心に 3色めを すこし（3色を そろえて 入れると よわい：docs/SIMULATION.md）
-  if (ids.length >= 3) return buildDeck(pool.filter((d) => colorsOf(d).every((c) => ids.includes(c))), { splash: 4, banners: false }).deck;
+  if (ids.length >= 3) return buildDeck(pool, { splash: 4, banners: false }).deck;
   return buildDeck(pool, { pair: ids }).deck;
 }
 
@@ -68,7 +111,7 @@ export async function commanderMenu(back) {
     [...Object.entries(FACTIONS).map(([k, v]) => ({ label: ruby(v.name), value: k, kind: 'primary', note: k === 'dragon' ? '龍王（2色）' : '氏族の 長（3色）' })), { label: 'もどる', value: null }],
     { title: '統率者戦（とうそつしゃせん）れんしゅう' });
   if (!f) return back();
-  const id = await pickCommander(FACTIONS[f].ids, { title: `${ruby(FACTIONS[f].name)}の 統率者`, note: () => ruby('デッキは 統率者の 色で 自動で 組む') });
+  const id = await pickCommander(FACTIONS[f].ids, { title: `${ruby(FACTIONS[f].name)}の 統率者`, note: (d) => ruby(`とくい：${THEMES[d.id].name}`) });
   if (!id) return commanderMenu(back);
   const me = BY_ID[id];
   const other = f === 'dragon' ? 'human' : 'dragon';

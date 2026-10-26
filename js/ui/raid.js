@@ -1,13 +1,15 @@
 // レイド「タルキール大戦」（docs/RAID.md 3章）：龍族 か 人間の 陣営に ついて、統率者戦で たたかう
 // 陣営の 点 ＝ みんなの（かった 数 × 10 ＋ といた 問題の 数 ＋ 統率者で とどめ × 5）。サーバー（GAS）で たし算する
 // サーバーが ない とき（GitHub Pages など）は じぶんの 点だけ。あいては CPU
-import { BY_ID } from '../data/cards.js';
+import { BY_ID, BASICS } from '../data/cards.js';
+import { DECK_SIZE } from '../engine/run.js';
 import { pvp } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
 import { startBattle } from './battle.js';
 import { sheet, esc, ruby, info, detail, COLOR_NAME } from './view.js';
 import { hasServer, call, nameOf } from './online.js';
-import { FACTIONS, RIVAL, cmdDeck, pickCommander } from './commander.js';
+import { FACTIONS, RIVAL, THEMES, cmdDeck, cmdPool, pickCommander } from './commander.js';
+import { deckBuilder } from './app.js';
 import { RAID, WIN_PTS, FINISH_PTS, DEF_PTS, loadRaid, saveRaid, raidOpen, raidFree, raidPoints, sendRaid } from './raidstore.js';
 
 const plain = (t) => t.replace(/（[ぁ-ゖー]+）/g, '');
@@ -20,6 +22,31 @@ const BOLAS = {
   human: '龍（りゅう）を たおして くれて、感謝（かんしゃ）しよう。おかげで 我（われ）の 力が より 強（つよ）まった。ははははは……',
   dragon: '龍（りゅう）を 育（そだ）てて くれて、感謝（かんしゃ）しよう。おかげで 我（われ）の 力が より 強（つよ）まった。ははははは……',
 };
+// じぶんの デッキ：くんだ デッキ（r.deck）か おまかせ。たりない ぶんは 統率者の 色の きほんカード
+function myDeck(r) {
+  const cmd = BY_ID[r.c];
+  if (!r.deck?.length) return cmdDeck(cmd);
+  const ds = r.deck.map((id) => BY_ID[id]).filter(Boolean);
+  const cols = colorsOf(cmd);
+  const cnt = Object.fromEntries(cols.map((c) => [c, ds.filter((d) => colorsOf(d).includes(c)).length]));
+  const order = [...cols].sort((a, b) => cnt[b] - cnt[a]);
+  for (let k = 0; ds.length < DECK_SIZE; k++) ds.push(BASICS[order[k % order.length]]);
+  return ds;
+}
+// 統率者の カードプールで デッキを くむ（冒険と 同じ 画面。20まい・30点まで）
+function buildRaidDeck(app, back, r) {
+  const cmd = BY_ID[r.c];
+  const pool = cmdPool(cmd).map((d) => d.id);
+  const idx = (ids) => { const used = new Set(); return ids.map((id) => pool.findIndex((x, k) => x === id && !used.has(k) && used.add(k))).filter((k) => k >= 0); };
+  const C = {
+    pool, deck: r.deck ? idx(r.deck) : null, free: true,
+    title: `${info(cmd).name}の デッキ`, colorNote: `色（${colorText(cmd)}）`,
+    auto: () => idx(cmdDeck(cmd, cmdPool(cmd)).filter((d) => !d.basic).map((d) => d.id)),
+    save: () => { r.deck = C.deck.map((k) => pool[k]); saveRaid(r); },
+    ok: async () => { await submitGhost(r); return raidMenu(app, back); },
+  };
+  deckBuilder(C);
+}
 const myName = () => { try { return JSON.parse(localStorage.getItem('mtg-online-v1') || 'null')?.name || [0, 0]; } catch { return [0, 0]; } };
 
 export async function raidMenu(app, back) {
@@ -55,12 +82,12 @@ export async function raidMenu(app, back) {
     <div class="rd-bars">${bar('dragon')}${bar('human')}</div>
     <p class="ol-help">${ruby(sum ? lead : 'まだ だれも 点を とって いない')}</p>
     ${r.f ? `<div class="ol-me">
-      <div><span class="ol-name">${ruby(FACTIONS[r.f].name)}・${cname(r.c)}</span><small>${r.w}かち ${r.l}まけ${r.d ? ` ${r.d}ひきわけ` : ''}・といた 問題 ${r.q}もん</small></div>
+      <div><span class="ol-name">${ruby(FACTIONS[r.f].name)}・${cname(r.c)}</span><small>${r.w}かち ${r.l}まけ${r.d ? ` ${r.d}ひきわけ` : ''}・といた 問題 ${r.q}もん</small><small>${ruby(`とくい：${THEMES[r.c].name}`)}・${r.deck?.length ? 'じぶんで くんだ デッキ' : 'おまかせ デッキ'}</small></div>
       <div class="ol-score"><b>${mine}<small>点</small></b><span>${ruby(formula)}</span></div>
     </div>` : ''}
     ${over ? '' : `<p class="ol-help">${ruby(`かつと ＋${WIN_PTS}点、統率者（とうそつしゃ）で とどめを さすと さらに ＋${FINISH_PTS}点。しゅぎょうで せいかいした 問題も 1もん ＋1点。きみの デッキ（ゴースト）が ほかの 陣営の 人に かつと、ぼうえい点 ＋${DEF_PTS}点。`)}</p>`}
     ${RAID.ends && !over ? `<p class="ol-help">${ruby(`${raidFree() ? 'ほんばん（GASばん）は ' : ''}${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`)}</p>` : ''}
-    <div class="row-btns"><button type="button" class="btn" data-r="back">もどる</button><button type="button" class="btn primary" data-r="fight" ${over ? 'disabled' : ''}>たたかう</button></div>
+    <div class="row-btns"><button type="button" class="btn" data-r="back">もどる</button>${over ? '' : '<button type="button" class="btn" data-r="deck">デッキを くむ</button>'}<button type="button" class="btn primary" data-r="fight" ${over ? 'disabled' : ''}>たたかう</button></div>
     <h3 class="ol-h">5つの 対決（たいけつ）</h3>
     <ul class="rd-duels">${duels}</ul>
   </main>`;
@@ -68,6 +95,7 @@ export async function raidMenu(app, back) {
     const b = e.target.closest('[data-r]'); if (!b) return;
     if (b.dataset.r === 'back') return back();
     if (b.dataset.r === 'fight') return fight(app, back, r);
+    if (b.dataset.r === 'deck') return buildRaidDeck(app, back, r);
   };
 }
 
@@ -77,7 +105,7 @@ async function join(app, back) {
     [...Object.entries(FACTIONS).map(([k, v]) => ({ label: ruby(v.name), value: k, kind: 'primary', note: k === 'dragon' ? '龍王（2色）' : '氏族の 長（3色）' })), { label: 'もどる', value: null }],
     { title: ruby(RAID.name) });
   if (!f) return back();
-  const id = await pickCommander(FACTIONS[f].ids, { title: `${ruby(FACTIONS[f].name)}の 統率者`, note: (d) => `${ruby('たいけつ')}：${cname(rivalOf(d.id))}` });
+  const id = await pickCommander(FACTIONS[f].ids, { title: `${ruby(FACTIONS[f].name)}の 統率者`, note: (d) => `${ruby(`とくい：${THEMES[d.id].name}`)}<br>${ruby('たいけつ')}：${cname(rivalOf(d.id))}` });
   if (!id) return join(app, back);
   const ok = await sheet(`${detail(BY_ID[id])}<p class="what">${ruby(`${FACTIONS[f].name}・${info(BY_ID[id]).name} で さんかする？ レイドが おわるまで かえられない。`)}</p>`,
     [{ label: 'さんかする', value: 1, kind: 'primary' }, { label: 'えらびなおす', value: 0 }], { title: 'これで いい？' });
@@ -92,7 +120,7 @@ async function join(app, back) {
 async function submitGhost(r) {
   if (!hasServer()) return;
   try {
-    const x = await call('mtgRaidSubmit', { id: RAID.id, f: r.f, c: r.c, i: r.g || '', d: cmdDeck(BY_ID[r.c]).map((d) => d.id), n: myName() });
+    const x = await call('mtgRaidSubmit', { id: RAID.id, f: r.f, c: r.c, i: r.g || '', d: myDeck(r).map((d) => d.id), n: myName() });
     if (x?.i) { r.g = x.i; saveRaid(r); }
   } catch { /* つながらなくても あそべる */ }
 }
@@ -110,7 +138,7 @@ async function fight(app, back, r) {
     [{ label: 'たたかう', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: g ? 'あいてが みつかった！' : 'CPU と たたかう' });
   if (!go) return raidMenu(app, back);
   startBattle({
-    deck: cmdDeck(me), cmd: me, life: FACTIONS[r.f].life,
+    deck: myDeck(r), cmd: me, life: FACTIONS[r.f].life,
     floor: pvp({ deck, cmd: foe, life: FACTIONS[other(r.f)].life, name, first: Math.random() < 0.5 ? 'P' : 'E' }), floorName: `レイド：${name}`, diff: 'normal',
     quit: { label: 'こうさんして もどる', note: 'とちゅうで やめると まけ に なるよ（点は へらない）。', go: () => end({ win: false }) },
     onEnd: (x) => end(x),

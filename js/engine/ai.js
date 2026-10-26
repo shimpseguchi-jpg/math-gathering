@@ -123,7 +123,7 @@ export function castCard(s, c, pl, o = {}) {
   if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: def, chosen: o.chosen, escaped: from === 'escape' }); sba(s); return; }
   const done = () => {
     if (from === 'escape' || from === 'madness') P.gy.push(c);
-    else if (from === 'gy' || o.free) P.exile.push(c);
+    else if (from === 'gy' || (o.free && from !== 'lib')) P.exile.push(c); // やまふだから タダで 唱えた ものは ふつうに 墓地へ
     else if (def.backToHand) { c.locked = true; P.hand.push(c); }
     else P.gy.push(c);
     sba(s);
