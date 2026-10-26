@@ -285,7 +285,10 @@ const U = [
     }],
   }),
   // 赤青
-  sp('U09', '選択（せんたく）', 'C', 'U', 1, 'instant', { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3, run: () => E.then(E.scry(s, 1), () => E.drawCard(s)) } : null) }),
+  sp('U09', '水（みず）の いきおい', 'C', 'U', 1, 'instant', { // Hydrosurge（もとは Opt）：こうげきの まえに つよい ブロッカーの パワーを 0 に
+    play: (s, E, ctx) => { if (ctx.phase !== 1 || !E.readyAttackers(s).length) return null; const t = E.creatures(s, 'E').filter((p) => E.power(s, p) >= 3).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; return t ? { score: 2 + E.power(s, t), run: () => { E.pump(t, -5, 0); E.L(s, `${t.def.name} −5/−0`); } } : null; },
+    tgt: [{ side: 'any', label: '−5/−0 する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, -5, 0); },
+  }),
   cr('U10', 'ジェスカイの 風斥候（かぜせっこう）', 'C', 'U', 3, 2, 2, ['bird', 'scout'], ['flying', 'prowess']),
   sp('U11', '本質（ほんしつ）の 散乱（さんらん）', 'C', 'U', 2, 'instant', { counter: 'creature', reactive: true }),
   sp('U12', '二度 考える', 'C', 'U', 2, 'instant', { play: draw(1, 3), flashback: { cost: 3, req: ['U'] } }),

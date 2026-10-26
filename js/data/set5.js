@@ -1,6 +1,6 @@
 // 第5弾「大きな 数の 塔」のうごき（名前・コスト・P/T は skel.js、文は docs/SET5.md）
 import {
-  T, hit, mine, theirs, isSub, bestIn, lowestKeep, isCr, chosen1, regrow, dig, foeBest, shrink, foe1, bolt, killIt, exileIt, edict, fodder,
+  T, cr, hit, mine, theirs, isSub, bestIn, lowestKeep, isCr, chosen1, regrow, dig, foeBest, shrink, foe1, bolt, killIt, exileIt, edict, fodder,
   aura, food, gyCount, isSpellDef, magecraft, fractal, learn, guard, powerSum, command, bestFreeze,
 } from './kit.js';
 
@@ -17,6 +17,7 @@ const crCount = (s, E) => mine(s, E).length;
 const foePerm = (s, E) => foeBest(s, E)?.t || s.E.bf.find((p) => !p.def.factory && !s.floor.cantLeave?.(s, p, E) && !s.floor.untargetable?.(s, p, E));
 const exilePerm = { tgt: [{ side: 'E', perm: true, label: '追放する てきの パーマネント', filter: (s, E, p) => !s.floor.cantLeave?.(s, p, E) }] };
 
+const ELEM44 = cr('t_elem44', 'エレメンタル', null, 'UR', 0, 4, 4, ['elemental']);
 export const S5 = {
   // ---- 白 ----
   W57: {
@@ -238,7 +239,7 @@ export const S5 = {
   C29: { acts: [{ cost: 0, tap: true, when: [1, 2], label: 'パワーの 合計が 10 いじょうなら 1まい 引く', can: (s, p, E) => powerSum(s, E, 'P') >= 10, cantWhy: 'パワーの 合計が 10 より 小さい', play: (s, p, E) => (powerSum(s, E, 'P') >= 10 ? { score: 4, run: () => E.drawCard(s) } : null) }] },
   // ---- レッスン（パックには 入らない。学習で 手札に くる） ----
   LS01: { noPack: true, play: (s, E) => { const t = foePerm(s, E); return t ? { score: 6, run: () => exileIt(s, E, t) } : null; }, ...exilePerm, apply: (s, E, [[t]]) => exileIt(s, E, t) },
-  LS02: { noPack: true, play: (s, E) => ({ score: 4, run: () => E.then(E.scry(s, 2), () => E.drawCard(s)) }) },
+  LS02: { noPack: true, play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.spirit, 1) }) }, // Spirit Summoning
   LS03: { noPack: true, play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.pest, 2) }) },
   LS04: { noPack: true, play: (s, E, ctx) => ({ score: 4 + 2 * ctx.xMax, x: ctx.xMax, run: (x) => fractal(s, E, x) }) },
   LS05: { noPack: true, play: (s, E) => ({ score: E.basicsInLib(s) ? 4 : 1, run: () => { E.rampBasic(s, 1); E.gain(s, 2); } }) },
@@ -246,7 +247,7 @@ export const S5 = {
     noPack: true, play: (s, E) => { const t = E.bestBuffTarget(s, null); return t ? { score: 5, run: () => { E.target(s, t); E.addCounters(s, t, 2); E.pump(t, 0, 0, ['vigilance']); } } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); E.pump(t, 0, 0, ['vigilance']); },
   },
-  LS07: { noPack: true, play: (s, E) => ({ score: 7, run: () => E.drawCard(s, 2) }) },
+  LS07: { noPack: true, play: (s, E) => ({ score: 8, run: () => E.token(s, 'P', ELEM44, 1) }) }, // Elemental Summoning
   LS08: {
     noPack: true, play: (s, E) => { const t = foePerm(s, E); return t ? { score: 5, run: () => { exileIt(s, E, t); E.token(s, 'E', T.spirit32); } } : null; },
     ...exilePerm, apply: (s, E, [[t]]) => { exileIt(s, E, t); E.token(s, 'E', T.spirit32); },

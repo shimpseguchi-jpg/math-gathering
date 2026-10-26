@@ -52,7 +52,7 @@ export const S9 = {
   RV26: signet('WU'), RV31: signet('KR'), RV36: signet('WK'), RV41: signet('RG'), RV46: signet('UK'),
 
   // ---- ボロス ----
-  RV02: { onAttack: (s, p, E, atk) => { if (battalion(atk)) { E.pump(p, 2, 2); E.L(s, `だいたい：${p.def.name} ＋2/＋2`); } } },
+  RV02: {}, // 空騎士の 軍団兵（飛行・速攻は skel の kw）
   RV03: { upkeep: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.goblinHaste); } },
   RV04: bolt(3, (s, E) => E.gain(s, 3)),
   RV05: {
