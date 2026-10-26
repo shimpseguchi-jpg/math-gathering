@@ -74,11 +74,26 @@ const KW = {
 };
 export const RAR = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド', B: 'きほん' };
 
+// 元のカード：docs に 書いた メモ（名前だけ・言いかえ・かえた 日 など）は 画面に 出さない。メモは docs だけに のこす
+const NOTE = /名前だけ|言いかえ|かえた|→|\d{4}-\d\d-\d\d|。/;
+export function shownMotif(m) {
+  if (!m || m === '−') return '';
+  if (m.startsWith('（オリジナル')) return 'オリジナル';
+  let out = '', buf = '', depth = 0;
+  for (const ch of m) {
+    if (ch === '（' && depth++ === 0) { buf = ch; continue; }
+    if (depth) { buf += ch; if (ch === '）' && --depth === 0 && !NOTE.test(buf)) out += buf; continue; }
+    if (ch === '。') break; // かっこの あとの せつめいも メモ
+    out += ch;
+  }
+  return out.trim();
+}
+
 export function info(def) {
   const t = CARD_TEXT[def.id] || ENEMY_TEXT[plainName(def.name || '')];
   // textOver・typeOver：もんしょうで かわった きほんカード・もんしょうの カード（data/cards.js の boostBasic・SUN_RING）
   return {
-    name: t?.name || def.name, type: def.typeOver || t?.type || (def.types || []).join('・'), text: def.textOver || (t?.text && t.text !== '−' ? t.text : ''), motif: t?.motif || '',
+    name: t?.name || def.name, type: def.typeOver || t?.type || (def.types || []).join('・'), text: def.textOver || (t?.text && t.text !== '−' ? t.text : ''), motif: shownMotif(t?.motif),
     math: t?.math || '', reward: t?.reward || '',
   };
 }

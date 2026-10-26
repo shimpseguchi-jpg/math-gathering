@@ -680,6 +680,31 @@ async function useTrick(c) {
   render();
 }
 
+// 起動型能力が いま 使えるか（能力の シートと、場の カードの わくの しるしで おなじ 判定を 使う）
+function actCheck(s, p, a) {
+  const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
+  const o = { exclude: a.tap || a.sac ? p : null };
+  let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
+  const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
+  const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x, human: true });
+  return { cost, o, x, blocked, r };
+}
+// つよい 能力（宝具・戦技・エネルギー・PW の 忠誠度）は 金色、ふつうの 能力（タップ など）は 水色の わく
+const bigAct = (a) => !!(a.npUse || a.spUse || a.bonUse || a.loyalty != null);
+function abilityMark(s, p) {
+  if (s.active !== 'P') return '';
+  if (B.mode === 'tricks') return p.attacking && (p.def.acts || []).some((a) => a.pumpP && plan(s, a.cost, a.req || [])) ? 'ab' : '';
+  if (B.mode !== 'main') return '';
+  let m = '';
+  for (const a of p.def.acts || []) {
+    if (a.pumpP) continue;
+    const c = actCheck(s, p, a);
+    if (c.blocked || !c.r) continue;
+    if (bigAct(a)) return 'ab-big';
+    m = 'ab';
+  }
+  return m || (p.def.equip && plan(s, p.def.equip, []) ? 'ab' : '');
+}
 async function tapPerm_(p) {
   const s = B.s;
   if (B.mode === 'attack' && p.side === 'P') {
@@ -712,11 +737,7 @@ async function tapPerm_(p) {
   if (p.side === 'P' && B.mode === 'main' && s.active === 'P') {
     for (const a of p.def.acts || []) {
       if (a.pumpP) continue;
-      const cost = typeof a.cost === 'function' ? a.cost(s, p, api) : a.cost;
-      const o = { exclude: a.tap || a.sac ? p : null };
-      let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
-      const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
-      const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x, human: true });
+      const { cost, o, x, blocked, r } = actCheck(s, p, a);
       const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
@@ -1010,7 +1031,7 @@ function render() {
   const isNewPerm = (p) => B.prev?.perms && !B.prev.perms.has(p.uid);
   const perms = (side) => s[side].bf.map((p) => permFace(s, p, {
     label: permLabel(p),
-    cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : ''].join(' '),
+    cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : '', side === 'P' ? abilityMark(s, p) : ''].join(' '),
   })).join('') || '<p class="empty">（なにも いない）</p>';
   const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : ravFace() ? s.floor.faceLabel : s.floor.id === 'dragon' ? 'たからの 山' : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : s.floor.id === 'dragon' ? `きんか ${s.E.gold}/${s.E.goal}` : `ライフ ${s.E.life}`}</b></div>` : '';
   const untapped = s.P.mana.filter((m) => !m.tapped).length;

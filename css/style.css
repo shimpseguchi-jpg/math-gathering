@@ -943,3 +943,12 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] .pool-item.in .card { box-shadow: 0 0 0 2px var(--px), 0 0 0 5px var(--gold); }
 :root[data-theme="gba"] .meter > i { height: 6px; border-radius: 0; background: linear-gradient(90deg, var(--gold) calc(var(--v) * 100%), var(--px) 0); box-shadow: 0 0 0 1px var(--line); }
 :root[data-theme="gba"] .b-head { background: var(--table); box-shadow: 0 3px 0 var(--px); }
+
+/* ---- 能力が 使える カード（2026-10-26）：battle.js の abilityMark ---- */
+/* つよい 能力（宝具・戦技・エネルギー・PW）は 金色に 光る わく、ふつうの 能力（タップ・そうび など）は 水色の わく */
+.zone .card.perm.ab { box-shadow: 0 0 0 2px #7fd8ff, 0 0 8px 2px rgba(127, 216, 255, 0.6); }
+.zone .card.perm.ab-big { box-shadow: 0 0 0 3px #ffd666, 0 0 10px 3px rgba(255, 196, 0, 0.85); animation: ab-big 1.2s ease-in-out infinite; }
+@keyframes ab-big { 50% { box-shadow: 0 0 0 3px #fff1b8, 0 0 14px 5px rgba(255, 214, 102, 1); } }
+:root[data-theme="gba"] .zone .card.perm.ab { box-shadow: 0 0 0 2px var(--px), 0 0 0 4px #58d8f8, 0 0 0 6px var(--px); }
+:root[data-theme="gba"] .zone .card.perm.ab-big { box-shadow: 0 0 0 2px var(--px), 0 0 0 5px var(--gold), 0 0 0 7px var(--px); animation: gba-ab 0.8s steps(1) infinite; }
+@keyframes gba-ab { 50% { box-shadow: 0 0 0 2px var(--px), 0 0 0 5px #fff8c0, 0 0 0 7px var(--px); } }
