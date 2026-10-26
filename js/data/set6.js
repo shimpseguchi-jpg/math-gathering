@@ -1,7 +1,6 @@
 // 第6弾「三つの 旗」のうごき（名前・コスト・P/T は skel.js、文は docs/SET6.md）
 import { T, cr, hit, mine, theirs, bestIn, lowestKeep, isCr, chosen1, regrow, foeBest, shrink, killIt, exileIt, isSpellDef, edict, delve, ferocious, isSub } from './kit.js';
 
-const drain = (s, E, n, src = null) => { E.hitEnemy(s, n, src); E.gain(s, n); };
 // 旗：これが デッキに あれば その 3色の デッキに できる（4点）。タップで 3色の どれかの マナ
 const banner = (cols, draw = false) => ({
   banner: cols, pts: 4, mana: [...cols],
@@ -10,9 +9,6 @@ const banner = (cols, draw = false) => ({
     play: (s, p, E) => (s.P.mana.length >= 7 ? { score: 2, run: () => { E.leave(s, p, 'gy'); E.drawCard(s); } } : null),
   }] : undefined,
 });
-// 版図（マナゾーンの 色の 数）・収斂（はらった マナの 色の 数）
-const dom = (s, E) => E.domain(s);
-const conv = (s) => s.P.flags.converge || 0;
 // 魔除け：1つ えらぶ。AI は いちばん 点の 高い モード
 const charm = (modes) => ({
   modes: modes.map((m) => ({ label: m.label, tgt: m.tgt, apply: m.apply })),
@@ -90,28 +86,20 @@ export const S6 = {
     },
     onLeaveSelf: (s, p, E) => E.unsteal(s, p),
   },
-  // ---- 版図・収斂 ----
-  W69: {
-    play: (s, E, ctx) => { const t = E.bestBuffTarget(s, null, { ready: true }); return t && ctx.phase === 1 ? { score: 2 + dom(s, E), run: () => { E.target(s, t); E.pump(t, dom(s, E), dom(s, E)); } } : null; },
-    tgt: [{ side: 'P', label: '＋X/＋X する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, dom(s, E), dom(s, E)); },
+  // ---- 長の なかま（版図・収斂と 入れかえ。2026-10-26） ----
+  W76: { acts: [outlast(1)], grant: (s, q, p, E) => (p.side === q.side && E.isCreature(p) && p.ctr > 0 ? ['lifelink'] : null) },
+  W77: {
+    play: (s, E, ctx) => { const t = ctx.phase === 1 && E.bestBuffTarget(s, null, { ready: true }); return t ? { score: 4, run: () => feat(s, E, t) } : null; },
+    tgt: [{ side: 'P', label: '＋1/＋1カウンターを おく クリーチャー' }], apply: (s, E, [[t]]) => feat(s, E, t),
   },
-  W70: { play: (s, E) => ({ score: 4 + 3 * dom(s, E), run: () => { E.token(s, 'P', T.soldier, conv(s)); E.gain(s, 2 * conv(s)); } }) },
-  U70: { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3 * dom(s, E), run: () => E.drawCard(s, dom(s, E)) } : null) },
-  U71: { play: (s, E, ctx) => (ctx.phase === 2 && dom(s, E) >= 3 ? { score: 2 * dom(s, E), run: () => { E.drawCard(s, conv(s)); E.discard(s, [...s.P.hand].sort((a, b) => E.keepValue(s, a) - E.keepValue(s, b)).slice(0, 2)); } } : null) },
-  K67: { play: (s, E) => ({ score: 2 + 2 * dom(s, E), run: () => drain(s, E, dom(s, E)) }) },
-  K68: { play: (s, E, ctx) => (ctx.phase === 2 && s.P.life > 8 ? { score: 2 * dom(s, E), run: () => { E.drawCard(s, conv(s)); E.hurt(s, conv(s)); } } : null) },
-  R69: {
-    play: (s, E) => { const b = E.burnTarget(s, dom(s, E)); return b ? { score: 4 + b.score, run: () => hit(s, E, b.t, dom(s, E)) } : null; },
-    tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手' }], apply: (s, E, [[t]]) => hit(s, E, t, dom(s, E)),
-  },
-  R70: {
-    play: (s, E) => { const x = dom(s, E); const k = theirs(s, E).filter((p) => E.need(s, p) <= x).length, l = mine(s, E).filter((p) => E.need(s, p) <= x).length; return k - l >= 2 ? { score: 3 + 4 * (k - l), run: () => { for (const p of [...s.E.bf, ...s.P.bf]) if (E.isCreature(p)) E.damage(s, p, conv(s), null); E.sba(s); } } : null; },
-  },
-  G70: {
-    play: (s, E, ctx) => { const t = E.bestBuffTarget(s, null, { ready: true }); return t && ctx.phase === 1 ? { score: 2 + dom(s, E), run: () => { E.target(s, t); E.pump(t, dom(s, E), dom(s, E)); } } : null; },
-    tgt: [{ side: 'P', label: '＋X/＋X する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, dom(s, E), dom(s, E)); },
-  },
-  G71: { etb: (s, p, E) => { if (p.side === 'P') E.addCounters(s, p, conv(s)); } },
+  W78: { onCast: (s, p, d, E) => { if (p.side === 'P' && !isCr(d)) E.pump(p, 0, 0, ['lifelink']); } },
+  U75: { onCombatHit: (s, p, E) => { if (p.side !== 'P') return; E.drawCard(s); E.discard(s, E.discardPick(s, 1)); } },
+  K71: { play: (s, E, ctx) => (s.P.life > 6 && ctx.phase === 2 ? { score: 5, run: () => revelation(s, E) } : null) },
+  K72: { play: (s, E) => (s.P.gy.some((c) => isCr(c.def)) ? { score: 3 + 3 * Math.min(2, s.P.gy.filter((c) => isCr(c.def)).length), run: () => { regrow(s, E, isCr); regrow(s, E, isCr); } } : null) },
+  W79: { play: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => !q.tapped && !q.sick).length >= 2 ? { score: 3 + 2 * mine(s, E).length, run: () => { for (const q of mine(s, E)) E.pump(q, 2, 1, isSub(q, 'warrior') ? ['lifelink'] : []); } } : null) },
+  WK09: { anthem: (s, q, p, E) => (p !== q && p.side === q.side && E.isCreature(p) && isSub(p, 'warrior') ? [1, 0] : null) },
+  WK10: { anthem: (s, q, p, E) => (p !== q && p.side === q.side && E.isCreature(p) && isSub(p, 'warrior') ? [0, 1] : null) },
+
   // ---- 龍王の 一族 ----
   RG08: { onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const q of theirs(s, E)) if (!E.hasKw(s, q, 'flying')) E.damage(s, q, 1, p); E.sba(s); } },
   WG08: { etb: (s, p, E) => { if (p.side === 'P') E.bolster(s, 2); } },
@@ -153,6 +141,16 @@ export const S6 = {
   },
 };
 
+const feat = (s, E, t) => { if (!t || !E.onBf(s, t)) return; E.target(s, t); E.addCounters(s, t, 1); E.pump(t, 0, 0, ['indestructible']); };
+// 苦い 天啓：上から 4まい 見て 1まいを 手札、のこりは 墓地。ライフ −2
+function revelation(s, E) {
+  const top = s.P.lib.splice(0, 4);
+  const pick = [...top].sort((a, b) => E.keepValue(s, b) - E.keepValue(s, a))[0];
+  if (pick) s.P.hand.push(pick);
+  s.P.gy.push(...top.filter((c) => c !== pick));
+  E.L(s, `4まい 見て 1まいを てふだ、${top.length - (pick ? 1 : 0)}まいを ぼちへ`);
+  E.hurt(s, 2);
+}
 // 龍詠唱：あなたの 手札か 戦場に ドラゴン
 const dragonNear = (s) => s.P.bf.some((q) => isSub(q, 'dragon')) || s.P.hand.some((c) => (c.def.sub || []).includes('dragon'));
 const roar = (s, E, t) => { if (t) hit(s, E, t, 3); if (dragonNear(s)) { E.L(s, 'りゅうえいしょう：てきに 3点'); E.hitEnemy(s, 3, null); } };

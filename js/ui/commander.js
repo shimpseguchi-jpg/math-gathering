@@ -7,10 +7,10 @@ import { buildDeck } from '../engine/run.js';
 import { startBattle } from './battle.js';
 import { sheet, ruby, info, detail, COLOR_NAME } from './view.js';
 
-// ライフ：龍族 30・人間 40（人間は 数が 多い。AI どうし 100戦で 龍族 68% → 59%：docs/SIMULATION.md）
+// ライフ：どちらも 30（長の なかまの カードを 足して、AI どうし 100戦で 龍族 47%：docs/SIMULATION.md）
 export const FACTIONS = {
   dragon: { name: '龍族（りゅうぞく）', life: 30, ids: ['RG07', 'WG07', 'KR07', 'WU07', 'UK07'] },
-  human: { name: '人間（にんげん）', life: 40, ids: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] },
+  human: { name: '人間（にんげん）', life: 30, ids: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] },
 };
 // 龍王と 氏族の 長の 5つの 対決（RAID.md 3.2）
 export const RIVAL = { WG07: 'AB02', WU07: 'JE02', UK07: 'SU02', KR07: 'MA02', RG07: 'TE02' };
@@ -26,7 +26,7 @@ export function cmdDeck(def) {
 }
 
 export async function commanderMenu(back) {
-  const f = await sheet(`<p>${ruby('陣営（じんえい）を えらんで、その リーダーを 統率者（とうそつしゃ）に する。統率者は デッキとは べつの「とうそつりょういき」に いて、マナが あれば いつでも 唱（とな）えられる。唱える たびに ＋2マナ（とうそつしゃぜい）。ライフは 龍族 30・人間 40。')}</p>`,
+  const f = await sheet(`<p>${ruby('陣営（じんえい）を えらんで、その リーダーを 統率者（とうそつしゃ）に する。統率者は デッキとは べつの「とうそつりょういき」に いて、マナが あれば いつでも 唱（とな）えられる。唱える たびに ＋2マナ（とうそつしゃぜい）。ライフは 30。')}</p>`,
     [...Object.entries(FACTIONS).map(([k, v]) => ({ label: ruby(v.name), value: k, kind: 'primary', note: k === 'dragon' ? '龍王（2色）' : '氏族の 長（3色）' })), { label: 'もどる', value: null }],
     { title: '統率者戦（とうそつしゃせん）れんしゅう' });
   if (!f) return back();
