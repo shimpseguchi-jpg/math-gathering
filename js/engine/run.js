@@ -54,14 +54,15 @@ export function favorColor(deck) {
 
 // いろの もんしょう：えらんだ 色 1つにつき 重み ＋2（1色 3ばい、2色とも ある カードは 5ばい）
 export const EMBLEM_COLOR = 2;
+export const CMD_FAVOR = 3; // 塔の 統率者戦：統率者の 色だけで できた カードは この 倍 出やすい（多色の 統率者なら その 色の くみあわせ ぜんぶ）
 // 番外編パックの もんしょう：番外編の カードは 3ばい 出やすい（1パックの はんぶん くらい。シナジーが できる ように）
 export const EXTRA_WEIGHT = 3;
 // サブセットの もんしょう：ふつうの 出やすさ（3ばいに すると 第1弾＋第2弾 63% → 44% と さがった）
 export const SUB_WEIGHT = 1;
 const IS_SUB = new Set(SETS.filter((x) => x.sub).map((x) => x.id));
-function pickFavored(rng, list, favor, colors = [], extra = []) {
-  if (!favor && !colors.length && !extra.length) return pick(rng, list);
-  const w = list.map((d) => { const cs = colorsOf(d); return (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length) * (extra.includes(SET_OF[d.id]) ? (IS_SUB.has(SET_OF[d.id]) ? SUB_WEIGHT : EXTRA_WEIGHT) : 1); });
+function pickFavored(rng, list, favor, colors = [], extra = [], ident = null) {
+  if (!favor && !colors.length && !extra.length && !ident) return pick(rng, list);
+  const w = list.map((d) => { const cs = colorsOf(d); return (ident && cs.length && cs.every((c) => ident.includes(c)) ? CMD_FAVOR : 1) * (cs.includes(favor) ? REWARD.favor : 1) * (1 + EMBLEM_COLOR * colors.filter((c) => cs.includes(c)).length) * (extra.includes(SET_OF[d.id]) ? (IS_SUB.has(SET_OF[d.id]) ? SUB_WEIGHT : EXTRA_WEIGHT) : 1); });
   let r = rng() * w.reduce((t, x) => t + x, 0);
   for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; }
   return list[list.length - 1];
@@ -72,7 +73,7 @@ export function openPack(rng, o = {}) {
   const em = o.em || {};
   const odds = o.rare ? RARE_ODDS : packOdds(o.cleared || 0, em);
   const pool = packPool(o.sets);
-  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || []);
+  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || [], em.ident || null);
   for (let tries = 0; ; tries++) {
     const cards = [];
     for (let i = 0; i < PACK.C; i++) cards.push(take(rng() < odds.cToU ? 'U' : 'C'));

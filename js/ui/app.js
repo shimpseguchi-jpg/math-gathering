@@ -9,6 +9,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
+import { pickLegend, cmdColorText } from './commander.js';
 import { RAID, raidOpen, raidShown, raidFree } from './raidstore.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme } from './settings.js';
@@ -32,6 +33,10 @@ const FLOOR_NAMES = {
 // せかい（プレーン）：どの 塔に のぼるか（docs/RAVNICA.md）
 const PLANES = [['theros', 'テーロス'], ['ravnica', 'ラヴニカ']];
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
+// ルール：統率者戦（2026-10-26）は さいしょに 伝説の クリーチャーを 統率者に えらぶ（A.cmd）
+const RULES = [['normal', 'ふつう'], ['cmd', '統率者（とうそつしゃ）戦']];
+const cmdDef = () => (A?.cmd ? BY_ID[A.cmd] : null);
+const cmdIdent = () => (A?.cmd ? colorsOf(BY_ID[A.cmd]) : null);
 
 let A = null; // いまの冒険
 const app = () => document.getElementById('app');
@@ -55,6 +60,7 @@ export function title() {
     ${raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
     <fieldset class="seg"><legend>せかい</legend>${PLANES.map(([k, l]) => `<label><input type="radio" name="plane" id="plane-${k}" value="${k}" ${(pref.plane || 'theros') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
+    <fieldset class="seg"><legend>ルール</legend>${RULES.map(([k, l]) => `<label><input type="radio" name="rule" id="rule-${k}" value="${k}" ${(pref.cmd ? 'cmd' : 'normal') === k ? 'checked' : ''}><span>${ruby(l)}</span></label>`).join('')}</fieldset>
     <div class="title-btns">
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階`}）</button>` : ''}
@@ -82,17 +88,23 @@ export function title() {
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
-    // ぼうけんの まえに しゅぎょう（広告の ように）→ もんしょうを えらぶ → パック
+    const rule = app().querySelector('input[name=rule]:checked')?.value;
+    // 統率者戦：さいしょに 統率者を えらぶ → しゅぎょう（広告の ように）→ もんしょうを えらぶ → パック
+    const begin = async () => {
+    const cmd = rule === 'cmd' ? await pickLegend({ back: 'タイトルへ' }) : null;
+    if (rule === 'cmd' && !cmd) return title();
     const start = () => {
       // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
       const pk = activeEffects()?.pack;
       const cols = packColors(withExtra(enabledSets(), pk?.extra));
       const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
-      A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0 };
+      A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0, cmd };
       save();
       packs();
     };
     if (adsOn()) gateStudy(app, plane, start); else start(); // 開発モードの せっていで こうこく なし
+    };
+    begin();
   };
 }
 
@@ -120,6 +132,7 @@ function tutorial() {
 // パックの もんしょうの せつめい（パックを あける 画面）
 function emblemPackNote(em) {
   const out = [];
+  if (em.ident) out.push(`<span>${ruby(`統率者（とうそつしゃ）${info(cmdDef()).name}の 色`)}（${em.ident.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ') || 'むしょく'}）の カードが 出やすい</span>`);
   if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
   if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
   for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`${SETS.find((z) => z.id === x)?.name || ''} の カードも 出る（もんしょう）`)}</span>`);
@@ -138,7 +151,7 @@ function packs() {
   const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
   // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
   const pk = activeEffects()?.pack;
-  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [] };
+  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
   const cards = openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare });
   // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
@@ -165,7 +178,7 @@ function packs() {
           <span>コモンの はんぶんが アンコモンに、アンコモンの はんぶんが レアに かわる</span></div>` : cleared > 0 ? `<div class="bonus"><p class="bonus-title">${A.endless ? A.endless.floor - 1 : cleared}階 クリアの ごほうびパック</p>
           <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared, em) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
           <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
-          ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">もんしょうの パック</p>${emblemPackNote(em)}</div>` : ''}
+          ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">${em.ident && !em.colors.length && !em.unc && !em.leg && !em.extra.length ? ruby('統率者（とうそつしゃ）の パック') : 'もんしょうの パック'}</p>${emblemPackNote(em)}</div>` : ''}
       </main>`;
       return;
     }
@@ -244,7 +257,7 @@ function flash() {
 
 // ---- デッキ構築 ----
 function autoDeck() {
-  const b = buildDeck(defs(A.pool));
+  const b = buildDeck(defs(A.pool), A.cmd ? { pair: cmdIdent() } : {});
   const used = new Set(), sel = [];
   for (const d of b.deck) {
     if (d.basic) continue;
@@ -267,7 +280,8 @@ export function finalDeck() {
   const deck = ds.map((d) => (d.id === 'YW05' && g ? { ...d, pow: d.pow + g, tou: d.tou + g } : d.id === 'YG05' && g ? { ...d, grow: 1 + g } : d));
   const cnt = Object.fromEntries(colors.map((c) => [c, ds.filter((d) => colorsOf(d).includes(c)).length]));
   const order = colors.length ? [...colors].sort((a, b) => cnt[b] - cnt[a]) : ['C'];
-  for (let k = 0; deck.length < DECK_SIZE; k++) deck.push(BASICS[order[k % order.length]]);
+  const fill = colors.length ? order : cmdIdent()?.length ? cmdIdent() : order;
+  for (let k = 0; deck.length < DECK_SIZE; k++) deck.push(BASICS[fill[k % fill.length]]);
   return deck;
 }
 
@@ -275,6 +289,8 @@ function whyNot(sel, i, pool = A.pool, free = false) {
   const st = deckStats(sel, pool);
   const d = BY_ID[pool[i]];
   if (free) return whyNotPts(sel, i, pool); // 統率者戦：プールが 統率者の 色だけ なので 色は 見ない
+  const id = pool === A.pool && cmdIdent();
+  if (id) return colorsOf(d).every((c) => id.includes(c)) ? whyNotPts(sel, i, pool) : `統率者の 色（${id.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`;
   const nc = [...new Set([...st.colors, ...colorsOf(d)])];
   // 旗（第6弾）が あれば、その 3色まで
   const flag = d.banner || st.banner;
@@ -285,7 +301,7 @@ function whyNot(sel, i, pool = A.pool, free = false) {
 // はたを はずすと 3色の デッキに なれない
 function whyNotOut(sel, i, pool = A.pool, free = false) {
   const d = BY_ID[pool[i]];
-  if (!d.banner || free) return '';
+  if (!d.banner || free || (pool === A.pool && A.cmd)) return '';
   const rest = deckStats(sel.filter((k) => k !== i), pool);
   return rest.colors.length > 2 && !rest.banner ? '3色めの カードを さきに はずそう（はたが ないと 2色まで）' : '';
 }
@@ -299,7 +315,16 @@ function whyNotPts(sel, i, pool = A.pool) {
 
 // 冒険の デッキ構築。ctx を わたすと ほかの プールでも つかえる（レイドの 統率者デッキ：raid.js）
 // ctx = { pool: カードIDの ならび, deck: えらんだ 番号, save(), auto() → 番号, ok(), title, free: 色の きまりを 見ない, colorNote }
-const advCtx = () => ({ get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false });
+const advCtx = () => ({
+  get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false,
+  colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
+  // 統率者戦：デッキを なおす ときに 統率者も かえられる。色が あわない カードは デッキから はずす
+  cmd: A.cmd ? { label: `統率者（とうそつしゃ）：${info(cmdDef()).name}`, change: async () => {
+    const id = await pickLegend({ cur: A.cmd, eyebrow: '統率者（とうそつしゃ）を かえる', back: 'かえない' });
+    if (id && id !== A.cmd) { A.cmd = id; const ok = cmdIdent(); A.deck = (A.deck || []).filter((i) => colorsOf(BY_ID[A.pool[i]]).every((c) => ok.includes(c))); save(); }
+    deckBuilder();
+  } } : null,
+});
 export function deckBuilder(C = advCtx()) {
   if (!C.deck) { C.deck = C.auto(); C.save(); }
   const F = loadFilter(); // こまかく：ならべかえ・しぼりこみ（deckfilter.js）
@@ -320,8 +345,9 @@ export function deckBuilder(C = advCtx()) {
         <div class="meters">
           <div class="meter"><span>キャパシティ</span><b>${st.points}<small>/${CAPACITY}点</small></b><i style="--v:${st.points / CAPACITY}"></i><em>のこり ${left}点</em></div>
           <div class="meter"><span>カード</span><b>${st.count}<small>まい</small></b><i style="--v:${st.count / DECK_SIZE}"></i><em>きほんカード ${DECK_SIZE - st.count}まい</em></div>
-          <div class="meter"><span>${C.free ? ruby(C.colorNote || '色') : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
+          <div class="meter"><span>${C.free || C.colorNote ? ruby(C.colorNote || '色') : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
         </div>
+        ${C.cmd ? `<div class="b-cmd"><span>${ruby(C.cmd.label)}</span><button type="button" class="btn" data-a="cmd">かえる</button></div>` : ''}
         <div class="tapmode" role="group" aria-label="カードを タップしたとき">
           <span>タップで</span>
           <button type="button" data-mode="detail" aria-pressed="${mode === 'detail'}">せつめいを 見る</button>
@@ -369,6 +395,7 @@ export function deckBuilder(C = advCtx()) {
     if (b.dataset.fine) { F.open = !F.open; saveFilter(F); return draw(); }
     if (onFilterClick(F, b)) return draw();
     if (b.dataset.mode) { mode = b.dataset.mode; try { localStorage.setItem(TAP_MODE, mode); } catch { /* 保存できなくても 切りかえられる */ } return draw(); }
+    if (b.dataset.a === 'cmd') return C.cmd.change();
     if (b.dataset.a === 'auto') { C.deck = C.auto(); C.save(); return draw(); }
     if (b.dataset.a === 'clear') { C.deck = []; C.save(); return draw(); }
     if (b.dataset.a === 'ok') {
@@ -400,6 +427,7 @@ function tower() {
     <p class="eyebrow">${DIFFS.find(([k]) => k === A.diff)[1]}　コンティニュー のこり ${A.continues}回</p>
     <h2>${A.plane === 'ravnica' ? 'ラヴニカの とう' : 'テーロスの とう'}</h2>
     <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${ruby(FLOOR_NAMES[f])}</span><em>${i < A.idx ? 'クリア' : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
+    ${A.cmd ? `<p class="deckline">${ruby(`統率者（とうそつしゃ）：${info(cmdDef()).name}`)}（${cmdColorText(cmdDef()) || 'むしょく'}）</p>` : ''}
     <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     ${emblemLine() ? `<p class="em-line">もんしょう：${esc(emblemLine())}</p>` : ''}
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(FLOOR_NAMES[A.floors[A.idx]])}へ</button></div>
@@ -416,7 +444,7 @@ function tower() {
 function fight() {
   const f = A.floors[A.idx];
   startBattle({
-    deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f], emblem: activeEffects(), emblemNote: emblemLine(),
+    deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f], emblem: activeEffects(), emblemNote: emblemLine(), cmd: cmdDef(),
     quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
@@ -510,6 +538,7 @@ function endlessTower() {
     <ol class="floors">${E.floors.map((f, i) => `<li class="${i < E.idx ? 'done' : i === E.idx ? 'now' : ''}"><span>${ruby(floorTitle(f, E.floor - E.idx + i))}</span><em>${i < E.idx ? 'クリア' : i === E.idx ? 'いま ここ' : i === E.floors.length - 1 ? '休けい所' : ''}</em></li>`).reverse().join('')}</ol>
     <p class="em-line">${ruby('祝福（しゅくふく）')}：${E.have && Object.keys(E.have).length ? ruby(blessLine(E.have)) : 'まだ ない'}</p>
     <p class="em-line">つぎの ${ruby('祝福（しゅくふく）')}まで ぴったり あと ${ENDLESS.exactPer - E.bank}回</p>
+    ${A.cmd ? `<p class="deckline">${ruby(`統率者（とうそつしゃ）：${info(cmdDef()).name}`)}（${cmdColorText(cmdDef()) || 'むしょく'}）</p>` : ''}
     <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(floorTitle(E.floors[E.idx], E.floor))}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
@@ -526,7 +555,7 @@ function endlessFight() {
   const E = A.endless, f = E.floors[E.idx], buff = endlessBuff(lapOf(E.floor));
   const name = floorTitle(f, E.floor) + (buff ? `（てき ＋${buff}/＋${buff}）` : '');
   startBattle({
-    deck: finalDeck(), floorId: f, diff: A.diff, floorName: name, emblem: activeEffects(), emblemNote: emblemLine(), bless: blessFx(E.have), buff,
+    deck: finalDeck(), floorId: f, diff: A.diff, floorName: name, emblem: activeEffects(), emblemNote: emblemLine(), bless: blessFx(E.have), buff, cmd: cmdDef(),
     quit: { label: 'タイトルへ もどる', note: 'むげんの とうの つづきは のこる。この 階は はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       E.exact += r.exact; E.bank += r.exact; A.exact = (A.exact || 0) + r.exact;

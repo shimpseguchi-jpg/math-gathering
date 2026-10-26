@@ -7,7 +7,7 @@ import { cardValue, DECK_SIZE, CAPACITY } from '../engine/run.js';
 import { ptsOf } from '../engine/ai.js';
 import { CARD_TEXT } from '../data/texts.js';
 import { startBattle } from './battle.js';
-import { sheet, ruby, info, detail, fullCard, COLOR_NAME } from './view.js';
+import { sheet, ruby, info, detail, fullCard, cardFace, COLOR_NAME } from './view.js';
 
 // ライフ：どちらも 30（長の なかまの カードを 足して、AI どうし 100戦で 龍族 47%：docs/SIMULATION.md）
 export const FACTIONS = {
@@ -197,4 +197,41 @@ export async function commanderMenu(back) {
     }
     commanderMenu(back);
   }
+}
+
+// ---- 塔の 統率者戦（2026-10-26）：すきな 伝説の クリーチャーを 統率者に えらぶ（デモ なので ぜんぶ えらべる） ----
+const LEGEND_TABS = [['all', 'すべて'], ['W', '白'], ['U', '青'], ['K', '黒'], ['R', '赤'], ['G', '緑'], ['multi', '多色'], ['C', 'むしょく']];
+const ORDER = 'WUKRG';
+export const legendCreatures = () => [...new Map(SETS.flatMap((st) => st.cards).filter((d) => d.legend && (d.types || []).includes('creature')).map((d) => [d.id, d])).values()]
+  .sort((a, b) => { const ca = colorsOf(a), cb = colorsOf(b); const k = (cs) => (cs.length === 1 ? ORDER.indexOf(cs[0]) : cs.length ? 5 + cs.length : 9); return k(ca) - k(cb) || ca.join('').localeCompare(cb.join('')) || a.cost - b.cost; });
+export const cmdColorText = colorText;
+export function pickLegend(o = {}) {
+  const list = legendCreatures();
+  const el = document.getElementById('app');
+  let tab = o.cur ? (colorsOf(BY_ID[o.cur]).length > 1 ? 'multi' : colorsOf(BY_ID[o.cur])[0] || 'C') : 'all';
+  const shown = () => list.filter((d) => { const cs = colorsOf(d); return tab === 'all' || (tab === 'multi' ? cs.length > 1 : tab === 'C' ? !cs.length : cs.length === 1 && cs[0] === tab); });
+  return new Promise((resolve) => {
+    const draw = () => {
+      el.innerHTML = `<main class="legend-pick">
+        <p class="eyebrow">${ruby(o.eyebrow || '統率者（とうそつしゃ）戦')}</p>
+        <h2>${ruby('統率者（とうそつしゃ）を えらぶ')}</h2>
+        <p class="lp-note">${ruby('統率者は デッキとは べつの「とうそつりょういき」に いて、マナが あれば いつでも 出せる。たおされても もどって きて、また 出せる（出す たびに ＋2マナ）。デッキには 統率者の 色の カードだけ 入れられる。')}</p>
+        ${o.cur ? `<p class="lp-cur">いまの 統率者：${ruby(info(BY_ID[o.cur]).name)}（${colorText(BY_ID[o.cur]) || 'むしょく'}）</p>` : ''}
+        <div class="chips lp-tabs" role="tablist">${LEGEND_TABS.map(([k, l]) => `<button type="button" class="chip ${tab === k ? 'on' : ''}" data-lt="${k}" aria-selected="${tab === k}">${l}</button>`).join('')}</div>
+        <div class="pool lp-grid">${shown().map((d) => `<button type="button" class="pool-item ${d.id === o.cur ? 'cur' : ''}" data-lid="${d.id}">${cardFace(d)}</button>`).join('')}</div>
+        <footer class="actions"><button type="button" class="btn" data-lgo="back">${o.back || 'もどる'}</button></footer>
+      </main>`;
+    };
+    const done = (v) => { el.onclick = null; resolve(v); };
+    el.onclick = async (e) => {
+      const t = e.target.closest('[data-lt]'); if (t) { tab = t.dataset.lt; return draw(); }
+      if (e.target.closest('[data-lgo]')) return done(null);
+      const c = e.target.closest('[data-lid]'); if (!c) return;
+      const d = BY_ID[c.dataset.lid];
+      const v = await sheet(`${detail(d)}<p class="what">${ruby(`色：${colorText(d) || 'むしょく'}。デッキには この 色の カードだけ 入れられる。`)}</p>`,
+        [{ label: 'この 統率者に する', value: 1, kind: 'primary' }, { label: 'とじる', value: 0 }], { title: '統率者に する？' });
+      if (v) done(d.id);
+    };
+    draw();
+  });
 }
