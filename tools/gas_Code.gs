@@ -212,6 +212,9 @@ var RAID_IDS = { 'tarkir-1': 1793530800000 }; // 2026-11-01 20:00（日本時間
 var RAID_GRACE = 30 * 60 * 1000;
 var RAID_CMD = { dragon: ['RG07', 'WG07', 'KR07', 'WU07', 'UK07'], human: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] };
 var RAID_KEEP = 20;
+var RAID_DEF = 3; // ぼうえい点：ゴーストが かつと その 陣営に ＋3
+// ゴーストが まもった 回数 'raid:<id>:def' = { ゴーストID: 回数 }（ゴーストが 20人から おちても のこる）
+function raidGid_(i) { i = String(i || ''); return /^[0-9a-f]{12}$/.test(i) ? i : ''; }
 function raidId_(q) { var id = String(q && q.id); if (!RAID_IDS[id]) throw new Error('レイドが ない'); return id; }
 function raidFaction_(q) { var f = String(q && q.f); if (!RAID_CMD[f]) throw new Error('陣営が おかしい'); return f; }
 function raidCmd_(f, c) { c = String(c || ''); if (RAID_CMD[f].indexOf(c) < 0) throw new Error('統率者が おかしい'); return c; }
@@ -236,7 +239,40 @@ function mtgRaidAdd(q) {
     lock.releaseLock();
   }
 }
-function mtgRaidState(q) { return raidScore_(PropertiesService.getScriptProperties(), raidId_(q)); }
+// 陣営と 統率者の 点。{ id, me: じぶんの ゴーストID, f: じぶんの 陣営 } → { f, c, mine: { w: まもった 回数, alive: ゴーストが いるか } }
+function mtgRaidState(q) {
+  var id = raidId_(q), props = PropertiesService.getScriptProperties();
+  var s = raidScore_(props, id), me = raidGid_(q && q.me);
+  if (me) {
+    var dv = props.getProperty('raid:' + id + ':def'), def = dv ? JSON.parse(dv) : {};
+    var f = RAID_CMD[String(q.f)] ? String(q.f) : 'dragon', gv = props.getProperty('raid:' + id + ':g:' + f);
+    s.mine = { w: def[me] || 0, alive: (gv ? JSON.parse(gv) : []).some(function (g) { return g.i === me; }) };
+  }
+  return s;
+}
+// ぼうえい：あいての ゴーストが かった。{ id, g: ゴーストID } → ゴーストの 陣営と 統率者に ＋3
+function mtgRaidDefend(q) {
+  var id = raidId_(q), gid = raidGid_(q && q.g);
+  if (!gid) throw new Error('ゴーストが いない');
+  raidLive_(id, true);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var props = PropertiesService.getScriptProperties(), hit = null, f = null;
+    ['dragon', 'human'].forEach(function (k) { var v = props.getProperty('raid:' + id + ':g:' + k); (v ? JSON.parse(v) : []).forEach(function (g) { if (g.i === gid) { hit = g; f = k; } }); });
+    if (!hit) return null;
+    var dv = props.getProperty('raid:' + id + ':def'), def = dv ? JSON.parse(dv) : {};
+    def[gid] = (def[gid] || 0) + 1;
+    props.setProperty('raid:' + id + ':def', JSON.stringify(def));
+    var s = raidScore_(props, id);
+    s.f[f] = Math.min(99999999, (s.f[f] || 0) + RAID_DEF);
+    s.c[hit.c] = Math.min(99999999, (s.c[hit.c] || 0) + RAID_DEF);
+    props.setProperty('raid:' + id + ':score', JSON.stringify(s));
+    return { w: def[gid] };
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 // じぶんの 統率者デッキを ゴーストに：{ id, f, c, d: [カードID×20], n: [なまえ, なまえ] }。色は 統率者の 色だけ
 function mtgRaidSubmit(q) {
@@ -252,12 +288,15 @@ function mtgRaidSubmit(q) {
   try {
     var props = PropertiesService.getScriptProperties(), key = 'raid:' + id + ':g:' + f;
     var v = props.getProperty(key), list = v ? JSON.parse(v) : [];
-    list.push({ c: c, d: d, n: checkName_(q.n), u: Date.now() });
+    // おなじ ID で 出しなおす とき（20人から おちた とき）は 入れかえ
+    var gid = raidGid_(q.i) || Utilities.getUuid().replace(/-/g, '').slice(0, 12);
+    list = list.filter(function (g) { return g.i !== gid; });
+    list.push({ i: gid, c: c, d: d, n: checkName_(q.n), u: Date.now() });
     props.setProperty(key, JSON.stringify(list.slice(-RAID_KEEP)));
+    return { i: gid };
   } finally {
     lock.releaseLock();
   }
-  return true;
 }
 // あいて：ちがう 陣営の ゴーストから ランダムに 1人。いなければ null
 function mtgRaidGhost(q) {

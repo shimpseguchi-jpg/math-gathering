@@ -9,7 +9,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
-import { RAID, raidOpen, raidShown } from './raidstore.js';
+import { RAID, raidOpen, raidShown, raidFree } from './raidstore.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
@@ -52,6 +52,7 @@ export function title() {
     <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
     <h1>マスマティック・<br>ザ・ギャザリング</h1>
     <p class="title-sub">算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。</p>
+    ${raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
     <fieldset class="seg"><legend>せかい</legend>${PLANES.map(([k, l]) => `<label><input type="radio" name="plane" id="plane-${k}" value="${k}" ${(pref.plane || 'theros') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
     <div class="title-btns">
@@ -60,7 +61,6 @@ export function title() {
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
       <button type="button" class="btn tro-btn em-btn" data-go="emblem"><span aria-hidden="true">✦</span>もんしょう<small>${activeIds().length ? `${activeIds().length}こ ついて いる` : 'しゅぎょうで てに いれる'}・ポイント ${emblemPoints()}</small></button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
-      ${raidShown() ? `<button type="button" class="btn raid-btn" data-go="raid">レイド${raidOpen() ? '' : '（けっか）'}<small>${ruby(RAID.name)}</small></button>` : ''}
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
       <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
       <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>
