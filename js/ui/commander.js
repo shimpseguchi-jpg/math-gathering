@@ -39,26 +39,38 @@ export const THEMES = {
 };
 // 3色の 長は 色が 多い ぶん プールも 大きく（40だと 2色ぶんの カードが たりず よわい）
 export const POOL_SIZE = 40, POOL_SIZE3 = 60, THEME_MAX = 18;
+// 土台は レイドの とき もう 出ている 弾（第1〜3弾・三つの 旗）。人間の 長には これから 出る 弾（第4弾いこう）の カードが 12まい（プールの 2わり。2026-10-26）
+const BASE_SETS = [1, 2, 3, 6], FUTURE_SETS = [4, 5, 7, 8];
+export const FUTURE_N = 12;
 const inColors = (def) => { const ids = colorsOf(def); return (d) => colorsOf(d).every((c) => ids.includes(c)); };
+const cardsOf = (ids, def) => { const ok = inColors(def); return SETS.filter((st) => ids.includes(st.id)).flatMap((st) => st.cards).filter((d) => ok(d) && !d.noPack && !d.banner && !d.basic && d.id !== def.id && !(d.sub || []).includes('lesson') && !Object.keys(THEMES).includes(d.id)); };
+export const isHuman = (def) => FACTIONS.human.ids.includes(def.id);
+// デッキが おもく なりがちな 長（AI どうしで よわかった）：プールは 4マナ いかを さきに（5マナ いじょうは 6まいまで）
+const LIGHT = new Set(['JE02', 'SU02', 'TE02']);
+// クリーチャーでない カードは とくいの わくの うち 6まいまで（呪文ばかりだと AI も 子どもも たたかいにくい）
+const fewSpells = (list) => { let n = 0; return list.filter((d) => (d.types || []).includes('creature') || n++ < 6); };
+const lighten = (def, list) => (LIGHT.has(def.id) ? [...list.filter((d) => d.cost <= 4), ...list.filter((d) => d.cost > 4).slice(0, 6)] : list);
 export function cmdPool(def) {
-  const ok = inColors(def);
-  const all = SETS.filter((st) => st.id <= 6).flatMap((st) => st.cards).filter((d) => ok(d) && !d.banner && !d.basic && d.id !== def.id && !(d.sub || []).includes('lesson') && !Object.keys(THEMES).includes(d.id));
-  // 三つの 旗の カード：龍王は 龍族の カード、長は 氏族の カード だけ。それと その 統率者 だけの カード 8まい（docs/RAID_CARDS.md）
-  const core = [...ownCards(def), ...all.filter((d) => (FACTIONS.dragon.ids.includes(def.id) ? DRAGON_SIDE : HUMAN_SIDE).has(d.id))];
-  const theme = all.filter((d) => !core.includes(d) && THEMES[def.id].f(d)).sort((a, b) => cardValue(b) - cardValue(a));
-  // テーマは THEME_MAX まで。のこりは その 色の よい クリーチャー（テーマだけだと クリーチャーが たりない デッキに なる）
-  // 点あたりの よさ（コモンほど 高い）で ならべる。レア・レジェンドは テーマから 4まいまで
+  const all = cardsOf(BASE_SETS, def);
+  // 点あたりの よさ（コモンほど 高い）で ならべる
   const eff = (a, b) => cardValue(b) / ptsOf(b) - cardValue(a) / ptsOf(a) || cardValue(b) - cardValue(a);
-  const rares = theme.filter((d) => d.rar === 'R' || d.rar === 'L').slice(0, 4);
   // おなじ よさの カードは 色を じゅんばんに（カード表の じゅん だと 白・青ばかりに なる）
   const mix = (list) => { const by = colorsOf(def).map((c) => list.filter((d) => colorsOf(d)[0] === c)); const rest = list.filter((d) => !colorsOf(d).length || !colorsOf(def).includes(colorsOf(d)[0])); const out = []; for (let k = 0; by.some((g) => g[k]); k++) for (const g of by) if (g[k]) out.push(g[k]); return [...out, ...rest].sort(eff); };
-  const pool = [...core, ...rares, ...mix(theme.filter((d) => !rares.includes(d))).slice(0, THEME_MAX - rares.length)];
-  const crs = mix(all.filter((d) => !pool.includes(d) && (d.types || []).includes('creature')));
+  const theme = THEMES[def.id].f;
+  // 三つの 旗の カード：龍王は 龍族の カード、長は 氏族の カード だけ
+  const core = all.filter((d) => (isHuman(def) ? HUMAN_SIDE : DRAGON_SIDE).has(d.id));
+  // 人間の 長：これから 出る 弾の カード 12まい（とくいに あう もの から。レアは 2まいまで）
+  const fut = cardsOf(FUTURE_SETS, def);
+  const futRares = fut.filter((d) => theme(d) && (d.rar === 'R' || d.rar === 'L')).sort((x, y) => cardValue(y) - cardValue(x)).slice(0, 2);
+  const future = isHuman(def) ? [...futRares, ...lighten(def, [...mix(fut.filter((d) => !futRares.includes(d) && theme(d))), ...mix(fut.filter((d) => !theme(d) && (d.types || []).includes('creature')))])].slice(0, FUTURE_N) : [];
+  // とくいに あう カードは THEME_MAX まで（レア・レジェンドは 4まいまで）。のこりは その 色の よい クリーチャー
+  const th = all.filter((d) => !core.includes(d) && theme(d)).sort((a, b) => cardValue(b) - cardValue(a));
+  const rares = th.filter((d) => d.rar === 'R' || d.rar === 'L').slice(0, 4);
+  const pool = [...core, ...future, ...rares, ...fewSpells(lighten(def, mix(th.filter((d) => !rares.includes(d))))).slice(0, THEME_MAX - rares.length)];
+  const crs = lighten(def, mix(all.filter((d) => !pool.includes(d) && (d.types || []).includes('creature'))));
   pool.push(...crs.slice(0, (colorsOf(def).length >= 3 ? POOL_SIZE3 : POOL_SIZE) - pool.length));
   return pool;
 }
-// 統率者 だけの カード：CM01〜CM80 を THEMES の じゅんに 8まいずつ
-const ownCards = (def) => { const k = Object.keys(THEMES).indexOf(def.id); return SETS.find((st) => st.id === 13).cards.slice(k * 8, k * 8 + 8); };
 const DRAGON_SIDE = new Set(['RG08', 'WG08', 'KR08', 'WU08', 'UK08', 'R71', 'G72', 'W71', 'K69', 'R72']);
 const HUMAN_SIDE = new Set([...SETS.find((st) => st.id === 6).cards.map((d) => d.id)].filter((id) => !DRAGON_SIDE.has(id)));
 
