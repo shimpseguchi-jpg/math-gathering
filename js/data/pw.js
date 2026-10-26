@@ -116,19 +116,19 @@ export const SPW = {
   // ---- サポート ----
   PW11: {
     etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.soldier, 2); },
-    onOtherEnter: (s, q, p, E) => { if (q.side === p.side && E.isPW(p)) { p.loy++; E.L(s, `ギデオンの 誓い：${p.def.name} の ちゅうせい ${p.loy - 1} ＋ 1 ＝ ${p.loy}`); } },
+    onOtherEnter: (s, q, p, E) => { if (q.side === p.side && E.isPW(p)) { p.loy++; E.L(s, `ギデオンの ちかい：${p.def.name} の ちゅうせい ${p.loy - 1} ＋ 1 ＝ ${p.loy}`); } },
   },
   PW12: { etb: (s, p, E) => { if (p.side !== 'P') return; E.drawCard(s, 3); E.discard(s, E.discardPick(s, 2)); } },
   PW13: {
     tgt: [{ side: 'E', min: 0, label: '3点を あたえる クリーチャー' }],
     etb: (s, p, E, o) => { if (p.side !== 'P') return; let t = chosen1(o); if (t === undefined) t = foeBest(s, E, 3)?.t || foeBest(s, E)?.t; if (t) hit(s, E, t, 3); },
     onOtherEnter: (s, q, p, E) => { if (q.side === p.side && E.isPW(p)) q.flags.turn.pwIn = true; },
-    endStep: (s, p, E) => { if (p.side === 'P' && p.flags.turn.pwIn) { p.flags.turn.pwIn = false; E.L(s, 'チャンドラの 誓い：てきに 2点'); E.hitEnemy(s, 2, p); } },
+    endStep: (s, p, E) => { if (p.side === 'P' && p.flags.turn.pwIn) { p.flags.turn.pwIn = false; E.L(s, 'チャンドラの ちかい：てきに 2点'); E.hitEnemy(s, 2, p); } },
   },
   PW14: { etb: (s, p, E) => { if (p.side === 'P') dig(s, E, 3, 1, (d) => (d.types || []).some((t) => t === 'creature' || t === 'planeswalker')); } },
   PW15: {
     etb: (s, p, E) => { if (p.side !== 'P') return; E.hitEnemy(s, 3, p); E.gain(s, 3); },
-    onPWAttacked: (s, q, a, E) => { E.L(s, 'ケイヤの 誓い：てきに 2点・ライフ ＋2'); E.hitEnemy(s, 2, q); E.gain(s, 2); },
+    onPWAttacked: (s, q, a, E) => { E.L(s, 'ケイヤの ちかい：てきに 2点・ライフ ＋2'); E.hitEnemy(s, 2, q); E.gain(s, 2); },
   },
   PW16: { pwTwice: true, need: (s, E) => hasPW(s, E) || s.P.hand.some((c) => (c.def.types || []).includes('planeswalker')) },
   PW17: { onCombatHit: (s, p, E) => prolif(s, p, E) },
