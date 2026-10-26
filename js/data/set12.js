@@ -70,7 +70,7 @@ export const S12 = {
     play: (s, p, E, ctx) => { if (ctx.phase !== 1) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && canSwing(s, E, t) ? { score: 3, run: () => E.pump(t, 1, 1) } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1 する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 1, 1); },
   })] },
-  ZZ08: { brk: 1 },
+  ZZ08: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P') E.addCounters(s, p, 1); } },
   ZZ09: { brk: 2, etb: etbBon(1), anthem: lord('白祇重工', 1, 0) },
   ZZ10: { brk: 1, etb: prolif },
   ZZ11: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
@@ -82,7 +82,7 @@ export const S12 = {
   ZZ17: { brk: 2, onAttack: (s, p, E) => { if (p.side !== 'P') return; const b = foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
   ZZ18: { brk: 2, onAttack: atkBon(1) },
   ZZ19: { brk: 2, ...ninjutsu(1, ['G']) },
-  ZZ20: { brk: 1, etb: etbBon(2), acts: [bonAct(2, {
+  ZZ20: { brk: 1, etb: etbBon(2), onBlock: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); }, acts: [bonAct(2, {
     label: 'エネルギー 2：つぎの てきの ターン、1体は ダメージを うけない',
     play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== s.turn + 1 ? { score: 2, run: () => { t.shieldT = s.turn + 1; } } : null; },
     tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = s.turn + 1; E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
@@ -100,15 +100,21 @@ export const S12 = {
   ZZ28: { brk: 1 },
   // ---- モブ ----
   ZZ30: { etb: etbBon(1) },
-  ZZ31: etbFoe('タップする てきの クリーチャー', (s, E, t) => { t.tapped = true; E.L(s, `${t.def.name} を タップ`); }, (s, E) => biggest(s, E, (t) => !t.tapped)),
-  ZZ33: { brk: 1 },
+  ZZ29: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } },
+  ZZ31: etbFoe('−2/−2 する てきの クリーチャー', (s, E, t) => { E.pump(t, -2, -2); E.L(s, `${t.def.name} は −2/−2`); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)),
+  ZZ33: { brk: 1, onDie: (s, p, E) => { if (p.side !== 'P') return; const t = biggest(s, E); if (t) E.addMinus(s, t, 1); } },
   ZZ34: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 1); } },
   ZZ35: { onDie: (s, p, E) => { if (p.side === 'P') E.addBreak(s, 1); } },
-  ZZ36: { brk: 2 },
+  ZZ36: { brk: 2, ...etbFoe('−1/−1カウンターを 2こ 置く てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 2); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)) },
   ZZ37: { etb: etbBon(1) },
   ZZ39: { brk: 1 },
   ZZ41: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } },
-  ZZ43: { acts: [bonAct(2, selfPump('エネルギー 2：＋2/＋0', 2, 0))] },
+  ZZ42: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを 置く クリーチャー' }], etb: (s, p, E, o) => { if (p.side !== 'P') return; const c = o?.chosen ? o.chosen[0]?.[0] : (E.bestBuffTarget(s, null) || p); if (c && E.onBf(s, c)) E.addCounters(s, c, 1); } },
+  ZZ43: { acts: [bonAct(2, {
+    label: 'エネルギー 2：てきの クリーチャー 1体は −2/−0',
+    play: (s, p, E, ctx) => { const t = ctx.phase === 1 && biggest(s, E, (q) => !q.tapped); return t ? { score: 2, run: () => E.pump(t, -2, 0) } : null; },
+    tgt: [{ side: 'E', label: '−2/−0 する てきの クリーチャー' }], apply: (s, E, [[t]]) => { E.pump(t, -2, 0); E.L(s, `${t.def.name} は −2/−0`); },
+  })] },
   ZZ44: { etb: prolif },
   // ---- ボンプ ----
   ZZ45: { etb: etbBon(2), acts: [bonAct(4, { label: 'エネルギー 4：てきに ブレイクカウンター 2こ', play: (s, p, E) => ({ score: s.floor.face ? 5 : 3, run: () => E.addBreak(s, 2) }) })] },
@@ -171,14 +177,14 @@ export const S12 = {
   },
   // ---- 終結スキル（召集） ----
   ZZ71: { ...(foe1('ついほうする タップした てきの クリーチャー', exileIt, { filter: (s, E, p) => p.tapped })), ...ULT }, // 封じ込め
-  ZZ72: { ...ULT, play: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 6, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0, ['indestructible']); } } : null) }, // 抵抗の決意
+  ZZ72: { ...ULT, play: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 6, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0, ['indestructible']); E.gain(s, 3); } } : null) }, // 抵抗の決意
   ZZ73: { ...ULT, // 凍える突風（X体を タップ・つぎも おきない）
     play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.frozen).sort((a, b) => E.power(s, b) - E.power(s, a)); const x = Math.min(ctx.xMax || 0, ts.length); return x ? { score: 2 + x * 2, x, run: (xx) => { for (const t of ts.slice(0, xx)) detain(s, E, t); } } : null; },
     tgt: [{ side: 'E', max: 9, label: 'タップする クリーチャー（X体まで・つぎも おきない）' }], apply: (s, E, [ts], x) => { for (const t of ts.slice(0, x)) detain(s, E, t); },
   },
   ZZ74: { ...ULT, // 潮の波（ひこうの ない てきを 3体まで タップ）
-    play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying')).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) t.tapped = true; } } : null; },
-    tgt: [{ side: 'E', max: 3, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: 'タップする ひこうの ない クリーチャー（3体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) t.tapped = true; },
+    play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying')).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) { t.tapped = true; E.pump(t, -1, -1); } E.sba(s); } } : null; },
+    tgt: [{ side: 'E', max: 3, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: 'タップする ひこうの ない クリーチャー（3体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; E.pump(t, -1, -1); } E.sba(s); },
   },
   ZZ75: { ...(foe1('ついほうする クリーチャー', (s, E, t) => { exileIt(s, E, t); E.gain(s, 2); })), ...ULT }, // ヴラスカの侮辱
   ZZ76: { ...ULT, play: (s, E, ctx) => { const v = wipeValue(s, E, (q) => left(s, E, q) <= 4); return v > 4 || (ctx.human && theirs(s, E).length) ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.pump(q, -4, -4); E.sba(s); } } : null; } }, // 衰滅

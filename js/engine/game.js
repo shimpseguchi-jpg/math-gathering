@@ -798,6 +798,7 @@ export async function enemyAttack(s, attackers) {
   attackers = attackers.filter((p) => onBf(s, p));
   const blocks = await s.ai.blocks(s, attackers);
   await s.ai.duringBlocks(s, attackers, blocks);
+  for (const b of new Set(blocks.values())) if (b && onBf(s, b)) b.def.onBlock?.(s, b, api); // ブロックするたび（ゼンゼロ：セス）
   attackers = attackers.filter((p) => onBf(s, p));
   resolveCombat(s, pwTargets(s, attackers, blocks), blocks);
 }
