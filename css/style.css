@@ -1098,3 +1098,6 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
   .sheet-body:has(.talk) .btn { min-height: 60px; font-size: 20px; }
 }
 :root[data-theme="gba"] .talk { background: var(--win); color: var(--ink); border: 3px solid var(--line); border-radius: 6px; box-shadow: 0 0 0 3px var(--px); font-family: var(--display); }
+/* ドラフトの 色（2026-10-27） */
+.dr-cols { margin: 0 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 700; }
+.dr-cols .btn { min-height: 36px; padding: 4px 14px; font-size: 14px; }

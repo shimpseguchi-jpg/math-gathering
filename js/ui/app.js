@@ -21,7 +21,8 @@ import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateS
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, filterCount, saveFilter } from './deckfilter.js';
-import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
+import { cardFace, fullCard, detail, sheet, pickMany, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
+import { BANNERS } from '../data/emblems.js';
 
 const SAVE = 'mtg-adventure-v1';
 const ENDLESS_BEST = 'mtg-endless-best'; // むげんの とうの いちばんの きろく { floor, exact, score }
@@ -42,6 +43,33 @@ const GETS = [['pack', 'パック'], ['draft', 'ドラフト']];
 const DRAFT_PER_PACK = 7, DRAFT_SHOW = 3; // 7回：5回だと カードが たりず 勝率が 9ポイント 下がった（AI ドラフト 30回）
 const cmdDef = () => (A?.cmd ? BY_ID[A.cmd] : null);
 const cmdIdent = () => (A?.cmd ? colorsOf(BY_ID[A.cmd]) : null);
+// ドラフトの 色（2026-10-27：デュエプレの ドラフトの ように）。2色か、旗の ある 3色を えらぶと、その 色の カード だけが 出る
+// 3色を えらぶと その 3色の 旗を 1まい もらう（デッキが 3色に できる）。統率者戦では 統率者の 色。階を のぼる ときに かえられる
+const draftCols = () => (A?.cmd ? cmdIdent() : A?.draftCols || null);
+const colsText = (cs) => cs.map((c) => COLOR_NAME[c]).join('・');
+async function chooseDraftColors(back) {
+  const kind = await sheet(`<p>${ruby('ドラフトで つかう 色を えらぼう。えらんだ 色の カード だけが 出るよ。')}</p>`, [
+    { label: '2しょく', value: 2, kind: 'primary', note: '色を 2つ えらぶ' },
+    { label: '3しょく（はたつき）', value: 3, kind: 'primary', note: '3つの 色の 旗（はた）を 1まい もらえる。旗（はた）が あると デッキを 3色に できる' },
+    ...(back ? [{ label: 'かえない', value: 0 }] : []),
+  ], { title: 'ドラフトの 色', dismiss: false });
+  if (!kind) return false;
+  let cols, banner = null;
+  if (kind === 2) {
+    const ok = await pickMany(ruby('色を 2つ えらぼう'), ['W', 'U', 'K', 'R', 'G'].map((c) => ({ label: COLOR_NAME[c], value: c })), { min: 2, max: 2 });
+    if (!ok) return chooseDraftColors(back);
+    cols = ['W', 'U', 'K', 'R', 'G'].filter((c) => ok.includes(c));
+  } else {
+    const bn = await sheet(`<p>${ruby('3つの 色の くみあわせを えらぼう。その 旗（はた）を 1まい もらえる。')}</p>`, [
+      ...BANNERS.map((d) => ({ label: `<span>${ruby(info(d).name)}（${colsText([...d.banner])}）</span>`, value: d.id, kind: 'primary' })), { label: 'もどる', value: null },
+    ], { title: '3しょく（はたつき）', dismiss: false });
+    if (!bn) return chooseDraftColors(back);
+    banner = BY_ID[bn]; cols = ['W', 'U', 'K', 'R', 'G'].filter((c) => banner.banner.includes(c));
+    if (!A.pool.includes(bn)) A.pool.push(bn);
+  }
+  A.draftCols = cols; save();
+  return true;
+}
 
 let A = null; // いまの冒険
 const app = () => document.getElementById('app');
@@ -162,7 +190,8 @@ function packs() {
   const pk = activeEffects()?.pack;
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
-  const only = A.cmd && A.opened === 0 ? cmdIdent() : null; // 統率者戦の さいしょの パックは 統率者の 色の カードだけ
+  if (A.draft && !draftCols()) return chooseDraftColors().then(() => packs()); // ドラフト：さいしょに 色を えらぶ
+  const only = A.draft ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ
   const roll = () => openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare, only });
   if (A.draft) return draftPick(roll);
   const cards = roll();
@@ -273,11 +302,14 @@ function draftPick(roll) {
     <div class="pk-top"><p class="eyebrow">ドラフト　パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}　えらぶ ${A.pick.n + 1} / ${DRAFT_PER_PACK}</p>
       <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>
     <h2>${DRAFT_SHOW}まいから 1まい えらぼう</h2>
+    <p class="dr-cols">${ruby(`ドラフトの 色：${colsText(draftCols() || [])}`)}${!A.cmd && A.idx > 0 && A.pick.n === 0 ? ' <button type="button" class="btn" data-dcol="1">色を かえる</button>' : ''}</p>
     <div class="draft-row">${opts.map((id) => `<button type="button" class="draft-card" data-pick="${id}">${fullCard(BY_ID[id])}${have(id) ? `<span class="dr-have">もって いる ${have(id)}まい</span>` : ''}</button>`).join('')}</div>
     <p class="hint">タップで せつめい → えらぶ。${A.cmd ? ruby(`統率者（とうそつしゃ）の 色：${cmdIdent().map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}。`) : ''}いま もって いる カード ${A.pool.length}まい（${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}）</p>
   </main>`;
   app().onclick = async (e) => {
     if (e.target.closest('[data-snd]')) { setSound(!soundOn()); return draftPick(roll); }
+    // 階を のぼった あとの さいしょの 1まいの まえ：ドラフトの 色を かえられる（この パックから）
+    if (e.target.closest('[data-dcol]')) { if (await chooseDraftColors(true)) A.pick.opts = null; return packs(); }
     const b = e.target.closest('[data-pick]'); if (!b) return;
     const d = BY_ID[b.dataset.pick];
     const v = await sheet(detail(d), [{ label: 'これに する', value: 1, kind: 'primary' }, { label: 'もどる', value: 0 }]);
