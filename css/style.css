@@ -1075,3 +1075,10 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .lore-say { margin: 0 0 .4em; font-size: 1.1em; font-weight: 700; line-height: 1.7; }
 .lore-rule { margin: 0; line-height: 1.7; }
 .lore-rule b { display: inline-block; margin-right: .4em; padding: 0 .5em; border-radius: 6px; background: var(--gold); color: var(--gold-ink); font-size: .85em; }
+/* キャラクターの ふきだし（js/ui/view.js speak）：上の まんなか、たたかいは とめない */
+#say { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 10px); left: 50%; transform: translateX(-50%); z-index: 60; width: min(560px, calc(100vw - 32px)); padding: 10px 14px 12px; border-radius: 16px; background: var(--paper); color: var(--paper-ink); border: 3px solid var(--G); box-shadow: 0 6px 20px rgba(0, 0, 0, .45); cursor: pointer; animation: say-in .25s ease-out; }
+#say.foe { border-color: var(--R); }
+#say b { display: block; font-size: 13px; opacity: .75; }
+#say p { margin: 2px 0 0; font-size: 17px; font-weight: 700; line-height: 1.7; }
+@keyframes say-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { #say { animation: none; } }

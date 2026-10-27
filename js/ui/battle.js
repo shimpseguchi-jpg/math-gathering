@@ -11,7 +11,7 @@ import { spOf, spMax } from '../data/set11.js';
 // せんぎポイント ●●●○○（花火が いると 7こ）
 const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</b> ${'●'.repeat(n)}${'○'.repeat(spMax(s) - n)}`; };
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
-import { permFace, cardFace, detail, loreHtml, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
+import { permFace, cardFace, detail, loreHtml, speak, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
 import { LORE } from '../data/lore.js';
 import * as fx from './fx.js';
@@ -1153,7 +1153,13 @@ function pileList(cards, enemy = false) {
 function render() {
   if (B.left) return; // メニューへ もどった あと
   const s = B.s;
-  for (const p of s.E.bf) if (LORE[p.def.id] && !B.lore.has(`${p.def.id}:appear`)) tellLore(p, 'appear'); // とくべつな ルールの てきが 出た
+  // キャラクターが 場に 出た：とくべつな ルールの てきは ポップアップ、ほかは ふきだし（1回の たたかいで 1まい 1回）
+  for (const p of [...s.P.bf, ...s.E.bf]) {
+    const l = LORE[p.def.id], k = `${p.def.id}:appear`;
+    if (!l || B.lore.has(k) || B.tut?.lock) continue; // さいしょの チュートリアルでは 出さない
+    if (l.rule && p.side === 'E') tellLore(p, 'appear');
+    else { B.lore.add(k); speak(info(p.def).name, l.say, p.side === 'E'); }
+  }
   if (!drag) clearDrag();
   B.tut?.update(s, B);
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];

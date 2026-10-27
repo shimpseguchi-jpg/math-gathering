@@ -113,7 +113,7 @@ export const S11 = {
   SR29: trail({ pittari: spPit }),
   SR30: trail({ pittari: (s, p, E) => E.hitEnemy(s, 2, p) }),
   // フォフォ：ぼちの 必殺技を 手札に もどす
-  SR31: trail({ skill: { label: 'ライフ ＋2・ぼちの 必殺技を てふだに', play: (s, p, E) => {
+  SR31: trail({ skill: { label: 'ライフ ＋2・ぼちの 必殺技（ひっさつわざ）を てふだに', play: (s, p, E) => {
     const has = s.P.gy.some((c) => c.def.ultOf);
     return has || s.P.life < 15 ? { score: has ? 5 : 2, run: () => { E.gain(s, 2); regrow(s, E, (d) => !!d.ultOf); } } : null;
   } } }),

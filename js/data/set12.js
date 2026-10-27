@@ -105,11 +105,11 @@ export const S12 = {
   ZZ33: { brk: 1, onDie: (s, p, E) => { if (p.side !== 'P') return; const t = biggest(s, E); if (t) E.addMinus(s, t, 1); } },
   ZZ34: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 1); } },
   ZZ35: { onDie: (s, p, E) => { if (p.side === 'P') E.addBreak(s, 1); } },
-  ZZ36: { brk: 2, ...etbFoe('−1/−1カウンターを 2こ 置く てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 2); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)) },
+  ZZ36: { brk: 2, ...etbFoe('−1/−1カウンターを 2こ 置（お）く てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 2); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)) },
   ZZ37: { etb: etbBon(1) },
   ZZ39: { brk: 1 },
   ZZ41: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } },
-  ZZ42: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを 置く クリーチャー' }], etb: (s, p, E, o) => { if (p.side !== 'P') return; const c = o?.chosen ? o.chosen[0]?.[0] : (E.bestBuffTarget(s, null) || p); if (c && E.onBf(s, c)) E.addCounters(s, c, 1); } },
+  ZZ42: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを 置（お）く クリーチャー' }], etb: (s, p, E, o) => { if (p.side !== 'P') return; const c = o?.chosen ? o.chosen[0]?.[0] : (E.bestBuffTarget(s, null) || p); if (c && E.onBf(s, c)) E.addCounters(s, c, 1); } },
   ZZ43: { acts: [bonAct(2, {
     label: 'エネルギー 2：てきの クリーチャー 1体は −2/−0',
     play: (s, p, E, ctx) => { const t = ctx.phase === 1 && biggest(s, E, (q) => !q.tapped); return t ? { score: 2, run: () => E.pump(t, -2, 0) } : null; },

@@ -94,3 +94,17 @@ with open(out, 'w', encoding='utf-8') as w:
     w.write('export const ENEMY_TEXT = ' + json.dumps(enemies, ensure_ascii=False, indent=0) + ';\n')
     w.write("export const plainName = (t) => t.replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '');\n")
 print(len(cards), 'cards', len(enemies), 'enemies', len(skel), 'draft cards')
+
+# カードの せりふ（docs/LORE.md → js/data/lore.js）
+lore = {}
+for line in open(os.path.join(docs, 'LORE.md'), encoding='utf-8'):
+    if not line.startswith('|'): continue
+    c = cells(line)
+    if len(c) < 4 or not re.fullmatch(r'[A-Z]{1,2}\d\d', c[0]): continue
+    if c[0] not in cards: raise SystemExit(f'LORE.md：{c[0]} という カードは ない')
+    lore[c[0]] = {'say': c[2], **({'rule': c[3]} if c[3] else {})}
+with open(os.path.join(here, '..', 'js', 'data', 'lore.js'), 'w', encoding='utf-8') as w:
+    w.write('// 自動生成：python3 mathtcg/tools/gen_texts.py（docs/LORE.md の 表から。手で直さない）\n')
+    w.write('// カードの せりふ（say）と、とくべつな ルールの しくみ（rule）。RPG の ように カードが じぶんで しゃべる\n')
+    w.write('export const LORE = ' + json.dumps(lore, ensure_ascii=False, indent=0) + ';\n')
+print(len(lore), 'lore')

@@ -260,7 +260,27 @@ export function detail(def, o = {}) {
 // とくべつな ルールの カード：せりふ と しくみ（data/lore.js）
 export function loreHtml(def) {
   const l = LORE[def?.id];
-  return l ? `<div class="lore"><p class="lore-say">「${ruby(l.say)}」</p><p class="lore-rule"><b>しくみ</b> ${ruby(l.rule)}</p></div>` : '';
+  return l ? `<div class="lore"><p class="lore-say">「${ruby(l.say)}」</p>${l.rule ? `<p class="lore-rule"><b>しくみ</b> ${ruby(l.rule)}</p>` : ''}</div>` : '';
+}
+
+// キャラクターの ふきだし（場に 出た とき）。たたかいは とめない。じゅんばんに 1つずつ、タップで けせる
+const SAY_MS = 3800;
+let sayQ = [], sayOn = false;
+export function speak(name, line, enemy = false) {
+  if (sayQ.length >= 3) return; // たくさん 出た ときは あふれた ぶんを すてる
+  sayQ.push({ name, line, enemy });
+  if (!sayOn) nextSay();
+}
+function nextSay() {
+  const it = sayQ.shift();
+  let el = document.getElementById('say');
+  if (!it) { sayOn = false; if (el) el.hidden = true; return; }
+  sayOn = true;
+  if (!el) { el = document.createElement('div'); el.id = 'say'; el.setAttribute('role', 'status'); el.addEventListener('click', () => { clearTimeout(el._h); nextSay(); }); document.body.append(el); }
+  el.className = it.enemy ? 'foe' : '';
+  el.innerHTML = `<b>${ruby(it.name)}</b><p>「${ruby(it.line)}」</p>`;
+  el.hidden = false;
+  clearTimeout(el._h); el._h = setTimeout(nextSay, SAY_MS);
 }
 
 // 画面の 下に 少しだけ 出る おしらせ
