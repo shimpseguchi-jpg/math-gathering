@@ -31,6 +31,12 @@ export function startBattle(o) {
   if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach });
   B.coachWho = o.coach?.[0]?.who || (o.tutorial ? 'コーチ' : '');
   o.setup?.(B.s, api);
+  // せりふ：能力が うごいた とき（docs/LORE.md の「とき」）。1まいに つき 1ターンに 1回
+  B.s.say = (p, when) => {
+    const l = LORE[p.def.id], k = `${p.def.id}:say:${B.s.turn}`;
+    if (!l || l.when !== when || B.lore.has(k) || B.tut?.lock) return;
+    B.lore.add(k); speak(info(p.def).name, l.say, B.s.swapped ? p.side === 'P' : p.side === 'E');
+  };
   app().onclick = onClick;
   initSwipe();
   const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
@@ -1153,12 +1159,12 @@ function pileList(cards, enemy = false) {
 function render() {
   if (B.left) return; // メニューへ もどった あと
   const s = B.s;
-  // キャラクターが 場に 出た：とくべつな ルールの てきは ポップアップ、ほかは ふきだし（1回の たたかいで 1まい 1回）
+  // キャラクターが 場に 出た：とくべつな ルールの てきは ポップアップ。「とき」が「出た」の キャラは ふきだし
   for (const p of [...s.P.bf, ...s.E.bf]) {
-    const l = LORE[p.def.id], k = `${p.def.id}:appear`;
-    if (!l || B.lore.has(k) || B.tut?.lock) continue; // さいしょの チュートリアルでは 出さない
-    if (l.rule && p.side === 'E') tellLore(p, 'appear');
-    else { B.lore.add(k); speak(info(p.def).name, l.say, p.side === 'E'); }
+    const l = LORE[p.def.id];
+    if (!l || B.tut?.lock) continue; // さいしょの チュートリアルでは 出さない
+    if (l.rule && p.side === 'E' && !B.lore.has(`${p.def.id}:appear`)) tellLore(p, 'appear');
+    else if (l.when === 'enter' && !B.lore.has(`${p.def.id}:enter`)) { B.lore.add(`${p.def.id}:enter`); speak(info(p.def).name, l.say, p.side === 'E'); }
   }
   if (!drag) clearDrag();
   B.tut?.update(s, B);

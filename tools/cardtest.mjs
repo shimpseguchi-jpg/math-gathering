@@ -13,6 +13,7 @@ import { newGame, api, isCreature, onBf, beginPlayerTurn, endPlayerTurn, enemyTu
 import { AI } from '../js/engine/ai.js';
 import { pvp } from '../js/data/enemies.js';
 import { SAMPLE } from '../js/data/samples.js';
+import { LORE } from '../js/data/lore.js';
 
 const only = process.argv.slice(2);
 const setIds = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
@@ -28,7 +29,7 @@ const HOOKS = [
   [/ターンの おわりに|終了ステップ/, ['endStep', 'onEnd', 'endTurn']],
   [/唱えるたび/, ['onCast', 'onAnyCast', 'magecraft', 'onSpell', 'copyAll', 'extort']],
 ];
-const out = { err: [], kw: [], hook: [], noCast: [], pt: [], num: [] };
+const out = { err: [], kw: [], hook: [], noCast: [], pt: [], num: [], lore: [] };
 const fill = (ids) => ids.map((id) => BY_ID[id]);
 const enemyDeck = () => SAMPLE.RG.split(' ').map((id) => BY_ID[id]);
 const B = { W: BASICS.W, U: BASICS.U, G: BASICS.G, R: BASICS.R, K: BASICS.K };
@@ -145,6 +146,23 @@ for (const d of cards) {
     await turns(s, 4, true);
   });
 }
+// 3. せりふ（docs/LORE.md）：「とき」の 能力が うごいた とき ほんとうに しゃべるか（第1弾から ぜんぶ。AI で 4ターン ＋ 起動型能力）
+for (const [id, l] of Object.entries(LORE)) {
+  if (only.length && !only.includes(id)) continue;
+  if (['enter', 'shield'].includes(l.when)) continue; // 出た：画面が 出す。ねらえない：画面の ポップアップ
+  const d = BY_ID[id]; const heard = new Set();
+  await run('lore', id, async () => {
+    for (const seed of [7, 8, 9]) {
+      const s = board(d); s.say = (p, w) => { if (p.def.id === id) heard.add(w); };
+      const p = api.enter(s, 'P', d); if (p) { p.sick = false; p.np = 200; } s.P.sp = 5; s.P.bon = 10; s.rng = (() => { let x = seed; return () => ((x = (x * 9301 + 49297) % 233280) / 233280); })();
+      if (l.when === 'targeted') { const e = api.enter(s, 'E', d); BY_ID.R11?.play?.(s, api, { phase: 1 })?.run?.(); }
+      if (l.when === 'act' && p) for (const a of d.acts || []) { if (!onBf(s, p)) break; if (a.tgt && a.apply) { const pk = picksFor(s, a.tgt, p); if (pk) a.apply(s, api, pk, 2, p); } else a.play?.(s, p, api, { phase: 1, human: true })?.run?.(2); }
+      await turns(s, 4);
+      if (heard.has(l.when)) break;
+    }
+  });
+  if (!heard.has(l.when)) out.lore.push(`${id} 「${l.when}」で しゃべらなかった（きこえた：${[...heard].join('・') || 'なし'}）`);
+}
 const show = (k, title) => { if (out[k].length) console.log(`\n## ${title}（${out[k].length}）\n` + out[k].map((x) => `- ${x}`).join('\n')); };
 console.log(`しらべた カード：${cards.length}（うごかした 回数：${Object.entries(ran).map(([k, v]) => `${k} ${v}`).join('・')}）`);
 show('err', 'エラー');
@@ -152,4 +170,5 @@ show('kw', 'キーワードが kw に ない');
 show('pt', 'P/T が ない クリーチャー');
 show('hook', '文に ある きっかけの うごきが 見つからない（しらべる）');
 show('num', '文の 数と うごきが あわない（しらべる）');
+show('lore', 'せりふが「とき」に しゃべらなかった（しらべる）');
 show('noCast', 'AI が 3ターンで 唱えなかった（しらべる）');

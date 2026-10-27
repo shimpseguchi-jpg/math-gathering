@@ -55,24 +55,39 @@ export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'F
 export const pickOf = (d) => (!d || d.token || !d.rar || PICK_FREE.has(d.id) ? null : d.rar === 'C' ? 'rand' : d.rar === 'U' || d.rar === 'B' ? 'most' : null);
 const PICK_KEYS = ['play', 'apply', 'etb', 'onAttack', 'onAttacks', 'onDie', 'onCombatHit', 'onFaceHit', 'onKill', 'upkeep', 'onTapped', 'onExact', 'onDamageCreature', 'onMinus', 'onCounters', 'onDraw', 'onOtherEnter', 'onAllyHit', 'onAnyCast', 'onPWAttacked', 'onLeaveSelf', 'onOtherLeave', 'onHurt'];
 // カードの こうかを 動かす あいだだけ s.pickMode を つける（ai.js の burnTarget が 見る）。play が かえす run も おなじ
+// せりふ（docs/LORE.md の「とき」）：カードの 能力が うごいて なにか おきたら（ログが ふえたら）s.say(パーマネント, とき) を よぶ。画面が ふきだしを 出す
+const SAY_WHEN = { onAttack: 'attack', onAttacks: 'attack', onCombatHit: 'hit', onFaceHit: 'hit', onDamageCreature: 'hit', onDie: 'die', onKill: 'kill', upkeep: 'turn', combatStart: 'combat', onOtherEnter: 'ally', onOtherLeave: 'ally', onCast: 'cast', onTargeted: 'targeted', pittari: 'break', onDraw: 'draw', onBlock: 'block', act: 'act' }; // とき（LORE.md）→ gen_texts.py の WHEN
+const SAY_ONLY = ['pittari', 'combatStart', 'onCast', 'onTargeted', 'onBlock']; // ねらいかたとは かんけい ない きっかけ
+const permOf = (args, d) => args.find((a) => a && typeof a === 'object' && a.uid && a.def?.id === d.id);
+function said(s, args, d, key, f) {
+  const w = SAY_WHEN[key], p = w && s.say && permOf(args, d);
+  if (!p) return f();
+  const sig = () => `${Object.entries(p).filter(([, v]) => typeof v === 'number').map(([k, v]) => k + v).join(',')}|${s.logs.length}|${s.P.life}|${s.E.life}|${s.P.bf.length}|${s.E.bf.length}|${s.P.hand.length}|${p.ctr}|${p.np}|${s.P.sp}|${s.P.bon}|${s.P.mana.length}|${s.P.gy.length}|${s.E.gy.length}|${[...s.P.bf, ...s.E.bf].reduce((a, q) => a + (q.ctr || 0) * 3 + (q.minus || 0) * 5 + q.dmg * 7 + (q.tapped ? 11 : 0), 0)}`;
+  const n = sig(), r = f();
+  if (sig() !== n) s.say(p, w); // なにか かわった（ログ・ライフ・カウンター など）
+  return r;
+}
 // s.srcDef：いま うごいて いる こうかの カード（「2色の カードの 対象に ならない」などで 見る）
-function wrapPick(fn, mode, d) {
-  if (typeof fn !== 'function' || fn.picked) return fn;
+function wrapPick(fn, mode, d, key) {
+  if (typeof fn !== 'function') return fn;
+  if (fn.picked) { if (fn.owner === d) return fn; fn = fn.orig || fn; } // ほかの カードと おなじ 関数（宝具・増殖 など）：その カード用に つつみなおす
   const set = (s, f) => { const was = s.pickMode, wd = s.srcDef; if (!wd) s.tgtSeen = new Set(); s.pickMode = mode; s.srcDef = d; try { return f(); } finally { s.pickMode = was; s.srcDef = wd; } };
   const w = function (...args) {
     const s = args[0];
     if (!s || typeof s !== 'object' || !s.P) return fn.apply(this, args);
-    return set(s, () => { const r = fn.apply(this, args); if (r && typeof r.run === 'function' && !r.run.picked) { const run = r.run; r.run = (...a) => set(s, () => run(...a)); r.run.picked = true; } return r; });
+    return set(s, () => { const r = key === 'act' && args.length < 5 ? fn.apply(this, args) : said(s, args, d, key, () => fn.apply(this, args)); if (r && typeof r.run === 'function' && !r.run.picked) { const run = r.run; r.run = (...a) => set(s, () => (key === 'act' ? said(s, args, d, key, () => run(...a)) : run(...a))); r.run.picked = true; } return r; });
   };
-  w.picked = true;
+  w.picked = true; w.orig = fn; w.owner = d;
   return w;
 }
 // レアの 戦闘中の 効果（def.trigTgt）：人が さきに えらんで おいた あいて（p.trigPick）を 1回だけ つかう
 export function takePick(s, p) { const t = p.trigPick; p.trigPick = null; return t === 'face' || (t && onBf(s, t)) ? t : null; }
 export function applyPick(d) {
   const mode = pickOf(d);
-  for (const k of PICK_KEYS) if (d[k]) d[k] = wrapPick(d[k], mode, d);
-  for (const a of [...(d.acts || []), ...(d.modes || [])]) for (const k of ['play', 'apply']) if (a[k]) a[k] = wrapPick(a[k], mode, d);
+  for (const k of [...PICK_KEYS, ...SAY_ONLY]) if (d[k]) d[k] = wrapPick(d[k], mode, d, k);
+  if (d.acts) d.acts = d.acts.map((a) => ({ ...a })); // ほかの カードと おなじ 能力の オブジェクト（宝具）を こわさない
+  for (const a of d.acts || []) for (const k of ['play', 'apply']) if (a[k]) a[k] = wrapPick(a[k], mode, d, 'act');
+  for (const a of d.modes || []) for (const k of ['play', 'apply']) if (a[k]) a[k] = wrapPick(a[k], mode, d);
   return d;
 }
 

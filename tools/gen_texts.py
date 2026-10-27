@@ -95,14 +95,16 @@ with open(out, 'w', encoding='utf-8') as w:
     w.write("export const plainName = (t) => t.replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '');\n")
 print(len(cards), 'cards', len(enemies), 'enemies', len(skel), 'draft cards')
 
-# カードの せりふ（docs/LORE.md → js/data/lore.js）
+# カードの せりふ（docs/LORE.md → js/data/lore.js）。とき：しゃべる タイミング（js/engine/game.js の SAY_WHEN）
+WHEN = {'出た': 'enter', '攻撃': 'attack', '能力': 'act', 'ダメージ': 'hit', 'たおれた': 'die', 'たおした': 'kill', 'ターン': 'turn', '戦闘': 'combat', 'なかま': 'ally', '唱えた': 'cast', 'ねらわれた': 'targeted', 'ねらえない': 'shield', '撃破': 'break', '引いた': 'draw', 'ブロック': 'block'}
 lore = {}
 for line in open(os.path.join(docs, 'LORE.md'), encoding='utf-8'):
     if not line.startswith('|'): continue
     c = cells(line)
-    if len(c) < 4 or not re.fullmatch(r'[A-Z]{1,2}\d\d', c[0]): continue
+    if len(c) < 5 or not re.fullmatch(r'[A-Z]{1,2}\d\d', c[0]): continue
     if c[0] not in cards: raise SystemExit(f'LORE.md：{c[0]} という カードは ない')
-    lore[c[0]] = {'say': c[2], **({'rule': c[3]} if c[3] else {})}
+    if c[2] not in WHEN: raise SystemExit(f'LORE.md：{c[0]} の「とき」が ちがう（{c[2]}）。つかえるのは {"・".join(WHEN)}')
+    lore[c[0]] = {'when': WHEN[c[2]], 'say': c[3], **({'rule': c[4]} if c[4] else {})}
 with open(os.path.join(here, '..', 'js', 'data', 'lore.js'), 'w', encoding='utf-8') as w:
     w.write('// 自動生成：python3 mathtcg/tools/gen_texts.py（docs/LORE.md の 表から。手で直さない）\n')
     w.write('// カードの せりふ（say）と、とくべつな ルールの しくみ（rule）。RPG の ように カードが じぶんで しゃべる\n')
