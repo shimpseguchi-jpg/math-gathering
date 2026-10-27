@@ -132,7 +132,7 @@ export const S4 = {
   },
   R51: constellation((s, p, E) => E.hitEnemy(s, 1, p)),
   R52: { acts: [{ cost: 1, req: ['R'], pumpP: 1, play: () => null }], ...bestow(3, ['R'], { p: 1, t: 1 }) },
-  R53: adventure('ふみつけ', 2, ['R'], 'instant', bolt(2)),
+  R53: { ...adventure('ふみつけ', 2, ['R'], 'instant', bolt(2)), onTargeted: (s, p, E) => { E.L(s, `${p.def.name}：ねらわれたので 2点 はねかえす`); E.hurt(s, 2); } },
   R54: {
     tgt: [{ side: 'E', face: true, label: 'ダメージを あたえる 相手' }],
     etb: (s, p, E, o) => {
@@ -152,7 +152,7 @@ export const S4 = {
   R56: {
     costLess: (s, E) => mine(s, E).filter((q) => q.attacking).length,
     eqP: 1, eqT: 1, equip: 3, grant: (s, q, p) => (p.uid === q.attached ? ['double', 'trample'] : null),
-    etb: (s, p, E) => { const t = E.bestBuffTarget(s, null); if (t) p.attached = t.uid; },
+    etb: (s, p, E) => { const t = mine(s, E).filter((q) => q.attacking).sort((a, b) => E.power(s, b) - E.power(s, a))[0] || E.bestBuffTarget(s, null); if (t) p.attached = t.uid; }, // 攻撃中なら 攻撃している クリーチャーに
   },
   // ---- 緑 ----
   G46: adventure('盾（たて）の 力', 2, ['G'], 'instant', pump1(2, 2)),
@@ -223,7 +223,7 @@ export const S4 = {
     onOtherLeave: (s, p, q, E) => { if (p.side === 'P' && q.side === 'P' && q.def.food) E.hitEnemy(s, 2, p); },
   },
   KG05: {
-    onAttack: (s, p, E) => food(s, E),
+    onAttack: (s, p, E) => food(s, E), onBlock: (s, p, E) => food(s, E), // 攻撃するか ブロックするたび
     acts: [{ cost: 0, when: [2], label: '食物（しょくもつ） 2つを ぼちへ：1まい 引く', can: (s) => foods(s).length >= 2, cantWhy: '食物（しょくもつ）が 2つ いる', play: (s, p, E) => (foods(s).length >= 2 && s.P.life > 10 ? { score: 3, run: () => { for (const f of foods(s).slice(0, 2)) E.leave(s, f, 'gy'); E.drawCard(s); } } : null) }],
   },
   // ---- 無色 ----
@@ -236,7 +236,8 @@ export const S4 = {
       tgt: [{ side: 'P', label: 'ぼちに おく クリーチャー' }], apply: (s, E, [[f]]) => { const big = E.pt(s, f)[1] >= 4; E.leave(s, f, 'gy', { died: true }); food(s, E, big ? 2 : 1); },
     }],
   },
-  C25: { play: (s, E, ctx) => ({ score: 8 + 3 * ctx.xMax, x: ctx.xMax, run: () => {} }) },
+  // C25：2色の カードの 呪文・能力の 対象に ならない
+  C25: { hexproof: (s, p, src) => [...(src?.color || '')].filter((k) => 'WUKRG'.includes(k)).length === 2, play: (s, E, ctx) => ({ score: 8 + 3 * ctx.xMax, x: ctx.xMax, run: () => {} }) },
 };
 
 const E_isCr = (q) => (q.def.types || []).includes('creature');

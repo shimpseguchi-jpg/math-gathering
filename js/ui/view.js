@@ -1,4 +1,5 @@
 // 画面の部品：カードの見た目・ルビ・下から出るシート
+import { LORE } from '../data/lore.js';
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
 import { colorsOf, pt, basePT as rawPT, hasKw, isCreature } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
@@ -248,11 +249,18 @@ export function detail(def, o = {}) {
     ${enemy ? '' : colorRow(def)}
     <div class="detail-type">${richText(i.type)} ${pts}</div>
     <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
+    ${loreHtml(def)}
     ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
     ${i.math && i.math !== '−' ? `<p class="detail-sub">算数：${ruby(i.math)}</p>` : ''}
     <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
     <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>
   </div>`;
+}
+
+// とくべつな ルールの カード：せりふ と しくみ（data/lore.js）
+export function loreHtml(def) {
+  const l = LORE[def?.id];
+  return l ? `<div class="lore"><p class="lore-say">「${ruby(l.say)}」</p><p class="lore-rule"><b>しくみ</b> ${ruby(l.rule)}</p></div>` : '';
 }
 
 // 画面の 下に 少しだけ 出る おしらせ

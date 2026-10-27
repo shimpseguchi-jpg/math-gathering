@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable,
   zzBreak, useBreak, BREAK_AT, BREAK_ALL, ZZ_BLUE,
 } from './game.js';
 
@@ -38,7 +38,7 @@ function sources(s, o = {}) {
 function manaOf(s, p) {
   if (p.def.treasure) return { colors: 'any', n: s[p.side].bf.some((q) => q.def.richTreasure) ? 2 : 1 };
   const r = levelRow(p); const m = r?.mana ?? p.def.mana;
-  if (m) return { colors: m, n: r?.manaN ?? (typeof p.def.manaN === 'function' ? p.def.manaN(p, s) : p.def.manaN) ?? 1 };
+  if (m) { const n = r?.manaN ?? (typeof p.def.manaN === 'function' ? p.def.manaN(p, s) : p.def.manaN) ?? 1; return n > 0 ? { colors: m, n } : null; }
   // ニヴ＝ミゼット（UR06）：あなたの アーティファクトは 好きな 色の マナを 出す
   if ((p.def.types || []).includes('artifact') && !isCreature(p) && s[p.side].bf.some((q) => q.def.artifactMana)) return { colors: 'any', n: 1 };
   if (isCreature(p) && p.side === 'P' && (s.P.flags.anyManaUntil || 0) >= s.stats.playerTurns) return { colors: 'any', n: 1 };
@@ -530,6 +530,15 @@ function tricks(s, atk, blocks) {
         consider(3 + c.def.pow - power(s, a.p), () => ninjutsu(s, c, a));
       }
     }
+    // 瞬速の 装備品（炎の 宝剣）：攻撃の とちゅうに 出して、いちばん つよい 攻撃クリーチャーに つける
+    for (const c of s.P.hand) {
+      const d = c.def; if (!d.flash || !d.equip || c.locked) continue;
+      const pl = plan(s, costOf(s, d), colorsOf(d)); if (!pl) continue;
+      const a = [...live].sort((x, y) => power(s, y.p) - power(s, x.p))[0]; if (!a) continue;
+      const kws = d.grant?.(s, { attached: a.p.uid }, { uid: a.p.uid }, api) || [];
+      const g = scoreAttack(s, atk, blocks, (p) => (p === a.p ? { p: d.eqP || 0, t: d.eqT || 0, dbl: kws.includes('double'), tr: kws.includes('trample') } : null)) - base;
+      consider(g + 1, () => { const pl2 = plan(s, costOf(s, d), colorsOf(d)); if (pl2) castCard(s, c, pl2, {}); });
+    }
     // 起動型の強化（ドラゴンの雛）
     for (const a of live) for (const act of a.p.def.acts || []) {
       if (!act.pumpP || !plan(s, act.cost, act.req || [])) continue;
@@ -651,6 +660,7 @@ function reactLoop(s, ctx) {
 }
 
 function beforeBlocks(s, attackers) {
+  if (silenced(s)) return; // 龍王ドロモカ
   // 瞬速のクリーチャーをブロックのために出す
   for (const c of [...s.P.hand]) {
     if (!c.def.flash || !c.def.types.includes('creature')) continue;
@@ -660,9 +670,10 @@ function beforeBlocks(s, attackers) {
   reactLoop(s, { attackers, blocks: new Map(), when: 'attack' });
 }
 
-function duringBlocks(s, attackers, bl) { swapBlocks(s, attackers, bl); reactLoop(s, { attackers, blocks: bl, when: 'blocks' }); }
+function duringBlocks(s, attackers, bl) { swapBlocks(s, attackers, bl); if (!silenced(s)) reactLoop(s, { attackers, blocks: bl, when: 'blocks' }); }
 
 function counter(s, c) {
+  if (silenced(s) || uncounterable(s, c.def, 'E')) return false;
   const threat = s.floor.castThreat?.(s, c.def, api) ?? (c.def.types.includes('creature') ? (typeof c.def.pow === 'number' ? c.def.pow : 3) + 1 : (c.def.danger ?? 2));
   if (threat < 4) return false;
   for (const h of s.P.hand) {
@@ -775,7 +786,7 @@ Object.assign(api, {
   },
   // 占術：人が遊ぶときは s.ai.scry が画面で聞く（Promise を返す）
   scry: (s, n) => {
-    if (ZZ_BLUE.mode === 'scry' && n > 0) zzBreak(s, 'U', '青：占術');
+    if (ZZ_BLUE.mode === 'scry' && n > 0) zzBreak(s, 'U', '青：占術（せんじゅつ）');
     L(s, `せんじゅつ ${n}`);
     if (s.ai.scry) return s.ai.scry(s, n);
     const top = s.P.lib.splice(0, n);

@@ -7,7 +7,7 @@ export const pm = (id, name, rar, color, cost, types, x = {}) => ({ id, name, ra
 // 対象が もう いなければ（ほかの能力で 倒れたなど）、そのときに ねらいなおす
 export const hit = (s, E, t, n) => {
   if (t !== 'face' && !E.onBf(s, t)) { const b = E.burnTarget(s, n, { mustHit: true }); if (!b) return null; t = b.t; }
-  if (t === 'face') E.hitTarget(s, 'face', n, null); else E.damage(s, t, n, null);
+  if (t === 'face') E.hitTarget(s, 'face', n, null); else { E.target(s, t); E.damage(s, t, n, null); }
   E.sba(s);
   return t;
 };
@@ -146,9 +146,9 @@ export const shrink = (s, E, t, a, b = a) => { if (!t || !E.onBf(s, t)) return; 
 export const foe1 = (label, f, o = {}) => ({
   play: (s, E, ctx) => {
     const b = foeBest(s, E, typeof o.n === 'function' ? o.n(s, E, ctx) : (o.n ?? 99), o.filter && ((p) => o.filter(s, E, p)));
-    return b ? { score: (o.score ?? 6) + b.score, run: () => f(s, E, b.t) } : null;
+    return b ? { score: (o.score ?? 6) + b.score, run: () => { E.target(s, b.t); f(s, E, b.t); } } : null;
   },
-  tgt: [{ side: o.side || 'E', label, filter: o.filter }], apply: (s, E, [[t]], x) => f(s, E, t, x),
+  tgt: [{ side: o.side || 'E', label, filter: o.filter }], apply: (s, E, [[t]], x) => { if (t) E.target(s, t); f(s, E, t, x); },
 });
 // N点（クリーチャーか 敵）
 export const bolt = (n, more) => ({

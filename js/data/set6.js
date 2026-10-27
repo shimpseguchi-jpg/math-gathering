@@ -48,7 +48,7 @@ export const S6 = {
     onAttack: (s, p, E) => naga(s, E),
   },
   MA02: { mustAttack: true, kwFn: (s) => (s.active === 'P' ? ['indestructible'] : []), onKill: (s, p, E) => E.addCounters(s, p, 1) },
-  TE02: { grant: (s, q, p, E) => (p !== q && E.isCreature(p) ? ['trample'] : null) },
+  TE02: { uncounterable: true, creaturesUncounterable: true, grant: (s, q, p, E) => (p !== q && E.isCreature(p) ? ['trample'] : null) },
   // ---- 3色の 魔除け ----
   AB03: charm([
     { label: 'パワー3いじょうの クリーチャー1体を 追放', tgt: [{ side: 'any', label: '追放する クリーチャー', filter: (s, E, p) => E.power(s, p) >= 3 }], ai: (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) >= 3); return b && { score: 6 + b.score, run: () => exileIt(s, E, b.t) }; }, apply: (s, E, [[t]]) => exileIt(s, E, t) },
@@ -62,7 +62,7 @@ export const S6 = {
   ]),
   SU03: charm([
     { label: '1色の クリーチャー1体を はかい', tgt: [{ side: 'any', label: 'はかいする クリーチャー', filter: (s, E, p) => monoColor(p) }], ai: (s, E) => { const b = foeBest(s, E); return b && { score: 6 + b.score, run: () => killIt(s, E, b.t) }; }, apply: (s, E, [[t]]) => killIt(s, E, t) },
-    { label: 'アーティファクトか エンチャント1つを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする パーマネント', filter: (s, E, p) => !E.isCreature(p) && !s.floor.cantLeave?.(s, p, E) }], ai: () => null, apply: (s, E, [[t]]) => killIt(s, E, t) },
+    { label: 'アーティファクトか エンチャント1つを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする パーマネント', filter: (s, E, p) => !E.isCreature(p) && !!p.def.rar && !s.floor.cantLeave?.(s, p, E) }], ai: (s, E) => { const t = s.E.bf.filter((p) => !E.isCreature(p) && p.def.rar && ['artifact', 'enchantment'].some((k) => (p.def.types || []).includes(k)) && !s.floor.cantLeave?.(s, p, E)).sort((a, b) => b.def.cost - a.def.cost)[0]; return t && { score: 3 + t.def.cost, run: () => killIt(s, E, t) }; }, apply: (s, E, [[t]]) => killIt(s, E, t) },
     { label: '2まい 引いて 1まい すてる', ai: (s, E, ctx) => (ctx.phase === 2 ? { score: 4, run: () => { E.drawCard(s, 2); const c = lowestKeep(s, E); if (c) E.discard(s, [c]); } } : null), apply: (s, E) => { E.drawCard(s, 2); const c = lowestKeep(s, E); if (c) E.discard(s, [c]); } },
   ]),
   MA03: charm([
@@ -70,14 +70,15 @@ export const S6 = {
     { label: 'せんせいこうげきを もつ 白の 1/1 の 戦士（せんし）を 2体', ai: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.warriorFS, 2) }), apply: (s, E) => E.token(s, 'P', T.warriorFS, 2) },
     { label: 'てきの やまふだの 上 3まいを 見て 1まいを 一番下に', ai: () => null, apply: (s) => { if (s.E.lib.length) s.E.lib.push(s.E.lib.shift()); } },
   ]),
-  TE03: charm([
+  TE03: { counter: 'any', ...charm([
     { label: '自分の クリーチャーに ＋1/＋1カウンター、その あと 格闘（かくとう）', tgt: [{ side: 'P', label: '＋1/＋1カウンターを おく クリーチャー' }, { side: 'E', label: '格闘（かくとう）する 相手' }], ai: (s, E) => { const me = E.bestBuffTarget(s, null); const b = me && foeBest(s, E, E.power(s, me) + 1); return b && { score: 5 + b.score, run: () => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, b.t); } }; }, apply: (s, E, [[me], [t]]) => { E.target(s, me); E.addCounters(s, me, 1); E.fight(s, me, t); } },
     { label: 'この ターン、パワー3いかの クリーチャーは ブロックできない', ai: (s, E, ctx) => (ctx.phase === 1 && E.readyAttackers(s).length >= 2 ? { score: 3 + E.readyAttackers(s).length, run: () => { s.cantBlock3 = s.turn; } } : null), apply: (s) => { s.cantBlock3 = s.turn; } },
-  ]),
+  ]) },
   // ---- 龍王 ----
+  WG07: { uncounterable: true, silenceFoe: true }, // ドロモカ：打ち消されない・もち主の ターンは 相手が 呪文を 唱えられない
   RG07: { etb: (s, p, E) => { if (p.side !== 'P') return; for (const d of E.divide(s, 5, theirs(s, E).filter((q) => !s.floor.untargetable?.(s, q, E)))) E.damage(s, d.t, d.n, p); E.sba(s); } },
   KR07: { grant: (s, q, p, E) => (p !== q && E.isCreature(p) ? ['haste'] : null) },
-  WU07: { onCombatHit: (s, p, E) => { if (p.side !== 'P') return; const top = s.P.lib.splice(0, 3).sort((a, b) => E.keepValue(s, b) - E.keepValue(s, a)); if (top[0]) s.P.hand.push(top.shift()); s.P.lib.push(...top); } },
+  WU07: { hexproof: (s, p) => !p.tapped, onCombatHit: (s, p, E) => { if (p.side !== 'P') return; const top = s.P.lib.splice(0, 3).sort((a, b) => E.keepValue(s, b) - E.keepValue(s, a)); if (top[0]) s.P.hand.push(top.shift()); s.P.lib.push(...top); } },
   UK07: {
     tgt: [{ side: 'E', label: 'あなたの ものに する てきの クリーチャー', filter: (s, E, p) => E.stealable(s, p) }],
     etb: (s, p, E, o) => {

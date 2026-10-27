@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, BREAK_AT, BREAK_ALL, pickOf,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, BREAK_AT, BREAK_ALL, pickOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -11,8 +11,9 @@ import { spOf, spMax } from '../data/set11.js';
 // せんぎポイント ●●●○○（花火が いると 7こ）
 const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</b> ${'●'.repeat(n)}${'○'.repeat(spMax(s) - n)}`; };
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
-import { permFace, cardFace, detail, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
+import { permFace, cardFace, detail, loreHtml, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
+import { LORE } from '../data/lore.js';
 import * as fx from './fx.js';
 
 let B = null; // いまのたたかい
@@ -24,7 +25,7 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 
 export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
-  B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0 };
+  B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0, lore: new Set() };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
   // チュートリアル（o.tutorial：ボタンを しぼる）・ストーリーの コーチ（o.coach：ことばだけ。どの そうさも できる）
   if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach });
@@ -75,11 +76,12 @@ function humanAI() {
     },
     // 敵が めくった カードを 見せる（打ち消せるときは counter が 見せる）
     revealed: async (s, c) => {
-      if (s.P.hand.some((h) => h.def.counter && (h.def.counter === 'any' || c.def.types.includes('creature')) && plan(s, h.def.cost, colorsOf(h.def), { req2: h.def.req2 }))) return;
+      if (!silenced(s) && !uncounterable(s, c.def, 'E') && s.P.hand.some((h) => h.def.counter && (h.def.counter === 'any' || c.def.types.includes('creature')) && plan(s, h.def.cost, colorsOf(h.def), { req2: h.def.req2 }))) return;
       render();
       await sheet(`${detail(c.def, { enemy: true })}<p class="what">${esc(revealNote(c.def))}</p>`, [{ label: 'つづける', value: 1, kind: 'primary' }], { title: 'てきが カードを めくった', dismiss: false });
     },
     counter: async (s, c) => {
+      if (silenced(s) || uncounterable(s, c.def, 'E')) return false; // ドロモカ・打ち消されない
       const opts = s.P.hand.filter((h) => h.def.counter && (h.def.counter === 'any' || c.def.types.includes('creature')) && plan(s, h.def.cost, colorsOf(h.def), { req2: h.def.req2 }));
       if (!opts.length) return false;
       render();
@@ -92,6 +94,7 @@ function humanAI() {
       return true;
     },
     beforeBlocks: async (s, attackers) => {
+      if (silenced(s)) return;
       for (const c of [...s.P.hand]) {
         if (!c.def.flash || !c.def.types.includes('creature')) continue;
         const pl = plan(s, c.def.cost, colorsOf(c.def));
@@ -161,7 +164,7 @@ function humanAI() {
           if (!c.def.swapBlock || !njPlan(s, c)) continue;
           for (const [aUid, b] of blocks) if (onBf(s, b)) opts.push({ c, swap: aUid, b, a: attackers.find((x) => x.uid === aUid) });
         }
-        for (const c of s.P.hand) {
+        for (const c of silenced(s) ? [] : s.P.hand) { // 龍王ドロモカが いると インスタントは 使えない
           if (!c.def.react) continue;
           const o = { convoke: c.def.kw?.includes('convoke') };
           const pl = plan(s, c.def.cost, colorsOf(c.def), o);
@@ -295,7 +298,9 @@ function cands(spec, ctx = {}) {
   if (spec.side === 'atk') list = (ctx.attackers || []).filter((p) => onBf(s, p));
   else if (spec.side === 'mine') list = s.P.bf.filter((p) => isCreature(p) && (B.mode !== 'tricks' || p.attacking));
   else for (const sd of spec.side === 'any' ? ['P', 'E'] : [spec.side]) list.push(...s[sd].bf.filter((p) => (spec.perm ? !p.def.factory : isCreature(p)) && p !== ctx.src));
+  const wd = s.srcDef; s.srcDef = ctx.card || wd; // 石まきの 大蛇：どの カードで ねらうかで かわる
   list = list.filter((p) => !(s.floor.untargetable?.(s, p, api)) && (!spec.filter || spec.filter(s, api, p)));
+  s.srcDef = wd;
   if (spec.face && faceAvailable()) list.unshift('face');
   return list;
 }
@@ -333,7 +338,17 @@ async function preTrig(on, list) {
     if (picks?.[0]?.[0]) p.trigPick = picks[0][0];
   }
 }
+// とくべつな ルールの カード（data/lore.js）：せりふ と しくみを 見せる。1回の たたかいで 1まいに つき 1回（why ごと）
+function tellLore(p, why) {
+  const k = `${p.def.id}:${why}`;
+  if (!LORE[p.def.id] || B.lore.has(k)) return null;
+  B.lore.add(k);
+  const head = why === 'appear' ? `<p class="what">${p.side === 'E' ? 'あいての ' : ''}${ruby(info(p.def).name)}が あらわれた！</p>` : `<p class="what">${ruby(info(p.def).name)}は ねらえない！</p>`;
+  return sheet(`${head}${loreHtml(p.def)}`, [{ label: 'わかった', value: 1, kind: 'primary' }], { title: ruby(info(p.def).name), dismiss: false });
+}
 async function pickAll(tgt, ctx = {}) {
+  // ねらえない てきの カードが いれば、なぜ ねらえないかを せつめい
+  { const s = B.s, wd = s.srcDef; s.srcDef = ctx.card || wd; const sh = s.E.bf.filter((p) => LORE[p.def.id] && api.shielded(s, p)); s.srcDef = wd; for (const p of sh) await tellLore(p, 'shield'); }
   const picks = [];
   const mode = pickOf(ctx.card);
   for (const spec of tgt) {
@@ -421,11 +436,11 @@ function castInfo(c, from = 'hand') {
   const perm = !isSpell(d);
   const mul = d.xMul || 1;
   if (d.discardCost && from === 'hand' && s.P.hand.length - 1 < d.discardCost) return { why: `ほかに すてる てふだが ${d.discardCost}まい いる` };
-  if (d.counter) return { why: 'てきが じゅもんを となえたときに 使う' };
+  if (d.counter && !d.modes) return { why: 'てきが じゅもんを となえたときに 使う' };
   if (from === 'hand' && d.suspend && !plan(s, cost, req, o) && s.active === 'P' && B.mode === 'main') return { why: 'マナが たりない（たいきなら 使える かも）' };
   if (d.react && !d.play) return { why: 'てきが こうげきしてきたときに 使う' };
   if (!perm && !d.play && (d.trick || d.bloodrush)) return { why: 'こうげきの とちゅう（ブロックの あと）に 使う' };
-  if (s.active !== 'P' || !['main'].includes(B.mode)) return { why: 'いまは 使えない' };
+  if (s.active !== 'P' || !(B.mode === 'main' || (B.mode === 'tricks' && d.flash && !isSpell(d)))) return { why: 'いまは 使えない' }; // 瞬速の パーマネント（炎の 宝剣）は 攻撃の とちゅうにも
   let x = 0;
   if (d.x) {
     while (plan(s, cost + (x + 1) * mul, req, o)) x++;
@@ -647,8 +662,8 @@ function idleHint() {
   B.idleTurn = s.turn; // アイドルの ヒントは 1ターンに 1回
   const ready = readyAttackers(s).length && B.phase === 1 && !B.combatDone;
   const text = B.tut.lock ? '光（ひか）って いる ところを タップして みよう。'
-    : !s.P.flags.charged && s.P.hand.length ? 'まず 手札の カードを 1まい マナゾーンに おいて みよう。マナが ふえるよ。'
-    : s.P.hand.some((c) => castInfo(c).ok) ? '使える カードが あるよ。手札の カードを タップして、「出す」「使う」が おせるか 見て みよう。'
+    : !s.P.flags.charged && s.P.hand.length ? 'まず 手札（てふだ）の カードを 1まい マナゾーンに おいて みよう。マナが ふえるよ。'
+    : s.P.hand.some((c) => castInfo(c).ok) ? '使える カードが あるよ。手札（てふだ）の カードを タップして、「出す」「使う」が おせるか 見て みよう。'
     : ready ? 'こうげきできる クリーチャーが いるよ。てきへ ひっぱって みよう。'
     : 'できる ことが なければ「ターン おわり」を おそう。';
   showHint(text);
@@ -675,6 +690,10 @@ async function tapHand(c) {
   if (B.mode === 'tricks') {
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
     if (d.ninjutsu) choices.push(njChoice(c));
+    if (d.flash && !isSpell(d) && !d.types.includes('creature')) { // 炎の 宝剣：攻撃している クリーチャー 1体に つき 1 やすい
+      const ci = castInfo(c), less = Math.max(0, d.cost - costOf(s, d));
+      choices.push({ label: `しゅんそくで 出す（${less ? `${d.cost} − ${less} ＝ ${d.cost - less}` : d.cost}マナ）`, value: 'cast', kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
+    }
     if (tr || (d.modes && d.types.includes('instant'))) { // モードの ある ソーサリー（プルフォロスの 介入）は たたかいの とちゅうには 使えない
       const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
       const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
@@ -767,8 +786,8 @@ async function showBreak() {
   const s = B.s, leg = canBreak(s), ok = s.P.brkReady > 0 && leg && B.mode === 'main' && s.active === 'P';
   const cr = s.E.bf.filter(isCreature);
   const v = await sheet(`<p>${ruby('ブレイクカウンターが 10こ たまると ブレイクが 1回 つかえる。じぶんの ターンに 3つから えらぶ。')}</p>
-    <p class="what">${ruby(leg ? 'ブレイクを もつ 伝説の クリーチャーが いるので つかえる。' : 'つかうには、ブレイクを もつ 伝説の クリーチャーが じぶんの 場に いる ひつようが ある（たまるのは いつでも）。')}</p>
-    <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた（1ターンに 1回）・青 てきに マイナスの 修整・黒 てきに −1/−1カウンター・赤 呪文や 能力で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
+    <p class="what">${ruby(leg ? 'ブレイクを もつ 伝説（でんせつ）の クリーチャーが いるので つかえる。' : 'つかうには、ブレイクを もつ 伝説（でんせつ）の クリーチャーが じぶんの 場に いる ひつようが ある（たまるのは いつでも）。')}</p>
+    <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた（1ターンに 1回）・青 てきに マイナスの 修整（しゅうせい）・黒 てきに −1/−1カウンター・赤 呪文（じゅもん）や 能力（のうりょく）で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
     { label: `ぜんたい：てきの クリーチャー ぜんぶに ${BREAK_ALL}点`, value: 'all', kind: 'primary', disabled: !ok || !cr.length },
     { label: `たんたい：てき 1つに ${BREAK_AT}点`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
     { label: 'かいしゅう：マナゾーンの カード 1まいを てふだに', value: 'mana', kind: 'primary', disabled: !ok || !s.P.mana.length },
@@ -1134,6 +1153,7 @@ function pileList(cards, enemy = false) {
 function render() {
   if (B.left) return; // メニューへ もどった あと
   const s = B.s;
+  for (const p of s.E.bf) if (LORE[p.def.id] && !B.lore.has(`${p.def.id}:appear`)) tellLore(p, 'appear'); // とくべつな ルールの てきが 出た
   if (!drag) clearDrag();
   B.tut?.update(s, B);
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];

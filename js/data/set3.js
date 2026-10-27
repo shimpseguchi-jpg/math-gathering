@@ -69,7 +69,7 @@ export const S3 = {
   K27: saga([
     { run: (s, E) => edict(s, E) },
     { run: (s, E) => { const g = bestIn(s.P.gy, (c) => !c.def.basic); const h = lowestKeep(s, E); if (g && h && E.keepValue(s, h) < E.keepValue(s, g)) { E.discard(s, [h]); regrow(s, E, () => true, h); } } },
-    { run: (s, E) => { const c = bestIn(s.P.gy, (x) => isCr(x.def)); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); } } },
+    { run: (s, E) => { const c = bestIn([...s.P.gy, ...s.E.gy.filter((x) => x.def.rar && !x.def.factory)], (x) => isCr(x.def)); if (!c) return; const g = s.P.gy.includes(c) ? s.P.gy : s.E.gy; g.splice(g.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); } }, // III：あなたか 敵の 墓地から
   ]),
   K28: { onKill: (s, p, E) => E.addCounters(s, p, 1) },
   K29: {

@@ -33,6 +33,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   };
   if (cmd) setCommander(s.P, cmd, cmdOpt);
   if (life) s.P.life = life;
+  if (!floor.shieldWrapped) { const fu = floor.untargetable; floor.untargetable = (s2, p, E) => !!fu?.(s2, p, E) || shielded(s2, p); floor.shieldWrapped = true; }
   floor.setup(s, api);
   for (let i = 0; i < s.P.handSize; i++) drawCard(s);
   // マリガン（もんしょう）：人は 画面で きめる（ai.manualMulligan）。AI は きほんカードと 3マナ いかの カードが なければ ひきなおす
@@ -54,9 +55,10 @@ export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'F
 export const pickOf = (d) => (!d || d.token || !d.rar || PICK_FREE.has(d.id) ? null : d.rar === 'C' ? 'rand' : d.rar === 'U' || d.rar === 'B' ? 'most' : null);
 const PICK_KEYS = ['play', 'apply', 'etb', 'onAttack', 'onAttacks', 'onDie', 'onCombatHit', 'onFaceHit', 'onKill', 'upkeep', 'onTapped', 'onExact', 'onDamageCreature', 'onMinus', 'onCounters', 'onDraw', 'onOtherEnter', 'onAllyHit', 'onAnyCast', 'onPWAttacked', 'onLeaveSelf', 'onOtherLeave', 'onHurt'];
 // カードの こうかを 動かす あいだだけ s.pickMode を つける（ai.js の burnTarget が 見る）。play が かえす run も おなじ
-function wrapPick(fn, mode) {
+// s.srcDef：いま うごいて いる こうかの カード（「2色の カードの 対象に ならない」などで 見る）
+function wrapPick(fn, mode, d) {
   if (typeof fn !== 'function' || fn.picked) return fn;
-  const set = (s, f) => { const was = s.pickMode; s.pickMode = mode; try { return f(); } finally { s.pickMode = was; } };
+  const set = (s, f) => { const was = s.pickMode, wd = s.srcDef; if (!wd) s.tgtSeen = new Set(); s.pickMode = mode; s.srcDef = d; try { return f(); } finally { s.pickMode = was; s.srcDef = wd; } };
   const w = function (...args) {
     const s = args[0];
     if (!s || typeof s !== 'object' || !s.P) return fn.apply(this, args);
@@ -69,9 +71,8 @@ function wrapPick(fn, mode) {
 export function takePick(s, p) { const t = p.trigPick; p.trigPick = null; return t === 'face' || (t && onBf(s, t)) ? t : null; }
 export function applyPick(d) {
   const mode = pickOf(d);
-  if (!mode) return d;
-  for (const k of PICK_KEYS) if (d[k]) d[k] = wrapPick(d[k], mode);
-  for (const a of [...(d.acts || []), ...(d.modes || [])]) for (const k of ['play', 'apply']) if (a[k]) a[k] = wrapPick(a[k], mode);
+  for (const k of PICK_KEYS) if (d[k]) d[k] = wrapPick(d[k], mode, d);
+  for (const a of [...(d.acts || []), ...(d.modes || [])]) for (const k of ['play', 'apply']) if (a[k]) a[k] = wrapPick(a[k], mode, d);
   return d;
 }
 
@@ -482,7 +483,17 @@ export const hellbent = (s, side = 'P') => (s[side].hand || []).length === 0;
 export function rollDie(s) { const n = 1 + Math.floor(s.rng() * 6); L(s, `サイコロ：${n}`); return n; }
 
 // プレイヤーの呪文が自分のクリーチャーを対象にしたとき（勇壮）
-export function target(s, p) { if (p.side === 'P' && onBf(s, p) && p.def.heroic) p.def.heroic(s, p, api); }
+export function target(s, p) {
+  if (p.side === 'P' && onBf(s, p) && p.def.heroic) p.def.heroic(s, p, api);
+  if (p.side === 'E' && onBf(s, p) && p.def.onTargeted && !s.tgtSeen?.has(p)) { s.tgtSeen?.add(p); p.def.onTargeted(s, p, api); } // 骨くだきの 巨人：敵に ねらわれたら（1つの こうかで 1回）
+}
+// 対象に ならない（オジュタイ・石まきの 大蛇 など。def.hexproof(s, p, 効果の カード)）。
+// カードの こうかは いつも P が つかう（てきの ターンは swapSides）ので、ねらわれる がわは E
+// 龍王ドロモカ（silenceFoe）：もち主の ターンの あいだ、相手は 呪文を 唱えられない。相手の ターンに 呪文を 唱える ところ（打ち消し・瞬速・インスタント）で 見る
+export const silenced = (s) => s[s.active === 'P' ? 'P' : 'E'].bf.some((p) => p.def.silenceFoe);
+// 打ち消されない（ドロモカ・ティムール の 龍王の 化身 など）。side は 唱えた がわ
+export const uncounterable = (s, d, side) => !!d.uncounterable || ((d.types || []).includes('creature') && s[side].bf.some((p) => p.def.creaturesUncounterable));
+export function shielded(s, p) { return p.side === 'E' && !!p.def.hexproof?.(s, p, s.srcDef); }
 
 // ---- ダメージ・ライフ ----
 // o.spell：呪文の ぴったり（{ pittari() }）
@@ -520,7 +531,7 @@ export function damage(s, p, n, src, o = {}) {
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   // 赤の 属性ブレイク：戦闘 いがいの ダメージ（呪文・能力。攻撃したときの 能力も）
-  if (p.side === 'E' && !s.combatHit && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文・能力で ダメージ');
+  if (p.side === 'E' && !s.combatHit && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文（じゅもん）・能力（のうりょく）で ダメージ');
   // ゼンゼロ：ブレイク N は 敵の クリーチャー・PW に ダメージを あたえても たまる（2026-10-26。本体だけ では ほとんど たまらなかった）
   if (src?.side === 'P' && p.side === 'E' && src.def.brk && !s.over) addBreak(s, src.def.brk);
   return n;
@@ -549,7 +560,7 @@ export function hitEnemy(s, n, src, o = {}) {
 
 export function hitTarget(s, t, n, src, combat = false) {
   if (n <= 0) return;
-  if (!combat && t === 'face' && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文・能力で ダメージ');
+  if (!combat && t === 'face' && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文（じゅもん）・能力（のうりょく）で ダメージ');
   if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
     n = boostDmg(s, n, src, true);
@@ -889,7 +900,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick,
+  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, shielded, silenced, uncounterable,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

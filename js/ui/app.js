@@ -36,7 +36,7 @@ const FLOOR_NAMES = {
 const PLANES = [['theros', 'テーロス'], ['ravnica', 'ラヴニカ']];
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
 // ルール：統率者戦（2026-10-26）は さいしょに 伝説の クリーチャーを 統率者に えらぶ（A.cmd）
-const RULES = [['normal', 'ふつう'], ['cmd', '統率者（とうそつしゃ）戦']];
+const RULES = [['normal', 'ふつう'], ['cmd', '統率者（とうそつしゃ）戦（せん）']];
 // カードの あつめかた：パック（ぜんぶ もらう）か ドラフト（2026-10-26。パック 1つの かわりに「3まいから 1まい」を 7回）
 const GETS = [['pack', 'パック'], ['draft', 'ドラフト']];
 const DRAFT_PER_PACK = 7, DRAFT_SHOW = 3; // 7回：5回だと カードが たりず 勝率が 9ポイント 下がった（AI ドラフト 30回）
@@ -332,7 +332,7 @@ function whyNot(sel, i, pool = A.pool, free = false) {
   const d = BY_ID[pool[i]];
   if (free) return whyNotPts(sel, i, pool); // 統率者戦：プールが 統率者の 色だけ なので 色は 見ない
   const id = pool === A?.pool && cmdIdent();
-  if (id) return colorsOf(d).every((c) => id.includes(c)) ? whyNotPts(sel, i, pool) : `統率者の 色（${id.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`;
+  if (id) return colorsOf(d).every((c) => id.includes(c)) ? whyNotPts(sel, i, pool) : `統率者（とうそつしゃ）の 色（${id.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`;
   const nc = [...new Set([...st.colors, ...colorsOf(d)])];
   // 旗（第6弾）が あれば、その 3色まで
   const flag = d.banner || st.banner;

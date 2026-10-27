@@ -60,7 +60,7 @@ export const S5 = {
   U64: { etb: (s, p, E) => { if (p.side === 'P') learn(s, E); } },
   U65: { etb: (s, p, E) => { if (p.side === 'P') regrow(s, E, isSpellDef); } },
   U66: { copyAll: true },
-  U67: titan((s, p, E) => tapFreeze(s, E, bestFreeze(s, E) || foeBest(s, E)?.t)),
+  U67: { hexproof: () => true, ...titan((s, p, E) => tapFreeze(s, E, bestFreeze(s, E) || foeBest(s, E)?.t)) },
   U68: { play: (s, E, ctx) => (ctx.phase === 2 ? { score: 3 * ctx.xMax, x: ctx.xMax, run: (x) => E.drawCard(s, ctx.from === 'gy' ? 2 * x : x) } : null), ...fb(2, ['U']) },
   U69: {
     costCut: (s, q, d) => (isSub({ def: d }, 'sphinx') ? 2 : 0),
@@ -153,7 +153,8 @@ export const S5 = {
   },
   G69: {
     onOtherEnter: (s, p, q, E) => { if (q.side === 'P' && p.side === 'P' && E.isCreature(q) && mine(s, E).every((r) => r === q || E.power(s, r) < E.power(s, q))) E.drawCard(s); },
-    mana: ['G'], manaN: (p, s) => (s ? Math.max(1, ...s[p.side].bf.filter((q) => (q.def.types || []).includes('creature')).map((q) => (q.def.pow ?? 0) + q.ctr)) : 1),
+    // 2（緑）、タップ：いちばん 大きい パワーの 数だけ 緑の マナ。2マナ はらって N マナ ＝ ふえるのは N − 2（ほかの マナ 2つは そのまま つかえる ことに する）
+    mana: ['G'], manaN: (p, s) => (s ? Math.max(0, Math.max(0, ...s[p.side].bf.filter((q) => (q.def.types || []).includes('creature')).map((q) => (q.def.pow ?? 0) + q.ctr)) - 2) : 0),
   },
   // ---- 長老ドラゴン ----
   WK06: {
@@ -189,7 +190,9 @@ export const S5 = {
     { label: 'クリーチャー1体か てきに 2点', tgt: [{ side: 'E', face: true, label: '2点を あたえる 相手' }], ai: (s, E) => { const b = E.burnTarget(s, 2); return b && { score: 4 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
     { label: '2まい 引いて 2まい すてる', ai: (s, E) => ({ score: 2, run: () => { E.drawCard(s, 2); E.discard(s, [...s.P.hand].sort((a, b) => E.keepValue(s, a) - E.keepValue(s, b)).slice(0, 2)); } }), apply: (s, E) => { E.drawCard(s, 2); E.discard(s, [...s.P.hand].sort((a, b) => E.keepValue(s, a) - E.keepValue(s, b)).slice(0, 2)); } },
     { label: '宝物（たからもの）を 1つ 出す', ai: (s, E) => ({ score: 3, run: () => E.token(s, 'P', T.treasure) }), apply: (s, E) => E.token(s, 'P', T.treasure) },
-    { label: 'てきの アーティファクト1つを はかい', ai: () => null, apply: () => {} },
+    { label: 'てきの アーティファクト1つを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする アーティファクト', filter: (s, E, p) => (p.def.types || []).includes('artifact') && !!p.def.rar && !s.floor.cantLeave?.(s, p, E) }],
+      ai: (s, E) => { const t = s.E.bf.filter((p) => (p.def.types || []).includes('artifact') && p.def.rar && !s.floor.cantLeave?.(s, p, E)).sort((a, b) => b.def.cost - a.def.cost)[0]; return t && { score: 3 + t.def.cost, run: () => killIt(s, E, t) }; },
+      apply: (s, E, [[t]]) => killIt(s, E, t) },
   ]),
   KG07: command([
     { label: '3まい ぼちへ、1まい てふだへ', ai: (s, E) => ({ score: 3, run: () => { E.mill(s, 3); regrow(s, E); } }), apply: (s, E) => { E.mill(s, 3); regrow(s, E); } },
