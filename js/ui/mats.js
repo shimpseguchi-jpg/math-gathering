@@ -14,14 +14,17 @@ export const CHAPTER_MAT = { 1: 'nyx', 2: 'guild', 3: 'scale', 4: 'neon' };
 export const TOWER_MAT = { theros: 'erebos', ravnica: 'jace' };
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { got: [], use: 'plain' }; } catch { return { got: [], use: 'plain' }; } };
 const save = (M) => { try { localStorage.setItem(KEY, JSON.stringify(M)); } catch { /* 保存できなくても この あいだは つかえる */ } };
-export const hasMat = (id) => id === 'plain' || load().got.includes(id);
+// 開発モード（デモ）では ぜんぶ えらべる（settings.js が setMatFree(DEV) を よぶ）
+let free = false;
+export const setMatFree = (v) => { free = !!v; };
+export const hasMat = (id) => id === 'plain' || free || load().got.includes(id);
 export const matName = (id) => MATS.find((m) => m.id === id)?.name || '';
 export const usingMat = () => { const u = load().use; return hasMat(u) ? u : 'plain'; };
 export const applyMat = () => { document.body.dataset.mat = usingMat(); };
 export function useMat(id) { if (!hasMat(id)) return; const M = load(); M.use = id; save(M); applyMat(); }
 // もらう：あたらしく もらえたら true（もらった マットは すぐ つかう）
 export function awardMat(id) {
-  if (!id || hasMat(id)) return false;
+  if (!id || load().got.includes(id)) return false; // ごほうびは 開発モードでも きろくする
   const M = load(); M.got.push(id); M.use = id; save(M); applyMat();
   return true;
 }

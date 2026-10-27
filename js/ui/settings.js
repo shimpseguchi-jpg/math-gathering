@@ -3,10 +3,11 @@ import { SETS } from '../data/cards.js';
 import { packPool } from '../engine/run.js';
 import { soundOn, setSound } from './sfx.js';
 import { ruby } from './view.js';
-import { MATS, hasMat, usingMat, useMat } from './mats.js';
+import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 
 // WEB版は 開発モード。false に すると 開発用の 項目が かくれて、ぜんぶの 弾が パックに 入る
 export const DEV = true;
+setMatFree(DEV); // 開発モードでは プレイマットを ぜんぶ えらべる
 const KEY = 'mtg-sets';
 // まだ データに なって いない 弾（えらべない。作ったら cards.js の SETS に 入る）
 const PLANNED = [
@@ -62,7 +63,7 @@ export function settingsScreen(app, back) {
       </section>
       <section class="st-sec">
         <h3>プレイマット</h3>
-        <p class="st-note">${ruby('たたかいの 卓（たく）の もよう。ストーリーの 章や とうを クリアすると ふえる。')}</p>
+        <p class="st-note">${ruby(`たたかいの 卓（たく）の もよう。ストーリーの 章や とうを クリアすると ふえる。${DEV ? '（開発モード：ぜんぶ えらべる）' : ''}`)}</p>
         <div class="mat-list">${MATS.map((m) => { const own = hasMat(m.id); return `<button type="button" class="mat-btn ${usingMat() === m.id ? 'on' : ''}" data-mat="${m.id}" ${own ? '' : 'disabled'} aria-pressed="${usingMat() === m.id}"><span class="mat-sw" data-m="${m.id}"></span><b>${own ? ruby(m.name) : '？？？'}</b>${own ? '' : `<small>${ruby(m.how)}</small>`}</button>`; }).join('')}</div>
       </section>
       <section class="st-sec">
