@@ -1064,7 +1064,8 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .mat-btn:disabled { opacity: 0.55; cursor: default; }
 .mat-btn:disabled .mat-sw { filter: grayscale(1) brightness(0.5); }
 .mat-sw { display: block; height: 56px; border-radius: 8px; background: var(--mat, var(--table)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
-.mat-get { display: flex; align-items: center; gap: 10px; } .mat-get .mat-sw { flex: 0 0 72px; height: 48px; }
+.mat-get { display: flex; align-items: center; gap: 12px; } .mat-get > span:last-child { flex: 1; } /* 文と ふりがなは 1つの span に（flex の こまかい ばらばらに しない） */ .mat-get .mat-sw { flex: 0 0 96px; height: 64px; border-radius: 8px; }
+.sheet-body:has(.talk) .mat-get { font-size: 18px; color: var(--ink); }
 :root[data-theme="gba"] :is(.mat-btn, .mat-sw) { border-radius: 3px; }
 
 /* ねらいかた（コモン：ランダム・アンコモン：いちばん）：自動で きまった てきを 見せる */

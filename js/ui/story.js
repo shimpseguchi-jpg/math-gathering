@@ -208,7 +208,7 @@ function play(ep, back) {
     const pts = first ? REWARD + (last ? CHAPTER_REWARD : 0) : 0;
     if (pts) addEmblemPoints(pts);
     const mat = last && awardMat(CHAPTER_MAT[ep.ch.id]) ? CHAPTER_MAT[ep.ch.id] : null; // 章を クリア：プレイマット
-    await sheet(`${talk(guide, [last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。'])}${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</p>` : ''}`,
+    await sheet(`${talk(guide, [last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。'])}${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}`,
       [{ label: 'ストーリーへ', value: 1, kind: 'primary' }], { title: `${ep.id}　クリア！`, dismiss: false });
     return again();
   };
