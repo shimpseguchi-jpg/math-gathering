@@ -53,8 +53,13 @@ for fname, set_id, *only in DRAFTS:
         if 'エンチャント・クリーチャー' in main or 'アーティファクト・クリーチャー' in main: types = [t for t in types if t != 'creature'] + ['creature']
         pt = row.get('P/T', '−')
         m = re.fullmatch(r'(\d+)/(\d+)', pt)
-        first = plainT(text).split('。')[0]
-        kws = [KW[k.strip()] for k in re.split(r'[、・]', first) if k.strip() in KW] if all(k.strip() in KW for k in re.split(r'[、・]', first)) else []
+        # キーワード：キーワードだけの 文（「飛行。」「飛行、接死。」）を ぜんぶ ひろう。交代などの 文が まえに あっても よい
+        kws, flash = [], False
+        for sent in re.split(r'[。\n]', plainT(text)):
+            ks = [k.strip() for k in re.split(r'[、・]', sent) if k.strip()]
+            if ks and all(k in KW or k == '瞬速' for k in ks):
+                kws += [KW[k] for k in ks if k in KW and KW[k] not in kws]
+                flash = flash or '瞬速' in ks
         d = {'id': row['ID'], 'name': row['名前'], 'rar': row.get('レアリティ', 'B') if row['ID'] != 'B06' else 'B', 'color': color, 'cost': n, 'types': types,
              'sub': [SUB.get(x, x) for x in re.split(r'[・ ]', subs.strip()) if x], 'kw': kws}
         if m: d['pow'], d['tou'] = int(m.group(1)), int(m.group(2))
@@ -62,7 +67,7 @@ for fname, set_id, *only in DRAFTS:
         if xs: d['x'] = True
         if row.get('ちゅうせい', '').isdigit(): d['loyalty'] = int(row['ちゅうせい'])
         if xs > 1: d['xMul'] = xs
-        if '瞬速' in first.split('、'): d['flash'] = True
+        if flash: d['flash'] = True
         if '伝説' in main: d['legend'] = True
         skel[row['ID']] = d
         if row['ID'] != 'B06': sets.setdefault(set_id, []).append(row['ID'])
