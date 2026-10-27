@@ -28,6 +28,7 @@ export function startBattle(o) {
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
   // チュートリアル（o.tutorial：ボタンを しぼる）・ストーリーの コーチ（o.coach：ことばだけ。どの そうさも できる）
   if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach });
+  B.coachWho = o.coach?.[0]?.who || (o.tutorial ? 'コーチ' : '');
   o.setup?.(B.s, api);
   app().onclick = onClick;
   initSwipe();
@@ -480,6 +481,7 @@ async function onClick(e) {
   if (!b || (B.busy && B.mode !== 'block') || document.getElementById('sheet').hidden === false) return;
   const s = B.s;
   const t = B.tut;
+  if (B.hint && b.dataset.act !== 'hintx') B.hint = null; // なにか したら ヒントは けす
   if (b.dataset.act) return t && !t.allowAct(b.dataset.act) ? toast(t.hint()) : action(b.dataset.act);
   if (b.dataset.hand != null) { const c = s.P.hand[+b.dataset.hand]; return t && !t.allowHand(c) ? toast(t.hint()) : tapHand(c); }
   const uid = +b.dataset.uid;
@@ -508,6 +510,7 @@ async function action(a) {
   if (a === 'end') return endTurn();
   if (a === 'tutnext') { B.tut?.next(); return render(); }
   if (a === 'tutread') { B.tut?.read(); return render(); }
+  if (a === 'hintx') { B.hint = null; return render(); }
   if (a === 'menu') return menu();
   if (a === 'goal') return showGoal();
   if (a === 'attack') {
@@ -583,11 +586,44 @@ function combatResult(s) {
   return sheet(`<ul class="cres">${rows.join('')}</ul>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'こうげきの けっか' });
 }
 
+// ---- こまった ときの ヒント（チュートリアル・ストーリー。2026-10-27）----
+// 答えは 言わず「見る ところ」だけ。何も しないで 20びょう、か 同じ まちがいを 2回 したら 案内役が 一言
+const IDLE_MS = 20000;
+const MISS_HINT = [
+  [/の マナが いる/, 'カードの 色の まると、マナの 色を くらべて みよう。同じ 色の マナが いるよ。'],
+  [/マナが たりない/, 'カードの 左上の 数（コスト）と、いまの マナの 数を くらべて みよう。マナゾーンに カードを おくと 1 ふえるよ。'],
+  [/ねらえる/, 'この カードは あいてを えらんで 使う。いまは ねらえる ものが いないみたい。'],
+  [/こうげきの とちゅう|こうげきしてきた/, 'この カードは 使う タイミングが きまって いる。せつめいを よく 見て みよう。'],
+];
+function noteMiss(why) {
+  if (!B.tut) return;
+  B.miss = B.miss || {};
+  B.miss[why] = (B.miss[why] || 0) + 1;
+  if (B.miss[why] < 2) return;
+  B.miss[why] = 0;
+  showHint((MISS_HINT.find(([re]) => re.test(why)) || [0, 'カードの せつめいを よく 見て みよう。どんな ときに 使えるか 書いて あるよ。'])[1]);
+}
+function idleHint() {
+  const s = B?.s;
+  if (!s || s.over || B.left || !B.tut || B.mode !== 'main' || s.active !== 'P' || B.busy || !document.getElementById('sheet').hidden || B.idleTurn === s.turn) return;
+  B.idleTurn = s.turn; // アイドルの ヒントは 1ターンに 1回
+  const ready = readyAttackers(s).length && B.phase === 1 && !B.combatDone;
+  const text = B.tut.lock ? '光（ひか）って いる ところを タップして みよう。'
+    : !s.P.flags.charged && s.P.hand.length ? 'まず 手札の カードを 1まい マナゾーンに おいて みよう。マナが ふえるよ。'
+    : s.P.hand.some((c) => castInfo(c).ok) ? '使える カードが あるよ。手札の カードを タップして、「出す」「使う」が おせるか 見て みよう。'
+    : ready ? 'こうげきできる クリーチャーが いるよ。てきへ ひっぱって みよう。'
+    : 'できる ことが なければ「ターン おわり」を おそう。';
+  showHint(text);
+}
+function showHint(text) { B.hint = text; render(); }
+const hintHtml = () => (B.hint ? `<div class="hint-pop" role="status"><b>${ruby(B.coachWho || 'ヒント')}</b><p>${ruby(B.hint)}</p><button type="button" class="hp-x" data-act="hintx" aria-label="とじる">×</button></div>` : '');
+
 async function tapHand(c) {
   const s = B.s, d = c.def;
   const choices = [];
   if (B.mode === 'main') {
     const ci = castInfo(c);
+    if (!ci.ok && ci.why) noteMiss(ci.why);
     const verb = d.types.includes('creature') ? 'せんじょうに 出す' : '使う', lf = ci.ok && ci.pl?.life;
     // 必殺技（番外編 スターレイル）：キャラが いて 安く なった ときは ひき算を 見せる
     const less = (d.ultOf || d.tapLess) && !d.x ? d.cost - costOf(s, d) : 0; // スターレイルの 必殺技・ゼンゼロの 終結スキル
@@ -1090,7 +1126,7 @@ function render() {
       <div class="piles foe">${deckPile('E')}${gravePile('E')}${cmdPile('E')}</div>
     </div>
     <button type="button" class="logline ${typed ? 'typed' : ''}" data-act="log">${last.map((l) => `<span>${ruby(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
-    ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}
+    ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}${hintHtml()}
     <section class="zone mine" aria-label="わたしの せんじょう">${perms('P')}</section>
     <div class="me-bar">
       <span class="life ${s.P.life <= 5 ? 'low' : ''} ${s.P.life < pv.life ? 'hit' : s.P.life > pv.life ? 'heal' : ''}" role="status"><small>ライフ</small><b>${s.P.life}</b></span>
@@ -1107,6 +1143,7 @@ function render() {
     <footer class="actions">${btns}</footer>
   </div>`;
   B.tut?.highlight(app());
+  if (B.tut) { clearTimeout(B.idleT); B.idleT = setTimeout(idleHint, IDLE_MS); }
   // 演出：まえに 描いた ときと くらべる（ダメージの 数字・たおれた カード・ライフ）
   const now = fxState(s);
   fx.play(app(), snap, B.fxPrev, now);

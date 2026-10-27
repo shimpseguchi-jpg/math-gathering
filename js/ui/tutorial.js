@@ -88,7 +88,7 @@ export function makeTutorial(steps = STEPS, { lock = true } = {}) {
   let k = 0, free = false, readK = -1; // readK：大きい まどを よみおえた ステップ
   const step = () => (free ? null : steps[k]);
   const gate = () => (lock ? step() : null);
-  const ALWAYS = ['gy', 'mana', 'log', 'tutnext', 'tutread', 'menu', 'lib', 'elib', 'egy'];
+  const ALWAYS = ['gy', 'mana', 'log', 'tutnext', 'tutread', 'hintx', 'menu', 'lib', 'elib', 'egy'];
   return {
     get active() { return !free; },
     lock,
