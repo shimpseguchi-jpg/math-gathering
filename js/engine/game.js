@@ -65,6 +65,8 @@ function wrapPick(fn, mode) {
   w.picked = true;
   return w;
 }
+// レアの 戦闘中の 効果（def.trigTgt）：人が さきに えらんで おいた あいて（p.trigPick）を 1回だけ つかう
+export function takePick(s, p) { const t = p.trigPick; p.trigPick = null; return t === 'face' || (t && onBf(s, t)) ? t : null; }
 export function applyPick(d) {
   const mode = pickOf(d);
   if (!mode) return d;
@@ -885,7 +887,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost, useBreak,
+  setCommander, cmdTax, cmdCost, useBreak, takePick,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

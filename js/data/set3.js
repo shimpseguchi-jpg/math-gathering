@@ -127,7 +127,7 @@ export const S3 = {
     etb: (s, p, E) => { if (p.side === 'P') E.mill(s, 2); },
     pow: (s, p, E) => 2 + (E.delirium(s) ? 2 : 0), tou: (s, p, E) => 2 + (E.delirium(s) ? 2 : 0), kwFn: (s, p, E) => (E.delirium(s) ? ['flying'] : []),
   },
-  UK03: { ...ninjutsu(6, ['U', 'K']), onCombatHit: (s, p, E) => killIt(s, E, foeBest(s, E)?.t) },
+  UK03: { ...ninjutsu(6, ['U', 'K']), trigTgt: { on: 'hit', label: 'はかいする てきの クリーチャー' }, onCombatHit: (s, p, E) => killIt(s, E, E.takePick(s, p) || foeBest(s, E)?.t) },
   UK04: { upkeep: (s, p, E) => { E.mill(s, 2); }, anthem: (s, q, p, E) => (E.delirium(s) && E.isCreature(p) ? [1, 0] : null) },
   KR01: devour(1, (s, p, E, k) => { if (k && p.side === 'P') E.hitEnemy(s, 2 * k, p); }),
   KR02: { onDiscard: (s, p, E, n) => E.pump(p, n, 0), madness: { cost: 2, req: ['K', 'R'] } },
@@ -139,7 +139,8 @@ export const S3 = {
   },
   KG02: { etb: (s, p, E) => { if (p.side === 'P') regrow(s, E, (d) => !d.types.includes('instant') && !d.types.includes('sorcery')); } },
   KG03: {
-    onCombatHit: (s, p, E) => minus1(s, E, weakest(s, E)),
+    trigTgt: { on: 'hit', label: '−1/−1カウンターを おく てきの クリーチャー' },
+    onCombatHit: (s, p, E) => minus1(s, E, E.takePick(s, p) || weakest(s, E)),
     onMinus: (s, p, E) => { if (!p.flags.turn.snake) { p.flags.turn.snake = true; E.token(s, 'P', T.snake); } },
   },
   KG04: {

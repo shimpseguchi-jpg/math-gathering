@@ -323,6 +323,17 @@ async function autoPick(mode, spec, ctx, list) {
   await fx.pause(650);
   return chosen;
 }
+// レアの 戦闘中の 効果（攻撃したとき・敵に 戦闘ダメージを あたえたとき。def.trigTgt）：その まえに あいてを えらんで おく（p.trigPick → game.js の takePick）
+async function preTrig(on, list) {
+  for (const p of list) {
+    const tt = p.def.trigTgt;
+    if (!tt || tt.on !== on || pickOf(p.def) || !onBf(B.s, p)) continue;
+    const spec = { side: 'E', label: `${noRuby(info(p.def).name)}：${tt.label}` };
+    if (!needsTargets([spec], {})) continue;
+    const picks = await pickAll([spec], { note: on === 'attack' ? 'こうげきした ときの こうか' : 'てきに ダメージを あたえた ときの こうか' });
+    if (picks?.[0]?.[0]) p.trigPick = picks[0][0];
+  }
+}
 async function pickAll(tgt, ctx = {}) {
   const picks = [];
   const mode = pickOf(ctx.card);
@@ -556,11 +567,13 @@ async function action(a) {
     const atk = [...B.sel].map(([uid, t]) => ({ p: s.P.bf.find((q) => q.uid === uid), t })).filter((x) => x.p);
     if (!atk.length) { B.mode = 'main'; B.phase = 2; return render(); }
     B.atk = atk;
+    await preTrig('attack', atk.map((x) => x.p));
     B.blocks = declareAttack(s, atk);
     B.mode = 'tricks';
     return render();
   }
   if (a === 'damage') {
+    await preTrig('hit', B.atk.filter(({ p, t }) => t === 'face' && !B.blocks?.get?.(p.uid)).map((x) => x.p));
     B.busy = true;
     await fx.lunge(B.atk.map(({ p, t }) => { const bl = B.blocks?.get?.(p.uid); return { from: permEl(p.uid), to: bl ? permEl(bl.uid) : t === 'face' ? app().querySelector('[data-face]') || app().querySelector('.zone.enemy') : t?.uid ? permEl(t.uid) : app().querySelector('.zone.enemy') }; }));
     finishCombat(s, B.atk, B.blocks);

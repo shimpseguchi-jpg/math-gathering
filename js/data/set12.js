@@ -64,7 +64,7 @@ export const S12 = {
   ZZ03: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 3) E.pump(p, 2, 0); } },
   ZZ04: { brk: 1, ...ninjutsu(1, ['G']) },
   ZZ05: { brk: 2, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => biggest(s, E, (t) => !t.frozen)), ...ninjutsu(2, ['U']) },
-  ZZ06: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
+  ZZ06: { brk: 2, trigTgt: { on: 'attack', label: 'タップする てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, E.takePick(s, p) || biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
   ZZ07: { brk: 1, etb: etbBon(2), acts: [bonAct(2, {
     label: 'エネルギー 2：クリーチャー1体 ＋1/＋1',
     play: (s, p, E, ctx) => { if (ctx.phase !== 1) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && canSwing(s, E, t) ? { score: 3, run: () => E.pump(t, 1, 1) } : null; },
@@ -75,11 +75,11 @@ export const S12 = {
   ZZ10: { brk: 1, etb: prolif },
   ZZ11: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
   ZZ12: { brk: 1, allyDmgLess: 1 },
-  ZZ13: { brk: 3, onAttack: (s, p, E) => { if (p.side !== 'P') return; const b = foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  ZZ13: { brk: 3, trigTgt: { on: 'attack', label: '2点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
   ZZ14: { brk: 1, ...ninjutsu(1, ['W']) },
   ZZ15: { brk: 2, etb: prolif },
   ZZ16: { brk: 1, anthem: lord(null, 1, 0) },
-  ZZ17: { brk: 2, onAttack: (s, p, E) => { if (p.side !== 'P') return; const b = foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
+  ZZ17: { brk: 2, trigTgt: { on: 'attack', label: '1点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
   ZZ18: { brk: 2, onAttack: atkBon(1) },
   ZZ19: { brk: 2, ...ninjutsu(1, ['G']) },
   ZZ20: { brk: 1, etb: etbBon(2), onBlock: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); }, acts: [bonAct(2, {
@@ -92,7 +92,7 @@ export const S12 = {
   ZZ23: { brk: 1, onAttack: atkBon(1) },
   ZZ24: { brk: 1, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
   ZZ25: { brk: 2 },
-  ZZ26: { brk: 2, ...ninjutsu(2, ['R']), onFaceHit: (s, p, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  ZZ26: { brk: 2, ...ninjutsu(2, ['R']), trigTgt: { on: 'hit', label: '2点を あたえる てきの クリーチャー' }, onFaceHit: (s, p, E) => { const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
   ZZ27: { brk: 1, etb: etbBon(2), acts: [bonAct(3, {
     label: 'エネルギー 3：みんな ＋1/＋1',
     play: (s, p, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 5, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 1); } } : null),
