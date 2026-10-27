@@ -62,6 +62,8 @@ const etbFoe = (label, f, pick) => ({
   etb: (s, p, E, o) => { if (p.side !== 'P') return; const c = o?.chosen ? o.chosen[0]?.[0] : pick(s, E); if (c) f(s, E, c); },
 });
 
+// レア・レジェンドの クリーチャー：せんぎポイントが 2 いじょう あれば、2 つかって 2マナ やすく 唱える（じどう）
+const spCut = { spCut: 2, costLess: (s) => (spOf(s) >= 2 ? 2 : 0), onPay: (s, E) => { if (spOf(s) >= 2) { E.L(s, 'せんぎポイントで 2マナ やすく した'); addSP(s, E, -2); } } };
 export const S11 = {
   SR01: trail({ skill: selfPump('＋2/＋0 と トランプル', 2, ['trample']) }),
   SR02: trail({ skill: shieldOne, pittari: spPit }),
@@ -184,6 +186,7 @@ export const S11 = {
   SR79: ult('SR15', 2, foe1('5点を あたえる クリーチャー', (s, E, t) => hit(s, E, t, 5), { n: 5 })), // 炎で 戦う
   SR80: ult('SR22', 2, { play: (s, E) => (E.basicsInLib(s) ? { score: 9, run: () => E.rampBasic(s, 2) } : null) }), // 爆発的 植生
 };
+for (const id of ['SR04', 'SR05', 'SR06', 'SR07', 'SR09', 'SR11', 'SR13', 'SR14', 'SR15', 'SR17', 'SR21', 'SR22', 'SR33', 'SR34']) S11[id] = { ...S11[id], ...spCut }; // 4マナ いじょうの レア・レジェンド
 // あなたの マナゾーンの 青の カードの 数（岸の 飲み込み）
 function blueMana(s, E) { return s.P.mana.filter((m) => E.colorsOf(m.def).includes('U')).length; }
 function E_isCr(p) { return (p.def.types || []).includes('creature'); }

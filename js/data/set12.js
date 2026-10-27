@@ -214,3 +214,6 @@ export const S12 = {
     tgt: pair('＋X/＋X して かくとうする あなたの クリーチャー', 'かくとうする てきの クリーチャー'), apply: (s, E, [[a], [b]], x) => { E.pump(a, x, x); E.fight(s, a, b); E.sba(s); },
   },
 };
+// レア・レジェンドの エージェントは みんな 交代を もつ（コスト − 2。2より 下には ならない）。統率者なら 統率領域からも 交代できる
+const SWAP = { ZZ01: [2, 'W'], ZZ02: [2, 'K'], ZZ03: [2, 'G'], ZZ06: [2, 'U'], ZZ09: [2, 'R'], ZZ13: [3, 'U'], ZZ15: [2, 'W'], ZZ17: [2, 'K'], ZZ18: [2, 'W'], ZZ20: [2, 'W'], ZZ21: [2, 'G'], ZZ22: [2, 'R'], ZZ28: [2, 'R'] };
+for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, [k]); S12[id] = { ...nj, ...S12[id] }; } // AI は ふつうに 出せる なら ふつうに 出す（マナが たりない ときに 交代）

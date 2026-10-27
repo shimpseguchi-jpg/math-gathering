@@ -3,7 +3,7 @@ import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
   isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, BREAK_AT, BREAK_ALL, pickOf,
 } from '../engine/game.js';
-import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
+import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
 import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
 import { npNote } from '../data/set10.js';
@@ -157,9 +157,8 @@ function humanAI() {
       for (let guard = 0; guard < 5; guard++) {
         const opts = [];
         // 交代（ゼンゼロ）：ブロックしている クリーチャーと 手札の エージェントを いれかえる
-        for (const c of s.P.hand) {
-          const nj = c.def.swapBlock && c.def.ninjutsu;
-          if (!nj || !plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 })) continue;
+        for (const c of njCards(s)) {
+          if (!c.def.swapBlock || !njPlan(s, c)) continue;
           for (const [aUid, b] of blocks) if (onBf(s, b)) opts.push({ c, swap: aUid, b, a: attackers.find((x) => x.uid === aUid) });
         }
         for (const c of s.P.hand) {
@@ -176,7 +175,7 @@ function humanAI() {
         if (!opts.length) return;
         render();
         const v = await sheet(`<p>${opts.some((x) => x.swap) ? 'こうたい できる エージェントや、' : ''}いま 使える インスタントが ある。</p>`, [
-          ...opts.map((x) => ({ label: x.swap ? `こうたい：${nm(x.b)} → ${nm(x.c)}（${x.c.def.ninjutsu.cost}マナ）` : `${nm(x.c)} を 使う`, value: x, kind: 'primary', note: x.swap && x.a ? `${nm(x.a)}（${power(s, x.a)}/${pt(s, x.a)[1] - x.a.dmg}）を ${nm(x.c)}（${x.c.def.pow}/${x.c.def.tou}）が ブロックする` : '' })),
+          ...opts.map((x) => ({ label: x.swap ? `こうたい：${nm(x.b)} → ${nm(x.c)}（${njLabel(s, x.c)}）` : `${nm(x.c)} を 使う`, value: x, kind: 'primary', note: x.swap && x.a ? `${nm(x.a)}（${power(s, x.a)}/${pt(s, x.a)[1] - x.a.dmg}）を ${nm(x.c)}（${x.c.def.pow}/${x.c.def.tou}）が ブロックする` : '' })),
           { label: '使わない', value: null },
         ], { title: 'ブロックの あとで', dismiss: false });
         if (!v) return;
@@ -665,7 +664,7 @@ async function tapHand(c) {
     if (!ci.ok && ci.why) noteMiss(ci.why);
     const verb = d.types.includes('creature') ? 'せんじょうに 出す' : '使う', lf = ci.ok && ci.pl?.life;
     // 必殺技（番外編 スターレイル）：キャラが いて 安く なった ときは ひき算を 見せる
-    const less = (d.ultOf || d.tapLess) && !d.x ? d.cost - costOf(s, d) : 0; // スターレイルの 必殺技・ゼンゼロの 終結スキル
+    const less = !d.x ? Math.max(0, d.cost - costOf(s, d)) : 0; // スターレイルの 必殺技・ゼンゼロの 終結スキル・マスター・せんぎポイント など
     choices.push({ label: lf ? `ライフを ${lf} はらって ${verb}` : less ? `${verb}（${d.cost} − ${less} ＝ ${d.cost - less}マナ）` : verb, value: 'cast', kind: 'primary', disabled: !ci.ok, note: !ci.ok ? ci.why : lf ? lifeNote(d, lf) : '' });
     if (d.suspend && s.active === 'P') { const ok = !!plan(s, d.suspend.cost, d.suspend.req || []); choices.push({ label: `たいきする（${d.suspend.cost}マナ・${d.suspend.turns}ターン あとに ただで 使う）`, value: 'suspend', kind: 'primary', disabled: !ok, note: ok ? '' : 'マナが たりない' }); }
     // 出来事（カードの 下の 呪文）・授与（オーラとして つける）
@@ -675,11 +674,7 @@ async function tapHand(c) {
   }
   if (B.mode === 'tricks') {
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
-    if (d.ninjutsu) {
-      const ok = !!plan(s, d.ninjutsu.cost, d.ninjutsu.req, { req2: d.ninjutsu.req.length > 1 });
-      const free = B.atk.some((a) => onBf(s, a.p) && !B.blocks.get(a.p.uid) && !a.p.token);
-      choices.push({ label: `${/^ZZ/.test(d.id) ? 'こうたい' : 'にんじゅつ'}（${d.ninjutsu.cost}マナ）`, value: 'ninja', kind: 'primary', disabled: !ok || !free, note: !ok ? 'マナが たりない' : free ? 'ブロックされなかった クリーチャーと 入れかえる' : 'ブロックされなかった クリーチャーが いない' });
-    }
+    if (d.ninjutsu) choices.push(njChoice(c));
     if (tr || (d.modes && d.types.includes('instant'))) { // モードの ある ソーサリー（プルフォロスの 介入）は たたかいの とちゅうには 使えない
       const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
       const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
@@ -729,6 +724,14 @@ async function doBestow(c) {
   if (!checkOver()) render();
 }
 
+// 交代・忍術の コスト（統率領域から なら 統率者税 こみ：2 ＋ 2 ＝ 4マナ）
+function njLabel(s, c) { const n = c.def.ninjutsu.cost, k = njCost(s, c); return k > n ? `${n} ＋ ${k - n} ＝ ${k}マナ` : `${n}マナ`; }
+function njChoice(c) {
+  const s = B.s, d = c.def, ok = !!njPlan(s, c);
+  const free = B.atk.some((a) => onBf(s, a.p) && !B.blocks.get(a.p.uid) && !a.p.token);
+  const less = d.cost - d.ninjutsu.cost;
+  return { label: `${/^ZZ/.test(d.id) ? 'こうたい' : 'にんじゅつ'}（${njLabel(s, c)}）`, value: 'ninja', kind: 'primary', disabled: !ok || !free, note: !ok ? 'マナが たりない' : free ? `ブロックされなかった クリーチャーと 入れかえる${less > 0 ? `（ふつうに 出すより ${d.cost} − ${d.ninjutsu.cost} ＝ ${less}マナ やすい）` : ''}` : 'ブロックされなかった クリーチャーが いない' };
+}
 async function doNinjutsu(c) {
   const s = B.s;
   const free = B.atk.filter((a) => onBf(s, a.p) && !B.blocks.get(a.p.uid) && !a.p.token);
@@ -1113,7 +1116,9 @@ function cmdNote(S, enemy = false) {
 async function showCmd() {
   const s = B.s, c = s.P.cmd[0];
   const ci = c && B.mode === 'main' ? castInfo(c, 'cmd') : { why: c ? 'いまは 使えない' : 'せんじょうに いる' };
-  const v = await sheet(cmdNote(s.P), [...(c ? [{ label: `となえる（${c.def.cost}${s.P.cmdLess ? ` − ${s.P.cmdLess}` : ''} ＋ ${cmdTax(s)} ＝ ${cmdCost(s, c.def)}マナ）`, value: 1, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why }] : []), { label: 'とじる', value: 0 }], { title: '統率者（とうそつしゃ）' });
+  const nj = c?.def.ninjutsu && B.mode === 'tricks' ? [njChoice(c)] : [];
+  const v = await sheet(cmdNote(s.P), [...nj, ...(c && !nj.length ? [{ label: `となえる（${c.def.cost}${s.P.cmdLess ? ` − ${s.P.cmdLess}` : ''} ＋ ${cmdTax(s)} ＝ ${cmdCost(s, c.def)}マナ）`, value: 1, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why }] : []), { label: 'とじる', value: 0 }], { title: '統率者（とうそつしゃ）' });
+  if (v === 'ninja') return doNinjutsu(c);
   if (v) doCast(c, 'cmd');
 }
 // やまふだ・ぼちの 中身：おなじ カードは まとめて「×2」。じゅんばんは デッキ構築と おなじ（色 → コスト）

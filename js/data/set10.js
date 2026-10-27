@@ -54,6 +54,9 @@ const npSpell = (n, more) => ({
   tgt: [{ side: 'P', label: `NP ＋${n} する サーヴァント`, filter: (s, E, q) => isServant(q) && !!q.def.npFx }],
   apply: (s, E, [[t]]) => { E.target(s, t); addNP(s, E, t, n); more?.(s, E); },
 });
+// マスター：場に いる さいしょの マスターだけが やすく する（かさならない）
+const isMaster = (p) => isSub(p, 'マスター');
+const master = { costCut: (s, q, d) => (isServant({ def: d }) && s.P.bf.find(isMaster) === q ? (d.rar === 'R' || d.rar === 'L' ? 2 : 1) : 0) };
 export const S10 = {
   FG01: np(40, (s, E) => { for (const q of mine(s, E)) q.shieldT = s.turn; E.L(s, 'いまは 遥（はる）か 理想（りそう）の 城（しろ）：ダメージ 0'); }),
   FG02: np(50, (s, E) => allFoes(s, E, 4)),
@@ -171,4 +174,7 @@ export const S10 = {
   FG68: { play: (s, E) => (E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) },
   FG69: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }),
   FG70: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.addCounters(s, q, 1); }),
+  // ---- マスター（FG71・FG72）：サーヴァントが 1マナ（レア・レジェンドは 2マナ）やすく なる。なんにん いても 1回だけ ----
+  FG71: { ...master },
+  FG72: { ...master, onOtherEnter: (s, p, q, E) => { if (q.side === p.side && isServant(q)) addNP(s, E, q, 30); } },
 };

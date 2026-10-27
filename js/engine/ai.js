@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax,
   zzBreak, useBreak, BREAK_AT, BREAK_ALL, ZZ_BLUE,
 } from './game.js';
 
@@ -101,6 +101,7 @@ export function castCard(s, c, pl, o = {}) {
   // 収斂：はらった マナの 色の 数
   P.flags.converge = pl ? Math.min(pl.srcs.length, new Set(pl.srcs.flatMap((x) => x.colors.filter((k) => k !== 'C'))).size) : 0;
   const convoked = pl ? pay(s, pl) : [];
+  def.onPay?.(s, api, from); // スターレイルの レア：せんぎポイントで やすく した ぶんを はらう
   // 探査：はらわなかった ぶん、墓地の カードを 古い ものから 追放する
   if (def.delve && pl) {
     const ex = P.gy.splice(0, Math.max(0, def.cost + (o.x || 0) * (def.xMul || 1) - pl.srcs.length));
@@ -356,6 +357,9 @@ export function levelUp(s, p) { p.level++; L(s, `Lvアップ：${p.def.name}（�
 function main(s, phase) {
   if (phase === 1) chargeMana(s);
   while (s.P.brkReady > 0 && !s.over) aiBreak(s);
+  // 統率者の エージェント：ふつうに 出す マナは ないが 交代の マナは ある → 攻撃の あとまで マナを のこす
+  const sw = s.P.cmd?.[0];
+  if (phase === 1 && sw?.def.ninjutsu && !plan(s, cmdCost(s, sw.def), colorsOf(sw.def)) && njPlan(s, sw) && readyAttackers(s).length) return;
   for (let guard = 0; guard < 40 && !s.over; guard++) {
     const opts = [];
     for (const c of [...s.P.hand]) if (!c.locked) opts.push(...optionsFor(s, c, phase, 'hand'));
@@ -519,8 +523,8 @@ function tricks(s, atk, blocks) {
       }
     }
     // 忍術：ブロックされなかった 攻撃クリーチャーを 手札に もどして、忍者を 攻撃している 状態で 出す
-    for (const c of s.P.hand) {
-      const nj = c.def.ninjutsu; if (!nj || c.locked || !plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 })) continue;
+    for (const c of njCards(s)) {
+      if (c.locked || !njPlan(s, c)) continue;
       for (const a of live) {
         if (blocks.get(a.p.uid) || a.p.token || a.p.def.ninjutsu) continue;
         consider(3 + c.def.pow - power(s, a.p), () => ninjutsu(s, c, a));
@@ -537,19 +541,27 @@ function tricks(s, atk, blocks) {
   }
 }
 
+// 忍術・交代の コスト：統率領域から なら 統率者税も たす
+export const njCost = (s, c) => c.def.ninjutsu.cost + (s.P.cmd?.includes(c) ? cmdTax(s) : 0);
+export const njPlan = (s, c) => plan(s, njCost(s, c), c.def.ninjutsu.req, { req2: c.def.ninjutsu.req.length > 1 });
+// 交代に つかえる カード：てふだ と 統率領域（ゼンゼロの エージェントが 統率者の とき）
+export const njCards = (s) => [...s.P.hand, ...(s.P.cmd || [])].filter((c) => c.def.ninjutsu);
+function njTake(s, c) {
+  if (s.P.cmd?.includes(c)) { s.P.cmd.splice(s.P.cmd.indexOf(c), 1); s.P.cmdCasts = (s.P.cmdCasts || 0) + 1; L(s, `${s.swapped ? 'てき：' : ''}とうそつりょういきから こうたい（つぎは ＋${cmdTax(s)}マナ）`); }
+  else s.P.hand.splice(s.P.hand.indexOf(c), 1);
+}
 // 忍術（人が 遊ぶ ときも つかう）。a は 攻撃の { p, t }。a.p を 忍者に 入れかえる
 export function ninjutsu(s, c, a) {
-  const nj = c.def.ninjutsu;
-  const pl = plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 }); if (!pl) return false;
+  const pl = njPlan(s, c); if (!pl) return false;
   pay(s, pl);
-  s.P.hand.splice(s.P.hand.indexOf(c), 1);
+  njTake(s, c);
   const old = a.p;
   old.attacking = false;
   leave(s, old, 'hand');
   const n = enter(s, 'P', c.def, { card: c.def, tapped: true });
   n.attacking = true;
   a.p = n;
-  L(s, `にんじゅつ：${old.def.name} → ${c.def.name}`);
+  L(s, `${/^ZZ/.test(c.def.id) ? 'こうたい' : 'にんじゅつ'}：${old.def.name} → ${c.def.name}`);
   if (/^ZZ/.test(c.def.id)) zzBreak(s, 'swap', '交代');
   return true;
 }
@@ -570,11 +582,10 @@ function aiBreak(s) {
 
 // 交代（ゼンゼロ。swapBlock の ある カード）：ブロックしている じぶんの クリーチャー（blocks の aUid の もの）を 手札に もどして、c を かわりに ブロックさせる
 export function swapBlocker(s, c, aUid, blocks) {
-  const nj = c.def.ninjutsu;
-  const pl = plan(s, nj.cost, nj.req, { req2: nj.req.length > 1 }); if (!pl) return false;
+  const pl = njPlan(s, c); if (!pl) return false;
   const old = blocks.get(aUid); if (!old || !onBf(s, old)) return false;
   pay(s, pl);
-  s.P.hand.splice(s.P.hand.indexOf(c), 1);
+  njTake(s, c);
   leave(s, old, 'hand');
   const n = enter(s, 'P', c.def, { card: c.def });
   blocks.set(aUid, n);
@@ -588,7 +599,7 @@ function swapBlocks(s, attackers, bl) {
     const b = bl.get(a.uid); if (!b || !onBf(s, b) || !onBf(s, a)) continue;
     if (blockFacts(s, b, a).survives) continue; // ブロックした ものが たおれない なら そのまま
     const P = power(s, a), T = pt(s, a)[1] - a.dmg;
-    const c = s.P.hand.filter((x) => x.def.swapBlock && plan(s, x.def.ninjutsu.cost, x.def.ninjutsu.req, { req2: x.def.ninjutsu.req.length > 1 }) && ((x.def.tou ?? 0) > P || (x.def.pow ?? 0) >= T))
+    const c = njCards(s).filter((x) => x.def.swapBlock && njPlan(s, x) && ((x.def.tou ?? 0) > P || (x.def.pow ?? 0) >= T))
       .sort((x, y) => (y.def.pow ?? 0) + (y.def.tou ?? 0) - (x.def.pow ?? 0) - (x.def.tou ?? 0))[0];
     if (c) swapBlocker(s, c, a.uid, bl);
   }
@@ -751,7 +762,7 @@ Object.assign(api, {
     L(s, `マッドネス：${d.name}`);
     castCard(s, c, pl, { from: 'madness', run: r.run });
   },
-  ninjutsu, swapBlocker, castAdventure, castBestow, stealable, copySpell, unearth,
+  ninjutsu, swapBlocker, njCost, njPlan, njCards, castAdventure, castBestow, stealable, copySpell, unearth,
   castSuspended,
   // 諜報（第7弾）：占術と 同じ きじゅんで、のこさない カードは ぼちへ。人は s.ai.surveil が 画面で 聞く
   surveil: (s, n) => {
