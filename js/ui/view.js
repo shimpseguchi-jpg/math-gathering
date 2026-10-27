@@ -202,7 +202,7 @@ export function permFace(s, p, o = {}) {
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
-    p.shieldCtr ? '<span class="b mark">たて</span>' : '', // 盾カウンター（FGO：ナイチンゲール・プレッジ）
+    p.shieldCtr ? `<span class="b mark">たて${p.shieldCtr > 1 ? ' ' + p.shieldCtr : ''}</span>` : '', // 盾カウンター（FGO：ナイチンゲール・プレッジ）
     p.frozen && p.side === 'P' ? '<span class="b time">まひ</span>' : '',
     p.def.npFx ? `<span class="b np${(p.np || 0) >= 100 ? ' ready' : ''}">NP ${p.np || 0}${(p.np || 0) >= 100 ? '・ほうぐOK' : p.def.np ? `・あと${Math.ceil((100 - (p.np || 0)) / p.def.np)}回` : ''}</span>` : '', // 番外編 FGO：宝具の NP と あと なん回 攻撃で 宝具（100 いじょうで ボタンが つかえる）
     p.shin ? `<span class="b time">しんくん ${p.shin}</span>` : '',

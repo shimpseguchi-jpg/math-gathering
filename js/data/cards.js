@@ -643,7 +643,8 @@ const U3 = [
     { run: (s) => { s.P.flags.copySpells = s.turn; } },
   ]) }),
   pm('U36', 'あやしい 海（うみ）', 'R', 'U', 2, ['enchantment'], {
-    onDraw: (s, p, E) => { p.marks = (p.marks || 0) + 1; if (p.marks >= 8) { p.marks -= 8; E.token(s, p.side, T.kraken); } },
+    onDraw: (s, p, E) => { p.marks = (p.marks || 0) + 1; p.def.onProliferate(s, p, E); },
+    onProliferate: (s, p, E) => { if (p.marks >= 8) { p.marks -= 8; E.token(s, p.side, T.kraken); } },
   }),
   pm('U37', 'キオラ、海（うみ）の神（かみ）を くだす', 'L', 'U', 7, ['enchantment'], { sub: ['saga'], ...saga([
     { run: (s, E) => E.token(s, 'P', T.kraken) },
@@ -877,10 +878,11 @@ const C2 = [
       cost: 1, tap: true, when: [2],
       play: (s, p, E) => ({ score: 3, run: () => {
         p.marks = (p.marks || 0) + 1;
-        if (p.marks >= 3) { E.token(s, 'P', T.treasure, 3); E.leave(s, p, 'gy'); }
+        p.def.onProliferate(s, p, E);
         return E.scry(s, 1);
       } }),
     }],
+    onProliferate: (s, p, E) => { if (p.marks >= 3 && E.onBf(s, p)) { E.token(s, 'P', T.treasure, 3); E.leave(s, p, 'gy'); } },
   }),
   pm('C14', 'たからばこ', 'U', '', 3, ['artifact'], {
     acts: [{ cost: 4, tap: true, sac: true, when: [1, 2], play: (s, p, E) => ({ score: 7, run: () => treasureChest(s, p, E) }) }],

@@ -85,6 +85,7 @@ export const S4 = {
     mana: ['U'],
     etb: (s, p) => { p.ctr = 0; p.time = 0; },
     upkeep: (s, p, E) => clockTick(s, p, E),
+    onProliferate: (s, p, E) => { if (!(p.time > 0)) return; p.time--; clockTick(s, p, E); }, // 増殖で ふえた 1こを 数えなおして 12こ チェック
     acts: [{ cost: 3, req: ['U'], when: [2], label: '時（とき）カウンターを 1こ おく', play: (s, p, E) => ((p.time || 0) >= 8 ? { score: 2, run: () => clockTick(s, p, E) } : null) }],
   },
   U57: {

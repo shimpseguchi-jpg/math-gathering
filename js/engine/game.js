@@ -379,7 +379,14 @@ export function proliferate(s) {
     if (isPW(p) && p.loy > 0) { p.loy++; L(s, `ぞうしょく：${p.def.name} の ちゅうせい ${p.loy}`); }
     if (p.level > 0) p.level++;
     if (p.flags.muster) p.flags.muster++;
+    // ほかの しゅるいの カウンターも 1こ ふえる（盾・時間・試練・令呪・しるし）。伝承カウンターは 英雄譚の 章を 起こす（onProliferate）
+    if (p.shieldCtr > 0) p.shieldCtr++;
+    if (p.time > 0) p.time++;
+    if (p.trial > 0) p.trial++;
+    if (p.seals > 0) p.seals++;
+    if (p.marks > 0) p.marks++;
   }
+  for (const p of [...s.P.bf]) if (onBf(s, p)) p.def.onProliferate?.(s, p, api);
   // ゼンゼロ：敵の −1/−1カウンター・ブレイクカウンター・エネルギーも 1つ ふえる
   for (const p of [...s.E.bf]) if (p.mctr > 0 && onBf(s, p)) addMinus(s, p, 1);
   if (s.P.bon > 0 && s.P.bon < BON_MAX) { s.P.bon++; L(s, `ぞうしょく：エネルギー ${s.P.bon}`); }
@@ -689,7 +696,7 @@ export function leave(s, p, to = 'gy', o = {}) {
 }
 
 // 盾（たて）カウンター（FGO：ナイチンゲールの 宝具）：ダメージか 破壊を 1回 ふせいで なくなる
-function useShield(s, p) { if (!p.shieldCtr) return false; p.shieldCtr = 0; L(s, `${foe(s, p.side)}${p.def.name} の 盾（たて）カウンターが ふせいだ`); return true; }
+function useShield(s, p) { if (!p.shieldCtr) return false; p.shieldCtr--; L(s, `${foe(s, p.side)}${p.def.name} の 盾（たて）カウンターが ふせいだ`); return true; }
 export const destroy = (s, p) => (hasKw(s, p, 'indestructible') || useShield(s, p) ? false : leave(s, p, 'gy', { died: true }));
 export const exile = (s, p) => leave(s, p, 'exile');
 export const bounce = (s, p) => leave(s, p, 'hand');

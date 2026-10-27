@@ -232,6 +232,7 @@ export const S5 = {
   C26: {
     mana: ['C'], onTapped: (s, p, E) => scoreUp(s, p, E),
     onAllyHit: (s, p, src, E) => scoreUp(s, p, E),
+    onProliferate: (s, p, E) => { if (p.ctr >= 10 && !s.over) { E.L(s, '点カウンターが 10こ！ かち'); s.over = 'win'; } },
     onLifeLoss: (s, p) => { if (p.ctr > 0 && s.active === 'E') p.ctr--; },
   },
   C27: { etb: (s, p, E) => { if (p.side !== 'P') return; const c = bestIn(s.P.gy, (x) => isSpellDef(x.def)); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.lib.unshift(c); } } },
