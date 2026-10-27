@@ -410,8 +410,10 @@ export function addBreak(s, n) {
   }
 }
 // mode：'all' てきの クリーチャー ぜんぶに 5点／'one' t（'face' か てきの パーマネント）に 10点／'mana' マナゾーンの カード t を 手札に
+// ブレイクを つかえるのは、ブレイクを もつ 伝説の クリーチャーが じぶんの 場に いる とき だけ（たまるのは いつでも）
+export const canBreak = (s) => s.P.bf.some((q) => isCreature(q) && q.def.legend && q.def.brk);
 export function useBreak(s, mode, t) {
-  if (!s.P.brkReady || s.over) return false;
+  if (!s.P.brkReady || s.over || !canBreak(s)) return false;
   s.P.brkReady--; s.inBreak = true;
   if (mode === 'all') { L(s, `ブレイク！ てきの クリーチャー ぜんぶに ${BREAK_ALL}点`); for (const p of s.E.bf.filter(isCreature)) damage(s, p, BREAK_ALL, null); }
   else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${BREAK_AT}点`); hitTarget(s, t, BREAK_AT, null); }
@@ -887,7 +889,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost, useBreak, takePick,
+  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

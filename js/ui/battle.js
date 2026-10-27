@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, BREAK_AT, BREAK_ALL, pickOf,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, BREAK_AT, BREAK_ALL, pickOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -764,9 +764,10 @@ async function useTrick(c) {
 
 // ゼンゼロの ブレイク：ゲージを タップ → せつめい。つかえる ときは 3つから えらぶ
 async function showBreak() {
-  const s = B.s, ok = s.P.brkReady > 0 && B.mode === 'main' && s.active === 'P';
+  const s = B.s, leg = canBreak(s), ok = s.P.brkReady > 0 && leg && B.mode === 'main' && s.active === 'P';
   const cr = s.E.bf.filter(isCreature);
   const v = await sheet(`<p>${ruby('ブレイクカウンターが 10こ たまると ブレイクが 1回 つかえる。じぶんの ターンに 3つから えらぶ。')}</p>
+    <p class="what">${ruby(leg ? 'ブレイクを もつ 伝説の クリーチャーが いるので つかえる。' : 'つかうには、ブレイクを もつ 伝説の クリーチャーが じぶんの 場に いる ひつようが ある（たまるのは いつでも）。')}</p>
     <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた（1ターンに 1回）・青 てきに マイナスの 修整・黒 てきに −1/−1カウンター・赤 呪文や 能力で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
     { label: `ぜんたい：てきの クリーチャー ぜんぶに ${BREAK_ALL}点`, value: 'all', kind: 'primary', disabled: !ok || !cr.length },
     { label: `たんたい：てき 1つに ${BREAK_AT}点`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
@@ -1177,7 +1178,7 @@ function render() {
       <div class="me-mana">
         <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
         ${s.P.srDeck ? `<span class="pile sp" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
-        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><button type="button" class="pile sp brk ${s.P.brkReady ? 'ready' : ''}" data-act="brk">${s.P.brkReady ? `ブレイク OK！${s.P.brkReady > 1 ? `×${s.P.brkReady}` : ''}` : 'ブレイク'} <b>${s.E.brk || 0}</b>/10</button>` : ''}
+        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><button type="button" class="pile sp brk ${s.P.brkReady && canBreak(s) ? 'ready' : ''}" data-act="brk">${s.P.brkReady ? `ブレイク${canBreak(s) ? ' OK！' : ' まち'}${s.P.brkReady > 1 ? `×${s.P.brkReady}` : ''}` : 'ブレイク'} <b>${s.E.brk || 0}</b>/10</button>` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>

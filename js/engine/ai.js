@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak,
   zzBreak, useBreak, BREAK_AT, BREAK_ALL, ZZ_BLUE,
 } from './game.js';
 
@@ -356,7 +356,7 @@ export function levelUp(s, p) { p.level++; L(s, `Lvアップ：${p.def.name}（�
 // ---- メイン・フェイズ ----
 function main(s, phase) {
   if (phase === 1) chargeMana(s);
-  while (s.P.brkReady > 0 && !s.over) aiBreak(s);
+  while (s.P.brkReady > 0 && canBreak(s) && !s.over) aiBreak(s);
   // 統率者の エージェント：ふつうに 出す マナは ないが 交代の マナは ある → 攻撃の あとまで マナを のこす
   const sw = s.P.cmd?.[0];
   if (phase === 1 && sw?.def.ninjutsu && !plan(s, cmdCost(s, sw.def), colorsOf(sw.def)) && njPlan(s, sw) && readyAttackers(s).length) return;
