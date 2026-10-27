@@ -42,7 +42,7 @@ export function startBattle(o) {
   const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
   if (!floor.goal || o.tutorial) return go();
   render();
-  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${ruby(o.floorName)}：かちかた`, dismiss: false }).then(go);
+  sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}${o.extraNote ? `<p class="em-line">${ruby(o.extraNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${ruby(o.floorName)}：かちかた`, dismiss: false }).then(go);
 }
 
 // マリガン（もんしょう）：はじめの てふだを 見て、1かいだけ ひきなおせる

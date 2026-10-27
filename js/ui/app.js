@@ -483,10 +483,13 @@ function tower() {
   };
 }
 
+const CMD_BUFF_FROM = 2; // 0 から かぞえる：2 ＝ 3階
 function fight() {
   const f = A.floors[A.idx];
   startBattle({
     deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f], emblem: activeEffects(), emblemNote: emblemLine(), cmd: cmdDef(),
+    // 統率者モード：3階から 上は てきの クリーチャーが ＋1/＋1（統率者が いると つよすぎた。docs/REQUIREMENTS.md 8.5）
+    buff: A.cmd && A.idx >= CMD_BUFF_FROM ? 1 : 0, extraNote: A.cmd && A.idx >= CMD_BUFF_FROM ? '統率者（とうそつしゃ）が いるので、てきも 本気（ほんき）！ てきの クリーチャーは ＋1/＋1' : '',
     quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;

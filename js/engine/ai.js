@@ -551,7 +551,7 @@ function tricks(s, atk, blocks) {
 }
 
 // 忍術・交代の コスト：統率領域から なら 統率者税も たす
-export const njCost = (s, c) => c.def.ninjutsu.cost + (s.P.cmd?.includes(c) ? cmdTax(s) : 0);
+export const njCost = (s, c) => c.def.ninjutsu.cost + (s.P.cmd?.includes(c) ? cmdTax(s) - (s.P.cmdLess || 0) : 0); // 統率領域から：統率者税（と 統率者の コストの 上げ下げ）も
 export const njPlan = (s, c) => plan(s, njCost(s, c), c.def.ninjutsu.req, { req2: c.def.ninjutsu.req.length > 1 });
 // 交代に つかえる カード：てふだ と 統率領域（ゼンゼロの エージェントが 統率者の とき）
 export const njCards = (s) => [...s.P.hand, ...(s.P.cmd || [])].filter((c) => c.def.ninjutsu);
