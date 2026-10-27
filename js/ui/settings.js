@@ -3,6 +3,7 @@ import { SETS } from '../data/cards.js';
 import { packPool } from '../engine/run.js';
 import { soundOn, setSound } from './sfx.js';
 import { ruby } from './view.js';
+import { MATS, hasMat, usingMat, useMat } from './mats.js';
 
 // WEB版は 開発モード。false に すると 開発用の 項目が かくれて、ぜんぶの 弾が パックに 入る
 export const DEV = true;
@@ -60,6 +61,11 @@ export function settingsScreen(app, back) {
         <div class="row-btns st-theme">${[['classic', 'いまの みため'], ['gba', 'ドット（GBA ふう）']].map(([k, l]) => `<button type="button" class="btn ${theme() === k ? 'primary' : ''}" data-look="${k}" aria-pressed="${theme() === k}">${l}</button>`).join('')}</div>
       </section>
       <section class="st-sec">
+        <h3>プレイマット</h3>
+        <p class="st-note">${ruby('たたかいの 卓（たく）の もよう。ストーリーの 章や とうを クリアすると ふえる。')}</p>
+        <div class="mat-list">${MATS.map((m) => { const own = hasMat(m.id); return `<button type="button" class="mat-btn ${usingMat() === m.id ? 'on' : ''}" data-mat="${m.id}" ${own ? '' : 'disabled'} aria-pressed="${usingMat() === m.id}"><span class="mat-sw" data-m="${m.id}"></span><b>${own ? ruby(m.name) : '？？？'}</b>${own ? '' : `<small>${ruby(m.how)}</small>`}</button>`; }).join('')}</div>
+      </section>
+      <section class="st-sec">
         <h3>おと</h3>
         <button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button>
       </section>
@@ -85,6 +91,7 @@ export function settingsScreen(app, back) {
     if (e.target.closest('[data-back]')) { app().onchange = null; return back(); }
     if (e.target.closest('[data-snd]')) { setSound(!soundOn()); draw(); }
     const th = e.target.closest('[data-look]'); if (th) { setTheme(th.dataset.look); draw(); }
+    const mt = e.target.closest('button[data-mat]'); if (mt && !mt.disabled) { useMat(mt.dataset.mat); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
   };
   app().onchange = (e) => {

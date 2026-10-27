@@ -11,6 +11,7 @@ import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, STORY_TOTAL } from './story.js';
+import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
 import { RAID, raidOpen, raidShown, raidFree } from './raidstore.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme } from './settings.js';
@@ -522,6 +523,7 @@ function recordRun(win) {
 function ending(win) {
   const reached = win ? 5 : A.idx + 1;
   if (!A.recorded) recordRun(win);
+  const mat = win && awardMat(TOWER_MAT[A.plane || 'theros']) ? TOWER_MAT[A.plane || 'theros'] : null; // 塔を のぼりきった：プレイマット
   // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
   if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
@@ -533,6 +535,7 @@ function ending(win) {
       <div><dt>あけた パック</dt><dd>${A.opened}</dd></div>
       <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
     </dl>
+    ${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</p>` : ''}
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
     ${adsOn() ? `<p class="say"><b>${A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>` : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
@@ -671,5 +674,6 @@ function endlessEnd() {
 }
 
 applyTheme();
+applyMat();
 initTerms();
 title();

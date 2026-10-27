@@ -10,6 +10,7 @@ import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { cmdDeck, cmdSetup } from './commander.js';
 import { addEmblemPoints } from './emblem.js';
+import { awardMat, matName, CHAPTER_MAT } from './mats.js';
 import { deckBuilder } from './app.js';
 import { sheet, ruby, info, cardFace } from './view.js';
 
@@ -203,7 +204,8 @@ function play(ep, back) {
     const last = ep.ch.eps[ep.ch.eps.length - 1].id === ep.id;
     const pts = first ? REWARD + (last ? CHAPTER_REWARD : 0) : 0;
     if (pts) addEmblemPoints(pts);
-    await sheet(`<p class="say"><b>${ruby(guide)}</b><span>${ruby(last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。')}</span></p>${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}`,
+    const mat = last && awardMat(CHAPTER_MAT[ep.ch.id]) ? CHAPTER_MAT[ep.ch.id] : null; // 章を クリア：プレイマット
+    await sheet(`<p class="say"><b>${ruby(guide)}</b><span>${ruby(last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。')}</span></p>${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</p>` : ''}`,
       [{ label: 'ストーリーへ', value: 1, kind: 'primary' }], { title: `${ep.id}　クリア！`, dismiss: false });
     return again();
   };
