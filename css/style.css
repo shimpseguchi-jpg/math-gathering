@@ -1017,16 +1017,16 @@ div.zk-card { cursor: default; }
 
 /* ---- チュートリアル・ストーリーの せつめい（2026-10-26）：あたらしい ことばは 画面の 下 半分に 大きく 出す ---- */
 .coach-big { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; height: auto; max-height: 34vh; display: flex; justify-content: center; padding: 0 10px; background: linear-gradient(transparent, rgba(5, 8, 18, 0.55) 30%); animation: cb-up 0.28s ease-out; }
-.cb-in { width: 100%; max-width: 920px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; background: var(--paper); color: var(--paper-ink); border-radius: 18px 18px 0 0; border-top: 8px solid var(--gold); padding: 16px 18px calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 18px; line-height: 2.1; overflow-y: auto; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45); }
-.cb-in p { margin: 0; flex: 1 1 auto; }
+.cb-in { width: 100%; max-width: 920px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; background: var(--paper); color: var(--paper-ink); border-radius: 18px 18px 0 0; border-top: 8px solid var(--gold); padding: 16px 18px calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 18px; line-height: 2.1; overflow-y: auto; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45); }
+.cb-in p { margin: 0; flex: 0 0 auto; }
 .cb-in { min-height: 16vh; overflow-y: auto; }
-.cb-in .coach-who { font-size: 13px; color: #9a6a00; }
-.cb-in .btn { align-self: flex-end; min-width: 160px; min-height: 54px; font-size: 18px; }
+.cb-in .coach-who { flex: none; font-size: 13px; color: #9a6a00; } /* 小さい おびの flex: 0 0 100%（よこ はば）が たてに きいて、名前と 文の あいだが ひらいていた */
+.cb-in .btn { margin-top: auto; align-self: flex-end; min-width: 160px; min-height: 54px; font-size: 18px; }
 @keyframes cb-up { from { transform: translateY(100%); } }
 /* タブレット：すこし ひくめ（45%）で 文字を 大きく */
 @media (min-width: 640px) {
   .coach-big { max-height: 30vh; padding: 0 24px; } /* 2026-10-27：たたかいの とちゅうは 盤面が 見える ように 小さめ（ストーリーの 会話は .talk で 大きく） */
-  .cb-in { padding: 16px 26px calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 19px; line-height: 1.8; }
+  .cb-in { padding: 16px 26px calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 19px; line-height: 1.7; }
   .cb-in .coach-who { font-size: 16px; }
   .cb-in .btn { min-width: 200px; min-height: 52px; font-size: 18px; }
 }
