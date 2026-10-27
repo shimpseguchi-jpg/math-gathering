@@ -388,8 +388,10 @@ export function proliferate(s) {
 // ゼンゼロ：エネルギー（みんなで 1つの 数。0〜10）
 export const BON_MAX = 10;
 // ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって「ブレイク」が 1回 つかえる（s.P.brkReady）
-// ブレイクは じぶんの ターンに えらんで つかう（useBreak）：ぜんたい（てきの クリーチャー ぜんぶに 5点）・たんたい（てき 1つに 10点）・マナから かいしゅう
-export const BREAK_AT = 10, BREAK_ALL = 5;
+// ブレイクは じぶんの ターンに えらんで つかう（useBreak）：ぜんたい（てきの クリーチャー ぜんぶに 3点）・たんたい（てきの クリーチャー 1体に 6点・本体に 5点。てき 1つに 10点）・マナから かいしゅう
+// 2026-10-27：つよすぎたので 威力を 下げた（たんたい 10 → 6点・本体へは 5点、ぜんたい 5 → 3点）。たまる 数は 10 の まま
+export const BREAK_AT = 10, BREAK_ALL = 3, BREAK_ONE = 6, BREAK_FACE = 5;
+export const breakDmg = (t) => (t === 'face' ? BREAK_FACE : BREAK_ONE);
 // 属性ブレイク（2026-10-26）：ゼンゼロの クリーチャーが 場に いると、その クリーチャーの 色の きっかけで 2こ。交代は 5こ
 // 白：ライフを えた　青：敵に マイナスの 修整　黒：敵に −1/−1カウンター　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
 // 統率者が ゼンゼロの クリーチャーなら、場に いなくても その 色の きっかけが つかえる（1色 2こ・多色 1こ）。1色の 統率者が 場に いれば 3こ
@@ -432,7 +434,7 @@ export function useBreak(s, mode, t) {
   if (!s.P.brkReady || s.over || !canBreak(s)) return false;
   s.P.brkReady--; s.inBreak = true;
   if (mode === 'all') { L(s, `ブレイク！ てきの クリーチャー ぜんぶに ${BREAK_ALL}点`); for (const p of s.E.bf.filter(isCreature)) damage(s, p, BREAK_ALL, null); }
-  else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${BREAK_AT}点`); hitTarget(s, t, BREAK_AT, null); }
+  else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${breakDmg(t)}点`); hitTarget(s, t, breakDmg(t), null); }
   else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
   s.inBreak = false;
   sba(s);

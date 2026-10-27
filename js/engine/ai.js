@@ -1,7 +1,7 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
   api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable,
-  zzBreak, useBreak, BREAK_AT, BREAK_ALL, ZZ_BLUE,
+  zzBreak, useBreak, BREAK_ALL, BREAK_ONE, BREAK_FACE, ZZ_BLUE,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -579,9 +579,9 @@ export function ninjutsu(s, c, a) {
 function aiBreak(s) {
   const cr = s.E.bf.filter(isCreature);
   const left = (p) => pt(s, p)[1] - p.dmg;
-  if (s.floor.face && s.E.life <= BREAK_AT) return useBreak(s, 'one', 'face');
+  if (s.floor.face && s.E.life <= BREAK_FACE) return useBreak(s, 'one', 'face');
   if (cr.filter((p) => left(p) <= BREAK_ALL).length >= 2) return useBreak(s, 'all');
-  const big = cr.filter((p) => left(p) <= BREAK_AT).sort((a, b) => power(s, b) - power(s, a))[0];
+  const big = cr.filter((p) => left(p) <= BREAK_ONE).sort((a, b) => power(s, b) - power(s, a))[0];
   if (big && power(s, big) >= 3) return useBreak(s, 'one', big);
   if (s.floor.face) return useBreak(s, 'one', 'face');
   if (big) return useBreak(s, 'one', big);

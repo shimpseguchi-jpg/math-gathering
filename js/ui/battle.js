@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, BREAK_AT, BREAK_ALL, pickOf,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, BREAK_AT, BREAK_ALL, BREAK_ONE, BREAK_FACE, pickOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -795,13 +795,13 @@ async function showBreak() {
     <p class="what">${ruby(leg ? 'ブレイクを もつ 伝説（でんせつ）の クリーチャーが いるので つかえる。' : 'つかうには、ブレイクを もつ 伝説（でんせつ）の クリーチャーが じぶんの 場に いる ひつようが ある（たまるのは いつでも）。')}</p>
     <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた（1ターンに 1回）・青 てきに マイナスの 修整（しゅうせい）・黒 てきに −1/−1カウンター・赤 呪文（じゅもん）や 能力（のうりょく）で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
     { label: `ぜんたい：てきの クリーチャー ぜんぶに ${BREAK_ALL}点`, value: 'all', kind: 'primary', disabled: !ok || !cr.length },
-    { label: `たんたい：てき 1つに ${BREAK_AT}点`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
+    { label: `たんたい：てきの クリーチャー 1体に ${BREAK_ONE}点（本体なら ${BREAK_FACE}点）`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
     { label: 'かいしゅう：マナゾーンの カード 1まいを てふだに', value: 'mana', kind: 'primary', disabled: !ok || !s.P.mana.length },
     { label: 'とじる', value: null },
   ], { title: `ブレイク（${s.E.brk || 0}/${BREAK_AT}・つかえる ${s.P.brkReady || 0}回）` });
   if (!v) return;
   if (v === 'one') {
-    const t = await sheet(`<p>どれに ${BREAK_AT}点？</p>`, [...(s.floor.face ? [{ label: faceName(), value: 'face' }] : []), ...cr.map((p) => ({ label: `${nm(p)}（のこり ${pt(s, p)[1] - p.dmg}）`, value: p })), { label: 'やめる', value: null }]);
+    const t = await sheet(`<p>どれに あてる？（クリーチャーに ${BREAK_ONE}点・本体に ${BREAK_FACE}点）</p>`, [...(s.floor.face ? [{ label: `${faceName()}（${BREAK_FACE}点）`, value: 'face' }] : []), ...cr.map((p) => ({ label: `${nm(p)}（のこり ${pt(s, p)[1] - p.dmg}）`, value: p })), { label: 'やめる', value: null }]);
     if (!t) return;
     useBreak(s, 'one', t);
   } else if (v === 'mana') {
