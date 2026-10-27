@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
   zzBreak, useBreak, BREAK_ALL, BREAK_ONE, BREAK_FACE, ZZ_BLUE,
 } from './game.js';
 
@@ -122,7 +122,7 @@ export function castCard(s, c, pl, o = {}) {
       if (ep) { pay(s, ep); L(s, `ゆすり：${q.def.name}`); api.hitEnemy(s, 1, null); api.gain(s, 1); for (const r of [...P.bf]) r.def.onExtort?.(s, r, api); }
     }
   }
-  if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: def, chosen: o.chosen, escaped: from === 'escape' }); sba(s); return; }
+  if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: def, chosen: o.chosen, escaped: from === 'escape', kicked: !!o.kicked }); sba(s); return; }
   const done = () => {
     if (from === 'escape' || from === 'madness') P.gy.push(c);
     else if (from === 'gy' || (o.free && from !== 'lib')) P.exile.push(c); // やまふだから タダで 唱えた ものは ふつうに 墓地へ
@@ -240,7 +240,7 @@ function optionsFor0(s, c, phase, from) {
   if (isPermDef(def)) {
     const sc = def.permScore ? def.permScore(s, api, { phase }) : permScore(s, def, phase);
     if (sc == null || sc <= 0) return out;
-    return [...out, { score: sc + (from === 'escape' ? -2 : 0), name: def.name, exec: () => { const pl = plan(s, cost, req, o); if (pl) castCard(s, c, pl, { from }); } }];
+    return [...out, { score: sc + (from === 'escape' ? -2 : 0), name: def.name, exec: () => { const kp = def.kicker && from === 'hand' && plan(s, cost + def.kicker, req, o); const pl = kp || plan(s, cost, req, o); if (pl) castCard(s, c, pl, { from, kicked: !!kp }); } }]; // シャドウ召喚（キッカー）：はらえるなら はらう
   }
   if (!def.play || (def.reactive && phase !== 'react')) return out;
   if (def.types.includes('sorcery') && phase === 'react') return out;
@@ -283,6 +283,13 @@ function castSuspended(s, c) {
 function permScore(s, def, phase) {
   if (def.need && !def.need(s, api)) return null;
   if (def.flash && phase === 1 && s.P.hand.some((c) => c.def === def) && s.floor.threat(s, api).attackers > 0) return 1; // 瞬速はなるべく相手のターンに
+  // 装備品（FGO の 宝具 など）：つける クリーチャーが いない ときは あとまわし（シャドウ召喚で 出せるなら まだ よい）。クリーチャーより 先には 出さない
+  if (def.equip) {
+    const hosts = s.P.bf.filter((q) => isCreature(q) && !q.token).length + s.P.bf.filter((q) => isCreature(q) && q.token).length * 0.5;
+    const kick = def.kicker && manaCount(s) >= def.cost + def.kicker;
+    if (!hosts && !kick) return 1;
+    return 6 + def.cost * 2 + rarityV(def) + (kick ? 2 : 0);
+  }
   return 10 + def.cost * 3 + rarityV(def);
 }
 
@@ -329,8 +336,8 @@ function actOptions(s, phase) {
     const host = s.P.bf.find((q) => q.uid === p.attached);
     if (host && onBf(s, host)) continue;
     const t = api.bestBuffTarget(s, null, { ready: true });
-    if (!t || !plan(s, p.def.equip, [])) continue;
-    out.push({ score: 4, name: `${p.def.name} の そうび`, exec: () => { const pl = plan(s, p.def.equip, []); if (!pl) return; pay(s, pl); p.attached = t.uid; p.def.onEquip?.(s, p, t, api); } });
+    if (!t || !plan(s, equipCost(s, p), [])) continue;
+    out.push({ score: 4, name: `${p.def.name} の そうび`, exec: () => { const pl = plan(s, equipCost(s, p), []); if (!pl) return; pay(s, pl); p.attached = t.uid; L(s, `そうび：${p.def.name} → ${t.def.name}`); p.def.onEquip?.(s, p, t, api); } });
   }
   return out;
 }
@@ -410,7 +417,15 @@ export function readyAttackers(s) {
   return s.P.bf.filter((p) => isCreature(p) && !p.tapped && (!p.sick || hasKw(s, p, 'haste')) && !hasKw(s, p, 'defender') && !cant(s, p, 'cantAttack') && power(s, p) > 0);
 }
 
-function attack(s) {
+function attack(s) { const atk = attack0(s); hostTrigAI(s, atk); return atk; }
+// 装備品の「攻撃するたび」（FGO の 宝具）：AI は はらえるなら はらう（hostTrig.pay）。人は 画面の preTrig で えらぶ
+function hostTrigAI(s, atk) {
+  for (const a of atk) for (const q of s.P.bf) {
+    const h = q.attached === a.p.uid && q.def.hostTrig; if (!h || q.trigPick) continue;
+    if (h.pay) { const t = h.pick(s, api); const pl = t && plan(s, h.pay, h.req || []); if (pl) { pay(s, pl); q.trigPick = { t, paid: true }; } }
+  }
+}
+function attack0(s) {
   const ready = readyAttackers(s);
   const threat = s.floor.threat(s, api);
   const keep = new Set();

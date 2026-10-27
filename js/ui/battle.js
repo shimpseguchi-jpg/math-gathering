@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, BREAK_AT, BREAK_ALL, BREAK_ONE, BREAK_FACE, pickOf,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_ALL, BREAK_ONE, BREAK_FACE, pickOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -335,6 +335,23 @@ async function autoPick(mode, spec, ctx, list) {
 }
 // レアの 戦闘中の 効果（攻撃したとき・敵に 戦闘ダメージを あたえたとき。def.trigTgt）：その まえに あいてを えらんで おく（p.trigPick → game.js の takePick）
 async function preTrig(on, list) {
+  // 装備品（FGO の 宝具）：「攻撃するたび」に えらぶ もの。pay は マナを はらうか きく、spec は あいてを えらぶ
+  if (on === 'attack') for (const p of list) for (const q of B.s.P.bf) {
+    const h = q.attached === p.uid && q.def.hostTrig; if (!h) continue;
+    const s = B.s, nmq = noRuby(info(q.def).name);
+    if (h.pay) {
+      if (!h.pick(s, api) || !plan(s, h.pay, h.req || [])) { q.trigPick = 'skip'; continue; }
+      const v = await sheet(`<p>${ruby(`${nmq}：${h.label}`)}</p>`, [{ label: `${h.pay}マナ はらう`, value: 1, kind: 'primary' }, { label: 'はらわない', value: 0 }], { title: 'こうげきした ときの こうか' });
+      if (!v) { q.trigPick = 'skip'; continue; }
+      const picks = await pickAll([h.spec], { card: q.def }); const t = picks?.[0]?.[0];
+      if (!t) { q.trigPick = 'skip'; continue; }
+      pay(s, plan(s, h.pay, h.req || [])); q.trigPick = { t, paid: true };
+    } else if (h.spec) {
+      if (!needsTargets([h.spec], {})) continue;
+      const picks = await pickAll([{ ...h.spec, label: `${nmq}：${h.spec.label}` }], { card: q.def, note: 'こうげきした ときの こうか' });
+      if (picks?.[0]?.[0]) q.trigPick = { t: picks[0][0] };
+    }
+  }
   for (const p of list) {
     const tt = p.def.trigTgt;
     if (!tt || tt.on !== on || pickOf(p.def) || !onBf(B.s, p)) continue;
@@ -500,7 +517,7 @@ async function doCast(c, from = 'hand') {
   // キッカー：マナを 多く はらうと 強く なる
   let kicked = false;
   if (d.kicker && plan(s, base + d.kicker, req, o)) {
-    const v = await sheet(detail(d), [{ label: `ふつうに 使う（${base}マナ）`, value: 'n', kind: 'primary' }, { label: `キッカーで 使う（${base}マナ ＋ ${d.kicker}マナ）`, value: 'k', kind: 'primary' }, { label: 'やめる', value: null }], { title: `キッカー${manaNote()}` });
+    const v = await sheet(detail(d), [{ label: `ふつうに 使う（${base}マナ）`, value: 'n', kind: 'primary' }, { label: `${d.kickName || 'キッカー'}で 使う（${base}マナ ＋ ${d.kicker}マナ ＝ ${base + d.kicker}マナ）`, value: 'k', kind: 'primary' }, { label: 'やめる', value: null }], { title: `キッカー${manaNote()}` });
     if (!v) return stop();
     kicked = v === 'k';
   }
@@ -525,7 +542,7 @@ async function doCast(c, from = 'hand') {
   discard(s, drop);
   const run = mode ? mode.run : (d.apply && (picks || !d.tgt) ? () => d.apply(s, api, picks || [], x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined); // 対象の ない キッカーの 呪文（苗木の 移住）も apply で キッカーを うけとる
   if (from === 'hand') { const perm = !(d.types || []).some((t) => t === 'instant' || t === 'sorcery'); await fx.flyCard(app().querySelector(`[data-hand="${s.P.hand.indexOf(c)}"]`), app().querySelector(perm ? '.zone.mine' : '.battle'), !perm); }
-  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile });
+  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked });
   B.busy = false;
   if (!checkOver()) render();
 }
@@ -835,7 +852,7 @@ function abilityMark(s, p) {
     if (bigAct(a)) return 'ab-big';
     m = 'ab';
   }
-  return m || (p.def.equip && plan(s, p.def.equip, []) ? 'ab' : '');
+  return m || (p.def.equip && !p.attached && plan(s, equipCost(s, p), []) ? 'ab' : '');
 }
 async function tapPerm_(p) {
   const s = B.s;
@@ -873,7 +890,7 @@ async function tapPerm_(p) {
       const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
-    if (p.def.equip) choices.push({ label: `そうびする（${p.def.equip}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, p.def.equip, []) });
+    if (p.def.equip) { const ec = equipCost(s, p); choices.push({ label: `そうびする（${ec < p.def.equip ? `${p.def.equip} − ${p.def.equip - ec} ＝ ` : ''}${ec}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, ec, []) }); }
   }
   if (p.side === 'P' && B.mode === 'tricks') for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !p.attacking });
   choices.push({ label: 'とじる', value: null });
@@ -882,7 +899,7 @@ async function tapPerm_(p) {
   if (v === 'equip') {
     const t = await sheet('<p>どの クリーチャーに そうびする？</p>', [...s.P.bf.filter(isCreature).map((q) => ({ label: (nm(q)), value: q })), { label: 'やめる', value: null }]);
     if (!t) return;
-    pay(s, plan(s, p.def.equip, [])); p.attached = t.uid; p.def.onEquip?.(s, p, t, api); return render();
+    pay(s, plan(s, equipCost(s, p), [])); p.attached = t.uid; p.def.onEquip?.(s, p, t, api); return render();
   }
   if (v.pump) { pay(s, plan(s, v.a.cost, v.a.req || [])); api.pump(p, v.a.pumpP, 0); return render(); }
   let picks;

@@ -57,7 +57,7 @@ const PICK_KEYS = ['play', 'apply', 'etb', 'onAttack', 'onAttacks', 'onDie', 'on
 // カードの こうかを 動かす あいだだけ s.pickMode を つける（ai.js の burnTarget が 見る）。play が かえす run も おなじ
 // せりふ（docs/LORE.md の「とき」）：カードの 能力が うごいて なにか おきたら（ログが ふえたら）s.say(パーマネント, とき) を よぶ。画面が ふきだしを 出す
 const SAY_WHEN = { onAttack: 'attack', onAttacks: 'attack', onCombatHit: 'hit', onFaceHit: 'hit', onDamageCreature: 'hit', onDie: 'die', onKill: 'kill', upkeep: 'turn', combatStart: 'combat', onOtherEnter: 'ally', onOtherLeave: 'ally', onCast: 'cast', onTargeted: 'targeted', pittari: 'break', onDraw: 'draw', onBlock: 'block', act: 'act' }; // とき（LORE.md）→ gen_texts.py の WHEN
-const SAY_ONLY = ['pittari', 'combatStart', 'onCast', 'onTargeted', 'onBlock']; // ねらいかたとは かんけい ない きっかけ
+const SAY_ONLY = ['pittari', 'combatStart', 'onCast', 'onTargeted', 'onBlock', 'onHostAttack', 'onEquip']; // ねらいかたとは かんけい ない きっかけ
 const permOf = (args, d) => args.find((a) => a && typeof a === 'object' && a.uid && a.def?.id === d.id);
 function said(s, args, d, key, f) {
   const w = SAY_WHEN[key], p = w && s.say && permOf(args, d);
@@ -91,6 +91,8 @@ export function applyPick(d) {
   return d;
 }
 
+// 装備の コスト（マスター：1 少なく なる。何まい あっても かさならない）
+export const equipCost = (s, p) => Math.max(0, (p.def.equip || 0) - (s[p.side].bf.some((q) => q.def.equipLess) ? 1 : 0));
 export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; if (isZZ(def)) side.zzDeck = true; }
 export const cmdTax = (s) => (s.P.cmdStep ?? 2) * (s.P.cmdCasts || 0);
 // 統率領域から 唱える コスト ＝ コスト − 安く なる ぶん ＋ 統率者税（色の ぶんは のこる）
@@ -510,7 +512,7 @@ export function target(s, p) {
 export const silenced = (s) => s[s.active === 'P' ? 'P' : 'E'].bf.some((p) => p.def.silenceFoe);
 // 打ち消されない（ドロモカ・ティムール の 龍王の 化身 など）。side は 唱えた がわ
 export const uncounterable = (s, d, side) => !!d.uncounterable || ((d.types || []).includes('creature') && s[side].bf.some((p) => p.def.creaturesUncounterable));
-export function shielded(s, p) { return p.side === 'E' && !!p.def.hexproof?.(s, p, s.srcDef); }
+export function shielded(s, p) { return p.side === 'E' && (!!p.def.hexproof?.(s, p, s.srcDef) || (isCreature(p) && hasKw(s, p, 'hexproof'))); } // 呪禁：キーワード（宝具で つく）も
 
 // ---- ダメージ・ライフ ----
 // o.spell：呪文の ぴったり（{ pittari() }）
@@ -531,6 +533,9 @@ export function damage(s, p, n, src, o = {}) {
   n = boostDmg(s, n, src, p.side === 'E');
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
   if (p.shieldT === s.turn) return 0; // ダメージは 0 に なる（ニンフの 犬）
+  if (!isPW(p) && isCreature(p) && useShield(s, p)) return 0;
+  // 妄想心音（FGO）：ダメージの かわりに −1/−1カウンター（破壊不能でも タフネスが へる）
+  if (src && isCreature(p) && hasKw(s, src, 'wither')) { L(s, `${src.def.name} → ${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`); addMinus(s, p, n, src.side); return n; }
   if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
   if (isPW(p)) { p.loy = Math.max(0, p.loy - n); L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} の ちゅうせいが ${n} へった（のこり ${p.loy}）`); return n; }
   if (p.def.dmgToCounters) { const k = Math.min(n, p.ctr); p.ctr -= k; L(s, `${foe(s, p.side)}${p.def.name} の ＋1/＋1カウンターが ${k}こ へった`); }
@@ -683,7 +688,9 @@ export function leave(s, p, to = 'gy', o = {}) {
   return true;
 }
 
-export const destroy = (s, p) => (!hasKw(s, p, 'indestructible') ? leave(s, p, 'gy', { died: true }) : false);
+// 盾（たて）カウンター（FGO：ナイチンゲールの 宝具）：ダメージか 破壊を 1回 ふせいで なくなる
+function useShield(s, p) { if (!p.shieldCtr) return false; p.shieldCtr = 0; L(s, `${foe(s, p.side)}${p.def.name} の 盾（たて）カウンターが ふせいだ`); return true; }
+export const destroy = (s, p) => (hasKw(s, p, 'indestructible') || useShield(s, p) ? false : leave(s, p, 'gy', { died: true }));
 export const exile = (s, p) => leave(s, p, 'exile');
 export const bounce = (s, p) => leave(s, p, 'hand');
 
@@ -811,6 +818,8 @@ export function declareAttack(s, atk) {
 export function attackTriggers(s, atk) {
   if (atk.length) s.P.flags.attacked = true; // 強襲
   for (const a of [...atk]) if (onBf(s, a.p) && a.p.def.onAttack) a.p.def.onAttack(s, a.p, api, atk, a);
+  // 装備品（FGO の 宝具）：装備している クリーチャーが 攻撃するたび（def.onHostAttack(s, 装備品, クリーチャー, api, a)）
+  for (const a of [...atk]) for (const q of [...s.P.bf]) if (q.attached === a.p.uid && onBf(s, a.p) && onBf(s, q) && q.def.onHostAttack) q.def.onHostAttack(s, q, a.p, api, a);
   for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onAttacks) q.def.onAttacks(s, q, atk, api); // 讃美（1体だけで 攻撃）
   battleCry(s, atk);
   attackCounters(s, atk);
@@ -917,7 +926,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, shielded, silenced, uncounterable,
+  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, shielded, silenced, uncounterable, equipCost,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

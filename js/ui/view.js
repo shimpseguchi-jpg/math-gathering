@@ -71,7 +71,7 @@ export const COLOR_NAME = { W: '白', U: '青', K: '黒', G: '緑', R: '赤' };
 const KW = {
   flying: '飛行', reach: '到達', haste: '速攻', vigilance: '警戒', first: '先制攻撃', double: '二段攻撃', trample: 'トランプル',
   defender: '防衛', lifelink: '絆魂', deathtouch: '接死', flash: '瞬速', indestructible: '破壊不能', convoke: '召集', prowess: '果敢', evolve: '進化',
-  mentor: '教導', training: '訓練', battlecry: '喊声',
+  mentor: '教導', training: '訓練', battlecry: '喊声', hexproof: '呪禁', wither: '−1/−1',
 };
 export const RAR = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド', B: 'きほん' };
 
@@ -202,6 +202,8 @@ export function permFace(s, p, o = {}) {
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
+    p.shieldCtr ? '<span class="b mark">たて</span>' : '', // 盾カウンター（FGO：ナイチンゲール・プレッジ）
+    p.frozen && p.side === 'P' ? '<span class="b time">まひ</span>' : '',
     p.def.npFx ? `<span class="b np${(p.np || 0) >= 100 ? ' ready' : ''}">NP ${p.np || 0}${(p.np || 0) >= 100 ? '・ほうぐOK' : p.def.np ? `・あと${Math.ceil((100 - (p.np || 0)) / p.def.np)}回` : ''}</span>` : '', // 番外編 FGO：宝具の NP と あと なん回 攻撃で 宝具（100 いじょうで ボタンが つかえる）
     p.shin ? `<span class="b time">しんくん ${p.shin}</span>` : '',
     p.trial != null ? `<span class="b time">しれん ${p.trial}</span>` : '',
