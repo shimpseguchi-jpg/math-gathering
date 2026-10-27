@@ -5,6 +5,7 @@ import {
 } from './kit.js';
 export { T } from './kit.js';
 import { SKEL, SET_IDS } from './skel.js';
+import { applyPick } from '../engine/game.js';
 import { S3, B06 } from './set3.js';
 import { S4 } from './set4.js';
 import { S5 } from './set5.js';
@@ -354,7 +355,7 @@ const R = [
     x: true,
     play: (s, E, ctx) => xBurn(s, E, ctx, 0, (t) => { if (t.exact) E.drawCard(s); }),
   }),
-  sp('R11', '裂（さ）け目（め）の 稲妻（いなずま）', 'C', 'R', 3, 'sorcery', { play: burn(3), burnN: 3, suspend: { cost: 1, req: ['R'], turns: 1 }, suspendScore: 9 }),
+  sp('R11', '裂（さ）け目（め）の 稲妻（いなずま）', 'C', 'R', 2, 'sorcery', { play: burn(3), burnN: 3, suspend: { cost: 1, req: ['R'], turns: 1 }, suspendScore: 9 }),
   cr('R12', '火口（かこう）の 射手（いて）', 'C', 'R', 2, 2, 2, ['human', 'archer'], [], {
     onCast: (s, p, d, E) => { if (!d.types.includes('creature')) E.hitEnemy(s, 1, p); },
   }),
@@ -374,7 +375,7 @@ const R = [
   }),
   // 緑赤
   cr('R18', '山頂（さんちょう）の 徘徊者（はいかいしゃ）', 'C', 'R', 4, 4, 3, ['troll'], [], { pittari: (s, p, E) => E.addCounters(s, p, 1) }),
-  sp('R19', '引（ひ）き倒（たお）し', 'C', 'R', 4, 'instant', {
+  sp('R19', '引（ひ）き倒（たお）し', 'C', 'R', 3, 'instant', {
     play: (s, E) => {
       const b = E.burnTarget(s, 5, { creatureOnly: true, filter: (p) => E.need(s, p) <= (p.ctr > 0 ? 5 : 3) });
       return b ? { score: 6 + b.score, run: () => hit(s, E, b.t, b.t.ctr > 0 ? 5 : 3) } : null;
@@ -748,7 +749,7 @@ const R2 = [
   cr('R28', '冥界（めいかい）の 怒（いか）り犬（いぬ）', 'C', 'R', 2, 3, 1, ['elemental', 'dog'], [], { mustAttack: true, escape: { total: 4, req: ['R'], ctr: 1 } }),
   sp('R29', 'サテュロスの いたずら', 'C', 'R', 1, 'sorcery', { play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.satyr) }), escape: { total: 3, req: ['R'] } }),
   sp('R30', '稲妻（いなずま）の 斧（おの）', 'C', 'R', 1, 'instant', { discardCost: 1, play: burn(5, { creatureOnly: true }) }),
-  sp('R31', 'ほのおの サイコロ', 'C', 'R', 2, 'sorcery', {
+  sp('R31', 'ほのおの サイコロ', 'C', 'R', 1, 'sorcery', {
     play: (s, E) => { const b = E.burnTarget(s, 3, { mustHit: true }); return b ? { score: 4 + b.score * 0.6, run: () => diceBolt(s, E, b.t) } : null; },
   }),
   pm('R32', 'ケルドの 炎（ほのお）', 'U', 'R', 2, ['enchantment'], { sub: ['saga'], ...saga([
@@ -978,7 +979,7 @@ export const SETS = [
 // ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない レッスンなどは のぞく）
 export const ALL = SETS.filter((x) => x.released).flatMap((x) => x.cards);
 export const ALL_DEV = SETS.flatMap((x) => x.cards).filter((d) => !d.noPack);
-export const BY_ID = Object.fromEntries([...SETS.flatMap((x) => x.cards), ...Object.values(BASICS)].map((d) => [d.id, d]));
+export const BY_ID = Object.fromEntries([...SETS.flatMap((x) => x.cards), ...Object.values(BASICS)].map((d) => [d.id, applyPick(d)])); // applyPick：レアリティで ねらいかた（game.js）
 export const SET_OF = Object.fromEntries(SETS.flatMap((x) => x.cards.map((d) => [d.id, x.id])));
 REG.byId = BY_ID; REG.all = ALL_DEV;
 
@@ -1096,5 +1097,5 @@ export function boostBasic(d, k) {
       textOver: `クリーチャー1体を対象（たいしょう）とする。それはターン終了（しゅうりょう）時まで −${1 + k}/−${1 + k} の修整（しゅうせい）を受ける。${mark(k)}`,
     });
   }
-  return n;
+  return applyPick(n);
 }

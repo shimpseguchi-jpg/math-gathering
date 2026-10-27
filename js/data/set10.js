@@ -14,11 +14,11 @@ export function addNP(s, E, p, n) {
   E.L(s, `${p.def.name}：NP ${was} ＋ ${n} ＝ ${p.np}${was + n > NP_MAX ? `（さいだい ${NP_MAX}）` : ''}`);
   if (p.side !== 'P') while (p.np >= 100 && E.onBf(s, p) && !s.over) fireNP(s, E, p);
 }
-export function fireNP(s, E, p) {
+export function fireNP(s, E, p, t) {
   const was = p.np;
   p.np -= 100;
   E.L(s, `ほうぐ！ ${p.def.name}（NP ${was} − 100 ＝ ${p.np}）`);
-  p.def.npFx(s, E, p);
+  p.def.npFx(s, E, p, t); // t：レアの 宝具で 人が えらんだ あいて（npTgt）
   E.sba(s);
 }
 // 宝具まで あと なん回 攻撃するか（NP 40・1回 ＋40 → 40 ＋ 40 ＋ 40 ＝ 120 で あと 2回）。100 いじょうは 0
@@ -35,7 +35,7 @@ const hogu = {
   play: (s, p, E) => ((p.np || 0) >= 100 ? { score: 8, run: () => fireNP(s, E, p) } : null),
 };
 // 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP（40 いじょう。30 だと 4回 攻撃が いって ほぼ 出ない）。npFx(s, E, p)
-const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, acts: [hogu, ...(x.acts || [])], onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
+const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, acts: [x.npTgt ? { ...hogu, tgt: [x.npTgt], apply: (s, E, [[t]], _x, p) => fireNP(s, E, p, t) } : hogu, ...(x.acts || [])], onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
 // NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）
 const bestServant = (s, E) => servants(s, E).filter((p) => p.def.npFx).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
 const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
@@ -73,7 +73,7 @@ export const S10 = {
       E.enter(s, 'P', c.def, { card: c.def });
     },
   }),
-  FG08: np(40, (s, E) => { const b = foeBest(s, E); if (b) killIt(s, E, b.t); E.drawCard(s); }),
+  FG08: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); E.drawCard(s); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }), // レア：人は えらべる
   FG09: np(50, (s, E) => detain(s, E, biggest(s, E, (p) => !p.frozen))),
   FG10: np(20, (s, E) => E.drawCard(s, 2), { onCast: (s, p, d, E) => { if (p.side === 'P' && ['instant', 'sorcery'].some((t) => d.types.includes(t))) addNP(s, E, p, 20); } }),
   FG11: np(20, (s, E) => { E.gain(s, 3); for (const q of mine(s, E)) E.addCounters(s, q, 1); }, { upkeep: (s, p, E) => { if (p.side === 'P') for (const q of servants(s, E)) addNP(s, E, q, 20); } }),
@@ -169,6 +169,6 @@ export const S10 = {
   FG66: np(40, (s, E) => { const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 3); }),
   FG67: np(50, (s, E, p) => { const b = foeBest(s, E, E.power(s, p)) || foeBest(s, E); if (b && E.onBf(s, b.t)) E.fight(s, p, b.t); }),
   FG68: { play: (s, E) => (E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) },
-  FG69: np(40, (s, E) => { const b = foeBest(s, E); if (b) killIt(s, E, b.t); }),
+  FG69: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }),
   FG70: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.addCounters(s, q, 1); }),
 };

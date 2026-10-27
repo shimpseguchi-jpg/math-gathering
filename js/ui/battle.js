@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, BREAK_AT, BREAK_ALL,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, mulligan, cmdTax, cmdCost, useBreak, BREAK_AT, BREAK_ALL, pickOf,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -66,7 +66,7 @@ function humanAI() {
       await sheet(detail(d), [{ label: 'つかう', value: 1, kind: 'primary' }], { title: 'たいきが おわった！ ただで となえる', dismiss: false });
       let run = null;
       if (d.tgt && d.apply) {
-        const picks = needsTargets(d.tgt, {}) ? await pickAll(d.tgt, {}) : null;
+        const picks = needsTargets(d.tgt, {}) ? await pickAll(d.tgt, { card: d }) : null;
         if (picks) run = () => d.apply(s, api, picks, 0);
       } else { const r = d.play?.(s, api, { phase: 1, c, human: true, manaLeft: 0 }); if (r) run = r.run; }
       if (run) await castCard(s, c, null, { run, from: 'suspend' });
@@ -107,7 +107,7 @@ function humanAI() {
       render();
       let picks;
       if (ch.tgt) {
-        picks = needsTargets(ch.tgt, {}) ? await pickAll(ch.tgt, { note: `えいゆうたん「${noRuby(info(p.def).name)}」の ${roman}` }) : null;
+        picks = needsTargets(ch.tgt, {}) ? await pickAll(ch.tgt, { note: `えいゆうたん「${noRuby(info(p.def).name)}」の ${roman}`, card: p.def }) : null;
         if (!picks) picks = ch.tgt.map(() => []);
       } else await sheet(detail(p.def), [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: `えいゆうたん：${roman} が おきる`, dismiss: false });
       ch.run(s, api, p, picks);
@@ -187,7 +187,7 @@ function humanAI() {
           const pl = await payable(v.c.def.cost + m.extra, colorsOf(v.c.def), {});
           if (pl) castCard(s, v.c, pl, { run: m.run });
         } else if (v.tgt) {
-          const picks = await pickAll(v.c.def.tgt, { attackers });
+          const picks = await pickAll(v.c.def.tgt, { attackers, card: v.c.def });
           if (!picks) continue;
           castCard(s, v.c, plan(s, v.c.def.cost, colorsOf(v.c.def), { convoke: v.c.def.kw?.includes('convoke') }) || v.pl, { run: () => v.c.def.apply(s, api, picks) });
         } else castCard(s, v.c, v.pl, { run: v.r.run });
@@ -306,9 +306,35 @@ const targetLabel = (t) => {
   return `${t.side === 'E' ? 'てき：' : ''}${(nm(t))}${isCreature(t) ? `（${power(s, t)}/${pt(s, t)[1] - t.dmg}）` : ''}`;
 };
 // tgt の並びを 順に えらぶ。やめたら null
+// ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：パワーが いちばん 大きい。game.js の pickOf）は、てきを ねらう ところを 自動で きめる
+const HARM = /ダメージ|破壊|追放|手札に ?もど|持ち主の ?手札|タップ|−[0-9X０-９]|留置|格闘|ブロックできない|つける/;
+const foeSlot = (spec, d) => spec.side === 'E' || (spec.side === 'any' && HARM.test(info(d).text.replace(/（[ぁ-ゖー]+）/g, '')));
+async function autoPick(mode, spec, ctx, list) {
+  const d = ctx.card;
+  const k = spec.divide ? 1 : d.strive ? Math.max(spec.min ?? 1, 1) : Math.min(spec.max ?? 1, list.length);
+  const order = mode === 'rand' ? [...list].sort(() => B.s.rng() - 0.5) : [...list].sort((a, b) => (b === 'face' ? -1 : a === 'face' ? 1 : power(B.s, b) - power(B.s, a)));
+  const chosen = order.slice(0, k);
+  // 見せる：ランダムは 候補を じゅんばんに 光らせてから とまる
+  const el = (t) => (t === 'face' ? app().querySelector('[data-face]') : app().querySelector(`.perm[data-uid="${t.uid}"]`));
+  render();
+  if (mode === 'rand' && list.length > 1) for (let i = 0; i < 8; i++) { const e = el(order[i % order.length]); e?.classList.add('pick-roll'); await fx.pause(90); e?.classList.remove('pick-roll'); }
+  for (const t of chosen) el(t)?.classList.add('pick-hit');
+  toast(`${mode === 'rand' ? '🎲 ランダムで' : '👑 パワーが いちばん 大きい'} ${chosen.map(tName).join('・')} に きまった`);
+  await fx.pause(650);
+  return chosen;
+}
 async function pickAll(tgt, ctx = {}) {
   const picks = [];
+  const mode = pickOf(ctx.card);
   for (const spec of tgt) {
+    if (mode && foeSlot(spec, ctx.card)) {
+      const list = cands(spec, ctx).filter((t) => t === 'face' || t.side === 'E');
+      if (list.length < (spec.min ?? 1)) return null;
+      if (!list.length) { picks.push([]); continue; }
+      const chosen = await autoPick(mode, spec, ctx, list);
+      picks.push(spec.divide ? [{ t: chosen[0], n: spec.divide === 'x' ? ctx.x : spec.divide }] : chosen);
+      continue;
+    }
     const list = cands(spec, ctx);
     const min = spec.min ?? 1, max = Math.min(spec.max ?? 1, list.length);
     if (list.length < min) return null;
@@ -353,7 +379,7 @@ async function chooseMode(d, ctx = {}) {
     }
     if (!ms) return null;
     const all = [];
-    for (const m of ms) { const picks = m.tgt ? await pickAll(m.tgt, ctx) : []; if (!picks) break; all.push([m, picks]); }
+    for (const m of ms) { const picks = m.tgt ? await pickAll(m.tgt, { ...ctx, card: d }) : []; if (!picks) break; all.push([m, picks]); }
     if (all.length < ms.length) continue;
     return { run: (x) => { for (const [m, picks] of all) m.apply(B.s, api, picks, x); }, extra: (d.escalate || 0) * (ms.length - 1) + ms.reduce((n, m) => n + (m.extra || 0), 0) }; // m.extra：超過（なごり雪）など、その モードだけ 多く はらう
   }
@@ -451,7 +477,7 @@ async function doCast(c, from = 'hand') {
   if (d.modes) { if (!(mode = await chooseMode(d))) return stop(); extra += mode.extra; }
   if (d.tgt) {
     if (needsTargets(d.tgt, {})) {
-      picks = await pickAll(d.tgt, { x, note: d.strive ? `げきれい：2つめから 1つ ふえるごとに ＋${d.strive}マナ${manaNote()}` : '' });
+      picks = await pickAll(d.tgt, { card: d, x, note: d.strive ? `げきれい：2つめから 1つ ふえるごとに ＋${d.strive}マナ${manaNote()}` : '' });
       if (!picks) return stop();
       if (d.strive) extra += d.strive * (picks[0].length - 1);
     } else if (d.apply) return stop();
@@ -664,7 +690,7 @@ async function doAdventure(c) {
   let run;
   if (a.tgt && a.apply) {
     if (!needsTargets(a.tgt, {})) return sheet('<p>ねらえる 相手が いない。</p>', [{ label: 'とじる', value: 0 }]);
-    const picks = await pickAll(a.tgt, {}); if (!picks) return render();
+    const picks = await pickAll(a.tgt, { card: c.def }); if (!picks) return render();
     run = () => a.apply(s, api, picks, 0);
   } else {
     const ctx = { phase: B.phase, c, human: true };
@@ -818,7 +844,7 @@ async function tapPerm_(p) {
   }
   if (v.pump) { pay(s, plan(s, v.a.cost, v.a.req || [])); api.pump(p, v.a.pumpP, 0); return render(); }
   let picks;
-  if (v.a.tgt) { picks = await pickAll(v.a.tgt, { src: p, x: v.x }); if (!picks) return render(); }
+  if (v.a.tgt) { picks = await pickAll(v.a.tgt, { src: p, x: v.x, card: p.def }); if (!picks) return render(); }
   let drop = [];
   if (v.a.discard) {
     drop = await pickMany(`すてる カードを ${v.a.discard}まい えらぶ`, s.P.hand.map((c) => ({ label: ruby(info(c.def).name), value: c })), { min: v.a.discard, max: v.a.discard, note: `てふだ ${s.P.hand.length}まい − ${v.a.discard}まい ＝ のこり ${s.P.hand.length - v.a.discard}まい` });

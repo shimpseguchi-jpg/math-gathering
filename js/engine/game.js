@@ -47,6 +47,32 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 
 // 統率者戦（RAID.md 3.2）：統率者は 統率領域（cmd）に いて、いつでも 唱えられる。唱える たびに ＋2マナ（統率者税）
 // o = { step: 統率者税の 段（ふつう 2）, less: 安く なる マナ（レイドの 人間の 長は 1） }
+// ねらいかた（2026-10-27）：てきを ねらう こうかは レアリティで きまる。低学年なので 自分で えらぶ ところを しぼる
+// コモン＝ランダム（'rand'）、アンコモン・きほん＝パワーが いちばん 大きい てき（'most'）、レア・レジェンド＝自分で えらぶ（null）
+// ただし 自分で えらぶ ままの もの（PICK_FREE）：格闘・かみつき（ランダムだと つよい てきに あたって 自分が そんする）と、もともと よわい もの（1点・−1/−1 1こ・留置・1体を タップ）
+export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'FG67', 'ZZ79', 'RV27', 'U14', 'B04', 'B06', 'ZZ60', 'ZZ62', 'ZZ33', 'FG54', 'SR27', 'U03', 'FG31', 'FG41']);
+export const pickOf = (d) => (!d || d.token || !d.rar || PICK_FREE.has(d.id) ? null : d.rar === 'C' ? 'rand' : d.rar === 'U' || d.rar === 'B' ? 'most' : null);
+const PICK_KEYS = ['play', 'apply', 'etb', 'onAttack', 'onAttacks', 'onDie', 'onCombatHit', 'onFaceHit', 'onKill', 'upkeep', 'onTapped', 'onExact', 'onDamageCreature', 'onMinus', 'onCounters', 'onDraw', 'onOtherEnter', 'onAllyHit', 'onAnyCast', 'onPWAttacked', 'onLeaveSelf', 'onOtherLeave', 'onHurt'];
+// カードの こうかを 動かす あいだだけ s.pickMode を つける（ai.js の burnTarget が 見る）。play が かえす run も おなじ
+function wrapPick(fn, mode) {
+  if (typeof fn !== 'function' || fn.picked) return fn;
+  const set = (s, f) => { const was = s.pickMode; s.pickMode = mode; try { return f(); } finally { s.pickMode = was; } };
+  const w = function (...args) {
+    const s = args[0];
+    if (!s || typeof s !== 'object' || !s.P) return fn.apply(this, args);
+    return set(s, () => { const r = fn.apply(this, args); if (r && typeof r.run === 'function' && !r.run.picked) { const run = r.run; r.run = (...a) => set(s, () => run(...a)); r.run.picked = true; } return r; });
+  };
+  w.picked = true;
+  return w;
+}
+export function applyPick(d) {
+  const mode = pickOf(d);
+  if (!mode) return d;
+  for (const k of PICK_KEYS) if (d[k]) d[k] = wrapPick(d[k], mode);
+  for (const a of [...(d.acts || []), ...(d.modes || [])]) for (const k of ['play', 'apply']) if (a[k]) a[k] = wrapPick(a[k], mode);
+  return d;
+}
+
 export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; if (isZZ(def)) side.zzDeck = true; }
 export const cmdTax = (s) => (s.P.cmdStep ?? 2) * (s.P.cmdCasts || 0);
 // 統率領域から 唱える コスト ＝ コスト − 安く なる ぶん ＋ 統率者税（色の ぶんは のこる）
