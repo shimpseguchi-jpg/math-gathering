@@ -1,5 +1,6 @@
 // せってい画面（タイトルから）。WEB版は 開発モード：パックに 入る 弾（収録する 弾）を えらべる
 import { SETS } from '../data/cards.js';
+import { EMBLEMS } from '../data/emblems.js';
 import { packPool } from '../engine/run.js';
 import { soundOn, setSound } from './sfx.js';
 import { ruby } from './view.js';
@@ -36,6 +37,13 @@ const setSets = (v) => {
   sets = v;
   try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* 保存できなくても この あいだは つかえる */ }
 };
+// サブセット・番外編（2026-10-27）：パックの もんしょうで 解放（かいほう）した ものだけ、ここで まぜる・まぜないを えらべる
+// もんしょうが ついて いれば ふつうは まぜる。ここで はずした ものは まぜない（extraOff）
+const OFF_KEY = 'mtg-extra-off';
+let off = (() => { try { const v = JSON.parse(localStorage.getItem(OFF_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } })();
+export const extraOff = () => off;
+const setExtraOff = (v) => { off = v; try { localStorage.setItem(OFF_KEY, JSON.stringify(v)); } catch { /* この あいだだけ */ } };
+const EXTRA_EMBLEM = Object.fromEntries(EMBLEMS.filter((e) => e.fx.packExtra).map((e) => [e.fx.packExtra, e]));
 // みため（2026-10-26）：'classic'（いまの みため）か 'gba'（ドット。ゲームボーイアドバンスの ころの カードゲーム ふう）
 const THEME_KEY = 'mtg-theme';
 export const theme = () => { try { return localStorage.getItem(THEME_KEY) === 'gba' ? 'gba' : 'classic'; } catch { return 'classic'; } };
@@ -50,7 +58,8 @@ const setAdsOff = (v) => { adsOff = v; try { localStorage.setItem(AD_KEY, v ? '1
 // タイトルに 出す みじかい 説明（ぜんぶの ときは なし）
 export const setsNote = () => (String(enabledSets()) === String(RELEASED) ? '' : SETS.filter((x) => sets.includes(x.id)).map((x) => x.name.replace(/「.*$/, '')).join('・'));
 
-export function settingsScreen(app, back) {
+export function settingsScreen(app, back, o = {}) {
+  const unlocked = (id) => !!EXTRA_EMBLEM[id] && (o.activeIds || []).includes(EXTRA_EMBLEM[id].id);
   const draw = () => {
     const on = enabledSets();
     const pool = packPool(on);
@@ -65,6 +74,13 @@ export function settingsScreen(app, back) {
         <h3>プレイマット</h3>
         <p class="st-note">${ruby(`たたかいの 卓（たく）の もよう。ストーリーの 章や とうを クリアすると ふえる。${DEV ? '（開発モード：ぜんぶ えらべる）' : ''}`)}</p>
         <div class="mat-list">${MATS.map((m) => { const own = hasMat(m.id); return `<button type="button" class="mat-btn ${usingMat() === m.id ? 'on' : ''}" data-mat="${m.id}" ${own ? '' : 'disabled'} aria-pressed="${usingMat() === m.id}"><span class="mat-sw" data-m="${m.id}"></span><b>${own ? ruby(m.name) : '？？？'}</b>${own ? '' : `<small>${ruby(m.how)}</small>`}</button>`; }).join('')}</div>
+      </section>
+      <section class="st-sec">
+        <h3>${ruby('まぜる サブセット・番外編（ばんがいへん）')}</h3>
+        <p class="st-note">${ruby('パックの もんしょうで 解放（かいほう）した ものだけ えらべる。チェックを はずすと、もんしょうが ついて いても パックに まぜない。')}</p>
+        <ul class="st-sets">
+          ${SETS.filter((x) => x.sub || x.extra).map((x) => { const u = unlocked(x.id); return `<li class="${u ? '' : 'planned'}"><label><input type="checkbox" data-extra="${x.id}" ${u && !off.includes(x.id) ? 'checked' : ''} ${u ? '' : 'disabled'}><span><b>${ruby(x.name)}</b><small>${u ? `${x.cards.filter((d) => !d.noPack).length}しゅるい` : ruby(`もんしょう「${EXTRA_EMBLEM[x.id]?.name || ''}」で 解放（かいほう）`)}</small></span></label></li>`; }).join('')}
+        </ul>
       </section>
       <section class="st-sec">
         <h3>おと</h3>
@@ -96,6 +112,8 @@ export function settingsScreen(app, back) {
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
   };
   app().onchange = (e) => {
+    const x = e.target.closest('[data-extra]');
+    if (x) { const id = +x.dataset.extra; setExtraOff(x.checked ? off.filter((k) => k !== id) : [...new Set([...off, id])]); return draw(); }
     const b = e.target.closest('[data-set]'); if (!b) return;
     const id = +b.dataset.set, on = enabledSets();
     const next = b.checked ? ALL_SETS.filter((x) => x === id || on.includes(x)) : on.filter((x) => x !== id);

@@ -4,7 +4,7 @@ import { EMBLEMS, BRANCHES, EMBLEM_BY_ID, EMBLEM_HOURS, BANNERS, emblemEffects }
 import { CATS, pointsFor, passed } from '../data/quiz.js';
 import { sheet, esc, ruby, info, noRuby, toast } from './view.js';
 import { studyScreen } from './study.js';
-import { DEV } from './settings.js';
+import { DEV, extraOff } from './settings.js';
 
 const KEY = 'mtg-emblem-v1';
 const HOUR = 3600 * 1000;
@@ -20,7 +20,8 @@ let M = load();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(M)); } catch { /* 保存できなくても あそべる */ } };
 
 export const activeIds = (now = Date.now()) => EMBLEMS.filter((e) => (M.got[e.id] || 0) > now).map((e) => e.id);
-export const activeEffects = () => emblemEffects(activeIds(), M.pick || {});
+// せっていで はずした サブセット・番外編（extraOff）は まぜない
+export const activeEffects = () => emblemEffects(activeIds().filter((id) => !extraOff().includes(EMBLEM_BY_ID[id]?.fx.packExtra)), M.pick || {});
 const retPts = (now = Date.now()) => (M.ret && M.ret.until > now ? M.ret.pts : 0);
 export const emblemPoints = () => M.pts + retPts();
 export const addEmblemPoints = (n) => { M.pts += n; save(); }; // ストーリーモードの ごほうび

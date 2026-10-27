@@ -114,7 +114,7 @@ export function title() {
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
-    if (b.dataset.go === 'settings') return settingsScreen(app, title);
+    if (b.dataset.go === 'settings') return settingsScreen(app, title, { activeIds: activeIds() });
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
