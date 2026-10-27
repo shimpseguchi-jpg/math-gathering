@@ -12,9 +12,11 @@ import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, STORY_TOTAL } from './story.js';
 import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
-import { RAID, raidOpen, raidShown, raidFree } from './raidstore.js';
+import { RAID, raidOpen, raidShown, raidFree, applyRaid } from './raidstore.js';
+import { CONF, loadConf } from './server.js';
+import { adminScreen } from './admin.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme } from './settings.js';
+import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme, applyConf } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy, blessStudy } from './emblem.js';
@@ -102,8 +104,9 @@ export function title() {
       <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
       <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>
       <button type="button" class="btn ghost" data-go="settings">せってい</button>
+      ${hasServer() && CONF.admin ? '<button type="button" class="btn ghost" data-go="admin">開発モード（先生）</button>' : ''}
     </div>
-    ${DEV ? `<p class="fine"><span class="dev-badge">開発モード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
+    ${DEV ? `<p class="fine"><span class="dev-badge">デバッグモード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
     ${endlessBest() ? `<p class="fine">むげんの とうの きろく：${endlessBest().floor}階・${endlessBest().score}てん</p>` : ''}
     <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
   </main>`;
@@ -114,6 +117,7 @@ export function title() {
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
+    if (b.dataset.go === 'admin') return adminScreen(app, title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title, { activeIds: activeIds() });
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
@@ -707,4 +711,8 @@ function endlessEnd() {
 applyTheme();
 applyMat();
 initTerms();
-title();
+// GAS 版：さいしょに 先生の せってい（パックの 弾・レイド）と、先生か どうかを もらう
+if (hasServer()) {
+  app().innerHTML = '<main class="title"><p class="fine">よみこみちゅう…</p></main>';
+  loadConf().then(() => { applyConf(); applyRaid(); title(); });
+} else title();

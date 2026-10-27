@@ -45,15 +45,8 @@ const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑�
 const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
 
 // ---- サーバー ----
-export const hasServer = () => !!(window.google && window.google.script && window.google.script.run);
-export function call(fn, arg) {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('つながらなかった')), 20000);
-    window.google.script.run
-      .withSuccessHandler((r) => { clearTimeout(t); resolve(r); })
-      .withFailureHandler((e) => { clearTimeout(t); reject(e); })[fn](arg);
-  });
-}
+export { hasServer, call } from './server.js';
+import { hasServer, call } from './server.js';
 
 const deckTitle = (x) => `${pairName(x.p)}・${TIER_LABEL[x.t]}`;
 const deckName = (n, p) => `${nameOf(n)}の ${pairName(p)}デッキ`; // ランキングに 出る なまえ

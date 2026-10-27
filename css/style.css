@@ -1101,3 +1101,14 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 /* ドラフトの 色（2026-10-27） */
 .dr-cols { margin: 0 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 700; }
 .dr-cols .btn { min-height: 36px; padding: 4px 14px; font-size: 14px; }
+
+/* 開発モード（先生の 管理画面・GAS 版） */
+.admin .ad-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+.admin input[type=text], .admin input[type=email], .admin input[type=number], .admin input[type=datetime-local], .admin select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--table-3); color: var(--ink); color-scheme: dark; max-width: 100%; }
+.admin .ad-table { width: 100%; border-collapse: collapse; margin: 6px 0; display: block; overflow-x: auto; }
+.admin .ad-table th { font-size: .8em; text-align: left; padding: 2px 4px; }
+.admin .ad-table td { padding: 3px 4px; vertical-align: top; }
+.admin .ad-table td small { display: block; font-size: .75em; opacity: .8; }
+.admin .ad-words { white-space: nowrap; }
+.admin .ad-words select + select { margin-left: 2px; }
+.admin a { color: inherit; }

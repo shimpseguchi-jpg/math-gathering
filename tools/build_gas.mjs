@@ -48,14 +48,19 @@ if (html.includes('src="js/') || html.includes('href="css/')) throw new Error('�
 writeFileSync(join(OUT, 'index.html'), html);
 
 // Code.gs：サーバーが デッキを チェック できるように、カードの 点数と 色を 書きこむ
-const { BY_ID } = await import(join(ROOT, 'js/data/cards.js'));
+const { BY_ID, SETS } = await import(join(ROOT, 'js/data/cards.js'));
 const PTS = { C: 1, U: 2, R: 3, L: 4, B: 0 };
 // [点数, 色, 旗の 3色（旗だけ）]
 const cards = Object.fromEntries(Object.values(BY_ID).map((d) => [d.id, [d.pts ?? PTS[d.rar] ?? 0, [...(d.color || '')].filter((c) => 'WUKGR'.includes(c)).join(''), ...(d.banner ? [d.banner] : [])]]));
-const code = readFileSync(join(ROOT, 'tools/gas_Code.gs'), 'utf8').replace('/*CARDS*/{}', JSON.stringify(cards));
+const code = readFileSync(join(ROOT, 'tools/gas_Code.gs'), 'utf8').replace('/*CARDS*/{}', JSON.stringify(cards))
+  .replace(/\/\*SETS\*\/\{[^}]*\}/, JSON.stringify({ // 弾：先生が せってい シートで えらべる もの
+    main: SETS.filter((x) => !x.extra && !x.sub && !x.raid).map((x) => x.id),
+    extra: SETS.filter((x) => x.extra || x.sub).map((x) => x.id),
+    released: SETS.filter((x) => x.released).map((x) => x.id),
+  }));
 writeFileSync(join(OUT, 'Code.gs'), code);
 writeFileSync(join(OUT, 'appsscript.json'), JSON.stringify({
   timeZone: 'Asia/Tokyo', exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8',
-  webapp: { executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS' },
+  webapp: { executeAs: 'USER_DEPLOYING', access: 'DOMAIN' }, // 学内（ドメイン内）だけ。ひらいた 人の 学校アカウントが わかる
 }, null, 2) + '\n');
 console.log(`mathtcg/gas/ に できた：index.html ${(Buffer.byteLength(html) / 1024).toFixed(0)}KB、Code.gs（カード ${Object.keys(cards).length}種）`);
