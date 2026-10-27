@@ -34,7 +34,9 @@ const LOADER = `(function () {
 mkdirSync(OUT, { recursive: true });
 // JS：モジュールを 1つに まとめる（ふるい iPad でも うごくように safari14 むけ）
 const js = esbuild(['js/ui/app.js', '--bundle', '--format=iife', '--minify', '--target=safari14', '--charset=utf8', '--legal-comments=none']);
-const css = esbuild(['css/style.css', '--minify', '--target=safari14', '--charset=utf8']);
+// 絵（img/）は GAS に ファイルを おけないので、CSS の 中に data URL で うめこむ
+const css = esbuild(['css/style.css', '--minify', '--target=safari14', '--charset=utf8'])
+  .replace(/url\((["']?)\.\.\/img\/([^"')]+)\1\)/g, (_, q, f) => `url(data:image/${f.split('.').pop()};base64,${readFileSync(join(ROOT, 'img', f)).toString('base64')})`);
 // GAS は くばる ときに おおきな スクリプトを こわす ことが あるので、英数字だけの base64 にして いれておく
 const b64 = (str) => Buffer.from(str, 'utf8').toString('base64').replace(/.{1,100}/g, '$&\n');
 let html = readFileSync(join(ROOT, 'index.html'), 'utf8')
