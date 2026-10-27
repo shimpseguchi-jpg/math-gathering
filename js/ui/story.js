@@ -182,11 +182,14 @@ export function storyMenu(back) {
     if (e.target.closest('[data-st="back"]')) return back();
     const b = e.target.closest('[data-ep]'); if (!b || b.disabled) return;
     const ep = ALL.find((x) => x.id === b.dataset.ep);
-    const v = await sheet(`<p class="say"><b>${ruby(info(BY_ID[ep.ch.guide]).name)}</b>${ep.intro.map((l) => `<span>${ruby(l)}</span>`).join('')}</p><p class="what">${ruby(`まなぶ こと：${ep.learn}`)}</p>`,
+    const v = await sheet(`${talk(info(BY_ID[ep.ch.guide]).name, ep.intro)}<p class="what">${ruby(`まなぶ こと：${ep.learn}`)}</p>`,
       [{ label: 'はじめる', value: 1, kind: 'primary' }, { label: 'もどる', value: 0 }], { title: `${ep.id}　${ruby(ep.title)}` });
     if (v) play(ep, back);
   };
 }
+
+// ストーリーの 会話：RPG の テキストウィンドウの ように 大きく（低学年が 読みやすい ように）
+const talk = (who, lines) => `<div class="talk"><b class="talk-who">${ruby(who)}</b>${lines.map((l) => `<p>${ruby(l)}</p>`).join('')}</div>`;
 
 function play(ep, back) {
   const guide = info(BY_ID[ep.ch.guide]).name;
@@ -195,7 +198,7 @@ function play(ep, back) {
   const coach = ep.coach?.map((st) => ({ who: guide, ...st }));
   const onEnd = async (r) => {
     if (!r.win) {
-      await sheet(`<p class="say"><b>${ruby(guide)}</b><span>${ruby('おしかった！ もう いちど やって みよう。')}</span></p>`, [{ label: 'ストーリーへ', value: 1, kind: 'primary' }], { title: 'まけて しまった', dismiss: false });
+      await sheet(talk(guide, ['おしかった！ もう いちど やって みよう。']), [{ label: 'ストーリーへ', value: 1, kind: 'primary' }], { title: 'まけて しまった', dismiss: false });
       return again();
     }
     const S = storyDone();
@@ -205,7 +208,7 @@ function play(ep, back) {
     const pts = first ? REWARD + (last ? CHAPTER_REWARD : 0) : 0;
     if (pts) addEmblemPoints(pts);
     const mat = last && awardMat(CHAPTER_MAT[ep.ch.id]) ? CHAPTER_MAT[ep.ch.id] : null; // 章を クリア：プレイマット
-    await sheet(`<p class="say"><b>${ruby(guide)}</b><span>${ruby(last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。')}</span></p>${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</p>` : ''}`,
+    await sheet(`${talk(guide, [last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。'])}${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</p>` : ''}`,
       [{ label: 'ストーリーへ', value: 1, kind: 'primary' }], { title: `${ep.id}　クリア！`, dismiss: false });
     return again();
   };
