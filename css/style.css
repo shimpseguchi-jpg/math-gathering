@@ -1045,14 +1045,14 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] .hint-pop { border-radius: 4px; background: var(--win); color: var(--ink); border-color: var(--line); box-shadow: 0 0 0 3px var(--px); font-family: var(--display); }
 :root[data-theme="gba"] .hint-pop b { color: var(--gold); }
 
-/* ---- プレイマット（2026-10-27：js/ui/mats.js）：たたかいの ときだけ 卓の 背景を かえる。せっていの 見本（.mat-sw）も おなじ もよう ---- */
+/* ---- プレイマット（2026-10-27：js/ui/mats.js）：絵は コードで えがいた もの（tools/mats/*.js → tools/gen_mats.mjs → img/mats/*.webp）。たたかいの ときだけ 卓の 背景を かえる。せっていの 見本（.mat-sw）も おなじ もよう ---- */
 [data-m="plain"], body[data-mat="plain"] { --mat: var(--table); }
-[data-m="nyx"], body[data-mat="nyx"] { --mat: url("../img/mats/nyx.webp") center / cover no-repeat, #0a0f2c; } /* コードで えがいた 絵（tools/mats/nyx.js → tools/gen_mats.mjs）*/
-[data-m="guild"], body[data-mat="guild"] { --mat: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 42px), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0 2px, transparent 2px 84px), radial-gradient(ellipse at 15% 0%, rgba(200, 60, 50, 0.35), transparent 55%), radial-gradient(ellipse at 85% 100%, rgba(60, 120, 220, 0.35), transparent 55%), linear-gradient(#444a57, #2a2e38); }
-[data-m="scale"], body[data-mat="scale"] { --mat: radial-gradient(circle at 50% 0, transparent 0 13px, rgba(255, 190, 120, 0.22) 14px 15px, rgba(0, 0, 0, 0.3) 16px, transparent 17px) 0 0 / 32px 20px, radial-gradient(ellipse at 50% 30%, rgba(255, 120, 40, 0.25), transparent 70%), linear-gradient(#5a1a12, #240806); }
-[data-m="neon"], body[data-mat="neon"] { --mat: linear-gradient(rgba(0, 255, 230, 0.16) 1px, transparent 1px) 0 0 / 40px 40px, linear-gradient(90deg, rgba(255, 60, 200, 0.16) 1px, transparent 1px) 0 0 / 40px 40px, radial-gradient(ellipse at 50% 100%, rgba(255, 60, 200, 0.3), transparent 60%), linear-gradient(#140b2a, #090514); }
-[data-m="erebos"], body[data-mat="erebos"] { --mat: radial-gradient(circle at 20% 30%, rgba(200, 200, 255, 0.07) 0 26px, transparent 60px) 0 0 / 220px 160px, radial-gradient(ellipse at 50% 120%, rgba(130, 60, 170, 0.65), transparent 60%), linear-gradient(#170b22, #07040c); }
-[data-m="jace"], body[data-mat="jace"] { --mat: repeating-radial-gradient(circle at 50% 45%, rgba(120, 190, 255, 0.13) 0 2px, transparent 2px 38px), radial-gradient(circle at 50% 45%, rgba(90, 160, 255, 0.25), transparent 50%), linear-gradient(#0a1c34, #050d1a); }
+[data-m="nyx"], body[data-mat="nyx"] { --mat: url("../img/mats/nyx.webp") center / cover no-repeat, #0a0f2c; }
+[data-m="guild"], body[data-mat="guild"] { --mat: url("../img/mats/guild.webp") center / cover no-repeat, #2a2e38; }
+[data-m="scale"], body[data-mat="scale"] { --mat: url("../img/mats/scale.webp") center / cover no-repeat, #240806; }
+[data-m="neon"], body[data-mat="neon"] { --mat: url("../img/mats/neon.webp") center / cover no-repeat, #090514; }
+[data-m="erebos"], body[data-mat="erebos"] { --mat: url("../img/mats/erebos.webp") center / cover no-repeat, #07040c; }
+[data-m="jace"], body[data-mat="jace"] { --mat: url("../img/mats/jace.webp") center / cover no-repeat, #050d1a; }
 body[data-mat]:not([data-mat="plain"]):has(.battle) { background: var(--mat); background-attachment: fixed; }
 /* マットの 上では 場の わくを すこし すかす */
 body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blur(1px); }
