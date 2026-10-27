@@ -21,7 +21,7 @@ import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateS
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, filterCount, saveFilter } from './deckfilter.js';
-import { cardFace, fullCard, detail, sheet, pickMany, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
 import { BANNERS } from '../data/emblems.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -46,28 +46,24 @@ const cmdIdent = () => (A?.cmd ? colorsOf(BY_ID[A.cmd]) : null);
 // ドラフトの 色（2026-10-27：デュエプレの ドラフトの ように）。2色か、旗の ある 3色を えらぶと、その 色の カード だけが 出る
 // 3色を えらぶと その 3色の 旗を 1まい もらう（デッキが 3色に できる）。統率者戦では 統率者の 色。階を のぼる ときに かえられる
 const draftCols = () => (A?.cmd ? cmdIdent() : A?.draftCols || null);
-const colsText = (cs) => cs.map((c) => COLOR_NAME[c]).join('・');
+const colsText = (cs) => ['W', 'U', 'K', 'R', 'G'].filter((c) => cs.includes(c)).map((c) => COLOR_NAME[c]).join('・'); // いつもの じゅん（白・青・黒・赤・緑）
+// デュエプレの ように：2色か 3色（旗つき）の くみあわせが ランダムに 3つ 出て、そこから 1つ えらぶ
+const PAIRS = ['WU', 'UK', 'KR', 'RG', 'GW', 'WK', 'UR', 'KG', 'RW', 'GU'];
+function draftOffers() {
+  const all = [...PAIRS.map((p) => ({ cols: [...p] })), ...BANNERS.map((d) => ({ cols: [...d.banner], banner: d.id }))].filter((o) => o.cols.join() !== (A.draftCols || []).join());
+  for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+  return all.slice(0, 3);
+}
 async function chooseDraftColors(back) {
-  const kind = await sheet(`<p>${ruby('ドラフトで つかう 色を えらぼう。えらんだ 色の カード だけが 出るよ。')}</p>`, [
-    { label: '2しょく', value: 2, kind: 'primary', note: '色を 2つ えらぶ' },
-    { label: '3しょく（はたつき）', value: 3, kind: 'primary', note: '3つの 色の 旗（はた）を 1まい もらえる。旗（はた）が あると デッキを 3色に できる' },
-    ...(back ? [{ label: 'かえない', value: 0 }] : []),
+  const offers = draftOffers();
+  const v = await sheet(`<p>${ruby('ドラフトで つかう 色の くみあわせを 1つ えらぼう。えらんだ 色の カード だけが 出るよ。')}</p>`, [
+    ...offers.map((o, k) => ({ label: `<span>${o.banner ? '3しょく' : '2しょく'}：${colsText(o.cols)}</span>`, value: k + 1, kind: 'primary', note: o.banner ? ruby(`${info(BY_ID[o.banner]).name}つき（デッキを 3色に できる）`) : '' })),
+    ...(back ? [{ label: `かえない（${colsText(A.draftCols || [])}）`, value: 0 }] : []),
   ], { title: 'ドラフトの 色', dismiss: false });
-  if (!kind) return false;
-  let cols, banner = null;
-  if (kind === 2) {
-    const ok = await pickMany(ruby('色を 2つ えらぼう'), ['W', 'U', 'K', 'R', 'G'].map((c) => ({ label: COLOR_NAME[c], value: c })), { min: 2, max: 2 });
-    if (!ok) return chooseDraftColors(back);
-    cols = ['W', 'U', 'K', 'R', 'G'].filter((c) => ok.includes(c));
-  } else {
-    const bn = await sheet(`<p>${ruby('3つの 色の くみあわせを えらぼう。その 旗（はた）を 1まい もらえる。')}</p>`, [
-      ...BANNERS.map((d) => ({ label: `<span>${ruby(info(d).name)}（${colsText([...d.banner])}）</span>`, value: d.id, kind: 'primary' })), { label: 'もどる', value: null },
-    ], { title: '3しょく（はたつき）', dismiss: false });
-    if (!bn) return chooseDraftColors(back);
-    banner = BY_ID[bn]; cols = ['W', 'U', 'K', 'R', 'G'].filter((c) => banner.banner.includes(c));
-    if (!A.pool.includes(bn)) A.pool.push(bn);
-  }
-  A.draftCols = cols; save();
+  if (!v) return false;
+  const o = offers[v - 1];
+  if (o.banner && !A.pool.includes(o.banner)) A.pool.push(o.banner);
+  A.draftCols = ['W', 'U', 'K', 'R', 'G'].filter((c) => o.cols.includes(c)); save();
   return true;
 }
 
