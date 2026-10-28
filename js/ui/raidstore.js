@@ -13,12 +13,19 @@ export function loadRaid() {
 export function saveRaid(r) { try { localStorage.setItem(KEY, JSON.stringify(r)); } catch { /* 保存できなくても あそべる */ } }
 // WEB版（サーバーなし）は 仮モード：期間を 気に せず いつでも あそべる（点は この 端末だけ）
 export const raidFree = () => !hasServer();
+// WEB版：デバッグモードの せってい（settings.js）で タイトルに 出さない ことも できる（この 端末だけ。点は のこる）
+const HIDE_KEY = 'mtg-raid-hide';
+let hide = (() => { try { return localStorage.getItem(HIDE_KEY) === '1'; } catch { return false; } })();
+export const raidHidden = () => hide;
+export const setRaidHidden = (v) => { hide = v; try { localStorage.setItem(HIDE_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } applyRaid(); };
 // GAS 版：レイドの ID と おわる 時刻は 先生の せってい シート（server.js の CONF.raid）。ない ときは レイドなし
+// （開発モードの 画面で「出さない」に した ときも サーバーが レイドなしに する）
 export function applyRaid() {
-  if (!hasServer()) return;
+  if (!hasServer()) { RAID.off = hide; return; }
   RAID.off = !CONF.raid;
   if (CONF.raid) { RAID.id = CONF.raid.id; RAID.ends = CONF.raid.ends; }
 }
+applyRaid();
 export const raidOpen = () => !RAID.off && (raidFree() || !RAID.ends || Date.now() < RAID.ends);
 // おわってから 1週間は けっかを 見られる
 export const raidShown = () => !RAID.off && (raidOpen() || Date.now() < RAID.ends + 7 * 86400000);

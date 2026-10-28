@@ -1,6 +1,6 @@
 // 開発モード（先生だけ・GAS 版）：みんなに きく せっていを かえる 管理画面。中身は スプレッドシートと おなじ（どちらで かえても よい）
 // ・この 端末の デバッグモード（弾・こうこく・プレイマットを 自由に かえる。この 端末だけ）
-// ・パックの 弾、つかわない サブセット・番外編、レイドの ID と おわり、ランキングの 時刻、ゴーストの 数
+// ・パックの 弾、つかわない サブセット・番外編、レイドを 出すか・レイドの ID と おわり、ランキングの 時刻、ゴーストの 数
 // ・かんりしゃ（先生）の メールアドレス、あいことば（docs/PROMO.md 2.2）
 // 先生むけ なので 漢字を ふつうに つかう（子どもには 出ない）
 import { SETS, BY_ID } from '../data/cards.js';
@@ -61,9 +61,10 @@ export async function adminScreen(app, back) {
       </section>
       <section class="st-sec">
         <h3>レイド</h3>
+        <label class="ad-row">タイトルに <select data-conf="レイドを出す">${['出す', '出さない'].map((w) => `<option value="${w}" ${(c['レイドを出す'] === '出さない' ? '出さない' : '出す') === w ? 'selected' : ''}>${w}</option>`).join('')}</select></label>
         <label class="ad-row">レイドID <input type="text" data-conf="レイドID" value="${esc(c['レイドID'])}" placeholder="tarkir-1"></label>
         <label class="ad-row">おわる日時 <input type="datetime-local" data-conf="レイドのおわり" value="${toLocal(c['レイドのおわり'])}"></label>
-        <p class="st-note">おわる日時を空にするとレイドなし。IDを変える（tarkir-2 など）と点とゴーストが0から始まります。</p>
+        <p class="st-note">「出さない」にすると、全員のタイトルからレイドが消えます（点とゴーストはのこるので、「出す」にもどせばつづきから）。おわる日時を空にしてもレイドなし。IDを変える（tarkir-2 など）と点とゴーストが0から始まります。</p>
       </section>
       <section class="st-sec">
         <h3>オンライン バトル</h3>
