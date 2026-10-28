@@ -45,8 +45,8 @@ const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑�
 const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
 
 // ---- サーバー ----
-export { hasServer, call } from './server.js';
-import { hasServer, call } from './server.js';
+export { hasServer, call, send } from './server.js';
+import { hasServer, call, send } from './server.js';
 
 const deckTitle = (x) => `${pairName(x.p)}・${TIER_LABEL[x.t]}`;
 const deckName = (n, p) => `${nameOf(n)}の ${pairName(p)}デッキ`; // ランキングに 出る なまえ
@@ -177,7 +177,7 @@ async function findOpponent(app, back, o, mine) {
         try { const x = await call('mtgResult', { g: v.id, i: deck.id || '', r: res, n: o.name, p: deck.p }); if (x && x.s != null) deck.s = x.s; } catch { /* つながらなくても この たんまつの 点は のこる */ }
       }
       note = `デッキの 点 ${before} → <b>${deck.s}</b>（${POINTS[res] > 0 ? '＋' : '−'}${Math.abs(POINTS[res])}${res === 'l' && before === 0 ? '。0より 下には ならない' : ''}）`;
-    } else if (v.id && hasServer()) call('mtgResult', { g: v.id, r: res }).catch(() => {});
+    } else if (v.id && hasServer()) send('mtgResult', { g: v.id, r: res }).catch(() => {});
     save(o);
     const cls = res === 'w' ? 'win' : res === 'l' ? 'lose' : 'draw';
     await sheet(`<p class="big-result ${cls}">${{ w: 'かった！', l: 'まけた…', d: 'ひきわけ' }[res]}</p><p>${note}</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: `オンライン バトル：${RESULT[res]}`, dismiss: false });

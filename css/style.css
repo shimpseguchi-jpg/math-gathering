@@ -894,6 +894,7 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] .title h1 { color: var(--gold); text-shadow: 3px 3px 0 #b04010, 6px 6px 0 var(--px); letter-spacing: 0.04em; }
 :root[data-theme="gba"] .title-mark span { border-radius: 3px; font-family: var(--display); box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.5); animation: gba-bob 1.2s steps(1) infinite; }
 :root[data-theme="gba"] .title-mark span:nth-child(2n) { animation-delay: -0.6s; }
+:root[data-theme="gba"] .ld-mark span { border-radius: 2px; box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); animation-timing-function: steps(2); } /* よみこみちゅう（index.html）も ドットふうに */
 @keyframes gba-bob { 50% { translate: 0 -5px; } }
 :root[data-theme="gba"] .title-btns { gap: 2px; padding: 10px 8px; background: var(--win); border: 3px solid var(--line); border-radius: 6px; box-shadow: 0 0 0 3px var(--px), 6px 6px 0 3px rgba(0, 0, 0, 0.45); }
 :root[data-theme="gba"] .title-btns .btn { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; column-gap: 8px; text-align: left; min-height: 40px; padding: 6px 10px 6px 26px; background: transparent; border-color: transparent; box-shadow: none; color: var(--ink); }
