@@ -4,15 +4,22 @@ import { SETS, SET_OF } from '../data/cards.js';
 import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
 import { info, ruby, esc, byColorCost, COLOR_NAME, RAR } from './view.js';
+import { mapRuby } from './ruby.js';
 
 const KEY = 'mtg-build-filter';
-const FRESH = () => ({ open: false, sort: 'color', desc: false, q: '', cost: [], colors: [], types: [], subs: [], rar: [], kws: [], sets: [], deck: 'all' });
+const FRESH = () => ({ open: false, sort: 'color', desc: false, q: '', t: '', cost: [], colors: [], types: [], subs: [], rar: [], kws: [], sets: [], deck: 'all' });
 export function loadFilter(key = KEY) { try { return { ...FRESH(), ...JSON.parse(localStorage.getItem(key) || '{}'), key }; } catch { return { ...FRESH(), key }; } }
 export function saveFilter(F) { try { localStorage.setItem(F.key || KEY, JSON.stringify(F)); } catch { /* 保存できなくても つかえる */ } }
 // 弾の みじかい なまえ（サブセット・番外編は「」の 中）
 const setLabel = (x) => (x.sub || x.extra ? (/「(.*)」/.exec(x.name)?.[1] || x.name) : x.name.replace(/「.*$/, ''));
 
 const plain = (s) => s.replace(/（[ぁ-ゖー]+）/g, '').trim();
+// さがす：空白で 区切った ことばが ぜんぶ ふくまれる。漢字（「1枚 引く」）でも ふりがな（「1まい 引く」）でも まぜても あたる。全角・半角（＋1/＋1 と +1/+1）は 同じに
+const norm = (s) => String(s || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+const words = (q) => String(q || '').split(/[\s　]+/).map(norm).filter(Boolean);
+const FORMS = new Map(); // カードの 文の さがす 形（1文字 打つ たびに つくりなおさない）
+const formsOf = (raw) => { if (!FORMS.has(raw)) FORMS.set(raw, [plain(raw), mapRuby(raw, (b, y) => y, (t) => t), raw.replace(/[（）]/g, '')].map(norm)); return FORMS.get(raw); }; // 漢字だけ・ふりがなだけ・りょうほう
+const hits = (raw, ws) => { const forms = formsOf(raw); return ws.every((w) => forms.some((f) => f.includes(w))); };
 // クリーチャーの しゅるい（表の「クリーチャー — 人間・兵士」の うしろ）。ふりがなつきで かえす
 export const subsOf = (d) => ((d.types || []).includes('creature') ? (info(d).type.split('—')[1] || '').split(/[・ ]/).map((x) => x.trim()).filter(Boolean) : []);
 const TYPES = [['creature', 'クリーチャー'], ['instant', 'インスタント'], ['sorcery', 'ソーサリー'], ['enchantment', 'エンチャント'], ['artifact', 'アーティファクト'], ['planeswalker', 'プレインズウォーカー'], ['legend', '伝説（でんせつ）']];
@@ -33,11 +40,11 @@ const SORTS = [
 ];
 const on = (list, v) => list.includes(v);
 const flip = (list, v) => (on(list, v) ? list.filter((x) => x !== v) : [...list, v]);
-export const filterCount = (F) => F.cost.length + F.colors.length + F.types.length + F.subs.length + F.rar.length + F.kws.length + F.sets.length + (F.deck !== 'all' ? 1 : 0) + (F.q ? 1 : 0);
+export const filterCount = (F) => F.cost.length + F.colors.length + F.types.length + F.subs.length + F.rar.length + F.kws.length + F.sets.length + (F.deck !== 'all' ? 1 : 0) + (F.q ? 1 : 0) + (F.t ? 1 : 0);
 
 // items：{ i（プールの ばんごう）, d, inDeck, no（入れられない わけ）, more（まとめて 見せる とき：もう 1まい 入れられる）}。しぼりこんで ならべた i を かえす
 export function applyFilter(F, items) {
-  const q = plain(F.q || '');
+  const qw = words(F.q), tw = words(F.t);
   const keep = items.filter(({ d, inDeck, no, more }) => {
     const cs = colorsOf(d);
     if (F.cost.length && !on(F.cost, costBucket(d))) return false;
@@ -50,7 +57,8 @@ export function applyFilter(F, items) {
     if (F.deck === 'in' && !inDeck) return false;
     if (F.deck === 'out' && inDeck) return false;
     if (F.deck === 'ok' && (more !== undefined ? !more : inDeck || no)) return false;
-    if (q && !plain(info(d).name).includes(q) && !info(d).name.replace(/[（）]/g, '').includes(q)) return false;
+    if (qw.length && !hits(info(d).name, qw)) return false;
+    if (tw.length && !hits(`${info(d).type} ${info(d).text}`, tw)) return false; // カードの テキスト（と タイプの 行）
     return true;
   });
   const cmp = (SORTS.find((s) => s[0] === F.sort) || SORTS[0])[2];
@@ -69,7 +77,8 @@ export function filterPanel(F, defs, shown, total, unit = 'まい', o = {}) {
   const n = filterCount(F);
   return `<section class="fpanel" aria-label="ならべかえと しぼりこみ">
     <div class="frow"><span class="flabel">ならべる</span><button type="button" class="chip-f dir" data-fdir="1" aria-label="じゅんばんを ぎゃくに">${F.desc ? '↓ 大きい じゅん' : '↑ 小さい じゅん'}</button>${SORTS.map(([k, l]) => chip('fsort', k, l, F.sort === k)).join('')}</div>
-    <div class="frow"><span class="flabel">なまえ</span><input type="search" class="fq" data-fq="1" value="${esc(F.q)}" placeholder="なまえで さがす" aria-label="なまえで さがす"></div>
+    <div class="frow"><span class="flabel">なまえ</span><input type="search" class="fq" data-fq="q" value="${esc(F.q)}" placeholder="なまえで さがす" aria-label="なまえで さがす"></div>
+    <div class="frow"><span class="flabel">テキスト</span><input type="search" class="fq" data-fq="t" value="${esc(F.t)}" placeholder="れい：ひこう、1まい 引く、+1/+1" aria-label="カードの テキストで さがす"></div>
     ${sets.length > 1 ? `<div class="frow"><span class="flabel">${ruby('弾（だん）')}</span><div class="fscroll">${sets.map((x) => chip('fset', x.id, ruby(setLabel(x)), on(F.sets, x.id))).join('')}</div></div>` : ''}
     <div class="frow"><span class="flabel">マナコスト</span>${COSTS.map((c) => chip('fcost', c, c, on(F.cost, c))).join('')}</div>
     <div class="frow"><span class="flabel">いろ</span>${Object.entries(COLOR_NAME).map(([c, l]) => chip('fcolor', c, `<i class="pip m-${c}">${l}</i>`, on(F.colors, c))).join('')}${chip('fcolor', 'multi', '2色いじょう', on(F.colors, 'multi'))}${chip('fcolor', 'none', 'むしょく', on(F.colors, 'none'))}</div>
@@ -80,6 +89,13 @@ export function filterPanel(F, defs, shown, total, unit = 'まい', o = {}) {
     ${o.noDeck ? '' : `<div class="frow"><span class="flabel">デッキ</span>${[['all', 'ぜんぶ'], ['in', '入れた カード'], ['out', '入れて いない'], ['ok', 'いま 入れられる']].map(([k, l]) => chip('fdeck', k, l, F.deck === k)).join('')}</div>`}
     <div class="frow fsum"><span>${shown} / ${total}${unit} を 見せて いる${n ? `（しぼりこみ ${n}こ）` : ''}</span>${n ? '<button type="button" class="chip-f" data-freset="1">しぼりこみを けす</button>' : ''}</div>
   </section>`;
+}
+
+// なまえ・テキストの 入力。かわったら true（入力ちゅうは 画面ぜんぶを かきなおさない：入力欄が きえない ように）
+export function onFilterInput(F, el) {
+  const k = el?.dataset?.fq; if (!k) return false;
+  F[k === 't' ? 't' : 'q'] = el.value; saveFilter(F);
+  return true;
 }
 
 // パネルの ボタン。かわったら true

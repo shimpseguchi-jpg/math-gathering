@@ -23,7 +23,7 @@ import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zuk
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy, blessStudy } from './emblem.js';
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
-import { loadFilter, filterPanel, applyFilter, onFilterClick, filterCount, saveFilter } from './deckfilter.js';
+import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
 import { BANNERS } from '../data/emblems.js';
 import { gacha } from './gacha.js';
@@ -409,10 +409,9 @@ export function deckBuilder(C = advCtx()) {
     press = setTimeout(() => { pressed = true; showDetail(+el.dataset.i); }, 450);
   };
   app().onpointerup = app().onpointercancel = () => clearTimeout(press);
-  // なまえで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
+  // なまえ・テキストで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
   app().oninput = (e) => {
-    if (!e.target.dataset?.fq) return;
-    F.q = e.target.value; saveFilter(F);
+    if (!onFilterInput(F, e.target)) return;
     const list = shownIdx();
     app().querySelector('.pool').innerHTML = poolHtml(list);
     const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${total()}${unit} を 見せて いる`;

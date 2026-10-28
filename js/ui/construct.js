@@ -14,7 +14,7 @@ import { deckBuilder, FLOOR_NAMES, CMD_BUFF_FROM } from './app.js';
 import { pickLegend } from './commander.js';
 import { onPack, syncTrophyTickets } from './trophies.js';
 import { zukanPack } from './zukan.js';
-import { loadFilter, filterPanel, applyFilter, onFilterClick, filterCount, saveFilter } from './deckfilter.js';
+import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
 import { hasServer, CONF } from './server.js';
 import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME } from './view.js';
 import {
@@ -308,10 +308,9 @@ function cardList() {
     </main>`;
   };
   draw();
-  // なまえで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
+  // なまえ・テキストで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
   app().oninput = (e) => {
-    if (!e.target.dataset?.fq) return;
-    F.q = e.target.value; saveFilter(F);
+    if (!onFilterInput(F, e.target)) return;
     const shown = applyFilter(F, items);
     app().querySelector('.cs-grid').innerHTML = tiles(shown);
     const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${shown.length} / ${ids.length}しゅるい を 見せて いる`;
