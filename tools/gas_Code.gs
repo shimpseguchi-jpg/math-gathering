@@ -58,12 +58,15 @@ var CONF = [
   ['読みこみ元', 'claude/math-tcg-requirements-8oklux', '「ゲームを 最新に する」で ゲーム本体を とる GitHub の ブランチ（マージした あとは ccr-a96fc02a-yijbz1）']
 ];
 
+// データを おく スプレッドシート。スクリプト プロパティ SHEET_ID が あれば その シート（学校の アカウントの ドライブに おく とき）、
+// なければ スクリプトが ついて いる シート
+var BOOK_ = null;
 function book_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (ss) return ss;
-  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID'); // シートに ついて いない スクリプトの とき
-  if (!id) throw new Error('スプレッドシートが ない');
-  return SpreadsheetApp.openById(id);
+  if (BOOK_) return BOOK_;
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  var ss = id ? SpreadsheetApp.openById(String(id).trim()) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('スプレッドシートが ない');
+  return (BOOK_ = ss);
 }
 var SH_ = {};
 function sh_(k) {

@@ -117,5 +117,9 @@ throws(() => G.mtgAdminUpdate(), 'こわれた ファイルは とらない');
 setUser('taro@school.ed.jp');
 throws(() => G.mtgAdminUpdate(), '子どもは 最新に できない');
 
+// ---- SHEET_ID（データを 学校の ドライブの シートに）----
+{ const m = makeGas(); m.props.SHEET_ID = ' SCHOOL '; ok(m.G.mtgConfig().login, 'SHEET_ID の シートを つかう'); }
+{ const m = makeGas(); m.props.SHEET_ID = 'NOPE'; throws(() => m.G.mtgRanking(), 'SHEET_ID が まちがって いたら エラー'); }
+
 console.log(bad ? `\n${bad}こ NG` : '\nぜんぶ OK');
 process.exit(bad ? 1 : 0);

@@ -56,7 +56,7 @@ const web = (url) => {
 };
 const page = (content) => { const o = { content, setTitle: () => o, setXFrameOptionsMode: () => o, addMetaTag: () => o }; return o; };
 const ctx = {
-  SpreadsheetApp: { getActiveSpreadsheet: () => ss },
+  SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: (id) => { if (id !== 'SCHOOL') throw new Error('ない シート'); return ss; } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props[k] ?? null, setProperty: (k, v) => { props[k] = String(v); }, getProperties: () => ({ ...props }), deleteProperty: (k) => { delete props[k]; } }) },
   CacheService: { getScriptCache: () => ({ get: (k) => cache[k] ?? null, put: (k, v) => { cache[k] = v; }, remove: (k) => { delete cache[k]; },
     getAll: (ks) => Object.fromEntries(ks.filter((k) => k in cache).map((k) => [k, cache[k]])), putAll: (o) => { for (const [k, v] of Object.entries(o)) { if (v.length > 100000) throw new Error('大きすぎ'); cache[k] = v; } } }) },
