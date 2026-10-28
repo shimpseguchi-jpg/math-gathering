@@ -536,12 +536,12 @@ const titanSplit = (s, E, p) => {
 const spellCost = (d, o) => d.cost + (o?.x || 0) * (d.xMul || 1);
 
 const W2 = [
-  cr('W27', 'アコーダーの 聖騎士（せいきし）', 'C', 'W', 2, 3, 1, ['human', 'knight'], ['battlecry']),
-  cr('W28', '裂（さ）け目（め）見張（みは）りの エイヴン', 'C', 'W', 3, 2, 3, ['bird', 'soldier'], ['flying'], vanish(3, {
+  cr('W27', 'アクロスの 聖騎士（せいきし）', 'C', 'W', 2, 3, 1, ['human', 'knight'], ['battlecry']),
+  cr('W28', '裂（さ）け目（め）見張（みは）りの 鳥（とり）の 兵士（へいし）', 'C', 'W', 3, 2, 3, ['bird', 'soldier'], ['flying'], vanish(3, {
     etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); },
     onLeaveSelf: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); },
   })),
-  cr('W29', 'ろうそく森（もり）の 魔女（まじょ）', 'C', 'W', 2, 2, 2, ['human', 'cleric'], [], {
+  cr('W29', 'ろうそくの 魔女（まじょ）', 'C', 'W', 2, 2, 2, ['human', 'cleric'], [], {
     combatStart: (s, p, E) => { if (E.coven(s)) E.pump(p, 0, 0, ['flying']); },
   }),
   cr('W30', 'プライドの 英雄（えいゆう）', 'C', 'W', 3, 2, 3, ['human', 'soldier'], [], { heroic: (s, p, E) => { for (const q of mine(s, E)) E.pump(q, 1, 0); } }),
@@ -598,10 +598,10 @@ const W2 = [
     etb: (s, p, E) => E.token(s, p.side, T.pegasus),
     onOtherEnter: (s, p, q, E) => { if (q.side === p.side && q.def.types.includes('enchantment')) E.token(s, p.side, T.pegasus); },
   }), types: ['enchantment', 'creature'] },
-  cr('W39', 'かがやく 聖戦士（せいせんし） エーデリン', 'R', 'W', 3, (s, p, E) => E.creatures(s, p.side).length, 4, ['human', 'knight'], ['vigilance'], {
+  cr('W39', 'アクロスの 女王（じょおう） キュメーデ', 'R', 'W', 3, (s, p, E) => E.creatures(s, p.side).length, 4, ['human', 'knight'], ['vigilance'], {
     onAttack: (s, p, E, atk, a) => { const [t] = E.token(s, p.side, T.human, 1, { tapped: true }); if (t) { t.attacking = true; atk.push({ p: t, t: a.t }); } },
   }),
-  cr('W40', 'フェリダーの 君主（くんしゅ）', 'L', 'W', 6, 4, 6, ['cat', 'beast'], ['vigilance', 'lifelink'], {
+  cr('W40', 'オレスコスの 白（しろ）い 大猫（おおねこ）', 'L', 'W', 6, 4, 6, ['cat', 'beast'], ['vigilance', 'lifelink'], {
     upkeep: (s, p, E) => { if (p.side === 'P' && s.P.life >= 40) { E.L(s, `フェリダーの 君主：ライフ ${s.P.life}（40 いじょう）で かち！`); s.over = 'win'; } },
   }),
 ];
@@ -638,7 +638,7 @@ const U3 = [
   cr('U34', '時（とき）を わたる クロノゾア', 'U', 'U', 4, 3, 3, ['illusion'], ['flying'], vanish(3, {
     onDie: (s, p, E) => { if (!p.time && p.side === 'P') E.token(s, 'P', T.illusion, 2); },
   })),
-  pm('U35', 'ミラーリの 予想（よそう）', 'R', 'U', 3, ['enchantment'], { sub: ['saga'], ...saga([
+  pm('U35', 'ニクスの 予想（よそう）', 'R', 'U', 3, ['enchantment'], { sub: ['saga'], ...saga([
     { run: (s, E) => { const c = bestIn(s.P.gy, (c) => c.def.types.includes('instant') && !c.def.basic); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.hand.push(c); E.L(s, `てふだへ：${c.def.name}`); } } },
     { run: (s, E) => { const c = bestIn(s.P.gy, (c) => c.def.types.includes('sorcery') && !c.def.basic); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.hand.push(c); E.L(s, `てふだへ：${c.def.name}`); } } },
     { run: (s) => { s.P.flags.copySpells = s.turn; } },
@@ -667,7 +667,7 @@ const U3 = [
       if (t && E.onBf(s, t)) { E.bounce(s, t); E.sba(s); }
     },
   }),
-  cr('U40', '大（おお）だこの 王（おう） ロートス', 'L', 'U', 7, 8, 8, ['octopus'], [], {
+  cr('U40', '大（おお）だこの 王（おう）', 'L', 'U', 7, 8, 8, ['octopus'], [], {
     onAttack: (s, p, E) => {
       const ts = E.creatures(s, p.side === 'P' ? 'E' : 'P').sort((a, b) => E.power(s, b) - E.power(s, a)).slice(0, 8);
       for (const q of ts) { q.tapped = true; q.frozen = true; }
@@ -700,7 +700,7 @@ const G2 = [
     mana: ['G'], manaN: (p) => (p.ctr > 0 ? 3 : 1),
     acts: [{ cost: 4, req: ['G'], adapt: 3, when: [1, 2], play: (s, p, E) => (p.ctr === 0 ? { score: 6, run: () => E.addCounters(s, p, 3) } : null) }],
   }),
-  pm('G33', 'フレイアリーズの 歌（うた）', 'U', 'G', 3, ['enchantment'], { sub: ['saga'], ...saga([
+  pm('G33', 'ナイレアの 歌（うた）', 'U', 'G', 3, ['enchantment'], { sub: ['saga'], ...saga([
     ...[1, 2].map(() => ({ run: (s) => { s.P.flags.anyManaUntil = s.stats.playerTurns; } })),
     { run: (s, E) => { for (const q of mine(s, E)) { E.addCounters(s, q, 1); E.pump(q, 0, 0, ['vigilance', 'trample']); } } },
   ]) }),
@@ -741,25 +741,25 @@ const G2 = [
     onLeaveSelf: (s, p, E) => E.token(s, p.side, T.beast),
   }),
   cr('G39', 'はがね葉（ば）の チャンピオン', 'R', 'G', 3, 5, 4, ['elf', 'knight'], [], { minBlockPow: 3 }),
-  cr('G40', '原初（げんしょ）の 飢（う）え ガルタ', 'L', 'G', 12, 12, 12, ['dinosaur'], ['trample'], {
+  cr('G40', '原初（げんしょ）の 飢（う）えの 巨獣（きょじゅう）', 'L', 'G', 12, 12, 12, ['beast'], ['trample'], {
     costLess: (s, E) => E.totalPower(s, E.creatures(s, 'P')), costMin: 2,
   }),
 ];
 
 const R2 = [
-  cr('R27', 'ゴブリンの たいこたたき', 'C', 'R', 2, 2, 2, ['goblin', 'warrior'], ['battlecry']),
+  cr('R27', 'サテュロスの たいこたたき', 'C', 'R', 2, 2, 2, ['satyr', 'warrior'], ['battlecry']),
   cr('R28', '冥界（めいかい）の 怒（いか）り犬（いぬ）', 'C', 'R', 2, 3, 1, ['elemental', 'dog'], [], { mustAttack: true, escape: { total: 4, req: ['R'], ctr: 1 } }),
   sp('R29', 'サテュロスの いたずら', 'C', 'R', 1, 'sorcery', { play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.satyr) }), escape: { total: 3, req: ['R'] } }),
   sp('R30', '稲妻（いなずま）の 斧（おの）', 'C', 'R', 1, 'instant', { discardCost: 1, play: burn(5, { creatureOnly: true }) }),
   sp('R31', 'ほのおの サイコロ', 'C', 'R', 1, 'sorcery', {
     play: (s, E) => { const b = E.burnTarget(s, 3, { mustHit: true }); return b ? { score: 4 + b.score * 0.6, run: () => diceBolt(s, E, b.t) } : null; },
   }),
-  pm('R32', 'ケルドの 炎（ほのお）', 'U', 'R', 2, ['enchantment'], { sub: ['saga'], ...saga([
+  pm('R32', 'プルフォロスの 炎（ほのお）', 'U', 'R', 2, ['enchantment'], { sub: ['saga'], ...saga([
     { run: (s, E) => E.discard(s, [...s.P.hand]) },
     { run: (s) => { s.P.flags.refill7 = s.stats.playerTurns; } },
     { run: (s, E) => { for (const q of mine(s, E)) if (E.colorsOf(q.def).includes('R')) E.pump(q, 2, 0); } },
   ]), permScore: (s) => (s.P.hand.length <= 2 ? 16 : 0) }),
-  cr('R33', 'オキシド山（さん）の 英雄（えいゆう）', 'U', 'R', 4, 4, 2, ['human', 'warrior'], ['haste', 'battlecry'], {
+  cr('R33', 'イロアスの 英雄（えいゆう）', 'U', 'R', 4, 4, 2, ['human', 'warrior'], ['haste', 'battlecry'], {
     onAttack: (s) => { s.smallCantBlock = s.turn; },
   }),
   cr('R34', '灰（はい）の フェニックス', 'U', 'R', 3, 2, 2, ['phoenix'], ['flying', 'haste'], {
@@ -770,7 +770,7 @@ const R2 = [
     etb: (s, p, E) => { if (p.side !== 'P') return; E.discard(s, [...s.P.hand]); E.drawCard(s, 3); },
     escape: { total: 6, req: ['R'], ctr: 1 },
   }),
-  cr('R36', 'ラクドスの 穴（あな）の ドラゴン', 'R', 'R', 4, 3, 3, ['dragon'], ['flying'], { hellbent: true, kwFn: (s, p) => (hb(s, p) ? ['double'] : null) }),
+  cr('R36', '冥界（めいかい）の 穴（あな）の ドラゴン', 'R', 'R', 4, 3, 3, ['dragon'], ['flying'], { hellbent: true, kwFn: (s, p) => (hb(s, p) ? ['double'] : null) }),
   cr('R37', '金（きん）づかいの ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
     richTreasure: true,
     onAttack: (s, p, E) => E.token(s, p.side, T.treasure),
@@ -797,12 +797,12 @@ const R2 = [
     },
     onAttack: (s, p, E) => titanSplit(s, E, p),
   }),
-  cr('R40', 'ゴブリンの 親分（おやぶん） クレンコ', 'L', 'R', 4, 3, 3, ['goblin', 'warrior'], [], {
+  cr('R40', 'サテュロスの 親分（おやぶん）', 'L', 'R', 4, 3, 3, ['satyr', 'warrior'], [], {
     acts: [{
-      cost: 0, tap: true, when: [1], label: 'ゴブリンを ふやす',
+      cost: 0, tap: true, when: [1], label: 'サテュロスを ふやす',
       play: (s, p, E) => {
-        const n = s[p.side].bf.filter((q) => isSub(q, 'goblin')).length;
-        return { score: 3 + n * 2, run: () => { E.token(s, p.side, T.goblin, n); E.L(s, `クレンコ：ゴブリンが ${n}体 ふえた`); } };
+        const n = s[p.side].bf.filter((q) => isSub(q, 'satyr')).length;
+        return { score: 3 + n * 2, run: () => { E.token(s, p.side, T.satyrR, n); E.L(s, `サテュロスの 親分：サテュロスが ${n}体 ふえた`); } };
       },
     }],
   }),
@@ -812,7 +812,7 @@ const GOLD3 = [
   cr('WG03', 'ブロンズ皮（がわ）の ライオン', 'U', 'WG', 3, 3, 3, ['cat'], ['convoke'], {
     onAttack: (s, p, E) => { if (E.coven(s)) E.pump(p, 0, 0, ['indestructible']); },
   }),
-  cr('WG04', '秋（あき）の 君主（くんしゅ） レイノア', 'R', 'WG', 4, 3, 5, ['human', 'noble'], [], {
+  cr('WG04', 'セテッサの 秋（あき）の 女王（じょおう）', 'R', 'WG', 4, 3, 5, ['human', 'noble'], [], {
     endStep: (s, p, E) => { if (!E.coven(s)) return; E.token(s, 'P', T.saproling); const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 1); },
   }),
   cr('WU03', '星（ほし）を よむ スフィンクス', 'U', 'WU', 3, 3, 3, ['sphinx'], ['flying'], vanish(3, { onTimeRemoved: (s, p, E) => { if (p.side === 'P') E.bolster(s, 1); } })),
@@ -821,7 +821,7 @@ const GOLD3 = [
     onAttack: (s, p, E) => E.drawCard(s),
   }),
   cr('RW03', 'ニクス生（う）まれの 英雄（えいゆう）', 'U', 'RW', 2, 2, 3, ['human', 'soldier'], ['battlecry'], { heroic: (s, p, E) => E.token(s, 'P', T.soldier) }),
-  cr('RW04', '正義（せいぎ）の 天使（てんし） オレリア', 'R', 'RW', 4, 2, 5, ['angel'], ['flying', 'mentor'], {
+  cr('RW04', '正義（せいぎ）の アルコン', 'R', 'RW', 4, 2, 5, ['archon'], ['flying', 'mentor'], {
     combatStart: (s, p, E) => { const t = E.bestBuffTarget(s, null, { ready: true }); if (t) { E.target(s, t); E.pump(t, 2, 0, ['vigilance', 'trample']); } },
   }),
   cr('UR03', 'からっぽの 手（て）の 嵐使（あらしつか）い', 'U', 'UR', 2, (s, p) => 2 + (hb(s, p) ? 2 : 0), 3, ['human', 'wizard'], ['prowess'], {

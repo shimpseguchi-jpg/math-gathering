@@ -68,6 +68,7 @@ export const T = {
   illusion: cr('t_illusion', 'イリュージョン', null, 'U', 0, 2, 2, ['illusion'], ['flying']),
   kraken: cr('t_kraken', 'クラーケン', null, 'U', 0, 8, 8, ['kraken']),
   satyr: cr('t_satyr', 'サテュロス', null, 'R', 0, 1, 1, ['satyr'], [], { cantBlock: true }),
+  satyrR: cr('t_satyrR', 'サテュロス', null, 'R', 0, 1, 1, ['satyr']), // テーロスの 弾の ゴブリンの かわり（ブロックできる）
   pegasus: cr('t_pegasus', 'ペガサス', null, 'W', 0, 2, 2, ['pegasus'], ['flying']),
   human: cr('t_human', '人間', null, 'W', 0, 1, 1, ['human']),
   shark: cr('t_shark', 'サメ', null, 'U', 0, 0, 0, ['shark'], ['flying']), // X/X は 出すときに きめる

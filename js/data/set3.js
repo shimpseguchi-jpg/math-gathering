@@ -300,7 +300,7 @@ Object.assign(S3, {
   W90: { ...gain1, ...disturb(2, ghost('W90', '光（ひかり）の まぼろし', 'R', 2, 1, 1, ['flying'], '飛行（ひこう）。ほかの クリーチャーが あなたの戦場（せんじょう）に出るたび、あなたは1点のライフを得（え）る。', gain1)) },
   W91: {
     pow: (s, p, E) => kindred(s, E, p.side), tou: (s, p, E) => kindred(s, E, p.side),
-    ...disturb(4, ghost('W91', 'カティルダの 夜明（よあ）け', 'L', 4, 2, 2, ['flying', 'lifelink'], '飛行（ひこう）。絆魂（はんこん）。ほかの あなたの スピリットは 絆魂（はんこん）を 持（も）つ。', {
+    ...disturb(4, ghost('W91', '守（まも）り手（て）の 夜明（よあ）け', 'L', 4, 2, 2, ['flying', 'lifelink'], '飛行（ひこう）。絆魂（はんこん）。ほかの あなたの スピリットは 絆魂（はんこん）を 持（も）つ。', {
       legend: true, grant: (s, q, p) => (p !== q && isSub(p, 'spirit') ? ['lifelink'] : null),
     })),
   },
@@ -333,9 +333,9 @@ Object.assign(S3, {
     etb: (s, p, E) => { if (p.side !== 'P') return; const c = lowestKeep(s, E); if (c) { E.discard(s, [c]); E.drawCard(s); } },
   },
   R76: { acts: [{ cost: 0, tap: true, when: [1, 2], label: 'てきに 1点', play: (s, p, E) => ({ score: 3, run: () => E.hitEnemy(s, 1, p) }) }] },
-  R77: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.goblin); } },
+  R77: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.satyrR); } },
   R78: spectacle(2),
-  R79: { ...spectacle(2), play: (s, E, ctx) => (later(s, E, ctx) ? null : { score: 9, run: () => E.token(s, 'P', T.goblin, 4) }) },
+  R79: { ...spectacle(2), play: (s, E, ctx) => (later(s, E, ctx) ? null : { score: 9, run: () => E.token(s, 'P', T.satyrR, 4) }) },
   R80: { ...spectacle(2), etb: (s, p, E) => { if (p.side === 'P' && E.dmgThisTurn(s) > 0) E.hitEnemy(s, 2, p); } },
   R81: { ...spectacle(2), play: (s, E, ctx) => (later(s, E, ctx) ? null : { score: 5, run: () => E.hitEnemy(s, 3, null) }) },
   R82: spectacle(2),

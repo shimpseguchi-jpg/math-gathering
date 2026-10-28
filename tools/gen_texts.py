@@ -29,7 +29,7 @@ SUB = {'人間': 'human', '戦士': 'warrior', '兵士': 'soldier', 'スピリ�
        'ウィザード': 'wizard', '騎士': 'knight', '巨人': 'giant', 'クレリック': 'cleric', 'ゾンビ': 'zombie', '吸血鬼': 'vampire', 'ヴァンパイア': 'vampire', '天使': 'angel',
        'ペガサス': 'pegasus', 'サテュロス': 'satyr', 'ビースト': 'beast', 'ワーム': 'wurm', 'ハイドラ': 'hydra', 'エレメンタル': 'elemental', '猫': 'cat', '鳥': 'bird',
        '狼': 'wolf', 'マイア': 'myr', 'クラーケン': 'kraken', '壁': 'wall', 'ニンフ': 'nymph', '半神': 'demigod', 'デーモン': 'demon', '忍者': 'ninja', 'オーラ': 'aura',
-       '旗': 'banner', 'レッスン': 'lesson', '祠': 'shrine', '英雄譚': 'saga', '装備品': 'equipment', 'フラクタル': 'fractal', 'エルダー': 'elder', '昆虫': 'insect', 'サーヴァント': 'servant', 'ボンプ': 'bangboo'}
+       '旗': 'banner', 'アルコン': 'archon', 'ハーピー': 'harpy', 'ラミア': 'lamia', 'レッスン': 'lesson', '祠': 'shrine', '英雄譚': 'saga', '装備品': 'equipment', 'フラクタル': 'fractal', 'エルダー': 'elder', '昆虫': 'insect', 'サーヴァント': 'servant', 'ボンプ': 'bangboo'}
 plainT = lambda t: re.sub(r'（[ぁ-ゖー]+）', '', t)
 skel, sets = {}, {}
 for fname, set_id, *only in DRAFTS:

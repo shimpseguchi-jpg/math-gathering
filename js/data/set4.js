@@ -48,7 +48,7 @@ export const S4 = {
     pow: (s, p) => s[p.side].bf.filter((q) => E_isCr(q) || q.def.aura).length, tou: (s, p) => s[p.side].bf.filter((q) => E_isCr(q) || q.def.aura).length,
     ...bestow(4, ['W'], { pt: (s, q) => { const n = s[q.side].bf.filter((r) => E_isCr(r) || r.def.aura).length; return [n, n]; } }),
   },
-  W55: { anthem: (s, q, p) => (p !== q && isSub(p, 'angel') ? [1, 1] : null), grant: (s, q, p) => (p !== q && isSub(p, 'angel') ? ['lifelink'] : null) },
+  W55: { anthem: (s, q, p) => (p !== q && isSub(p, 'archon') ? [1, 1] : null), grant: (s, q, p) => (p !== q && isSub(p, 'archon') ? ['lifelink'] : null) },
   W56: {
     costLess: (s) => knights(s), anthem: (s, q, p, E) => (E.isCreature(p) ? [1, 1] : null),
     acts: [{ cost: 4, req: ['W'], tap: true, when: [1, 2], label: '騎士（きし）を 出す', play: (s, p, E) => ({ score: 5, run: () => E.token(s, 'P', T.knightV) }) }],
