@@ -979,7 +979,7 @@ export const SETS = [
   // レイド（raid）：パックにも せっていにも 出ない。レイドの 統率者デッキ だけ
   { id: 13, name: 'レイド「タルキール大戦（たいせん）」', cards: SET13, raid: true },
 ];
-// ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない レッスンなどは のぞく）
+// ALL：出ている 弾（ふつうの パック）。ALL_DEV：開発中の 弾も ふくめた ぜんぶ（パックに 入らない 学習呪文などは のぞく）
 export const ALL = SETS.filter((x) => x.released).flatMap((x) => x.cards);
 export const ALL_DEV = SETS.flatMap((x) => x.cards).filter((d) => !d.noPack);
 export const BY_ID = Object.fromEntries([...SETS.flatMap((x) => x.cards), ...Object.values(BASICS)].map((d) => [d.id, applyPick(d)])); // applyPick：レアリティで ねらいかた（game.js）

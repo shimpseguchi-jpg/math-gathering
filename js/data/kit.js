@@ -297,10 +297,10 @@ function chooseOne(s, E, defs, title, then) {
   if (s.ai.pickCard && !s.swapped) return s.ai.pickCard(s, defs, title).then((d) => then(d || defs[0]));
   return then(aiChoice(s, E, defs));
 }
-// 学習：レッスンの 3まいから 1まいを えらんで 手札に
+// 学習：学習呪文の 3まいから 1まいを えらんで 手札に
 export const LESSONS = [];
 export function learn(s, E) {
-  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：レッスンを 1まい えらぶ', (d) => { const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう：${d.name}`); });
+  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：学習呪文（がくしゅうじゅもん）を 1まい えらぶ', (d) => { const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう：${d.name}`); });
 }
 // 再帰（さいき）を ふせぐ（パワーの 合計で 強く なる カードどうし）
 export function guard(s, k, f, dflt) {

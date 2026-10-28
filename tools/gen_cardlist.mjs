@@ -125,7 +125,7 @@ console.log(`docs/CARDLIST.md：${all.length}種 ＋ きほん ${basics.length} 
 // ---- ウェブページ（tools/cardlist_page.html に データを 入れる）----
 const htmlArg = process.argv.find((a) => a.startsWith('--html='));
 if (htmlArg) {
-  // 開発中の 弾（開発モードで 遊べる）と 案（プロモ）。B06 は 第3弾の 黒の きほんカード、LS は 第5弾の レッスン、YT は アルケミーの 創出だけの カード
+  // 開発中の 弾（開発モードで 遊べる）と 案（プロモ）。B06 は 第3弾の 黒の きほんカード、LS は 第5弾の 学習呪文、YT は アルケミーの 創出だけの カード
   const DRAFTS = [['SET3.md', '3'], ['SET4.md', '4'], ['SET5.md', '5'], ['SET6.md', '6'], ['SET7.md', '7'], ['ALCHEMY.md', 'A'], ['PLANESWALKERS.md', 'W'], ['PROMO.md', 'P']];
   const SET_LABEL = { 1: '第1弾', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: 'サブ 三つの旗', 7: 'サブ ラヴニカ', A: 'サブ アルケミー', W: 'サブ プレインズウォーカー', F: '番外編 FGO', S: '番外編 スターレイル', Z: '番外編 ゼンゼロ', P: 'プロモ' };
   const draftSet = {}, drafts = {};
@@ -139,7 +139,7 @@ if (htmlArg) {
   { const got = {}; readTables(join(ROOT, 'docs', 'EXTRA.md'), got); for (const id of Object.keys(got)) { const k = { FG: 'F', SR: 'S', ZZ: 'Z' }[id.slice(0, 2)]; if (k) { drafts[id] = got[id]; draftSet[id] = k; } } }
   const CLANS = ['AB', 'JE', 'SU', 'MA', 'TE', 'BA', 'ES', 'GX', 'JU', 'NA'];
   const PAIR_KEYS = ['WG', 'WU', 'RW', 'UR', 'RG', 'GU', 'WK', 'UK', 'KR', 'KG'];
-  // 色の なかま：ふつうは ID の 頭（W・WK・AB…）。アルケミー（Y）・レッスン（LS）・プロモ（P）は コストの 色で
+  // 色の なかま：ふつうは ID の 頭（W・WK・AB…）。アルケミー（Y）・学習呪文（LS）・プロモ（P）は コストの 色で
   const groupOf = (id, cost) => {
     const p = prefix(id);
     if (CLANS.includes(p) || PAIR_KEYS.includes(p) || ['W', 'U', 'K', 'R', 'G', 'C'].includes(p)) return p;
@@ -163,7 +163,7 @@ if (htmlArg) {
   const RAR_NAMES = { ...RAR_NAME, P: 'プロモ' };
   const card = (r, basic = false) => {
     const set = draftSet[r.ID] || String(setOf(r.ID)), rar = basic ? '' : (r['レアリティ'] || (set === 'P' ? 'P' : ''));
-    const extra = prefix(r.ID) === 'LS' ? 'レッスン' : prefix(r.ID) === 'YT' ? '創出だけ' : '';
+    const extra = prefix(r.ID) === 'LS' ? '学習呪文' : prefix(r.ID) === 'YT' ? '創出だけ' : '';
     const text = r['テキスト'] ?? r['テキスト（案）'] ?? '';
     const motif = r['元のカード'] || (r['手に 入れる'] ? `手に 入れる：${r['手に 入れる']}` : '');
     return {

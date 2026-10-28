@@ -241,7 +241,7 @@ export const S5 = {
     acts: [{ cost: 3, tap: true, sac: true, when: [2], label: 'ぼちに おいて 1まい 引く', play: (s, p, E) => (s.P.mana.length >= 8 ? { score: 2, run: () => { E.leave(s, p, 'gy'); E.drawCard(s); } } : null) }],
   },
   C29: { acts: [{ cost: 0, tap: true, when: [1, 2], label: 'パワーの 合計が 10 いじょうなら 1まい 引く', can: (s, p, E) => powerSum(s, E, 'P') >= 10, cantWhy: 'パワーの 合計が 10 より 小さい', play: (s, p, E) => (powerSum(s, E, 'P') >= 10 ? { score: 4, run: () => E.drawCard(s) } : null) }] },
-  // ---- レッスン（パックには 入らない。学習で 手札に くる） ----
+  // ---- 学習呪文（パックには 入らない。学習で 手札に くる） ----
   LS01: { noPack: true, play: (s, E) => { const t = foePerm(s, E); return t ? { score: 6, run: () => exileIt(s, E, t) } : null; }, ...exilePerm, apply: (s, E, [[t]]) => exileIt(s, E, t) },
   LS02: { noPack: true, play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.spirit, 1) }) }, // Spirit Summoning
   LS03: { noPack: true, play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.pest, 2) }) },
