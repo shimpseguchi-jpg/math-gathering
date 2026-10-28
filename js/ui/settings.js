@@ -58,9 +58,11 @@ const banned = () => (hasServer() ? CONF.ban || [] : []);
 export const extraOff = () => [...new Set([...off, ...banned()])];
 const setExtraOff = (v) => { off = v; try { localStorage.setItem(OFF_KEY, JSON.stringify(v)); } catch { /* この あいだだけ */ } };
 const EXTRA_EMBLEM = Object.fromEntries(EMBLEMS.filter((e) => e.fx.packExtra).map((e) => [e.fx.packExtra, e]));
-// みため（2026-10-26）：'classic'（いまの みため）か 'gba'（ドット。ゲームボーイアドバンスの ころの カードゲーム ふう）
+// みため（2026-10-26）：'classic'（いまの みため）・'gba'（ドット。ゲームボーイアドバンスの ころの カードゲーム ふう）
+// ・'clear'（くっきり。2026-10-28：白い 画面に 黒い 文字・太い わく・大きめの 文字。明るい 教室や テレビで 見やすい）
 const THEME_KEY = 'mtg-theme';
-export const theme = () => { try { return localStorage.getItem(THEME_KEY) === 'gba' ? 'gba' : 'classic'; } catch { return 'classic'; } };
+const THEMES = ['classic', 'gba', 'clear'];
+export const theme = () => { try { const t = localStorage.getItem(THEME_KEY); return THEMES.includes(t) ? t : 'classic'; } catch { return 'classic'; } };
 export const applyTheme = (t = theme()) => { document.documentElement.dataset.theme = t; };
 const setTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できなくても この あいだは かわる */ } applyTheme(t); };
 // ぼうけんの まえと おわりの しゅぎょう（広告。docs/EMBLEMS.md 8章）。開発モードでは せっていで オフに できる
@@ -82,7 +84,8 @@ export function settingsScreen(app, back, o = {}) {
       <h2>せってい</h2>
       <section class="st-sec">
         <h3>みため</h3>
-        <div class="row-btns st-theme">${[['classic', 'いまの みため'], ['gba', 'ドット（GBA ふう）']].map(([k, l]) => `<button type="button" class="btn ${theme() === k ? 'primary' : ''}" data-look="${k}" aria-pressed="${theme() === k}">${l}</button>`).join('')}</div>
+        <p class="st-note">${ruby('「くっきり」は 白い 画面に 黒い 文字・太い わく・大きめの 文字。明るい ところや テレビに うつす ときに 見やすい。')}</p>
+        <div class="row-btns st-theme">${[['classic', 'いまの みため'], ['gba', 'ドット（GBA ふう）'], ['clear', 'くっきり（見やすい）']].map(([k, l]) => `<button type="button" class="btn ${theme() === k ? 'primary' : ''}" data-look="${k}" aria-pressed="${theme() === k}">${l}</button>`).join('')}</div>
       </section>
       <section class="st-sec">
         <h3>プレイマット</h3>

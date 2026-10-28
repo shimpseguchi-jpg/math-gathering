@@ -390,15 +390,16 @@ export function deckBuilder(C = advCtx()) {
           <button type="button" data-mode="quick" aria-pressed="${mode === 'quick'}">すぐ 入れる・はずす</button>
           <button type="button" class="fine" data-fine="1" aria-pressed="${F.open}" aria-expanded="${F.open}">こまかく${filterCount(F) ? `<b>${filterCount(F)}</b>` : ''}</button>
         </div>
+        <div class="b-view" role="tablist"><button type="button" role="tab" data-view="pool" aria-selected="${view === 'pool'}">カードを えらぶ</button><button type="button" role="tab" data-view="deck" aria-selected="${view === 'deck'}">デッキ ${st.count}まい</button></div>
         <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}</p>
       </header>
-      <div class="b-view" role="tablist"><button type="button" role="tab" data-view="pool" aria-selected="${view === 'pool'}">カードを えらぶ</button><button type="button" role="tab" data-view="deck" aria-selected="${view === 'deck'}">デッキ ${st.count}まい</button></div>
       ${view === 'deck' ? deckHtml(st) : `${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
       <div class="pool ${mode}">${poolHtml(list)}</div>`}
       <footer class="actions">${C.back ? `<button type="button" class="btn" data-a="back">${esc(C.back.label)}</button>` : ''}<button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
     </main>`;
   };
   draw();
+  window.scrollTo?.(0, 0); // まえの 画面の スクロールの まま ひらかない（上の メーターと タブの 下に かくれる）
   const showDetail = async (i) => {
     if (C.stack) {
       const f = freeOf(i), last = lastIn(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f);
@@ -441,7 +442,7 @@ export function deckBuilder(C = advCtx()) {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.fine) { F.open = !F.open; saveFilter(F); view = 'pool'; return draw(); }
     if (onFilterClick(F, b)) return draw();
-    if (b.dataset.view) { view = b.dataset.view; return draw(); }
+    if (b.dataset.view) { view = b.dataset.view; draw(); return window.scrollTo?.(0, 0); }
     // デッキの カード：なまえで せつめい、−／＋で 1まいずつ
     if (b.dataset.dd != null) return showDetail(+b.dataset.dd);
     if (b.dataset.dminus) {
