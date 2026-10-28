@@ -1,5 +1,5 @@
 // 第7弾「ラヴニカ：ギルドの 都」のうごき（名前・コスト・P/T は skel.js、文は docs/SET7.md）
-import { T, cr, hit, mine, theirs, isCr, chosen1, regrow, foeBest, shrink, killIt, exileIt, bolt, isSpellDef, battalion, gyCount, lowestKeep } from './kit.js';
+import { T, cr, hit, mine, theirs, isCr, chosen1, regrow, foeBest, shrink, killIt, exileIt, bolt, isSpellDef, battalion, gyCount, lowestKeep, spectacle } from './kit.js';
 
 // 印鑑：出たとき 1まい 引く。タップで ギルドの 2色の どちらかの マナ
 const signet = (cols) => ({ mana: [...cols], etb: (s, p, E) => { if (p.side === 'P') E.drawCard(s); } });
@@ -29,7 +29,6 @@ export function detain(s, E, t) {
 // 留置する てき：いちばん パワーの 大きい、まだ 留置されて いない もの
 const detainTarget = (s, E) => theirs(s, E).filter((p) => !p.frozen && !s.floor.untargetable?.(s, p, E)).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
 // 絢爛 N：この ターンに 敵が ダメージを うけて いれば N マナ 安い
-const spectacle = (n) => ({ spectacle: n, costLess: (s, E) => (E.dmgThisTurn(s) > 0 ? n : 0) });
 // 暴動：人は 出す 前に 画面で えらぶ（chosen）。AI は じゃまな ブロッカーが いなければ 速攻
 const riot = (x = {}) => ({
   riot: true, ...x,

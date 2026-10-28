@@ -63,7 +63,9 @@ for fname, set_id, *only in DRAFTS:
         d = {'id': row['ID'], 'name': row['名前'], 'rar': row.get('レアリティ', 'B') if row['ID'] != 'B06' else 'B', 'color': color, 'cost': n, 'types': types,
              'sub': [SUB.get(x, x) for x in re.split(r'[・ ]', subs.strip()) if x], 'kw': kws}
         if m: d['pow'], d['tou'] = int(m.group(1)), int(m.group(2))
-        elif 'creature' in types: d['pow'] = d['tou'] = 0
+        elif 'creature' in types:
+            d['pow'] = d['tou'] = 0
+            if (ms := re.fullmatch(r'＊/(\d+)', pt)): d['tou'] = int(ms.group(1)) # パワーだけ 数える（半神）
         if xs: d['x'] = True
         if row.get('ちゅうせい', '').isdigit(): d['loyalty'] = int(row['ちゅうせい'])
         if xs > 1: d['xMul'] = xs

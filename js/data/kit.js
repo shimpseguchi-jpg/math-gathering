@@ -186,6 +186,8 @@ export const delve = (x = {}) => ({ delve: true, costLess: (s) => s.P.gy.length,
 export const delveOf = (d) => ({ ...delve(), costMin: pips(d) });
 // 門の 五神：数の 条件が そろわないと 攻撃も ブロックも できない
 export const godUnless = (f) => ({ cantAttack: (s, p, E) => !f(s, p, E), cantBlock: (s, p, E) => !f(s, p, E) });
+// 絢爛 n：この ターンに 敵が ダメージを うけていたら n マナ 安い（第3弾の 赤・第7弾の ラクドス）
+export const spectacle = (n) => ({ spectacle: n, costLess: (s, E) => (E.dmgThisTurn(s) > 0 ? n : 0) });
 // 墓地の その 種類の カードの 数
 export const gyCount = (s, t) => s.P.gy.filter((c) => (c.def.types || []).includes(t)).length;
 Object.assign(T, {

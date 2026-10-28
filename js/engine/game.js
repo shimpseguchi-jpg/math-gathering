@@ -256,6 +256,7 @@ export function rampTop(s) {
   if (!s.P.lib.length) return;
   const c = s.P.lib.shift();
   s.P.mana.push({ ...c, tapped: true });
+  return manaIn(s, 1);
 }
 
 // やまふだから きほんカードを n まい さがして、タップ状態で マナゾーンに（MTG の「基本土地を さがす」。強い カードを マナに しない）
@@ -267,15 +268,23 @@ export function rampBasic(s, n = 1) {
     const [c] = s.P.lib.splice(i, 1);
     s.P.mana.push({ ...c, tapped: true });
   }
-  if (k) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}きほんカードを ${k}まい さがして マナゾーンへ`); }
+  if (k) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}きほんカードを ${k}まい さがして マナゾーンへ`); manaIn(s, k); }
   return k;
 }
 export const basicsInLib = (s) => s.P.lib.filter((c) => c.def.basic).length;
+
+// 上陸（第3弾の 緑）：マナゾーンに カードが 置かれるたび（1まい ごとに 1回）
+export function manaIn(s, n) {
+  s.P.flags.manaInT = s.turn;
+  for (let i = 0; i < n; i++) for (const q of [...s.P.bf]) if (q.def.landfall && onBf(s, q)) { L(s, `じょうりく：${q.def.name}`); q.def.landfall(s, q, api); }
+}
+export const landfallNow = (s) => s.P.flags.manaInT === s.turn;
 
 export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
   s.P.mana.push({ ...c, tapped });
   L(s, `${foe(s, 'P')}マナ：${c.def.name}`);
+  manaIn(s, 1);
   // きほんの もんしょう レベル2：きほんカードを マナに おくと、その こうかも おきる（あいては じどうで えらぶ。占術は 人が えらぶ ので Promise を かえす）
   if (c.def.basic && s.P.emblem?.basicCharge) {
     const r = c.def.play?.(s, api, { phase: 2, c, charge: true });
@@ -493,6 +502,13 @@ export function costOf(s, d) {
 // この ターンに 敵が うけた ダメージ（本体と クリーチャー）
 export const dmgThisTurn = (s) => (s.E.flags.dmgT === s.turn ? s.E.flags.dmgTaken : 0);
 const noteDmg = (s, n) => { if (s.E.flags.dmgT !== s.turn) { s.E.flags.dmgT = s.turn; s.E.flags.dmgTaken = 0; } s.E.flags.dmgTaken += n; };
+// 墓地から 唱えられる とき：フラッシュバック・降霊（うらの すがた）・リエール（インスタントと ソーサリーは みな フラッシュバック）
+export function gyCast(s, d) {
+  if (d.flashback) return { ...d.flashback, kind: 'flashback' };
+  if (d.disturb) return { cost: d.disturb.cost, req: d.disturb.req, kind: 'disturb' };
+  if ((d.types.includes('instant') || d.types.includes('sorcery')) && s.P.bf.some((q) => q.def.allFlashback)) return { cost: d.cost, req: colorsOf(d), kind: 'flashback' };
+  return null;
+}
 // ライブラリーの 上から N まいを 墓地へ（切削）
 export function mill(s, n) {
   const c = s.P.lib.splice(0, n); s.P.gy.push(...c);
@@ -651,6 +667,7 @@ export function leave(s, p, to = 'gy', o = {}) {
   side.bf.splice(side.bf.indexOf(p), 1);
   // 手札に もどす：手札の ない 塔の 敵は、かわりに やまふだの 一番上へ（つぎの ターンに また めくられて 出てくる）。トークンは きえる
   if ((to === 'hand' && !side.hand) || to === 'lib') to = 'lib';
+  if (to === 'gy' && p.def.exileOnLeave) to = 'exile'; // 降霊で 出た うらの すがたは 墓地の かわりに 追放
   if (!p.token) {
     const c = { uid: p.uid, def: p.card };
     // 統率者は 墓地・追放・手札・やまふだの かわりに 統率領域へ もどる
@@ -940,5 +957,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, attach, steal, unsteal, auraFlag,
 });
