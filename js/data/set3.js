@@ -312,6 +312,7 @@ Object.assign(S3, {
       score: 5,
       run: () => {
         const top = s.P.lib.splice(0, 4), pick = [...top].sort((a, b) => E.keepValue(s, b) - E.keepValue(s, a))[0];
+        if (!pick) return; // コピーで もう一度 うごいて やまふだが ない とき
         s.P.hand.push(pick); s.P.gy.push(...top.filter((c) => c !== pick));
         E.L(s, `4まい 見て 1まいを てふだへ、3まいを ぼちへ（4 ＝ 1 ＋ 3）`);
       },

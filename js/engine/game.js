@@ -275,10 +275,13 @@ export const basicsInLib = (s) => s.P.lib.filter((c) => c.def.basic).length;
 
 // 上陸（第3弾の 緑）：マナゾーンに カードが 置かれるたび（1まい ごとに 1回）
 export function manaIn(s, n) {
-  s.P.flags.manaInT = s.turn;
+  if (s.P.flags.manaInT !== s.turn) s.P.flags.manaInN = 0;
+  s.P.flags.manaInT = s.turn; s.P.flags.manaInN += n; // この ターンに マナゾーンに 置いた 数（あらわれる 数列 G107）
   for (let i = 0; i < n; i++) for (const q of [...s.P.bf]) if (q.def.landfall && onBf(s, q)) { L(s, `じょうりく：${q.def.name}`); q.def.landfall(s, q, api); }
 }
 export const landfallNow = (s) => s.P.flags.manaInT === s.turn;
+export const manaInNow = (s) => (s.P.flags.manaInT === s.turn ? s.P.flags.manaInN : 0);
+export const gainedNow = (s) => (s.P.flags.gainedT === s.turn ? s.P.flags.gainedN : 0);
 
 export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
@@ -598,6 +601,8 @@ const dead = (s) => (s.floor.id === 'pvp' && s.E.life <= 0 ? 'draw' : 'lose');
 export function gainLife(s, n) {
   if (s.P.noLifeGain || n <= 0) return;
   s.P.life += n; zzBreak(s, 'W', '白：ライフを えた');
+  if (s.P.flags.gainedT !== s.turn) { s.P.flags.gainedT = s.turn; s.P.flags.gainedN = 0; }
+  s.P.flags.gainedN += n; // この ターンに えた ライフ（腕ききの 錬金術師 G108）
   for (const q of [...s.P.bf]) if (q.def.onGain && onBf(s, q)) q.def.onGain(s, q, api, n); // ライフを えるたび（太陽の 冠の ヘリオッド W44）
   // 死なずの 騎士（KG09）：その ターン はじめて ライフを えたとき、墓地から 手札へ
   if (s.P.flags.gainT === s.turn) return;
@@ -796,7 +801,8 @@ export function canBlock(s, b, a) {
   if (b.def.blockOnlyFlyers && !hasKw(s, a, 'flying')) return false;
   if (a.flags.turn?.hasteOnly && !hasKw(s, b, 'haste')) return false;
   if (s.smallCantBlock === s.turn && power(s, b) <= 1) return false;
-  if (s.groundCantBlock === s.turn && !hasKw(s, b, 'flying')) return false; // 最初の 噴火（R96 の 英雄譚 I）：ひこうの ない クリーチャーは ブロックできない
+  if (s.groundCantBlock === s.turn && !hasKw(s, b, 'flying')) return false;
+  if (b.noBlockT === s.turn) return false; // この ターン ブロックできない（ろうかの 見はり R101） // 最初の 噴火（R96 の 英雄譚 I）：ひこうの ない クリーチャーは ブロックできない
   if (s.cantBlock3 === s.turn && power(s, b) <= 3) return false;
   if (a.def.minBlockPow && power(s, b) < a.def.minBlockPow) return false; // はがね葉の チャンピオン：パワー 2 いかには ブロックされない
   if (hasKw(s, a, 'flying') && !hasKw(s, b, 'flying') && !hasKw(s, b, 'reach')) return false;
@@ -968,5 +974,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
 });

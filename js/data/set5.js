@@ -288,3 +288,115 @@ function reanimate(s, E, f) {
   const c = bestIn(s.P.gy, (x) => f(x.def));
   if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); }
 }
+
+// ---- 120種に する 追加（SET5.md 4.10・2026-10-28） ----
+const bigFoe5 = (s, E, f) => theirs(s, E).filter((p) => !s.floor.untargetable?.(s, p, E) && (!f || f(p))).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+const ELEM44U = cr('t_elem44U', 'エレメンタル', null, 'U', 0, 4, 4, ['elemental']);
+const isDragon = (p) => isSub(p, 'dragon');
+Object.assign(S5, {
+  W108: { play: (s, E) => { const t = E.bestBuffTarget(s, null); return t ? { score: 5, run: () => { E.target(s, t); E.addCounters(s, t, 1); return learn(s, E); } } : null; } },
+  W109: { trick: { kind: 'single', p: 2, t: 2 }, singleRun: (s, E, q) => E.pump(q, 2, 2) },
+  W110: {
+    pow: (s, p) => 2 + ((s[p.side].life || 0) % 10 === 0 ? 2 : 0), tou: (s, p) => 3 + ((s[p.side].life || 0) % 10 === 0 ? 2 : 0),
+    kwFn: (s, p) => ((s[p.side].life || 0) % 10 === 0 ? ['lifelink'] : []),
+  },
+  W111: { combatStart: (s, p, E) => { if (p.side !== 'P') return; const t = E.bestBuffTarget(s, null, { ready: true }); if (t) { E.target(s, t); E.pump(t, 1, 0, ['vigilance']); } } },
+  W112: magecraft((s, p, E) => { for (const q of mine(s, E)) E.pump(q, 1, 1); }),
+  W113: {
+    etb: (s, p, E) => { if (p.side === 'P') return learn(s, E); },
+    onAttacks: (s, q, atk, E) => { if (q.side !== 'P') return; const t = atk.map((a) => a.p).filter((x) => E.onBf(s, x)).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; if (t) E.addCounters(s, t, 1); },
+  },
+  U102: {
+    play: (s, E, ctx) => (s.P.lib.length >= 2 && (ctx.phase === 2 || ctx.human) ? {
+      score: 3,
+      run: () => { const top = s.P.lib.splice(0, 2).sort((a, b) => E.keepValue(s, b) - E.keepValue(s, a)); if (!top.length) return; s.P.hand.push(top[0]); if (top[1]) s.P.gy.push(top[1]); E.L(s, '2まい 見て 1まいを てふだへ、1まいを ぼちへ'); },
+    } : null),
+  },
+  U103: magecraft((s, p, E) => { const t = bigFoe5(s, E); if (t) E.pump(t, -1, 0); }),
+  U104: { play: (s, E) => { const t = bigFoe5(s, E); return t && E.power(s, t) >= 2 ? { score: 3 + Math.min(4, E.power(s, t)), run: () => { E.target(s, t); E.pump(t, -4, 0); return learn(s, E); } } : null; } },
+  U105: {
+    acts: [{
+      cost: 0, tap: true, when: [1], label: 'てきの クリーチャーを タップ（マナ 8まい いじょう）', can: (s) => s.P.mana.length >= 8, cantWhy: 'マナゾーンが 8まい いじょう いる',
+      play: (s, p, E) => { const t = bigFoe5(s, E, (q) => !q.tapped); return s.P.mana.length >= 8 && t ? { score: 3, run: () => { t.tapped = true; E.L(s, `${t.def.name} を タップ`); } } : null; },
+    }],
+  },
+  U106: { acts: [{ cost: 4, req: ['U'], when: [1], label: 'ブロックされない', play: (s, p, E) => { const t = E.bestBuffTarget(s, null, { ready: true }); return t && !t.flags.turn.unblockable && E.power(s, t) >= 3 ? { score: 2 + E.power(s, t), run: () => { t.flags.turn.unblockable = true; } } : null; } }] },
+  U107: {
+    play: (s, E, ctx) => {
+      const x = Math.min(ctx.xMax, 3);
+      return { score: 2 + 3 * x, x, run: (xx) => {
+        const out = [];
+        if (xx >= 2) { const t = bigFoe5(s, E); if (t) { E.bounce(s, t); E.sba(s); } }
+        if (xx >= 3) E.token(s, 'P', ELEM44U);
+        if (xx >= 1) return E.then(E.scry(s, 1), () => E.drawCard(s));
+        return out;
+      } };
+    },
+  },
+  K80: { acts: [{ cost: 6, req: ['K'], when: [2], label: 'てきに 2点・ライフ ＋2', play: (s, p, E) => ({ score: 3, run: () => drain(s, E, 2, p) }) }] },
+  K81: { onCast: (s, p, d, E) => { if (p.side !== 'P' || s.P.flags.cast !== 2) return; E.L(s, `${p.def.name}：2つ目の じゅもん`); E.addCounters(s, p, 1); E.pump(p, 0, 0, ['flying']); } },
+  K82: foe1('−X/−X する クリーチャー（X は ぼちの まいすう ÷ 2）', (s, E, t) => { const x = Math.floor(s.P.gy.length / 2); E.L(s, `ぼち ${s.P.gy.length}まい ÷ 2 ＝ ${x}`); shrink(s, E, t, x); }, { n: (s) => Math.floor(s.P.gy.length / 2) }),
+  K83: { onGain: (s, p, E) => { if (p.side !== 'P' || (p.flags.turn.gains || 0) >= 3) return; p.flags.turn.gains = (p.flags.turn.gains || 0) + 1; E.addCounters(s, p, 1); } },
+  K84: { etb: (s, p, E) => { if (p.side !== 'P') return; E.token(s, 'P', T.pest); return learn(s, E); } },
+  K85: magecraft((s, p, E) => E.token(s, 'P', T.pest)),
+  R100: { trick: { kind: 'single', p: 3, t: 1, trample: true }, singleRun: (s, E, q) => { E.pump(q, 3, 1, ['trample']); return learn(s, E); } },
+  R101: {
+    acts: [{
+      cost: 4, req: ['R'], when: [1], label: 'ブロックできなく する',
+      play: (s, p, E) => { const t = bigFoe5(s, E, (q) => !q.tapped && q.noBlockT !== s.turn); return t ? { score: 2, run: () => { t.noBlockT = s.turn; E.L(s, `${t.def.name} は この ターン ブロックできない`); } } : null; },
+      tgt: [{ side: 'E', label: 'ブロックできなく する クリーチャー' }], apply: (s, E, [[t]]) => { t.noBlockT = s.turn; },
+    }],
+  },
+  R102: {
+    play: (s, E) => { const t = bigFoe5(s, E); return t ? { score: 5 + Math.max(0, 5 - E.need(s, t)), run: () => {
+      const rest = Math.max(0, 5 - E.need(s, t));
+      E.target(s, t); E.damage(s, t, 5, null); E.sba(s);
+      if (rest > 0) { E.L(s, `5 − ${5 - rest} ＝ ${rest}点 あまった`); E.hitEnemy(s, rest, null); }
+    } } : null; },
+  },
+  R103: magecraft((s, p, E) => { p.flags.turn.mc = (p.flags.turn.mc || 0) + 1; const n = 2 ** (p.flags.turn.mc - 1); E.L(s, `${p.def.name}：${p.flags.turn.mc}回目 ${n}点`); E.hitEnemy(s, n, p); }),
+  R104: { etb: (s, p, E) => { if (p.side === 'P') return learn(s, E); } },
+  R105: {
+    play: (s, E) => {
+      let best = null;
+      for (const c of s.P.gy.filter((x) => isSpellDef(x.def))) {
+        const x = c.def.cost || 0;
+        const gain = theirs(s, E).filter((p) => !isDragon(p) && E.need(s, p) <= x).reduce((t, p) => t + 3 + E.power(s, p), 0);
+        const loss = mine(s, E).filter((p) => !isDragon(p) && E.need(s, p) <= x).reduce((t, p) => t + 2 + E.power(s, p), 0);
+        if (gain - loss > 4 && (!best || gain - loss > best.v)) best = { v: gain - loss, c, x };
+      }
+      return best && { score: best.v, run: () => {
+        s.P.gy.splice(s.P.gy.indexOf(best.c), 1); s.P.exile.push(best.c);
+        E.L(s, `${best.c.def.name}（コスト ${best.x}）を 追放：${best.x}点ずつ`);
+        for (const p of [...s.E.bf, ...s.P.bf]) if (E.isCreature(p) && !isDragon(p)) E.damage(s, p, best.x, null);
+        E.sba(s);
+      } };
+    },
+  },
+  G103: { play: (s, E, ctx) => (ctx.phase === 1 || ctx.human ? { score: 5, run: () => { E.rampBasic(s, 1); return learn(s, E); } } : null) },
+  G104: foe1('5点を あたえる ひこうの ある クリーチャー', (s, E, t) => hit(s, E, t, 5), { n: 5, filter: (s, E, p) => E.hasKw(s, p, 'flying') }),
+  G105: { costLess: (s, E) => (mine(s, E).length ? 0 : -3) },
+  G106: {
+    ...magecraft((s, p, E) => E.addCounters(s, p, 1)),
+    acts: [{ cost: 6, req: ['G'], when: [1, 2], label: '＋1/＋1カウンターを 2倍', play: (s, p, E) => (p.ctr >= 2 ? { score: 2 + p.ctr, run: () => { E.L(s, `${p.ctr} × 2 ＝ ${p.ctr * 2}`); E.addCounters(s, p, p.ctr); } } : null) }],
+  },
+  G107: { play: (s, E, ctx) => (ctx.phase === 1 || ctx.human ? { score: 4 + E.manaInNow(s), run: () => { E.rampBasic(s, 1); const x = E.manaInNow(s); E.L(s, `この ターン マナゾーンに ${x}まい`); fractal(s, E, x); } } : null) },
+  G108: {
+    mana: 'any',
+    acts: [{
+      cost: 0, tap: true, when: [1, 2], label: 'えた ライフの 数だけ マナ',
+      play: (s, p, E) => { const g = E.gainedNow(s); return g >= 2 ? { score: g, run: () => { E.L(s, `ライフ ＋${g} ＝ マナ ${g}`); E.token(s, 'P', T.shard, g); } } : null; },
+    }],
+  },
+  WK12: magecraft((s, p, E) => { const t = E.bestBuffTarget(s, null, { ready: true }); if (t) E.pump(t, 1, 0); }),
+  UR11: magecraft((s, p, E) => E.pump(p, 1, 0, ['trample'])),
+  KG10: magecraft((s, p, E) => { const t = theirs(s, E).sort((a, b) => E.need(s, a) - E.need(s, b))[0]; if (t) { E.pump(t, -1, -1); E.sba(s); } E.gain(s, 1); }),
+  RW11: magecraft((s, p, E) => { E.pump(p, 1, 0); for (const q of mine(s, E)) if (isSub(q, 'spirit')) E.pump(q, 0, 0, ['lifelink']); }),
+  GU11: magecraft((s, p, E) => dig(s, E, 3, 1, (d) => !!d.basic)),
+  C35: {
+    acts: [{
+      cost: 2, tap: true, when: [2], label: 'ぼちに おいて 呪文（じゅもん）を てふだに', can: (s) => s.P.gy.some((c) => isSpellDef(c.def)), cantWhy: 'ぼちに インスタントか ソーサリーが ない',
+      play: (s, p, E) => (spellsInGy(s) ? { score: 4, run: () => { E.leave(s, p, 'gy'); regrow(s, E, isSpellDef); } } : null),
+    }],
+  },
+});
