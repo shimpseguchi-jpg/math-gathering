@@ -33,7 +33,7 @@ function makeSheet(name) {
   return {
     sh, getRange: range, getLastRow: lastRow, getLastColumn: lastCol, getMaxRows: () => sh.maxRows, getMaxColumns: () => sh.maxCols,
     insertRowsAfter: (_, n) => { sh.maxRows += n; }, insertColumnsAfter: (_, n) => { sh.maxCols += n; },
-    deleteRow: (r) => { sh.cells.splice(r - 1, 1); }, setFrozenRows: (n) => { sh.frozen = n; }, getName: () => name,
+    deleteRow: (r) => { sh.cells.splice(r - 1, 1); }, setFrozenRows: (n) => { sh.frozen = n; }, getName: () => name, hideSheet: () => { sh.hidden = true; },
   };
 }
 const book = { sheets: {} };
@@ -45,10 +45,22 @@ const ss = {
 const props = {};
 const cache = {};
 let user = first;
+const fetched = [];
+// にせの GitHub：ファイルの なかみを かえて ためせる（web.edit(name, text) → text）
+let edit = (name, text) => text;
+const web = (url) => {
+  if (url.startsWith('https://api.github.com/')) return JSON.stringify({ sha: 'abc1234def' });
+  const m = /raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/mathtcg\/gas\/(.+)$/.exec(url);
+  if (!m) return null;
+  try { return edit(m[1], readFileSync(join(ROOT, 'gas', m[1]), 'utf8')); } catch { return null; }
+};
+const page = (content) => { const o = { content, setTitle: () => o, setXFrameOptionsMode: () => o, addMetaTag: () => o }; return o; };
 const ctx = {
   SpreadsheetApp: { getActiveSpreadsheet: () => ss },
   PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props[k] ?? null, setProperty: (k, v) => { props[k] = String(v); }, getProperties: () => ({ ...props }), deleteProperty: (k) => { delete props[k]; } }) },
-  CacheService: { getScriptCache: () => ({ get: (k) => cache[k] ?? null, put: (k, v) => { cache[k] = v; }, remove: (k) => { delete cache[k]; } }) },
+  CacheService: { getScriptCache: () => ({ get: (k) => cache[k] ?? null, put: (k, v) => { cache[k] = v; }, remove: (k) => { delete cache[k]; },
+    getAll: (ks) => Object.fromEntries(ks.filter((k) => k in cache).map((k) => [k, cache[k]])), putAll: (o) => { for (const [k, v] of Object.entries(o)) { if (v.length > 100000) throw new Error('大きすぎ'); cache[k] = v; } } }) },
+  UrlFetchApp: { fetch: (url) => { fetched.push(url); const body = web(url); return { getResponseCode: () => (body == null ? 404 : 200), getContentText: () => body ?? '' }; } },
   LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
   Session: { getActiveUser: () => ({ getEmail: () => user }), getEffectiveUser: () => ({ getEmail: () => OWNER }) },
   Utilities: {
@@ -58,10 +70,13 @@ const ctx = {
     computeDigest: (a, s) => [...createHash('sha256').update(s).digest()].map((b) => (b > 127 ? b - 256 : b)),
   },
   Logger: { log: () => {} },
-  HtmlService: {},
+  HtmlService: {
+    createHtmlOutputFromFile: (n) => page(`FILE:${n}`), createHtmlOutput: (h) => page(h),
+    XFrameOptionsMode: { ALLOWALL: 1 },
+  },
 };
 vm.createContext(ctx);
 vm.runInContext(code, ctx);
 const G = ctx;
-return { G, book, setUser: (u) => { user = u; } };
+return { G, book, setUser: (u) => { user = u; }, fetched, setWeb: (f) => { edit = f; }, cache, props };
 }

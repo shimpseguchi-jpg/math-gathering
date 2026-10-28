@@ -5,7 +5,8 @@
 // ・学内（ドメイン内）だけに 公開する。ひらいた 人の 学校アカウントで 先生（かんりしゃ）か どうかと、ひきつぎの もちぬしを 見わける
 //   シートには 子どもの メールアドレスは 書かない（ひきつぎは 読めない 番号に かえて おく）
 function doGet() {
-  var out = HtmlService.createHtmlOutputFromFile('index');
+  var g = game_();
+  var out = g.html ? HtmlService.createHtmlOutput(g.html) : HtmlService.createHtmlOutputFromFile('index');
   out.setTitle('マスマティック・ザ・ギャザリング')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   out.addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
@@ -15,9 +16,12 @@ function doGet() {
 }
 
 // カードの 点数と 色（build_gas.mjs が js/data/cards.js から 書きこむ）。デッキの チェックに つかう
+// 「ゲームを 最新に する」で GitHub から とった ほうが 新しければ、そちらを つかう（cards_()）
 var CARDS = /*CARDS*/{};
 // 弾（build_gas.mjs が 書きこむ）：{ main: [ふつうの 弾], extra: [サブセット・番外編], released: [出ている 弾] }
 var SET_IDS = /*SETS*/{ main: [1, 2], extra: [], released: [1, 2] };
+var BUILT = /*BUILT*/0;          // この Code.gs と index.html を つくった 時刻（build_gas.mjs）
+var SERVER_VER = /*SERVER*/'';   // サーバーの しくみの 版（tools/gas_Code.gs の ハッシュ）。ゲーム本体と あって いないと 最新に できない
 var NAME_A = 20, NAME_B = 20; // なまえの 定型語の 数（js/ui/online.js の NAME_A・NAME_B）
 var CODE_C = 10;              // あいことばの 3つめの ことば（かず）の 数
 var DECK_SIZE = 20, CAPACITY = 30;
@@ -39,7 +43,8 @@ var SHEETS = {
   raidg: ['レイドゴースト', ['レイドID', '陣営', 'ID', '統率者', 'デッキ', 'なまえ1', 'なまえ2', '日時', 'まもった', 'いる']],
   code: ['あいことば', ['ことば', 'カードID', 'はじまり', 'おわり', 'のこり', 'メモ']],
   used: ['あいことばの記録', ['ことば', 'ひと', '日時']],
-  save: ['ひきつぎ', ['ひと', '日時', 'おおきさ', 'データ']]
+  save: ['ひきつぎ', ['ひと', '日時', 'おおきさ', 'データ']],
+  game: ['ゲーム本体', ['index', 'cards']] // GitHub から とった ゲーム本体と カードの 一覧（45000字ずつ 下へ）。さわらない
 };
 // せってい シートの こうもく：[キー, はじめの あたい, せつめい]
 var CONF = [
@@ -49,7 +54,8 @@ var CONF = [
   ['レイドのおわり', '2026/11/01 20:00', 'レイドが おわる 日時（日本時間）。空なら レイドなし'],
   ['ランキングの時刻', '7,17', 'ランキングを こうしんする 時刻（日本時間・カンマで くぎる）'],
   ['ゴーストの数', '30', 'とどいた 階ごとに のこす ゴーストの 数（ふるい ものから けす）'],
-  ['レイドゴーストの数', '20', '陣営ごとに のこす レイドの ゴーストの 数']
+  ['レイドゴーストの数', '20', '陣営ごとに のこす レイドの ゴーストの 数'],
+  ['読みこみ元', 'claude/math-tcg-requirements-8oklux', '「ゲームを 最新に する」で ゲーム本体を とる GitHub の ブランチ（マージした あとは ccr-a96fc02a-yijbz1）']
 ];
 
 function book_() {
@@ -71,6 +77,7 @@ function sh_(k) {
     s.getRange(1, 1, 1, d[1].length).setValues([d[1]]).setFontWeight('bold');
     s.setFrozenRows(1);
     if (k === 'conf') s.getRange(2, 1, CONF.length, 3).setValues(CONF);
+    if (k === 'game') { if (s.getMaxRows() < 120) s.insertRowsAfter(s.getMaxRows(), 120 - s.getMaxRows()); s.getRange(1, 1, s.getMaxRows(), 2).setNumberFormat('@'); try { s.hideSheet(); } catch (err) { /* みえても よい */ } }
   }
   SH_[k] = s;
   return s;
@@ -144,11 +151,11 @@ function needAdmin_() { if (!isAdmin_()) throw new Error('先生だけが つか
 // ───── はじめに よぶ：せってい と じぶんの こと ─────
 // → { admin, login, sets: [弾]|null, ban: [弾], raid: { id, ends }|null, saved: { at, size }|null }
 function mtgConfig() {
-  var c = conf_(), me = who_(), sets = ids_(c['パックの弾']).filter(function (x) { return SET_IDS.main.indexOf(x) >= 0; });
+  var c = conf_(), me = who_(), sets = ids_(c['パックの弾']).filter(function (x) { return sets_().main.indexOf(x) >= 0; });
   return {
     admin: isAdmin_(), login: !!me,
     sets: sets.length ? sets : null,
-    ban: ids_(c['つかわない弾']).filter(function (x) { return SET_IDS.extra.indexOf(x) >= 0; }),
+    ban: ids_(c['つかわない弾']).filter(function (x) { return sets_().extra.indexOf(x) >= 0; }),
     raid: raidNow_(),
     saved: me ? saveInfo_(me) : null
   };
@@ -160,7 +167,7 @@ function tierOf_(id) { var m = /^([1-6])-[0-9a-f]{8}$/.exec(String(id || '')); r
 // デッキの 色（W・U・K・R・G の じゅん。旗が あれば 3色）
 function pairOf_(d) {
   var has = {};
-  d.forEach(function (id) { var c = CARDS[id]; if (c) for (var k = 0; k < c[1].length; k++) has[c[1].charAt(k)] = 1; });
+  d.forEach(function (id) { var c = cards_()[id]; if (c) for (var k = 0; k < c[1].length; k++) has[c[1].charAt(k)] = 1; });
   return 'WUKRG'.split('').filter(function (c) { return has[c]; }).join('');
 }
 // デッキが ルールどおりか（20まい・30点まで・2色まで。旗が あれば その 3色まで。きほんカードは 0点）
@@ -168,7 +175,7 @@ function checkDeck_(d) {
   if (!Array.isArray(d) || d.length !== DECK_SIZE) throw new Error('デッキは 20まい');
   var pts = 0, colors = {}, count = {}, banner = null;
   for (var i = 0; i < d.length; i++) {
-    var c = CARDS[d[i]];
+    var c = cards_()[d[i]];
     if (!c) throw new Error('しらない カード');
     pts += c[0];
     if (c[2]) banner = c[2];
@@ -381,10 +388,10 @@ function mtgRaidSubmit(q) {
   raidLive_(false);
   var d = q && q.d;
   if (!Array.isArray(d) || d.length !== DECK_SIZE) throw new Error('デッキは 20まい');
-  var ok = CARDS[c][1];
+  var ok = cards_()[c][1];
   d = d.map(String);
   var pts = 0;
-  d.forEach(function (x) { var k = CARDS[x]; if (!k) throw new Error('しらない カード'); pts += k[0]; for (var i = 0; i < k[1].length; i++) if (ok.indexOf(k[1].charAt(i)) < 0) throw new Error('統率者の 色で ない'); });
+  d.forEach(function (x) { var k = cards_()[x]; if (!k) throw new Error('しらない カード'); pts += k[0]; for (var i = 0; i < k[1].length; i++) if (ok.indexOf(k[1].charAt(i)) < 0) throw new Error('統率者の 色で ない'); });
   if (pts > CAPACITY) throw new Error('点数が おおすぎる');
   var n = checkName_(q.n);
   return withLock_(function () {
@@ -469,6 +476,7 @@ function mtgAdminGet() {
     conf: conf_(), url: book_().getUrl(), me: email_(), owner: owner_(),
     admins: rows_('admin').filter(function (r) { return r[0]; }).map(function (r) { return [str_(r[0]), str_(r[1])]; }),
     codes: rows_('code').filter(function (r) { return r[0]; }).map(function (r) { return r.slice(0, 6).map(str_); }),
+    game: gameInfo_(),
     count: { ghost: rows_('ghost').length, deck: rows_('deck').length, save: rows_('save').length, used: rows_('used').length }
   };
 }
@@ -478,7 +486,7 @@ function mtgAdminSave(q) {
   withLock_(function () {
     if (q && q.conf) CONF.forEach(function (c) { if (c[0] in q.conf) setConf_(c[0], String(q.conf[c[0]] == null ? '' : q.conf[c[0]]).slice(0, 200)); });
     if (q && Array.isArray(q.admins)) replace_('admin', q.admins.filter(function (r) { return /^[^@\s]+@[^@\s]+$/.test(String(r[0]).trim()); }).map(function (r) { return [String(r[0]).trim().toLowerCase(), String(r[1] || '').slice(0, 100)]; }));
-    if (q && Array.isArray(q.codes)) replace_('code', q.codes.filter(function (r) { return /^\d+-\d+-\d+$/.test(r[0]) && CARDS[String(r[1])]; }).map(function (r) {
+    if (q && Array.isArray(q.codes)) replace_('code', q.codes.filter(function (r) { return /^\d+-\d+-\d+$/.test(r[0]) && cards_()[String(r[1])]; }).map(function (r) {
       return [r[0], r[1], r[2] ? time_(ms_(r[2])) : '', r[3] ? time_(ms_(r[3])) : '', String(r[4]) === '' ? '' : Math.max(0, Math.floor(num_(r[4]))), String(r[5] || '').slice(0, 100)];
     }));
     CacheService.getScriptCache().remove('conf');
@@ -503,4 +511,74 @@ function mtgMigrate() {
     if (m) { var def = JSON.parse(all['raid:' + m[1] + ':def'] || '{}'); JSON.parse(all[k]).forEach(function (g) { add_('raidg', [m[1], m[2], g.i, g.c, JSON.stringify(g.d), g.n[0], g.n[1], time_(g.u), def[g.i] || 0, '1']); n++; }); }
   });
   Logger.log('ひっこした 数：' + n + '（うまく いったら スクリプト プロパティの ghosts: deck: raid: rank は けして よい）');
+}
+
+// ───── ゲーム本体を 最新に する（GitHub → スプレッドシート）─────
+// 開発モードの ボタンで、Google の サーバーが 公開リポジトリから gas/index.html と gas/cards.json を とって「ゲーム本体」シートに おく
+// iPad は GitHub に つながらない（学校の フィルターでも だいじょうぶ）。Code.gs（サーバーの しくみ）が かわった ときだけ clasp push が いる
+var REPO = 'shimpseguchi-jpg/app-maker', GAME_DIR = 'mathtcg/gas/';
+var CHUNK_CACHE = 30000; // キャッシュ 1つの 大きさ（上限 100KB。日本語も あるので 小さめ）
+// とって ある ゲーム本体（clasp で 上げた ものの ほうが 新しければ ''。そのときは ファイルの ほうを つかう）
+function fresh_() { var m = gameMeta_(); return m && m.built > BUILT ? m : null; }
+function game_() {
+  var meta = fresh_();
+  if (!meta) return { html: '' };
+  var c = CacheService.getScriptCache(), keys = [];
+  for (var i = 0; i < (meta.parts || 0); i++) keys.push('game:' + meta.sha + ':' + i);
+  var got = keys.length ? c.getAll(keys) : {};
+  if (keys.length && keys.every(function (k) { return k in got; })) return { html: keys.map(function (k) { return got[k]; }).join('') };
+  var html = gameRows_().map(function (r) { return str_(r[0]); }).join(''), put = {};
+  for (var k = 0, j = 0; k < html.length; k += CHUNK_CACHE, j++) put['game:' + meta.sha + ':' + j] = html.slice(k, k + CHUNK_CACHE);
+  try { c.putAll(put, 21600); meta.parts = Object.keys(put).length; PropertiesService.getScriptProperties().setProperty('GAME_META', JSON.stringify(meta)); } catch (err) { /* キャッシュ できなくても シートから よめる */ }
+  return { html: html };
+}
+// カードの 一覧と 弾（デッキの チェック・せってい）。GitHub から とった ほうが 新しければ そちら
+var DATA_ = null;
+function data_() {
+  if (DATA_) return DATA_;
+  var meta = fresh_();
+  if (!meta) return (DATA_ = { cards: CARDS, sets: SET_IDS });
+  var c = CacheService.getScriptCache(), cj = c.get('cards:' + meta.sha);
+  if (!cj) { cj = gameRows_().map(function (r) { return str_(r[1]); }).join(''); try { c.put('cards:' + meta.sha, cj, 21600); } catch (err) { /* おおきすぎ */ } }
+  var cd = JSON.parse(cj);
+  return (DATA_ = { cards: cd.cards, sets: cd.sets });
+}
+function gameRows_() { var s = sh_('game'), n = s.getLastRow(); return n < 2 ? [] : s.getRange(2, 1, n - 1, 2).getValues(); }
+function gameMeta_() { var v = PropertiesService.getScriptProperties().getProperty('GAME_META'); return v ? JSON.parse(v) : null; }
+function cards_() { return data_().cards; }
+function sets_() { return data_().sets; }
+function fetch_(url) {
+  var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: { 'User-Agent': 'mathgathering-gas' } });
+  if (res.getResponseCode() !== 200) throw new Error('GitHub から とれなかった（' + res.getResponseCode() + '）：' + url);
+  return res.getContentText('UTF-8');
+}
+// 開発モードの「ゲームを 最新に する」→ { at, sha, branch, size, built }
+function mtgAdminUpdate() {
+  needAdmin_();
+  var branch = String(conf_()['読みこみ元'] || 'main').trim();
+  var sha = branch;
+  try { sha = JSON.parse(fetch_('https://api.github.com/repos/' + REPO + '/commits/' + encodeURIComponent(branch))).sha || branch; } catch (err) { /* API が だめでも ブランチ名で とる */ }
+  var base = 'https://raw.githubusercontent.com/' + REPO + '/' + sha + '/' + GAME_DIR;
+  var html = fetch_(base + 'index.html'), cj = fetch_(base + 'cards.json'), cd = JSON.parse(cj);
+  var m = /<!--mtg-built:(\d+) server:(\w*)-->/.exec(html);
+  if (!m || html.indexOf('pack-js') < 0 || !cd.cards) throw new Error('ゲーム本体の ファイルが おかしい');
+  if (m[2] !== SERVER_VER || cd.server !== SERVER_VER) throw new Error('サーバー（Code.gs）が かわって います。さきに 新しい Code.gs を clasp push して、デプロイを 新バージョンに して ください');
+  var built = Number(m[1]);
+  withLock_(function () {
+    var s = sh_('game'), rows = [], n = Math.max(Math.ceil(html.length / SAVE_CELL), Math.ceil(cj.length / SAVE_CELL));
+    for (var i = 0; i < n; i++) rows.push([html.slice(i * SAVE_CELL, (i + 1) * SAVE_CELL), cj.slice(i * SAVE_CELL, (i + 1) * SAVE_CELL)]);
+    if (s.getMaxRows() < n + 1) s.insertRowsAfter(s.getMaxRows(), n + 1 - s.getMaxRows());
+    if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, 2).clearContent();
+    s.getRange(2, 1, n, 2).setNumberFormat('@').setValues(rows);
+    var meta = { at: Date.now(), sha: String(sha).slice(0, 40), branch: branch, size: html.length, built: built, parts: 0 };
+    PropertiesService.getScriptProperties().setProperty('GAME_META', JSON.stringify(meta));
+    DATA_ = null;
+  });
+  return gameInfo_();
+}
+// いま 出して いる ゲームの 版 → { from: 'github'|'file', at, sha, branch, built }
+function gameInfo_() {
+  var meta = fresh_();
+  if (meta) return { from: 'github', at: meta.at, sha: meta.sha, branch: meta.branch, built: meta.built };
+  return { from: 'file', built: BUILT, branch: String(conf_()['読みこみ元'] || '') };
 }

@@ -20,6 +20,7 @@ const fromLocal = (s) => (s ? s.replace('T', ' ').replace(/-/g, '/') : '');
 const opt = (list, v) => list.map((w, i) => `<option value="${i}" ${+v === i ? 'selected' : ''}>${esc(w)}</option>`).join('');
 const RELEASED = MAIN.filter((x) => x.released).map((x) => x.id);
 const packOn = (c) => (ids(c['パックの弾']).length ? ids(c['パックの弾']) : RELEASED); // 空 ＝ 出ている 弾 ぜんぶ
+const when = (ms) => (ms ? new Date(ms).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '？');
 const cardName = (id) => (BY_ID[id] ? info(BY_ID[id]).name.replace(/（[^）]*）/g, '') : '');
 
 export async function adminScreen(app, back) {
@@ -36,6 +37,13 @@ export async function adminScreen(app, back) {
     app().innerHTML = `<main class="settings admin">
       <h2><span class="dev-badge">先生</span>開発モード</h2>
       <p class="st-note">${esc(D.me)} でひらいています。ここでの変更は保存するとすぐ全員にききます（スプレッドシートを直接書きかえても同じです）。<a href="${esc(D.url)}" target="_blank" rel="noopener">スプレッドシートをひらく</a></p>
+      <section class="st-sec">
+        <h3>ゲーム本体</h3>
+        <p class="st-note">いま出しているもの：${D.game.from === 'github' ? `GitHub から取った版（${esc(D.game.branch)}・${esc(String(D.game.sha).slice(0, 7))}・${when(D.game.built)} につくった版。${when(D.game.at)} に更新）` : `clasp で上げたファイル（${when(D.game.built)} につくった版）`}</p>
+        <label class="ad-row">読みこみ元のブランチ <input type="text" data-conf="読みこみ元" value="${esc(c['読みこみ元'])}" placeholder="main"></label>
+        <button type="button" class="btn primary" data-update="1">ゲームを最新にする</button>
+        <p class="st-note">GitHub の公開リポジトリから最新のゲームを取ってきます（iPad はGitHub につながりません）。ブランチを変えたときは、先に下の「保存する」を押してください。「サーバーが変わっています」と出たら、新しい Code.gs を clasp push して、デプロイを新バージョンにしてください。</p>
+      </section>
       <section class="st-sec">
         <h3>デバッグモード（この端末だけ）</h3>
         <p class="st-note">オンにすると、せってい画面で弾・こうこく・プレイマットを自由にかえられます。子どもの端末ではオンにしないでください。</p>
@@ -106,6 +114,16 @@ export async function adminScreen(app, back) {
       app().onchange = null; return back();
     }
     if (t.dataset.debug) { setDebug(!debugOn()); return draw(); }
+    if (t.dataset.update) {
+      if (dirty) return sheet('<p>さきに「保存する」を押してください。</p>', [{ label: 'とじる', value: 1, kind: 'primary' }], { title: '開発モード' });
+      t.disabled = true; t.textContent = '取ってきています…（30秒くらい）';
+      try {
+        D.game = await call('mtgAdminUpdate', undefined, 120000);
+        draw();
+        await sheet(`<p>${D.game.from === 'github' ? '最新にしました。' : 'いま上がっているファイルがいちばん新しい版でした。'}アプリをひらきなおすと新しい版になります（この iPad も、子どもの iPad も）。</p>`, [{ label: 'とじる', value: 1, kind: 'primary' }], { title: '開発モード' });
+      } catch (err) { draw(); await sheet(`<p>最新にできませんでした（${esc(err?.message || err)}）</p>`, [{ label: 'とじる', value: 1, kind: 'primary' }], { title: '開発モード' }); }
+      return;
+    }
     if (t.dataset.admAdd) { D.admins.push(['', '']); touch(); return draw(); }
     if (t.dataset.admDel) { D.admins.splice(+t.dataset.admDel, 1); touch(); return draw(); }
     if (t.dataset.codeAdd) { D.codes.push(['0-0-0', '', '', '', '', '']); touch(); return draw(); }

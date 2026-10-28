@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { makeGas, OWNER } from './gasmock.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { G, book, setUser } = makeGas();
+const { G, book, setUser, fetched, setWeb, cache, props } = makeGas();
 
 
 let bad = 0;
@@ -16,7 +16,7 @@ const rows = (n) => (book.sheets[n]?.sh.cells || []).slice(1).filter((r) => r &&
 // ---- はじめ ----
 const c0 = G.mtgConfig();
 ok(c0.login && !c0.admin && c0.sets === null && c0.raid && c0.raid.id === 'tarkir-1', 'mtgConfig（子ども・はじめ）');
-ok(rows('せってい').length === 7, 'せってい シートが できる');
+ok(rows('せってい').length === 8, 'せってい シートが できる');
 throws(() => G.mtgAdminGet(), '子どもは 管理画面を ひらけない');
 
 // ---- ゴースト ----
@@ -92,6 +92,30 @@ throws(() => G.mtgRedeem({ w: [5, 5, 5] }), 'ない あいことば');
 setUser('taro@school.ed.jp');
 for (let k = 0; k < 1100; k++) G.mtgResult({ i: `2-${k.toString(16).padStart(8, '0')}`, r: 'w', n: [0, 0], p: 'R' });
 ok(rows('デッキの点').length > 1100, `デッキの点が 1000行を こえても 書ける（${rows('デッキの点').length}）`);
+
+// ---- ゲームを 最新に する（GitHub → シート）----
+setUser(OWNER);
+ok(G.doGet().content === 'FILE:index', 'はじめは clasp で 上げた index を 出す');
+let info = G.mtgAdminUpdate();
+ok(info.from === 'file' && fetched.some((u) => u.includes('/abc1234def/mathtcg/gas/index.html')), 'おなじ 版なら ファイルの まま（コミットの sha で とる）');
+const bump = (n, s) => (n === 'index.html' ? s.replace(/<!--mtg-built:(\d+)/, (_, b) => `<!--mtg-built:${+b + 1000}`) : s.replace(/"cards":\{/, '"cards":{"NEW1":[2,"R"],'));
+setWeb(bump);
+info = G.mtgAdminUpdate();
+ok(info.from === 'github' && info.sha === 'abc1234def', 'あたらしい 版を とる');
+const html = G.doGet().content;
+ok(html.startsWith('<!doctype html>') && html.length > 2000000 && html.includes('pack-js'), `シートから 出す（${html.length}字）`);
+ok(Object.keys(cache).some((k) => k.startsWith('game:')), 'キャッシュに のる');
+for (const k of Object.keys(cache)) if (k.startsWith('game:')) delete cache[k];
+ok(G.doGet().content === html, 'キャッシュが きえても シートから おなじ もの');
+ok(G.mtgAdminGet().game.from === 'github', '管理画面に 版が 出る');
+const nd = [...Array(4).fill('NEW1'), ...Array(16).fill(Object.values(BY_ID).find((d) => d.basic && d.color === 'R').id)];
+ok(/^1-/.test(G.mtgSubmitGhost({ d: nd, t: 1, n: [0, 0] }).i), 'GitHub から とった あたらしい カードも デッキの チェックを とおる');
+setWeb((n, s) => bump(n, s).replace(/server:\w+/, 'server:zzzz').replace(/"server":"\w+"/, '"server":"zzzz"'));
+throws(() => G.mtgAdminUpdate(), 'サーバーが ふるい ときは 最新に しない');
+setWeb((n, s) => (n === 'index.html' ? 'こわれた' : s));
+throws(() => G.mtgAdminUpdate(), 'こわれた ファイルは とらない');
+setUser('taro@school.ed.jp');
+throws(() => G.mtgAdminUpdate(), '子どもは 最新に できない');
 
 console.log(bad ? `\n${bad}こ NG` : '\nぜんぶ OK');
 process.exit(bad ? 1 : 0);
