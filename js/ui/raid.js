@@ -7,7 +7,7 @@ import { pvp } from '../data/enemies.js';
 import { colorsOf } from '../engine/game.js';
 import { startBattle } from './battle.js';
 import { sheet, esc, ruby, info, detail, COLOR_NAME } from './view.js';
-import { hasServer, call, nameOf } from './online.js';
+import { hasServer, call, send, nameOf } from './online.js';
 import { FACTIONS, RIVAL, THEMES, cmdDeck, cmdPool, pickCommander, cmdSetup } from './commander.js';
 import { deckBuilder } from './app.js';
 import { RAID, WIN_PTS, FINISH_PTS, DEF_PTS, loadRaid, saveRaid, raidOpen, raidFree, raidPoints, sendRaid } from './raidstore.js';
@@ -154,7 +154,7 @@ async function fight(app, back, r) {
       note = `かった ＋${WIN_PTS}${x.cmdFinish ? `、統率者（とうそつしゃ）で とどめ ＋${FINISH_PTS}` : ''} ＝ ＋${add}点`;
     }
     // まけたら あいての ゴーストの ぼうえい点（あいての 陣営に ＋3）
-    if (res === 'l' && g?.i) { call('mtgRaidDefend', { id: RAID.id, g: g.i }).catch(() => {}); note = `${note}あいての ゴーストが まもったので、あいての 陣営に ＋${DEF_PTS}点。`; }
+    if (res === 'l' && g?.i) { send('mtgRaidDefend', { id: RAID.id, g: g.i }).catch(() => {}); note = `${note}あいての ゴーストが まもったので、あいての 陣営に ＋${DEF_PTS}点。`; }
     saveRaid(v);
     if (add) sendRaid(v, { w: 1, fin: x.cmdFinish ? 1 : 0 });
     await sheet(`<p class="big-result ${{ w: 'win', l: 'lose', d: 'draw' }[res]}">${{ w: 'かった！', l: 'まけた…', d: 'ひきわけ' }[res]}</p><p>${ruby(note)}</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: ruby(RAID.name), dismiss: false });

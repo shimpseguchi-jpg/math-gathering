@@ -14,6 +14,7 @@ import { storyMenu, storyCount, STORY_TOTAL } from './story.js';
 import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
 import { RAID, raidOpen, raidShown, raidFree, applyRaid } from './raidstore.js';
 import { CONF, loadConf } from './server.js';
+import { loading } from './loading.js';
 import { adminScreen } from './admin.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme, applyConf } from './settings.js';
@@ -713,6 +714,6 @@ applyMat();
 initTerms();
 // GAS 版：さいしょに 先生の せってい（パックの 弾・レイド）と、先生か どうかを もらう
 if (hasServer()) {
-  app().innerHTML = '<main class="title"><p class="fine">よみこみちゅう…</p></main>';
+  app().innerHTML = `<main class="title">${loading()}</main>`;
   loadConf().then(() => { applyConf(); applyRaid(); title(); });
 } else title();

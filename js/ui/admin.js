@@ -6,6 +6,7 @@
 import { SETS, BY_ID } from '../data/cards.js';
 import { esc, ruby, sheet, info } from './view.js';
 import { call, loadConf } from './server.js';
+import { loading } from './loading.js';
 import { applyConf, setDebug, debugOn } from './settings.js';
 import { applyRaid } from './raidstore.js';
 import { NAME_A, NAME_B } from './online.js';
@@ -24,7 +25,7 @@ const when = (ms) => (ms ? new Date(ms).toLocaleString('ja-JP', { timeZone: 'Asi
 const cardName = (id) => (BY_ID[id] ? info(BY_ID[id]).name.replace(/（[^）]*）/g, '') : '');
 
 export async function adminScreen(app, back) {
-  app().innerHTML = '<main class="settings"><h2>開発モード</h2><p class="st-note">よみこみ中…</p></main>';
+  app().innerHTML = `<main class="settings"><h2>開発モード</h2>${loading('よみこみ中')}</main>`;
   let D;
   try { D = await call('mtgAdminGet'); } catch (err) {
     app().innerHTML = `<main class="settings"><h2>開発モード</h2><p class="st-note">ひらけませんでした（${esc(err?.message || err)}）</p><button type="button" class="btn primary" data-back="1">タイトルへ</button></main>`;
