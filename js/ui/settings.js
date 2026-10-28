@@ -6,6 +6,7 @@ import { soundOn, setSound } from './sfx.js';
 import { ruby, sheet } from './view.js';
 import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 import { hasServer, call, CONF, setSaved, packSave, unpackSave } from './server.js';
+import { raidHidden, setRaidHidden } from './raidstore.js';
 
 // デバッグモード（開発用の 項目：弾・こうこく・プレイマットを 自由に かえる）
 // WEB版（サーバーなし）は いつも オン。GAS 版は 先生（かんりしゃ）が 開発モードの 画面で オンに した 端末だけ。子どもには 出ない
@@ -109,6 +110,11 @@ export function settingsScreen(app, back, o = {}) {
         <p class="st-note">ぼうけんの まえと おわりに 出る 60びょうの しゅぎょう。オフに すると すぐ パックに すすむ。</p>
         <button type="button" class="btn" data-ads="1" aria-pressed="${adsOn()}">こうこく ${adsOn() ? 'あり' : 'なし'}</button>
       </section>
+      ${hasServer() ? '' : `<section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>レイド</h3>
+        <p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
+        <button type="button" class="btn" data-raid="1" aria-pressed="${!raidHidden()}">レイド ${raidHidden() ? 'なし' : 'あり'}</button>
+      </section>`}
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
@@ -128,6 +134,7 @@ export function settingsScreen(app, back, o = {}) {
     const th = e.target.closest('[data-look]'); if (th) { setTheme(th.dataset.look); draw(); }
     const mt = e.target.closest('button[data-mat]'); if (mt && !mt.disabled) { useMat(mt.dataset.mat); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
+    if (e.target.closest('[data-raid]')) { setRaidHidden(!raidHidden()); draw(); }
     if (e.target.closest('[data-up]')) upload().then(draw);
     if (e.target.closest('[data-down]')) download();
   };

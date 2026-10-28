@@ -60,6 +60,7 @@ var CONF = [
   ['つかわない弾', '', 'もんしょうで 解放（かいほう）しても まぜない サブセット・番外編の 番号（例：10,11,12）'],
   ['レイドID', 'tarkir-1', 'レイドの なまえ（tarkir-1、tarkir-2 …。かえると 点と ゴーストが 0から）'],
   ['レイドのおわり', '2026/11/01 20:00', 'レイドが おわる 日時（日本時間）。空なら レイドなし'],
+  ['レイドを出す', '出す', 'タイトルに レイドを 出すか（出す / 出さない）。出さない ときは レイドなし（点と ゴーストは のこる）'],
   ['ランキングの時刻', '7,17', 'ランキングを こうしんする 時刻（日本時間・カンマで くぎる）'],
   ['ゴーストの数', '30', 'とどいた 階ごとに のこす ゴーストの 数（ふるい ものから けす）'],
   ['レイドゴーストの数', '20', '陣営ごとに のこす レイドの ゴーストの 数'],
@@ -335,12 +336,12 @@ function mtgMyGhosts(ids) {
 // レイド シート：[レイドID, '陣営'|'統率者', キー, 点]
 // レイドゴースト シート：[レイドID, 陣営, ゴーストID, 統率者, デッキ, なまえ1, なまえ2, 日時, まもった 回数, いる（1 / 空）]
 //   陣営ごとに「レイドゴーストの数」まで いる。おちても 行は のこす（まもった 回数を おぼえて おくため）
-// レイドの ID と おわる 時刻は せってい シート。おわった あとも 30分は たたかいの けっかを うけとる
+// レイドの ID と おわる 時刻、出すか どうか（レイドを出す）は せってい シート。おわった あとも 30分は たたかいの けっかを うけとる
 var RAID_GRACE = 30 * 60 * 1000;
 var RAID_CMD = { dragon: ['RG07', 'WG07', 'KR07', 'WU07', 'UK07'], human: ['AB02', 'JE02', 'SU02', 'MA02', 'TE02'] };
 var RAID_DEF = 3; // ぼうえい点：ゴーストが かつと その 陣営に ＋3
 function raidGid_(i) { i = String(i || ''); return /^[0-9a-f]{12}$/.test(i) ? i : ''; }
-function raidNow_() { var c = conf_(), ends = ms_(c['レイドのおわり']), id = String(c['レイドID'] || ''); return ends && /^tarkir-\d+$/.test(id) ? { id: id, ends: ends } : null; }
+function raidNow_() { var c = conf_(), ends = ms_(c['レイドのおわり']), id = String(c['レイドID'] || ''); return ends && /^tarkir-\d+$/.test(id) && String(c['レイドを出す']).trim() !== '出さない' ? { id: id, ends: ends } : null; }
 function raidId_(q) { var r = raidNow_(), id = String(q && q.id); if (!r || r.id !== id) throw new Error('レイドが ない'); return id; }
 function raidFaction_(q) { var f = String(q && q.f); if (!RAID_CMD[f]) throw new Error('陣営が おかしい'); return f; }
 function raidCmd_(f, c) { c = String(c || ''); if (RAID_CMD[f].indexOf(c) < 0) throw new Error('統率者が おかしい'); return c; }

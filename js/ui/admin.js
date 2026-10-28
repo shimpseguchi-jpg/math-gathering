@@ -1,11 +1,12 @@
 // 開発モード（先生だけ・GAS 版）：みんなに きく せっていを かえる 管理画面。中身は スプレッドシートと おなじ（どちらで かえても よい）
 // ・この 端末の デバッグモード（弾・こうこく・プレイマットを 自由に かえる。この 端末だけ）
-// ・パックの 弾、つかわない サブセット・番外編、レイドの ID と おわり、ランキングの 時刻、ゴーストの 数
+// ・パックの 弾、つかわない サブセット・番外編、レイドを 出すか・レイドの ID と おわり、ランキングの 時刻、ゴーストの 数
 // ・かんりしゃ（先生）の メールアドレス、あいことば（docs/PROMO.md 2.2）
 // 先生むけ なので 漢字を ふつうに つかう（子どもには 出ない）
 import { SETS, BY_ID } from '../data/cards.js';
 import { esc, ruby, sheet, info } from './view.js';
 import { call, loadConf } from './server.js';
+import { loading } from './loading.js';
 import { applyConf, setDebug, debugOn } from './settings.js';
 import { applyRaid } from './raidstore.js';
 import { NAME_A, NAME_B } from './online.js';
@@ -24,7 +25,7 @@ const when = (ms) => (ms ? new Date(ms).toLocaleString('ja-JP', { timeZone: 'Asi
 const cardName = (id) => (BY_ID[id] ? info(BY_ID[id]).name.replace(/（[^）]*）/g, '') : '');
 
 export async function adminScreen(app, back) {
-  app().innerHTML = '<main class="settings"><h2>開発モード</h2><p class="st-note">よみこみ中…</p></main>';
+  app().innerHTML = `<main class="settings"><h2>開発モード</h2>${loading('よみこみ中')}</main>`;
   let D;
   try { D = await call('mtgAdminGet'); } catch (err) {
     app().innerHTML = `<main class="settings"><h2>開発モード</h2><p class="st-note">ひらけませんでした（${esc(err?.message || err)}）</p><button type="button" class="btn primary" data-back="1">タイトルへ</button></main>`;
@@ -61,9 +62,10 @@ export async function adminScreen(app, back) {
       </section>
       <section class="st-sec">
         <h3>レイド</h3>
+        <label class="ad-row">タイトルに <select data-conf="レイドを出す">${['出す', '出さない'].map((w) => `<option value="${w}" ${(c['レイドを出す'] === '出さない' ? '出さない' : '出す') === w ? 'selected' : ''}>${w}</option>`).join('')}</select></label>
         <label class="ad-row">レイドID <input type="text" data-conf="レイドID" value="${esc(c['レイドID'])}" placeholder="tarkir-1"></label>
         <label class="ad-row">おわる日時 <input type="datetime-local" data-conf="レイドのおわり" value="${toLocal(c['レイドのおわり'])}"></label>
-        <p class="st-note">おわる日時を空にするとレイドなし。IDを変える（tarkir-2 など）と点とゴーストが0から始まります。</p>
+        <p class="st-note">「出さない」にすると、全員のタイトルからレイドが消えます（点とゴーストはのこるので、「出す」にもどせばつづきから）。おわる日時を空にしてもレイドなし。IDを変える（tarkir-2 など）と点とゴーストが0から始まります。</p>
       </section>
       <section class="st-sec">
         <h3>オンライン バトル</h3>
