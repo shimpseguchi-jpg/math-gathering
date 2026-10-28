@@ -127,6 +127,12 @@ throws(() => G.mtgAdminUpdate(), '子どもは 最新に できない');
 { const m = makeGas(); m.props.SHEET_ID = ' SCHOOL '; ok(m.G.mtgConfig().login, 'SHEET_ID の シートを つかう'); }
 { const m = makeGas(); m.props.SHEET_ID = 'NOPE'; throws(() => m.G.mtgRanking(), 'SHEET_ID が まちがって いたら エラー'); }
 
+// ---- ひっこし（エディタで 実行する）は 先生だけ ----
+{ const m = makeGas('taro@school.ed.jp'); m.props['deck:2-00000001'] = JSON.stringify({ s: 3, n: [1, 2], p: 'R', u: 0 });
+  throws(() => m.G.mtgMigrate(), '子どもは ひっこしを よべない');
+  m.setUser(OWNER); m.G.mtgMigrate();
+  ok((m.book.sheets['デッキの点']?.sh.cells || []).slice(1).some((r) => r && r[0] === '2-00000001'), '先生は ひっこしできる'); }
+
 // ---- index.html を 上げて いない とき（エディタに Code.gs だけ）----
 { const m = makeGas(OWNER); m.setNoFile(true);
   ok(/mtgAdminUpdate/.test(m.G.doGet().content), 'index が ない ときは あんないを 出す');
