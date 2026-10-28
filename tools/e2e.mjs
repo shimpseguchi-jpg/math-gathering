@@ -44,6 +44,8 @@ if (process.env.START) {
 let ended = false, battles = 0;
 for (let i = 0; i < STEPS && !ended; i++) {
   await page.waitForTimeout(30);
+  // 用語の せつめい（点線の ことばを 長おし・2回タップで 出る。画面 ぜんぶを おおう）：タップで とじる
+  if (await page.locator('#term:not([hidden])').count()) { await shot('term'); await page.click('#term'); continue; }
   // ぼうけんの まえの しゅぎょう：はじめて すぐ やめる → もんしょうの 画面 →「ぼうけんへ すすむ」
   if (await page.locator('main.study [data-start]').count()) { await shot('gate'); await page.click('main.study [data-start]'); continue; }
   if (await page.locator('main.study.run [data-quit]').count() && !(await page.locator('#sheet:not([hidden])').count())) { await page.click('main.study.run [data-quit]'); await page.click('#sheet button:has-text("やめる")'); continue; }
