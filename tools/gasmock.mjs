@@ -45,6 +45,7 @@ const ss = {
 const props = {};
 const cache = {};
 let user = first;
+let noFile = false;
 const fetched = [];
 // にせの GitHub：ファイルの なかみを かえて ためせる（web.edit(name, text) → text）
 let edit = (name, text) => text;
@@ -71,12 +72,12 @@ const ctx = {
   },
   Logger: { log: () => {} },
   HtmlService: {
-    createHtmlOutputFromFile: (n) => page(`FILE:${n}`), createHtmlOutput: (h) => page(h),
+    createHtmlOutputFromFile: (n) => { if (noFile) throw new Error('ない'); return page(`FILE:${n}`); }, createHtmlOutput: (h) => page(h),
     XFrameOptionsMode: { ALLOWALL: 1 },
   },
 };
 vm.createContext(ctx);
 vm.runInContext(code, ctx);
 const G = ctx;
-return { G, book, setUser: (u) => { user = u; }, fetched, setWeb: (f) => { edit = f; }, cache, props };
+return { G, book, setUser: (u) => { user = u; }, fetched, setWeb: (f) => { edit = f; }, setNoFile: (v) => { noFile = v; }, cache, props };
 }
