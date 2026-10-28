@@ -605,6 +605,31 @@ div.zk-card { cursor: default; }
 .zk-runs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
 .zk-runs li { font-size: 13px; } .zk-runs b { font-family: var(--display); color: var(--gold); margin-right: 8px; font-size: 16px; } .zk-runs em { font-style: normal; color: var(--ink-dim); margin-left: 8px; font-size: 11px; }
 
+/* ---- こうちくモード（docs/CONSTRUCTED.md） ---- */
+.construct .title-btns { max-width: none; }
+.cs-how { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cs-sets, .cs-decks, .cs-floors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cs-set { display: flex; align-items: center; gap: 10px; background: var(--table-2); border-radius: 12px; padding: 10px 12px; }
+.cs-set.done { border: 1px solid var(--gold); }
+.cs-set-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cs-set-name b { font-size: 14px; }
+.cs-set-name small { font-size: 11.5px; color: var(--ink-dim); }
+.cs-set .btn { flex: none; min-width: 108px; }
+.cs-deck { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; background: var(--table-2); border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; color: inherit; cursor: pointer; }
+.cs-deck b { font-size: 15px; }
+.cs-rule { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; background: var(--table-3); }
+.cs-rule.r-eternal { background: var(--gold); color: var(--gold-ink); }
+.cs-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.cs-meta small { color: var(--ink-dim); }
+.cs-meta em { font-style: normal; color: var(--bad); font-weight: 700; }
+.cs-floors { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.cs-floors .btn { width: 100%; }
+/* まい数は 右上（右下は パワー／タフネス）。●＝デッキに 入れた・○＝まだ 入れて いない */
+.cs-n, .pool-item .cnt { position: absolute; top: -6px; right: -4px; background: var(--table-3); color: var(--ink); font-size: 10px; font-weight: 700; border-radius: 8px; padding: 0 5px; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.pool-item.in .cnt { background: var(--gold); color: var(--gold-ink); }
+.cs-math { font-size: 16px; } .cs-math b { font-family: var(--display); font-size: 22px; color: var(--gold); }
+.tk-get { display: flex; flex-direction: column; gap: 2px; } .tk-get b { color: var(--gold); font-size: 15px; }
+
 /* ---- もんしょう・しゅぎょう（REQUIREMENTS 12章） ---- */
 .em-btn > span { color: var(--gold); }
 .emblem, .study { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 720px; }

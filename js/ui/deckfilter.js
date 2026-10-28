@@ -31,10 +31,10 @@ const on = (list, v) => list.includes(v);
 const flip = (list, v) => (on(list, v) ? list.filter((x) => x !== v) : [...list, v]);
 export const filterCount = (F) => F.cost.length + F.colors.length + F.types.length + F.subs.length + F.rar.length + F.kws.length + (F.deck !== 'all' ? 1 : 0) + (F.q ? 1 : 0);
 
-// items：{ i（プールの ばんごう）, d, inDeck, no（入れられない わけ）}。しぼりこんで ならべた i を かえす
+// items：{ i（プールの ばんごう）, d, inDeck, no（入れられない わけ）, more（まとめて 見せる とき：もう 1まい 入れられる）}。しぼりこんで ならべた i を かえす
 export function applyFilter(F, items) {
   const q = plain(F.q || '');
-  const keep = items.filter(({ d, inDeck, no }) => {
+  const keep = items.filter(({ d, inDeck, no, more }) => {
     const cs = colorsOf(d);
     if (F.cost.length && !on(F.cost, costBucket(d))) return false;
     if (F.colors.length && !F.colors.some((c) => (c === 'multi' ? cs.length >= 2 : c === 'none' ? !cs.length : cs.includes(c)))) return false;
@@ -44,7 +44,7 @@ export function applyFilter(F, items) {
     if (F.kws.length && !F.kws.every((k) => (d.kw || []).includes(k))) return false;
     if (F.deck === 'in' && !inDeck) return false;
     if (F.deck === 'out' && inDeck) return false;
-    if (F.deck === 'ok' && (inDeck || no)) return false;
+    if (F.deck === 'ok' && (more !== undefined ? !more : inDeck || no)) return false;
     if (q && !plain(info(d).name).includes(q) && !info(d).name.replace(/[（）]/g, '').includes(q)) return false;
     return true;
   });
@@ -55,8 +55,8 @@ export function applyFilter(F, items) {
 }
 
 const chip = (attr, v, label, pressed, extra = '') => `<button type="button" class="chip-f ${extra}" data-${attr}="${esc(v)}" aria-pressed="${pressed}">${label}</button>`;
-// こまかく の パネル。defs は プールの カード（しゅるいの こうほを つくる）
-export function filterPanel(F, defs, shown, total) {
+// こまかく の パネル。defs は プールの カード（しゅるいの こうほを つくる）。unit：数の たんい（まとめて 見せる ときは しゅるい）
+export function filterPanel(F, defs, shown, total, unit = 'まい') {
   if (!F.open) return '';
   const subs = [...new Map(defs.flatMap(subsOf).map((x) => [plain(x), x])).entries()].sort((a, b) => a[0].localeCompare(b[0], 'ja'));
   const n = filterCount(F);
@@ -70,7 +70,7 @@ export function filterPanel(F, defs, shown, total) {
     <div class="frow"><span class="flabel">レアリティ</span>${['C', 'U', 'R', 'L'].map((r) => chip('frar', r, RAR[r], on(F.rar, r))).join('')}</div>
     <div class="frow"><span class="flabel">のうりょく</span>${KWS.map(([k, l]) => chip('fkw', k, ruby(l), on(F.kws, k))).join('')}</div>
     <div class="frow"><span class="flabel">デッキ</span>${[['all', 'ぜんぶ'], ['in', '入れた カード'], ['out', '入れて いない'], ['ok', 'いま 入れられる']].map(([k, l]) => chip('fdeck', k, l, F.deck === k)).join('')}</div>
-    <div class="frow fsum"><span>${shown} / ${total}まい を 見せて いる${n ? `（しぼりこみ ${n}こ）` : ''}</span>${n ? '<button type="button" class="chip-f" data-freset="1">しぼりこみを けす</button>' : ''}</div>
+    <div class="frow fsum"><span>${shown} / ${total}${unit} を 見せて いる${n ? `（しぼりこみ ${n}こ）` : ''}</span>${n ? '<button type="button" class="chip-f" data-freset="1">しぼりこみを けす</button>' : ''}</div>
   </section>`;
 }
 

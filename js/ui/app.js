@@ -26,11 +26,14 @@ import { QUIZ_SECONDS } from '../data/quiz.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, filterCount, saveFilter } from './deckfilter.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
 import { BANNERS } from '../data/emblems.js';
+import { gacha } from './gacha.js';
+import { constructMenu } from './construct.js';
+import { addTickets, tickets, ENDLESS_PER } from './collection.js';
 
 const SAVE = 'mtg-adventure-v1';
 const ENDLESS_BEST = 'mtg-endless-best'; // むげんの とうの いちばんの きろく { floor, exact, score }
 const TAP_MODE = 'mtg-build-tap'; // デッキ構築で タップしたとき：'detail'（せつめい）か 'quick'（すぐ 入れる・はずす）
-const FLOOR_NAMES = {
+export const FLOOR_NAMES = {
   hydra: '1階 ハイドラとの たいじ', horde: '2階 たいぐんとの たたかい', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
   xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
   clock: '1階 からくり とけいとう', dragon: '2階 ドラゴンの たからの 山', twins: '3階 ふたごの きょじん', gorgon: '4階 メドゥーサの 石の 庭',
@@ -76,7 +79,6 @@ const load = () => { try { return JSON.parse(localStorage.getItem(SAVE) || 'null
 const save = () => { try { localStorage.setItem(SAVE, JSON.stringify(A)); } catch { /* 保存できない環境でも遊べる */ } };
 const clearSave = () => { try { localStorage.removeItem(SAVE); } catch { /* なし */ } };
 const defs = (ids) => ids.map((id) => BY_ID[id]);
-const nm = (d) => info(d).name; // ふりがなつきの 名前（ruby に とおして 出す）
 
 // ---- タイトル ----
 const tutorialDone = () => { try { return !!localStorage.getItem(TUTORIAL_DONE); } catch { return true; } };
@@ -98,6 +100,7 @@ export function title() {
       ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
       ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階`}）</button>` : ''}
       <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
+      <button type="button" class="btn tro-btn" data-go="build">こうちく<small>パックけん ${tickets()}まい</small></button>
       <button type="button" class="btn tro-btn em-btn" data-go="emblem"><span aria-hidden="true">✦</span>もんしょう<small>${activeIds().length ? `${activeIds().length}こ ついて いる` : 'しゅぎょうで てに いれる'}・ポイント ${emblemPoints()}</small></button>
       <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
       ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
@@ -123,6 +126,7 @@ export function title() {
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
+    if (b.dataset.go === 'build') return constructMenu(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
     const rule = app().querySelector('input[name=rule]:checked')?.value;
@@ -132,6 +136,7 @@ export function title() {
     const cmd = rule === 'cmd' ? await pickLegend({ back: 'タイトルへ' }) : null;
     if (rule === 'cmd' && !cmd) return title();
     const start = () => {
+      if (old && !old.paid) payTower(old, false); // とちゅうで やめた ぼうけん：のぼった 階の パックけん
       // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
       const pk = activeEffects()?.pack;
       const cols = packColors(withExtra(enabledSets(), pk?.extra));
@@ -179,10 +184,7 @@ function emblemPackNote(em) {
 }
 function resume() { if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
 
-// ---- パック開封（ソシャゲの ガチャ演出） ----
-// ① 光る パックを タップして やぶる → ② 1まいずつ めくる（裏の光り方で レアリティが わかる）→ ③ まとめ
-const ORDER = [1, 2, 3, 0, 4, 5, 6, 7]; // コモン → アンコモン → レア の順。0 は「！？」の わく
-const GLOW = { C: '', U: 'g-U', R: 'g-R', L: 'g-L' };
+// ---- パック開封（ガチャの 演出は gacha.js） ----
 function packs() {
   // ごほうびパック：登った階が 多いほど レア以上が 出やすく、デッキで いちばん使う色が 出やすい
   const cleared = A.idx;
@@ -196,98 +198,21 @@ function packs() {
   const roll = () => openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare, only });
   if (A.draft) return draftPick(roll);
   const cards = roll();
-  // めくる じゅんばん：アンコモンの もんしょうで ふえた 9まいめ（アンコモン）は レアの まえ
-  const order = cards.length > 8 ? [1, 2, 3, 0, 4, 5, 6, 8, 7] : ORDER;
-  const surprise = !!cards.surprise;
-  const ids = cards.map((d) => d.id);
-  const owned = new Set(A.pool);
-  const best = cards.some((d) => d.rar === 'L') ? 'L' : 'R';
-  let stage = 'pack', k = 0, cracked = false, flipped = false;
-  const st = { aura: best === 'L' ? 'aura-L' : 'aura-R' };
-  const top = () => `<div class="pk-top"><p class="eyebrow">${rare ? 'レアパック' : `パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}`}</p>
-    <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>`;
-  const burst = (n = 22) => Array.from({ length: n }, (_, i) => `<i style="--a:${(360 / n) * i + Math.random() * 12}deg;--d:${70 + Math.random() * 90}px;--h:${Math.floor(Math.random() * 360)}"></i>`).join('');
-
-  const draw = () => {
-    if (stage === 'pack') {
-      app().innerHTML = `<main class="gacha">${top()}
-        <button type="button" class="foil ${st.aura} ${rare ? 'rare-pack' : ''}" data-open="1" aria-label="パックを あける">
-          <span class="foil-shine"></span><span class="foil-title">MATHEMATIC<br>THE GATHERING</span><span class="foil-sub">${ids.length}まい いり</span>
-        </button>
-        <p class="gacha-hint">${best === 'L' ? 'パックが にじいろに 光っている…！？' : 'タップして パックを やぶろう'}</p>
-        ${rare ? `<div class="bonus"><p class="bonus-title">むげんの とう さんせんの レアパック</p>
-          <span>レジェンドが 出る かくりつ <b>${Math.round(rareLegendChance() * 100)}%</b><small>（ふつうは ${Math.round(legendChance(0) * 100)}%）</small></span>
-          <span>コモンの はんぶんが アンコモンに、アンコモンの はんぶんが レアに かわる</span></div>` : cleared > 0 ? `<div class="bonus"><p class="bonus-title">${A.endless ? A.endless.floor - 1 : cleared}階 クリアの ごほうびパック</p>
-          <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared, em) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
-          <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
-          ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">${em.ident && !em.colors.length && !em.unc && !em.leg && !em.extra.length ? ruby('統率者（とうそつしゃ）の パック') : 'もんしょうの パック'}</p>${emblemPackNote(em)}</div>` : ''}
-      </main>`;
-      return;
-    }
-    if (stage === 'reveal') {
-      const i = order[k], d = BY_ID[ids[i]];
-      const isSurprise = surprise && i === 0;
-      const rar = isSurprise && !cracked ? 'C' : d.rar;
-      const isNew = !owned.has(ids[i]);
-      app().innerHTML = `<main class="gacha">${top()}
-        <div class="stage ${flipped ? `shown s-${d.rar}` : ''}">
-          ${flipped ? `<div class="big-card ${d.rar === 'L' ? 'legend' : ''}">${fullCard(d)}${isNew ? '<span class="new">NEW</span>' : ''}${isSurprise ? '<span class="wow">！？</span>' : ''}</div>`
-            : `<button type="button" class="big-back ${GLOW[rar]} ${isSurprise && cracked ? 'crack' : ''}" data-flip="1" aria-label="めくる"><span>${isSurprise && cracked ? '！？' : '?'}</span></button>`}
-          ${flipped && (d.rar === 'R' || d.rar === 'L') ? `<div class="burst ${d.rar === 'L' ? 'b-L' : ''}" aria-hidden="true">${burst(d.rar === 'L' ? 36 : 20)}</div>` : ''}
-          ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? '<small>しょうかく！</small>' : ''}LEGEND!!</p>` : ''}
-        </div>
-        <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${ruby(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
-        <ol class="dots">${order.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
-        <p class="tap-next">${flipped ? `カードを タップで ${k < order.length - 1 ? 'つぎへ' : 'まとめへ'}（点線の ことばは 長おしで せつめい）` : ''}</p>
-        <div class="row-btns"><button type="button" class="btn ghost" data-skip="1">スキップ</button></div>
-      </main>`;
-      return;
-    }
-    app().innerHTML = `<main class="gacha">${top()}
-      <h2 class="sum-title">このパックの カード</h2>
-      <div class="pack-grid">${ids.map((id, i) => `<button type="button" class="sum-card ${GLOW[BY_ID[id].rar]}" data-i="${i}">${cardFace(BY_ID[id])}${!owned.has(id) ? '<span class="new">NEW</span>' : ''}</button>`).join('')}</div>
-      <div class="row-btns"><button type="button" class="btn primary" data-done="1">つぎへ</button></div>
-    </main>`;
-  };
-  draw();
-
-  let flippedAt = 0;
-  const next = () => { if (k < order.length - 1) { k++; flipped = false; cracked = false; } else stage = 'sum'; sfx.tap(); draw(); };
-  app().onclick = async (e) => {
-    // めくった あとは、音・スキップ 以外の どこを タップしても つぎへ（点線の ことばの 長おしは せつめいが 出て、つぎへは いかない）
-    if (stage === 'reveal' && flipped && !e.target.closest('[data-snd], [data-skip]')) {
-      if (Date.now() - flippedAt > 350) next();
-      return;
-    }
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.snd) { setSound(!soundOn()); return draw(); }
-    if (b.dataset.open) {
-      sfx.tear();
-      b.classList.add('torn');
-      setTimeout(() => { stage = 'reveal'; draw(); }, 520);
-      return;
-    }
-    if (b.dataset.skip) { stage = 'sum'; sfx.flip(); return draw(); }
-    if (b.dataset.flip) {
-      const i = order[k], d = BY_ID[ids[i]];
-      if (surprise && i === 0 && !cracked) { cracked = true; sfx.surprise(); return draw(); } // コモンの はずが…！？
-      if ((d.rar === 'R' || d.rar === 'L') && !b.classList.contains('charging')) {
-        b.classList.add('charging'); sfx.charge();
-        setTimeout(() => { flipped = true; flippedAt = Date.now(); (d.rar === 'L' ? sfx.legend : sfx.rare)(); draw(); if (d.rar === 'L') flash(); }, 900);
-        return;
-      }
-      flipped = true; flippedAt = Date.now();
-      (d.rar === 'U' ? sfx.uncommon : sfx.flip)();
-      return draw();
-    }
-    if (b.dataset.done) {
-      A.pool.push(...ids); A.toOpen--; A.opened++; A.rarePack = 0; save();
+  const bonus = rare ? `<div class="bonus"><p class="bonus-title">むげんの とう さんせんの レアパック</p>
+      <span>レジェンドが 出る かくりつ <b>${Math.round(rareLegendChance() * 100)}%</b><small>（ふつうは ${Math.round(legendChance(0) * 100)}%）</small></span>
+      <span>コモンの はんぶんが アンコモンに、アンコモンの はんぶんが レアに かわる</span></div>` : cleared > 0 ? `<div class="bonus"><p class="bonus-title">${A.endless ? A.endless.floor - 1 : cleared}階 クリアの ごほうびパック</p>
+      <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared, em) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
+      <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
+      ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">${em.ident && !em.colors.length && !em.unc && !em.leg && !em.extra.length ? ruby('統率者（とうそつしゃ）の パック') : 'もんしょうの パック'}</p>${emblemPackNote(em)}</div>` : '';
+  gacha(app, cards, {
+    eyebrow: rare ? 'レアパック' : `パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}`, rare, bonus, owned: new Set(A.pool),
+    done: () => {
+      A.pool.push(...cards.map((d) => d.id)); A.toOpen--; A.opened++; A.rarePack = 0; save();
       onPack(cards); // トロフィー（めくりおわってから）
       zukanPack(cards);
       return A.toOpen > 0 ? packs() : deckBuilder();
-    }
-    if (b.dataset.i != null) await sheet(detail(BY_ID[ids[+b.dataset.i]]), [{ label: 'とじる', value: 0 }]);
-  };
+    },
+  });
 }
 // ---- ドラフト：パックから 3まい 見せて 1まい えらぶ。パック 1つぶんで 7回（A.pick に とちゅうを のこす） ----
 function draftPick(roll) {
@@ -321,13 +246,6 @@ function draftPick(roll) {
     if (A.pick.n >= DRAFT_PER_PACK) { A.pick = null; A.toOpen--; A.opened++; A.rarePack = 0; save(); return A.toOpen > 0 ? packs() : deckBuilder(); }
     save(); return draftPick(roll);
   };
-}
-const RAR_NAME = { C: 'コモン', U: 'アンコモン', R: 'レア', L: 'レジェンド' };
-function flash() {
-  const f = document.createElement('div');
-  f.className = 'flash';
-  document.body.append(f);
-  setTimeout(() => f.remove(), 900);
 }
 
 // ---- デッキ構築 ----
@@ -388,8 +306,9 @@ function whyNotPts(sel, i, pool = A.pool) {
   return '';
 }
 
-// 冒険の デッキ構築。ctx を わたすと ほかの プールでも つかえる（レイドの 統率者デッキ：raid.js）
-// ctx = { pool: カードIDの ならび, deck: えらんだ 番号, save(), auto() → 番号, ok(), title, free: 色の きまりを 見ない, colorNote }
+// 冒険の デッキ構築。ctx を わたすと ほかの プールでも つかえる（レイドの 統率者デッキ：raid.js、こうちくモード：construct.js）
+// ctx = { pool: カードIDの ならび, deck: えらんだ 番号, save(), auto() → 番号, ok(), title, free: 色の きまりを 見ない, colorNote,
+//         noCap: キャパシティと 色を 見ない（エターナル）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる, back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない） }
 const advCtx = () => ({
   get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false,
   colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
@@ -403,10 +322,29 @@ const advCtx = () => ({
 export function deckBuilder(C = advCtx()) {
   if (!C.deck) { C.deck = C.auto(); C.save(); }
   const F = loadFilter(); // こまかく：ならべかえ・しぼりこみ（deckfilter.js）
-  const shownIdx = () => applyFilter(F, C.pool.map((id, i) => { const inDeck = C.deck.includes(i); return { i, d: BY_ID[id], inDeck, no: !inDeck && whyNot(C.deck, i, C.pool, C.free) }; }));
+  // 入れられない わけ。エターナル（noCap）は まい数だけ
+  const ruleNo = (i) => (C.noCap ? (C.deck.length >= DECK_SIZE ? `デッキは ${DECK_SIZE}まいまで` : '') : whyNot(C.deck, i, C.pool, C.free));
+  const outNo = (i) => (C.noCap ? '' : whyNotOut(C.deck, i, C.pool, C.free));
+  // stack：同じ カードの 番号を まとめる（G：id → 番号の ならび）。見せるのは さいしょの 番号
+  const G = new Map();
+  if (C.stack) C.pool.forEach((id, i) => { if (!G.has(id)) G.set(id, []); G.get(id).push(i); });
+  const copies = (i) => G.get(C.pool[i]);
+  const nIn = (i) => copies(i).filter((k) => C.deck.includes(k)).length;
+  const freeOf = (i) => copies(i).find((k) => !C.deck.includes(k)); // まだ 入れて いない 1まい
+  const lastIn = (i) => [...C.deck].reverse().find((k) => C.pool[k] === C.pool[i]);
+  // ぜんぶ はずすと 3色の デッキに なれない（旗）
+  const outAllNo = (i) => { const d = BY_ID[C.pool[i]]; if (C.noCap || !d.banner || C.free) return ''; const rest = deckStats(C.deck.filter((k) => C.pool[k] !== d.id), C.pool); return rest.colors.length > 2 && !rest.banner ? '3色めの カードを さきに はずそう（はたが ないと 2色まで）' : ''; };
+  const stackItem = (i) => { const f = freeOf(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f); return { i, d: BY_ID[C.pool[i]], inDeck: nIn(i) > 0, no, more: !no }; };
+  const shownIdx = () => applyFilter(F, C.stack ? [...G.values()].map((l) => stackItem(l[0])) : C.pool.map((id, i) => { const inDeck = C.deck.includes(i); return { i, d: BY_ID[id], inDeck, no: !inDeck && ruleNo(i) }; }));
+  const total = () => (C.stack ? G.size : C.pool.length);
+  const unit = C.stack ? 'しゅるい' : 'まい';
   const poolHtml = (list) => (list.length ? list.map((i) => {
+    if (C.stack) {
+      const k = nIn(i), it = stackItem(i);
+      return `<button type="button" class="pool-item ${k ? 'in' : ''} ${!k && it.no ? 'no' : ''}" data-i="${i}">${cardFace(it.d)}<span class="pts">${ptsOf(it.d)}点</span><span class="cnt" aria-label="デッキに ${k}まい（つかえる ${copies(i).length}まい）">${'●'.repeat(k)}${'○'.repeat(copies(i).length - k)}</span></button>`;
+    }
     const inDeck = C.deck.includes(i);
-    const no = !inDeck && whyNot(C.deck, i, C.pool, C.free);
+    const no = !inDeck && ruleNo(i);
     return `<button type="button" class="pool-item ${inDeck ? 'in' : ''} ${no ? 'no' : ''}" data-i="${i}">${cardFace(BY_ID[C.pool[i]])}<span class="pts">${ptsOf(BY_ID[C.pool[i]])}点</span></button>`;
   }).join('') : '<p class="pool-empty">あてはまる カードが ない。しぼりこみを へらそう。</p>');
   let mode = (() => { try { return localStorage.getItem(TAP_MODE) === 'quick' ? 'quick' : 'detail'; } catch { return 'detail'; } })();
@@ -418,9 +356,9 @@ export function deckBuilder(C = advCtx()) {
       <header class="b-head">
         <h2>${ruby(C.title)}</h2>
         <div class="meters">
-          <div class="meter"><span>キャパシティ</span><b>${st.points}<small>/${CAPACITY}点</small></b><i style="--v:${st.points / CAPACITY}"></i><em>のこり ${left}点</em></div>
+          ${C.noCap ? `<div class="meter"><span>てんすう</span><b>${st.points}<small>点</small></b><em>せいげん なし</em></div>` : `<div class="meter"><span>キャパシティ</span><b>${st.points}<small>/${CAPACITY}点</small></b><i style="--v:${st.points / CAPACITY}"></i><em>のこり ${left}点</em></div>`}
           <div class="meter"><span>カード</span><b>${st.count}<small>まい</small></b><i style="--v:${st.count / DECK_SIZE}"></i><em>きほんカード ${DECK_SIZE - st.count}まい</em></div>
-          <div class="meter"><span>${C.free || C.colorNote ? ruby(C.colorNote || '色') : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
+          <div class="meter"><span>${C.noCap ? '色（なんしょくでも）' : C.free || C.colorNote ? ruby(C.colorNote || '色') : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
         </div>
         ${C.cmd ? `<div class="b-cmd"><span>${ruby(C.cmd.label)}</span><button type="button" class="btn" data-a="cmd">かえる</button></div>` : ''}
         <div class="tapmode" role="group" aria-label="カードを タップしたとき">
@@ -429,19 +367,30 @@ export function deckBuilder(C = advCtx()) {
           <button type="button" data-mode="quick" aria-pressed="${mode === 'quick'}">すぐ 入れる・はずす</button>
           <button type="button" class="fine" data-fine="1" aria-pressed="${F.open}" aria-expanded="${F.open}">こまかく${filterCount(F) ? `<b>${filterCount(F)}</b>` : ''}</button>
         </div>
-        <p class="hint">${mode === 'quick' ? 'タップで 入れる ⇔ はずす。長おしで せつめい。' : 'タップで せつめい → 入れる・はずす。'}点数は コモン1・アンコモン2・レア3・レジェンド4。</p>
+        <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}</p>
       </header>
-      ${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, C.pool.length)}
+      ${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
       <div class="pool ${mode}">${poolHtml(list)}</div>
-      <footer class="actions"><button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
+      <footer class="actions">${C.back ? `<button type="button" class="btn" data-a="back">${esc(C.back.label)}</button>` : ''}<button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
     </main>`;
   };
   draw();
   const showDetail = async (i) => {
+    if (C.stack) {
+      const f = freeOf(i), last = lastIn(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f);
+      const v = await sheet(`${detail(BY_ID[C.pool[i]])}<p class="zk-note">デッキに ${nIn(i)}まい（つかえる カード ${copies(i).length}まい）</p>`, [
+        { label: '1まい 入れる', value: 'in', kind: 'primary', disabled: !!no, note: no || '' },
+        ...(last != null ? [{ label: '1まい はずす', value: 'out', disabled: !!outNo(last), note: outNo(last) }] : []),
+        { label: 'とじる', value: null },
+      ]);
+      if (v === 'in') C.deck.push(f);
+      if (v === 'out') C.deck = C.deck.filter((k) => k !== last);
+      C.save(); return draw();
+    }
     const inDeck = C.deck.includes(i);
-    const no = !inDeck && whyNot(C.deck, i, C.pool, C.free);
+    const no = !inDeck && ruleNo(i);
     const v = await sheet(detail(BY_ID[C.pool[i]]), [
-      inDeck ? { label: 'デッキから はずす', value: 'out', kind: 'primary', disabled: !!whyNotOut(C.deck, i, C.pool, C.free), note: whyNotOut(C.deck, i, C.pool, C.free) } : { label: 'デッキに 入れる', value: 'in', kind: 'primary', disabled: !!no, note: no || '' },
+      inDeck ? { label: 'デッキから はずす', value: 'out', kind: 'primary', disabled: !!outNo(i), note: outNo(i) } : { label: 'デッキに 入れる', value: 'in', kind: 'primary', disabled: !!no, note: no || '' },
       { label: 'とじる', value: null },
     ]);
     if (v === 'out') C.deck = C.deck.filter((k) => k !== i);
@@ -463,7 +412,7 @@ export function deckBuilder(C = advCtx()) {
     F.q = e.target.value; saveFilter(F);
     const list = shownIdx();
     app().querySelector('.pool').innerHTML = poolHtml(list);
-    const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${C.pool.length}まい を 見せて いる`;
+    const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${total()}${unit} を 見せて いる`;
   };
   app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -471,6 +420,7 @@ export function deckBuilder(C = advCtx()) {
     if (onFilterClick(F, b)) return draw();
     if (b.dataset.mode) { mode = b.dataset.mode; try { localStorage.setItem(TAP_MODE, mode); } catch { /* 保存できなくても 切りかえられる */ } return draw(); }
     if (b.dataset.a === 'cmd') return C.cmd.change();
+    if (b.dataset.a === 'back') return C.back.go();
     if (b.dataset.a === 'auto') { C.deck = C.auto(); C.save(); return draw(); }
     if (b.dataset.a === 'clear') { C.deck = []; C.save(); return draw(); }
     if (b.dataset.a === 'ok') {
@@ -481,12 +431,25 @@ export function deckBuilder(C = advCtx()) {
     const i = +b.dataset.i;
     if (mode === 'detail') return showDetail(i);
     if (pressed) { pressed = false; return; } // 長おしで せつめいを 出した あとの タップ
+    if (C.stack) {
+      // 1まいずつ 入れる。ぜんぶ 入れた カードは ぜんぶ はずす
+      const f = freeOf(i), id = C.pool[i];
+      if (f == null) {
+        const no = outAllNo(i); if (no) { toast(`はずせない：${no}`); return; }
+        C.deck = C.deck.filter((k) => C.pool[k] !== id);
+      } else {
+        const no = ruleNo(f);
+        if (no) { toast(`入れられない：${no}${nIn(i) ? '（長おしで はずせる）' : ''}`); b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); return; }
+        C.deck.push(f);
+      }
+      sfx.tap(); C.save(); return draw();
+    }
     if (C.deck.includes(i)) {
-      const no = whyNotOut(C.deck, i, C.pool, C.free);
+      const no = outNo(i);
       if (no) { toast(`はずせない：${no}`); return; }
       C.deck = C.deck.filter((k) => k !== i);
     } else {
-      const no = whyNot(C.deck, i, C.pool, C.free);
+      const no = ruleNo(i);
       if (no) { toast(`入れられない：${no}`); b.classList.remove('deny'); void b.offsetWidth; b.classList.add('deny'); return; }
       C.deck.push(i);
     }
@@ -556,9 +519,18 @@ function recordRun(win) {
   zukanRun({ diff: A.diff, reached, exact: A.exact || 0, pair, win });
   A.recorded = true;
 }
+// こうちくモードの パックけん（docs/CONSTRUCTED.md）：クリアした 階 1つに 1まい、むげんの とうは 5階ごとに 1まい。とうの おわりに まとめて
+// quiet：おわりの 画面に 書く ときは おしらせを 出さない
+function payTower(a = A, quiet = true) {
+  if (!a || a.paid) return 0;
+  a.paid = true;
+  return addTickets(Math.min(a.idx || 0, a.floors?.length || 5) + (a.endless ? Math.floor((a.endless.floor - ENDLESS.start) / ENDLESS_PER) : 0), 'とう', quiet);
+}
+const ticketLine = (n) => (n ? `<p class="what tk-get"><b>パックけん ＋${n}まい</b><span>タイトルの「こうちく」の ショップで パックと ひきかえられる</span></p>` : '');
 function ending(win) {
   const reached = win ? 5 : A.idx + 1;
   if (!A.recorded) recordRun(win);
+  const got = payTower();
   const mat = win && awardMat(TOWER_MAT[A.plane || 'theros']) ? TOWER_MAT[A.plane || 'theros'] : null; // 塔を のぼりきった：プレイマット
   // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
   if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
@@ -572,6 +544,7 @@ function ending(win) {
       <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
     </dl>
     ${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}
+    ${ticketLine(got)}
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
     ${adsOn() ? `<p class="say"><b>${A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>` : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
@@ -691,6 +664,7 @@ function endlessEnd() {
   const old = endlessBest(), isBest = !old || score > old.score;
   if (isBest) try { localStorage.setItem(ENDLESS_BEST, JSON.stringify({ floor, exact: E.exact, score, t: Date.now() })); } catch { /* 保存できなくても よい */ }
   if (A.deck) saveGhost(finalDeck(), 6);
+  const got = payTower();
   app().innerHTML = `<main class="ending lose endless">
     <p class="eyebrow">むげんの とう ${floor}階で ちからつきた</p>
     <h2>${isBest ? 'しんきろく！' : 'むげんの とう おわり'}</h2>
@@ -702,6 +676,7 @@ function endlessEnd() {
     </dl>
     <p class="say"><b>スコアの けいさん</b><span>${floor} × 10 ＋ ${E.exact} ＝ ${score}</span></p>
     ${Object.keys(E.have).length ? `<p class="em-line">${ruby('祝福（しゅくふく）')}：${ruby(blessLine(E.have))}</p>` : ''}
+    ${ticketLine(got)}
     ${adsOn() ? '<div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>' : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
   </main>`;
   clearSave();

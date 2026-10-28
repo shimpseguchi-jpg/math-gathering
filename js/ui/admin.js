@@ -1,5 +1,6 @@
 // 開発モード（先生だけ・GAS 版）：みんなに きく せっていを かえる 管理画面。中身は スプレッドシートと おなじ（どちらで かえても よい）
 // ・この 端末の デバッグモード（弾・こうこく・プレイマットを 自由に かえる。この 端末だけ）
+// ・この 端末の こうちくモードで カードを ぜんぶ 開放（docs/CONSTRUCTED.md。この 端末だけ）
 // ・パックの 弾、つかわない サブセット・番外編、レイドを 出すか・レイドの ID と おわり、ランキングの 時刻、ゴーストの 数
 // ・かんりしゃ（先生）の メールアドレス、あいことば（docs/PROMO.md 2.2）
 // 先生むけ なので 漢字を ふつうに つかう（子どもには 出ない）
@@ -10,6 +11,7 @@ import { loading } from './loading.js';
 import { applyConf, setDebug, debugOn } from './settings.js';
 import { applyRaid } from './raidstore.js';
 import { NAME_A, NAME_B } from './online.js';
+import { openAllSaved, setOpenAll } from './collection.js';
 
 export const CODE_C = ['いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう', 'じゅう']; // あいことばの 3つめ（gas_Code.gs の CODE_C）
 const MAIN = SETS.filter((x) => !x.extra && !x.sub && !x.raid);
@@ -49,6 +51,11 @@ export async function adminScreen(app, back) {
         <h3>デバッグモード（この端末だけ）</h3>
         <p class="st-note">オンにすると、せってい画面で弾・こうこく・プレイマットを自由にかえられます。子どもの端末ではオンにしないでください。</p>
         <button type="button" class="btn ${debugOn() ? 'primary' : ''}" data-debug="1" aria-pressed="${debugOn()}">デバッグモード ${debugOn() ? 'オン' : 'オフ'}</button>
+      </section>
+      <section class="st-sec">
+        <h3>こうちくモード：カードをぜんぶ開放（この端末だけ）</h3>
+        <p class="st-note">オンにすると、この端末のこうちくモードで、ぜんぶのカードを4枚ずつ持っていることになります（デッキを組んでためすため）。ほんとうの持ちものとパック券はそのまま残り、オフにするともどります。</p>
+        <button type="button" class="btn ${openAllSaved() ? 'primary' : ''}" data-allcards="1" aria-pressed="${openAllSaved()}">カードぜんぶ開放 ${openAllSaved() ? 'オン' : 'オフ'}</button>
       </section>
       <section class="st-sec">
         <h3>パックに入れる弾</h3>
@@ -116,6 +123,7 @@ export async function adminScreen(app, back) {
       app().onchange = null; return back();
     }
     if (t.dataset.debug) { setDebug(!debugOn()); return draw(); }
+    if (t.dataset.allcards) { setOpenAll(!openAllSaved()); return draw(); }
     if (t.dataset.update) {
       if (dirty) return sheet('<p>さきに「保存する」を押してください。</p>', [{ label: 'とじる', value: 1, kind: 'primary' }], { title: '開発モード' });
       t.disabled = true; t.textContent = '取ってきています…（30秒くらい）';
