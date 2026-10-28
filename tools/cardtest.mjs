@@ -1,4 +1,4 @@
-// カードの 自動テスト：第3弾から あとの カードを 1まいずつ しらべる
+// カードの 自動テスト：表から 作った カード（第2弾の 追加・第3弾から あと）を 1まいずつ しらべる
 //   node tools/cardtest.mjs            … ぜんぶ
 //   node tools/cardtest.mjs SR07 ZZ13  … えらんだ カードだけ（くわしく 出す）
 //   SETS=3,4 node tools/cardtest.mjs   … えらんだ 弾だけ
@@ -14,6 +14,7 @@ import { AI } from '../js/engine/ai.js';
 import { pvp } from '../js/data/enemies.js';
 import { SAMPLE } from '../js/data/samples.js';
 import { LORE } from '../js/data/lore.js';
+import { SET_IDS } from '../js/data/skel.js';
 
 const only = process.argv.slice(2);
 const setIds = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
@@ -87,7 +88,9 @@ async function turns(s, n, enemyFirst = false) {
   }
 }
 
-const cards = SETS.filter((x) => x.id >= 3 && (!setIds || setIds.includes(x.id))).flatMap((x) => x.cards).filter((d) => !only.length || only.includes(d.id));
+// 第2弾の 追加（docs/cards/set2_plus.md）も 表から 作った カードなので しらべる
+const drafted = new Set(Object.values(SET_IDS).flat());
+const cards = SETS.filter((x) => !setIds || setIds.includes(x.id)).flatMap((x) => x.cards).filter((d) => (drafted.has(d.id) || SETS.find((x) => x.cards.includes(d)).id >= 3) && (!only.length || only.includes(d.id)));
 for (const d of cards) {
   const t = plain(CARD_TEXT[d.id]?.text).replace(/「[^」]*」/g, ''); // 「」の 中は トークンの せつめい
   // 1. 文と データ

@@ -1,7 +1,7 @@
 // 第4弾「星めぐりの 夜」のうごき（名前・コスト・P/T は skel.js、文は docs/SET4.md）
 import {
   T, hit, mine, theirs, isSub, lowestKeep, isCr, chosen1, regrow, foeBest, shrink, foe1, bolt, killIt, fodder, single,
-  shrines, constellation, omen, adventure, aura, food, foods, knights, bestFreeze, gyCount,
+  shrines, constellation, omen, adventure, aura, food, foods, knights, bestFreeze, gyCount, cr, dig, bestIn, riot,
 } from './kit.js';
 
 const bestow = (cost, req, x = {}) => ({ bestow: { cost, req, ...x } });
@@ -241,6 +241,142 @@ export const S4 = {
   C25: { hexproof: (s, p, src) => [...(src?.color || '')].filter((k) => 'WUKRG'.includes(k)).length === 2, play: (s, E, ctx) => ({ score: 8 + 3 * ctx.xMax, x: ctx.xMax, run: () => {} }) },
 };
 
+// ---- 120種に する 追加（4.9） ----
+const isEnch = (d) => (d.types || []).includes('enchantment');
+const ratK = cr('t_ratK', 'ネズミ', null, 'K', 0, 1, 1, ['rat']);
+const boar = cr('t_boar', 'イノシシ', null, 'G', 0, 1, 1, ['boar'], [], { onDie: (s, p, E) => { if (p.side === 'P') food(s, E); } });
+const giant77 = cr('t_giant77', '巨人（きょじん）', null, 'G', 0, 7, 7, ['giant']);
+const rats = (s, E) => mine(s, E).filter((q) => isSub(q, 'rat'));
+// 1ターンに 1回の「自分を 強く する」起動型能力
+const selfPump = (cost, req, label, f) => ({ cost, req, when: [1], label, play: (s, p, E) => (!p.flags.turn.used && !p.sick && !p.tapped ? { score: 2, run: () => { p.flags.turn.used = true; f(s, p, E); } } : null) });
+// 手札の いちばん いらない 1まいを すてて 1まい 引く（すてたく なければ しない）
+const loot = (s, E) => { const c = lowestKeep(s, E); if (c && E.keepValue(s, c) < 4) { E.discard(s, [c]); E.drawCard(s); } };
+// あなたの クリーチャーか 食物を 1つ 墓地へ（食物から）
+const feed = (s, E, p) => foods(s)[0] || fodder(s, E, p).filter((q) => q.token)[0];
+const feedPay = (s, E, f) => E.leave(s, f, 'gy', { died: E.isCreature(f) });
+
+Object.assign(S4, {
+  W92: bestow(6, ['W'], { p: 3, t: 3, kw: ['vigilance'] }),
+  W93: adventure('助（たす）けを まつ 騎士（きし）', 3, ['W'], 'sorcery', { play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.knightV) }) }),
+  W94: {
+    etb: (s, p, E) => {
+      if (p.side !== 'P') return;
+      const c = s.P.lib.find((x) => x.def.aura || x.def.bestow);
+      if (!c) { E.L(s, 'オーラが なかった'); return; }
+      s.P.lib.splice(s.P.lib.indexOf(c), 1); s.P.hand.push(c); E.L(s, `さがした：${c.def.name}`);
+    },
+  },
+  W95: aura('P', '＋1/＋1 と 警戒（けいかい）を あたえる 自分の クリーチャー', { p: 1, t: 1, kw: ['vigilance'] }),
+  W96: { etb: (s, p, E) => { if (p.side === 'P') regrow(s, E, isEnch); } },
+  W97: {
+    onDie: (s, p, E) => {
+      if (p.side !== 'P') return;
+      const c = bestIn(s.P.gy, (x) => isEnch(x.def) && x.uid !== p.uid); if (!c) return;
+      s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def });
+    },
+  },
+  W98: { onAttacks: (s, q, atk, E) => { if (q.side !== 'P') return; const n = atk.filter((a) => (a.p.def.color || '').includes('W')).length; if (n) E.gain(s, n); } },
+  U86: bestow(6, ['U'], { p: 3, t: 3 }),
+  U87: adventure('ふかく すすむ', 1, ['U'], 'sorcery', { play: (s, E, ctx) => (s.P.lib.length >= 8 && (ctx.phase === 2 || ctx.human) ? { score: 3, run: () => E.mill(s, 4) } : null) }),
+  U89: {
+    etb: (s, p, E) => { if (p.side === 'P') return E.scry(s, 2); },
+    acts: [{ cost: 4, req: ['U'], when: [2], label: 'ぼちに おいて 2まい 引く', play: (s, p, E) => ({ score: 4, run: () => { E.leave(s, p, 'gy'); E.drawCard(s, 2); } }) }],
+  },
+  U90: {
+    ...aura('E', '1/1 に する てきの クリーチャー', { onAttach: (s, p, E, h) => { h.auraPT = [1, 1]; E.L(s, `${h.def.name} は 1/1 の カエルに なった`); } }),
+    onLeaveSelf: (s, p) => { const h = [...s.P.bf, ...s.E.bf].find((q) => q.uid === p.attached); if (h) delete h.auraPT; },
+  },
+  U91: {
+    costCut: (s, q, d) => (isEnch(d) ? 1 : 0),
+    onOtherLeave: (s, p, q, E) => { if (p.side === 'P' && q.side === 'P' && isEnch(q.def) && s.P.gy.some((c) => c.uid === q.uid)) E.addCounters(s, p, 1); },
+  },
+  U92: {
+    etb: (s, p, E) => { if (p.side === 'P') E.drawCard(s, 2); },
+    onCast: (s, p, d, E) => { if (p.side !== 'P' || !(d.color || '').includes('U')) return; const t = bigFoe(s, E, (q) => !q.tapped); if (t) { E.L(s, `${p.def.name}：${t.def.name} を タップ`); tapIt(s, E, t); } },
+  },
+  K73: bestow(6, ['K'], { p: 3, t: 3, kw: ['deathtouch'] }),
+  K74: aura('E', '−3/−3 する てきの クリーチャー', { p: -3, t: -3 }),
+  K75: {
+    acts: [{
+      cost: 1, when: [1, 2], label: 'ほかの クリーチャーを ぼちに おいて てきに 1点', can: (s, p, E) => mine(s, E).some((q) => q !== p), cantWhy: 'ほかの クリーチャーが いない',
+      play: (s, p, E) => { const f = fodder(s, E, p).filter((q) => q.token)[0]; return f ? { score: 3, run: () => { E.leave(s, f, 'gy', { died: true }); drain(s, E, 1, p); } } : null; },
+      tgt: [{ side: 'P', label: 'ぼちに おく クリーチャー', filter: (s, E, q) => q.def.id !== 'K75' }],
+      apply: (s, E, [[f]], x, p) => { E.leave(s, f, 'gy', { died: true }); drain(s, E, 1, p); },
+    }],
+  },
+  K76: { play: (s, E) => (s.P.life > 6 ? { score: 5, run: () => { E.drawCard(s, 2); E.hurt(s, 2); food(s, E); } } : null) },
+  K77: {
+    etb: (s, p, E) => {
+      if (p.side !== 'P' || !foods(s).length) return;
+      const b = foeBest(s, E, 2); if (!b) return;
+      E.leave(s, foods(s)[0], 'gy'); E.target(s, b.t); shrink(s, E, b.t, 2);
+    },
+    ...adventure('パン屋（や） おそい', 1, ['K'], 'instant', { play: (s, E) => ({ score: 3, run: () => food(s, E) }) }),
+  },
+  K78: { play: (s, E) => (gyCount(s, 'creature') ? { score: 3 + 3 * Math.min(2, gyCount(s, 'creature')), run: () => { regrow(s, E, isCr); regrow(s, E, isCr); } } : null) },
+  K79: {
+    acts: [
+      { cost: 2, req: ['K'], tap: true, when: [1, 2], label: 'ネズミを 出す', play: (s, p, E) => ({ score: 3, run: () => E.token(s, 'P', ratK) }) },
+      {
+        cost: 0, when: [1, 2], label: 'ネズミ 3体を ぼちに おいて はかい', can: (s, p, E) => rats(s, E).length >= 3, cantWhy: 'ネズミが 3体 いる',
+        play: (s, p, E) => { const b = foeBest(s, E); return rats(s, E).length >= 3 && b && b.score >= 3 ? { score: 4 + b.score, run: () => { for (const r of rats(s, E).slice(0, 3)) E.leave(s, r, 'gy', { died: true }); killIt(s, E, b.t); } } : null; },
+        tgt: [{ side: 'E', label: 'はかいする クリーチャー' }],
+        apply: (s, E, [[t]]) => { if (rats(s, E).length < 3) return; for (const r of rats(s, E).slice(0, 3)) E.leave(s, r, 'gy', { died: true }); killIt(s, E, t); },
+      },
+    ],
+  },
+  R84: bestow(6, ['R'], { p: 3, t: 3, kw: ['haste'] }),
+  R86: aura('P', '＋1/＋1 する 自分の クリーチャー', { p: 1, t: 1, onAttach: (s, p, E) => { if (p.side !== 'P') return; const b = E.burnTarget(s, 1, {}); if (b) hit(s, E, b.t, 1); } }),
+  R87: { discardCost: 1, play: (s, E, ctx) => ({ score: 5 - (ctx.phase === 1 ? 1 : 0), run: () => E.drawCard(s, 2) }) },
+  R88: foe1('5点を あたえる クリーチャー', (s, E, t) => hit(s, E, t, 5), { n: 5 }),
+  R89: { onAttack: (s, p, E, atk) => { const t = atk.map((a) => a.p).find((q) => q !== p && isSub(q, 'knight') && E.onBf(s, q)); if (t) { E.target(s, t); E.pump(t, 2, 0); } } },
+  R90: { giantDouble: true },
+  G87: bestow(6, ['G'], { p: 3, t: 3, kw: ['trample'] }),
+  G88: adventure('かしの 木（き）の めぐみ', 4, ['G'], 'sorcery', {
+    play: (s, E, ctx) => { const q = E.bestBuffTarget(s, null); return q && ctx.phase === 1 ? { score: 5, run: () => { E.target(s, q); E.addCounters(s, q, 2); } } : null; },
+    tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[q]]) => { E.target(s, q); E.addCounters(s, q, 2); },
+  }),
+  G89: { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', boar, 3) }) },
+  G90: aura('P', '＋3/＋3 と 到達（とうたつ）を あたえる 自分の クリーチャー', { p: 3, t: 3, kw: ['reach'] }),
+  G91: constellation((s, p, E) => { const x = gyCount(s, 'creature'); const t = E.bestBuffTarget(s, null, { ready: true }); if (t && x) { E.L(s, `ぼちの クリーチャー ${x}まい：＋${x}/＋${x}`); E.target(s, t); E.pump(t, x, x); } }),
+  G92: {
+    play: (s, E) => (foods(s).length >= 2
+      ? { score: 9, run: () => { for (const f of foods(s).slice(0, 2)) E.leave(s, f, 'gy'); E.token(s, 'P', giant77); } }
+      : { score: 5, run: () => food(s, E, 3) }),
+  },
+  G93: {
+    onDie: (s, p, E) => {
+      if (p.side !== 'P' || foods(s).length < 3) return;
+      const i = s.P.gy.findIndex((c) => c.uid === p.uid); if (i < 0) return;
+      for (const f of foods(s).slice(0, 3)) E.leave(s, f, 'gy');
+      const [c] = s.P.gy.splice(i, 1); E.L(s, `食物（しょくもつ） 3つで もどった：${c.def.name}`); E.enter(s, 'P', c.def, { card: c.def });
+    },
+  },
+  WG09: {
+    acts: [{
+      cost: 0, tap: true, when: [1], label: 'みんな ＋1/＋1',
+      play: (s, p, E) => { const n = mine(s, E).filter((q) => q !== p && !q.tapped && !q.sick).length; return n >= 2 ? { score: 2 + n, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 1); } } : null; },
+    }],
+    ...adventure('連（つ）れて かえる', 4, ['W', 'G'], 'sorcery', { play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.human, 2) }) }),
+  },
+  WU09: { etb: (s, p, E) => { if (p.side === 'P') dig(s, E, 4, 1, (d) => (d.types || []).includes('artifact') || isEnch(d)); } },
+  RW09: { acts: [selfPump(4, ['R'], '＋1/＋1', (s, p, E) => E.pump(p, 1, 1))] },
+  UR09: { etb: (s, p, E) => { if (p.side === 'P') loot(s, E); }, onAttack: (s, p, E) => { if (p.side === 'P') loot(s, E); } },
+  RG09: riot(),
+  GU09: constellation((s, p, E) => { const t = E.bestBuffTarget(s, null, { ready: true }); if (t) { E.target(s, t); E.addCounters(s, t, 1); E.pump(t, 0, 0, ['flying']); } }),
+  WK11: { acts: [selfPump(2, ['W'], '絆魂（はんこん）', (s, p, E) => E.pump(p, 0, 0, ['lifelink']))] },
+  UK09: foe1('はかいする クリーチャー（コストが ぼちの まいすう いか）', killIt, { filter: (s, E, p) => (p.def.cost ?? E.power(s, p)) <= s.P.gy.length }),
+  KR09: {
+    acts: [{
+      cost: 3, when: [1, 2], label: 'クリーチャーか 食物（しょくもつ）を ぼちに おいて 2点', can: (s, p, E) => !!feed(s, E, p), cantWhy: 'ぼちに おく ものが ない',
+      play: (s, p, E) => { const f = feed(s, E, p), b = foeBest(s, E, 2); return f && b ? { score: 3 + b.score, run: () => { feedPay(s, E, f); hit(s, E, b.t, 2); } } : null; },
+      tgt: [{ side: 'E', label: '2点を あたえる クリーチャー' }],
+      apply: (s, E, [[t]], x, p) => { const f = feed(s, E, p); if (!f) return; feedPay(s, E, f); hit(s, E, t, 2); },
+    }],
+  },
+  KG09: { backOnGain: true },
+  C30: { acts: [selfPump(3, [], '＋1/＋0', (s, p, E) => E.pump(p, 1, 0))] },
+});
 const E_isCr = (q) => (q.def.types || []).includes('creature');
 const crInGy = (s) => [...s.P.gy, ...s.E.gy].filter((c) => isCr(c.def)).length;
 // 時の 金庫：時カウンターが 12こで、手札と 墓地を やまふだに まぜて 7まい 引く

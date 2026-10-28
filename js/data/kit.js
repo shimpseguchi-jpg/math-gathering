@@ -188,6 +188,19 @@ export const delveOf = (d) => ({ ...delve(), costMin: pips(d) });
 export const godUnless = (f) => ({ cantAttack: (s, p, E) => !f(s, p, E), cantBlock: (s, p, E) => !f(s, p, E) });
 // 絢爛 n：この ターンに 敵が ダメージを うけていたら n マナ 安い（第3弾の 赤・第7弾の ラクドス）
 export const spectacle = (n) => ({ spectacle: n, costLess: (s, E) => (E.dmgThisTurn(s) > 0 ? n : 0) });
+// 暴動：人は 出す 前に 画面で えらぶ（chosen）。AI は じゃまな ブロッカーが いなければ 速攻（第7弾の グルール・第4弾の RG09）
+export const riot = (x = {}) => ({
+  riot: true, ...x,
+  etb: (s, p, E, o) => {
+    let c = chosen1(o);
+    if (c == null) {
+      const [, tou] = E.pt(s, p);
+      const wall = theirs(s, E).some((q) => !q.tapped && E.power(s, q) >= tou);
+      c = s.active === 'P' && p.side === 'P' && !wall ? 'haste' : 'ctr';
+    }
+    if (c === 'haste') { E.pump(p, 0, 0, ['haste']); E.L(s, `ぼうどう：${p.def.name} は そっこう`); } else { E.addCounters(s, p, 1); E.L(s, `ぼうどう：${p.def.name} に ＋1/＋1カウンター`); }
+  },
+});
 // 墓地の その 種類の カードの 数
 export const gyCount = (s, t) => s.P.gy.filter((c) => (c.def.types || []).includes(t)).length;
 Object.assign(T, {

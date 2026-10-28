@@ -24,7 +24,7 @@ function readTables(path, into) {
     if ((c[0] === 'ID' && c.includes('名前')) || (c[0] === '名前' && c.includes('出すカード'))) { head = c; continue; }
     if (!head || /^[-: ]+$/.test(c[0])) continue;
     const r = Object.fromEntries(head.map((h, i) => [h, c[i] ?? '']));
-    if (head[0] === 'ID' && /^[A-Z]{1,2}\d\d$/.test(r.ID)) into[r.ID] = r;
+    if (head[0] === 'ID' && /^[A-Z]{1,2}\d{2,3}$/.test(r.ID)) into[r.ID] = r;
     if (head[0] === '名前') {
       // トークン：名前・P/T・能力が おなじ ものは 1つに まとめる
       const k = `${r['名前']}|${r['P/T']}|${r['能力']}`;

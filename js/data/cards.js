@@ -1,4 +1,4 @@
-// カード（第1弾 126種＋第2弾 74種＋きほんカード5種＋トークン）。文章は docs/cards/*.md、ここはルールエンジン用のデータ
+// カード（第1弾 126種＋第2弾 120種（74種 ＋ set2b.js の 46種）＋きほんカード5種＋トークン）。文章は docs/cards/*.md、ここはルールエンジン用のデータ
 // cost は合計マナ。color は色（2色は 'WG' など）。play / react / trick は AI の使いどころ（シミュレーション用）
 import {
   cr, sp, pm, hit, burn, xBurn, savagePunch, arrowRain, draw, mine, theirs, isSub, ferocious, battalion, packTactics, strive, single, mass, T, elemX, ROMAN, saga, sagaStep, vanishUpkeep, vanish, hb, bestFreeze, bestIn, RANK, lowestKeep,
@@ -6,6 +6,7 @@ import {
 export { T } from './kit.js';
 import { SKEL, SET_IDS } from './skel.js';
 import { applyPick } from '../engine/game.js';
+import { S2B } from './set2b.js';
 import { S3, B06 } from './set3.js';
 import { S4 } from './set4.js';
 import { S5 } from './set5.js';
@@ -931,7 +932,7 @@ function build(id, b = {}) {
   if ([...d.color].length >= 3) d.req2 = true; // 3色の カードは、3色の うち 2つの マナが いる
   return d;
 }
-const BEH = { ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11, ...S12, ...S13 };
+const BEH = { ...S2B, ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11, ...S12, ...S13 };
 const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
 BASICS.K = build('B06', B06);
 
@@ -945,7 +946,7 @@ export function bindEngine(E) {
 }
 
 export const SET1 = [...W, ...U, ...U2, ...G, ...R, ...GOLD1, ...GOLD2, ...C];
-export const SET2 = [...W2, ...U3, ...G2, ...R2, ...GOLD3, ...C2];
+export const SET2 = [...W2, ...U3, ...G2, ...R2, ...GOLD3, ...C2, ...setOf(2)]; // 2026-10-28 の 追加 46種（docs/cards/set2_plus.md・set2b.js）
 export const SET3 = setOf(3);
 export const SET4 = setOf(4);
 export const SET5 = setOf(5);

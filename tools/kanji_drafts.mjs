@@ -18,7 +18,7 @@ for (const f of FILES) {
     const c = line.trim().replace(/^\||\|$/g, '').split('|').map((x) => x.trim());
     if (c[0] === 'ID' || c[0] === '名前') { head = c; continue; }
     if (!head || /^[-: ]+$/.test(c[0])) continue;
-    if (head[0] === 'ID' && !/^[A-Z]{1,2}\d\d$/.test(c[0])) continue;
+    if (head[0] === 'ID' && !/^[A-Z]{1,2}\d{2,3}$/.test(c[0])) continue;
     rows++;
     // カードの 表：名前・タイプ・テキスト・算数（ゲームの せつめいに 出る）。トークンの 表：名前・能力
     const cols = head[0] === 'ID' ? ['名前', 'タイプ', 'テキスト', '算数'] : ['名前', '能力'];

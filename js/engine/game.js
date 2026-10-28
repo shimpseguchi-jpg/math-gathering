@@ -338,7 +338,7 @@ export function basePT(s, p) {
   const d = levelRow(p) || p.def;
   const P = p.setPT ? p.setPT[0] : p.base2 ? 2 : typeof d.pow === 'function' ? d.pow(s, p, api) : (d.pow ?? 0);
   const T = p.setPT ? p.setPT[1] : typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
-  return [P, T];
+  return p.auraPT && !p.setPT ? [...p.auraPT] : [P, T];
 }
 export function pt(s, p) {
   const d = levelRow(p) || p.def;
@@ -346,6 +346,7 @@ export function pt(s, p) {
   let T = typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
   if (p.base2) P = 2;
   if (p.setPT) [P, T] = p.setPT;
+  if (p.auraPT) [P, T] = p.auraPT; // オーラで もとの P/T が かわる（カエルに なれ U90）。ターンを こえても のこる
   P += p.ctr - (p.mctr || 0) + p.mP; T += p.ctr - (p.mctr || 0) + p.mT;
   if (p.side === 'E' && s.E.buff && isCreature(p)) { P += s.E.buff; T += s.E.buff; } // むげんの とう：しゅうかいごとに つよく なる
   for (const q of s[p.side].bf) if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
@@ -547,6 +548,7 @@ export function boostDmg(s, n, src, enemy) {
   for (const q of s.P.bf) {
     if (q.def.redPlus && enemy && (src ? colorsOf(src.def).includes('R') : s.resolvingRed)) n += q.def.redPlus;
     if (q.def.dmgMult) n *= q.def.dmgMult;
+    if (q.def.giantDouble && src && (src.def.sub || []).includes('giant')) n *= 2; // わざわいを まねく 巨人（R90）：巨人の ダメージは 2倍
   }
   return n;
 }
@@ -593,7 +595,14 @@ export function hurt(s, n, src) {
 // ライフが 0：オンラインバトルで あいても 0 なら ひきわけ
 const dead = (s) => (s.floor.id === 'pvp' && s.E.life <= 0 ? 'draw' : 'lose');
 
-export function gainLife(s, n) { if (!s.P.noLifeGain && n > 0) { s.P.life += n; zzBreak(s, 'W', '白：ライフを えた'); } }
+export function gainLife(s, n) {
+  if (s.P.noLifeGain || n <= 0) return;
+  s.P.life += n; zzBreak(s, 'W', '白：ライフを えた');
+  // 死なずの 騎士（KG09）：その ターン はじめて ライフを えたとき、墓地から 手札へ
+  if (s.P.flags.gainT === s.turn) return;
+  s.P.flags.gainT = s.turn;
+  for (const c of s.P.gy.filter((x) => x.def.backOnGain)) { s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.hand.push(c); L(s, `${foe(s, 'P')}ぼちから てふだへ：${c.def.name}`); }
+}
 
 // 「敵に～点」（本体がある階は本体、ない階はAIが選んだ敵のパーマネント）
 export function hitEnemy(s, n, src, o = {}) {
@@ -786,6 +795,7 @@ export function canBlock(s, b, a) {
   if (b.def.blockOnlyFlyers && !hasKw(s, a, 'flying')) return false;
   if (a.flags.turn?.hasteOnly && !hasKw(s, b, 'haste')) return false;
   if (s.smallCantBlock === s.turn && power(s, b) <= 1) return false;
+  if (s.groundCantBlock === s.turn && !hasKw(s, b, 'flying')) return false; // 最初の 噴火（R96 の 英雄譚 I）：ひこうの ない クリーチャーは ブロックできない
   if (s.cantBlock3 === s.turn && power(s, b) <= 3) return false;
   if (a.def.minBlockPow && power(s, b) < a.def.minBlockPow) return false; // はがね葉の チャンピオン：パワー 2 いかには ブロックされない
   if (hasKw(s, a, 'flying') && !hasKw(s, b, 'flying') && !hasKw(s, b, 'reach')) return false;
