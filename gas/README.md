@@ -36,6 +36,13 @@
 
 （git が 使えるなら `git clone https://github.com/shimpseguchi-jpg/math-gathering.git` して `gas` に 移っても よい）
 
+**Mac なら**、ターミナルで まとめて 保存できる（ブラウザで 保存すると `.txt` が つく ことが あるので こちらが おすすめ。更新の ときも おなじ）：
+
+```sh
+mkdir -p ~/Desktop/mathgathering && cd ~/Desktop/mathgathering
+for f in Code.gs index.html appsscript.json; do curl -fsSLO "https://raw.githubusercontent.com/shimpseguchi-jpg/math-gathering/main/gas/$f"; done
+```
+
 ### 3. スプレッドシートとスクリプトを作る
 
 ```sh
