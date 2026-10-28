@@ -6,6 +6,7 @@ import { soundOn, setSound } from './sfx.js';
 import { ruby, sheet } from './view.js';
 import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 import { hasServer, call, CONF, setSaved, packSave, unpackSave } from './server.js';
+import { openAllSaved, setOpenAll } from './collection.js';
 import { raidHidden, setRaidHidden } from './raidstore.js';
 
 // デバッグモード（開発用の 項目：弾・こうこく・プレイマットを 自由に かえる）
@@ -119,6 +120,11 @@ export function settingsScreen(app, back, o = {}) {
         <button type="button" class="btn" data-raid="1" aria-pressed="${!raidHidden()}">レイド ${raidHidden() ? 'なし' : 'あり'}</button>
       </section>`}
       <section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>${ruby('こうちくモード：カードを ぜんぶ 開放（かいほう）')}</h3>
+        <p class="st-note">${ruby('こうちくモードで、ぜんぶの カードを 4まいずつ もって いる ことに する。ほんとうの もちものと パックけんは のこり、なしに すると もどる。')}</p>
+        <button type="button" class="btn" data-allcards="1" aria-pressed="${openAllSaved()}"><span>${ruby('ぜんぶ 開放（かいほう）')} ${openAllSaved() ? 'あり' : 'なし'}</span></button>
+      </section>
+      <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
@@ -138,6 +144,7 @@ export function settingsScreen(app, back, o = {}) {
     const mt = e.target.closest('button[data-mat]'); if (mt && !mt.disabled) { useMat(mt.dataset.mat); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
     if (e.target.closest('[data-raid]')) { setRaidHidden(!raidHidden()); draw(); }
+    if (e.target.closest('[data-allcards]')) { setOpenAll(!openAllSaved()); draw(); }
     if (e.target.closest('[data-up]')) upload().then(draw);
     if (e.target.closest('[data-down]')) download();
   };

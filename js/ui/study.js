@@ -130,6 +130,7 @@ export function studyScreen(app, o) {
       <p class="qz-result"><b>${r.ok}</b> / ${r.n}もん せいかい<small>（${pct(r.n, r.ok)}%）</small></p>
       <p class="zk-note">ごうかく：${PASS_MIN}もん いじょう といて、7わりより おおく せいかい（${r.n}もんなら ${Math.max(need, PASS_MIN)}もん いじょう）</p>
       ${gain ? `<p class="qz-gain">もんしょうポイント <b>＋${gain}</b>${r.bonus ? `<small>ボーナス ＋${r.bonus} こみ</small>` : r.n === r.ok && gain > 3 ? '<small>ぜんぶ せいかい！</small>' : ''}</p>` : ''}
+      ${r.ticketNote ? `<p class="qz-gain">${r.ticket ? `パックけん <b>＋${r.ticket}</b>` : ''}<small>${esc(r.ticketNote)}</small></p>` : ''}
       <ul class="qz-break">${Object.entries(r.stat).map(([k, [a, b]]) => `<li><span>${esc(CATS[k].name)}</span><b>${b} / ${a}</b></li>`).join('')}</ul>
       ${r.miss.length ? `<h3 class="zk-h">まちがえた もんだい</h3><ul class="qz-miss">${r.miss.map(({ q, given }) => `<li>${q.clock ? `とけい（${esc(q.answer)}）` : q.kind === 'num' ? esc(q.text.includes('□') ? q.text.replace('□', `［${q.answer}］`) : `${q.text} ＝ ${q.answer}`) : marked(q.text.replace('□', `［${q.answer}］`))}<small>こたえ：${esc(q.answer)}・あなた：${esc(given)}</small></li>`).join('')}</ul>` : ''}
       <div class="row-btns"><button type="button" class="btn primary" data-back="1">${esc(o.doneLabel || (gain ? 'もんしょうを えらぶ' : 'もどる'))}</button>${o.noAgain ? '' : '<button type="button" class="btn" data-again="1">もう いちど</button>'}</div>

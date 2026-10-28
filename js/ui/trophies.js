@@ -1,6 +1,7 @@
 // トロフィー：あそんで できた ことを あつめる（ブロンズ・シルバー・ゴールド・プラチナ）。ブラウザに のこる
 import { sfx } from './sfx.js';
 import { ruby, esc } from './view.js';
+import { trophyTickets } from './collection.js';
 
 const KEY = 'mtg-trophies';
 export const GRADES = { B: 'ブロンズ', S: 'シルバー', G: 'ゴールド', P: 'プラチナ' };
@@ -53,8 +54,11 @@ export function award(id) {
   pop(BY[id]);
   if (TROPHIES.every((t) => t.id === 'platinum' || T.got[t.id]) && !T.got.platinum) { T.got.platinum = Date.now(); pop(BY.platinum); }
   save();
+  syncTrophyTickets();
   return true;
 }
+// こうちくモードの パックけん（ブロンズ 1・シルバー 2・ゴールド 3・プラチナ 5）。まえに もらった トロフィーの ぶんも ここで まとめて
+export const syncTrophyTickets = () => trophyTickets(TROPHIES.filter((t) => T.got[t.id]));
 
 // ---- できごと ごとに しらべる ----
 // たたかいの おわり。r は battle.js の onEnd（life・floor・exactTurnMax・bigHit・maxPower・maxCreatures）

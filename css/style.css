@@ -606,6 +606,35 @@ div.zk-card { cursor: default; }
 .zk-runs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
 .zk-runs li { font-size: 13px; } .zk-runs b { font-family: var(--display); color: var(--gold-text); margin-right: 8px; font-size: 16px; } .zk-runs em { font-style: normal; color: var(--ink-dim); margin-left: 8px; font-size: 11px; }
 
+/* ---- こうちくモード（docs/CONSTRUCTED.md） ---- */
+.construct .title-btns { max-width: none; }
+.cs-how { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cs-sets, .cs-decks, .cs-floors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cs-set { display: flex; align-items: center; gap: 10px; background: var(--table-2); border-radius: 12px; padding: 10px 12px; }
+.cs-set.done { border: 1px solid var(--gold); }
+.cs-set-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cs-set-name b { font-size: 14px; }
+.cs-set-name small { font-size: 11.5px; color: var(--ink-dim); }
+.cs-set .btn { flex: none; min-width: 108px; }
+.cs-deck { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; background: var(--table-2); border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; color: inherit; cursor: pointer; }
+.cs-deck b { font-size: 15px; }
+.cs-rule { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; background: var(--table-3); }
+.cs-rule.r-eternal, .cs-rule.r-eternalCmd { background: var(--gold); color: var(--gold-ink); }
+.cs-rule.r-normalCmd, .cs-rule.r-eternalCmd { box-shadow: inset 0 0 0 2px var(--bad); }
+.cs-cmd { font-size: 12.5px; color: var(--ink-dim); }
+.cs-new { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cs-new .btn { width: 100%; }
+.cs-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.cs-meta small { color: var(--ink-dim); }
+.cs-meta em { font-style: normal; color: var(--bad); font-weight: 700; }
+.cs-floors { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.cs-floors .btn { width: 100%; }
+/* まい数は 右上（右下は パワー／タフネス）。●＝デッキに 入れた・○＝まだ 入れて いない */
+.cs-n, .pool-item .cnt { position: absolute; top: -6px; right: -4px; background: var(--table-3); color: var(--ink); font-size: 10px; font-weight: 700; border-radius: 8px; padding: 0 5px; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.pool-item.in .cnt { background: var(--gold); color: var(--gold-ink); }
+.cs-math { font-size: 16px; } .cs-math b { font-family: var(--display); font-size: 22px; color: var(--gold-text); }
+.tk-get { display: flex; flex-direction: column; gap: 2px; } .tk-get b { color: var(--gold-text); font-size: 15px; }
+
 /* ---- もんしょう・しゅぎょう（REQUIREMENTS 12章） ---- */
 .em-btn > span { color: var(--gold-text); }
 .emblem, .study { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 720px; }
@@ -966,6 +995,26 @@ div.zk-card { cursor: default; }
 .lp-grid { padding-bottom: 24px; }
 .lp-grid .pool-item { opacity: 1; }
 .lp-grid .pool-item.cur .card { box-shadow: 0 0 0 3px var(--gold); }
+/* デッキの カード（デッキ構築の タブ）：同じ カードを 1行に まとめて マナコストの じゅん */
+.b-view { display: flex; gap: 6px; } /* 上に はりつく b-head の 中（スクロールしても 見える） */
+.b-view button { flex: 1; border: 2px solid var(--line); background: var(--table-2); color: var(--ink); border-radius: 10px; padding: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+.b-view button[aria-selected="true"] { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.dlist { display: flex; flex-direction: column; gap: 10px; padding-block: 8px 90px; }
+.dl-sum { margin: 0; font-size: 13px; color: var(--ink-dim); }
+.dl-curve { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 88px; background: var(--table-2); border-radius: 10px; padding: 8px; }
+.dl-curve span { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 2px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.dl-curve i { width: 70%; height: calc(var(--h) * 44px); min-height: 2px; background: var(--gold); border-radius: 4px 4px 0 0; }
+.dl-curve small { color: var(--ink-dim); }
+.dl-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dl-row { display: flex; align-items: center; gap: 6px; background: var(--table-2); border-radius: 10px; padding: 4px 6px; }
+.dl-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; background: none; border: 0; color: inherit; text-align: left; padding: 4px; cursor: pointer; font: inherit; }
+.dl-name b { flex: 1; min-width: 0; font-size: 14px; }
+.dl-name small { color: var(--ink-dim); font-size: 11px; flex: none; }
+.dl-name .zk-dots { margin: 0; flex: none; }
+.dl-cost { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--table-3); font-weight: 700; font-size: 13px; }
+.dl-n { font-weight: 700; color: var(--gold-text); min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.dl-btn { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font-size: 18px; font-weight: 700; cursor: pointer; }
+.dl-btn:disabled { opacity: 0.35; cursor: default; }
 .b-cmd { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--table-2); border: 1px solid var(--gold); border-radius: 10px; padding: 4px 6px 4px 10px; font-size: 13px; }
 .b-cmd .btn { min-height: 34px; padding: 4px 14px; }
 :root[data-theme="gba"] .b-cmd { background: var(--win); border: 2px solid var(--gold); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); }
