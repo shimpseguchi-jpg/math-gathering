@@ -1,9 +1,9 @@
 // バランス しらべ：AIが たたかいと冒険を なんども あそぶ
-//   node mathtcg/tools/sim.mjs fights   … 見本デッキ6つ × 各階（N回ずつ）
-//   node mathtcg/tools/sim.mjs runs     … パックからの冒険を N回
-//   node mathtcg/tools/sim.mjs floors  … 各階を、その階でのパックの数（1階は3パック〜ボスは7パック）で組んだデッキで N回
-//   node mathtcg/tools/sim.mjs log RG hydra … 1戦のログ
-//   node mathtcg/tools/sim.mjs pvp     … オンラインバトル：見本デッキどうし（どちらも AI）
+//   node tools/sim.mjs fights   … 見本デッキ6つ × 各階（N回ずつ）
+//   node tools/sim.mjs runs     … パックからの冒険を N回
+//   node tools/sim.mjs floors  … 各階を、その階でのパックの数（1階は3パック〜ボスは7パック）で組んだデッキで N回
+//   node tools/sim.mjs log RG hydra … 1戦のログ
+//   node tools/sim.mjs pvp     … オンラインバトル：見本デッキどうし（どちらも AI）
 // 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED SETS（パックに 入れる 弾。例 SETS=1 で 第1弾だけ）
 //   EMBLEM（もんしょう。例 EMBLEM=life1,basic1、EMBLEM=all。パックの もんしょうは EMBLEM=cR,cG・pLeg、旗は BANNER=TE01）
 import { BY_ID } from '../js/data/cards.js';

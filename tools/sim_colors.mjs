@@ -1,5 +1,5 @@
 // 3色デッキの しらべ（docs/THREE_COLOR.md の 表）
-// つかいかた：N=1000 DIFF=normal V=two,tri,tri26,sp3 node mathtcg/tools/sim_colors.mjs
+// つかいかた：N=1000 DIFF=normal V=two,tri,tri26,sp3 node tools/sim_colors.mjs
 import { runAdventure, openPack, buildDeck } from '../js/engine/run.js';
 import { AI, plan } from '../js/engine/ai.js';
 import { colorsOf } from '../js/engine/game.js';

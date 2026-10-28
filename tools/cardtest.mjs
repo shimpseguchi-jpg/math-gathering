@@ -1,7 +1,7 @@
 // カードの 自動テスト：第3弾から あとの カードを 1まいずつ しらべる
-//   node mathtcg/tools/cardtest.mjs            … ぜんぶ
-//   node mathtcg/tools/cardtest.mjs SR07 ZZ13  … えらんだ カードだけ（くわしく 出す）
-//   SETS=3,4 node mathtcg/tools/cardtest.mjs   … えらんだ 弾だけ
+//   node tools/cardtest.mjs            … ぜんぶ
+//   node tools/cardtest.mjs SR07 ZZ13  … えらんだ カードだけ（くわしく 出す）
+//   SETS=3,4 node tools/cardtest.mjs   … えらんだ 弾だけ
 // 1. 文と データ：キーワードだけの 文が kw に あるか・「出たとき」「攻撃するたび」などの 文に うごきが あるか・P/T
 // 2. うごかす：マナ 10・場と 墓地に カードが ある 盤面で
 //    a. AI が 唱える → 3ターン すすめる（エラーが 出ないか・唱えられたか）
@@ -69,7 +69,7 @@ const picksFor = (s, tgt, src) => {
 const ran = {};
 async function run(label, id, f) {
   ran[label] = (ran[label] || 0) + 1;
-  try { await f(); } catch (e) { out.err.push(`${id} ${label}: ${e.message.split('\n')[0]} @ ${(e.stack.split('\n')[1] || '').trim().replace(/.*mathtcg\//, '').replace(/\)$/, '')}`); }
+  try { await f(); } catch (e) { out.err.push(`${id} ${label}: ${e.message.split('\n')[0]} @ ${(e.stack.split('\n')[1] || '').trim().replace(/.*\/(?=(js|tools)\/)/, '').replace(/\)$/, '')}`); }
 }
 // ゲームの play() と おなじ じゅんばん（はじめの ターンは もう はじまって いる ことに する）
 async function turns(s, n, enemyFirst = false) {

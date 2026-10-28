@@ -3,14 +3,15 @@
 小学1〜5年生むけの **算数のデジタルTCG・デッキ構築型ローグライク**（試作版）。
 パックを開けてデッキを組み、MTG のチャレンジ・デッキをもとにした5階だての塔を登る（1〜4階の 敵は 2〜3種から ランダム）。マナは DM ベース。
 
-- 遊ぶ：`mathtcg/index.html` をブラウザで開く（HTTPS か `npx http-server -p 8124 -c-1 .` などで配信。ファイルを直接開くと動かない）
+- 遊ぶ：`index.html` をブラウザで開く（HTTPS か `npx http-server -p 8124 -c-1 .` などで配信。ファイルを直接開くと動かない）
 - スマホの縦向きが基準。iPad・PC でも動く
 - 冒険の途中（たたかいの合間）はブラウザに自動で保存され、「つづきから」で再開できる
 - **ずかん**：パックから 出た カード・たおした てき・クリアした 2色・さいこう スコア（とどいた 階 × 100 ＋ ぴったり × 10）。タイトルの「ずかん」で 見る（`docs/REQUIREMENTS.md` 8.1）
 - **トロフィー**：あそんで できた こと（ぴったり・ちょうど 12時・ライフ ちょうど 1 で かつ など）で もらえる 23こ（ブロンズ〜プラチナ）。タイトルの「トロフィー」で 見る（`docs/REQUIREMENTS.md` 8.3）
 - **しゅぎょうと もんしょう**：タイトルの「もんしょう」で、60秒で 1年生の 問題（くりあがり・くりさがり・3つの 数・10の まとまり・とけい・漢字の 読み・てにをは）を とく。7割より 多く 正解すると もんしょうポイント。ポイントで スキルツリーの もんしょう（マリガン・ヴァンガード も）を えらぶと 12時間 冒険で つよく なる。ふりなおしも できる（[`docs/EMBLEMS.md`](docs/EMBLEMS.md)、`docs/REQUIREMENTS.md` 12章）
 - **せかい**：タイトルで テーロス か **ラヴニカ** を えらぶ。ラヴニカの 塔は 1〜4階が 10の ギルドの リーダー、5階が ギルドパクトの ジェイス。リーダーは バトルの すすみぐあいで セリフを しゃべる（[`docs/RAVNICA.md`](docs/RAVNICA.md)。ニコル・ボーラスは いつかの レイドバトル用に とっておく）
-- WEB版は **開発モード**：タイトルの「せってい」で、パックに 入る 弾を えらべる（`js/ui/settings.js` の `DEV`）。第1弾・第2弾の ほかに、開発中の 第3弾〜第7弾（ラヴニカ）・アルケミー・プレインズウォーカー（380種）も えらべる。番外編「Fate/Grand Order」（70種）は もんしょう「番外編」で いつもの パックに まざる（[`docs/ROADMAP.md`](docs/ROADMAP.md) 6章）
+- WEB版は **デバッグモード**：タイトルの「せってい」で、パックに 入る 弾を えらべる（`js/ui/settings.js` の `DEV`）。GAS 版では 先生だけ（開発モードの 画面で オン）。開発中の 弾・サブセット・番外編も えらべる（[`docs/ROADMAP.md`](docs/ROADMAP.md) 6章）
+- ほかの AI や 新しい セッションへの 引き継ぎは [`docs/HANDOFF.md`](docs/HANDOFF.md)
 
 ## つくり
 
@@ -21,12 +22,14 @@ js/ui/app.js        冒険の流れ（タイトル・パック・デッキ構築
 js/ui/battle.js     たたかいの画面（タップの操作、敵のターン中の質問）
 js/ui/tutorial.js   チュートリアル（メレティスの 訓練場）のステップ
 js/ui/online.js     オンライン バトル（ゴースト・あいて さがし・デッキの 点・ランキング）
-js/ui/settings.js   せってい（おと。開発モードでは パックに 入る 弾を えらぶ。DEV で きりかえ）
+js/ui/settings.js   せってい（おと・ひきつぎ。デバッグモードでは パックに 入る 弾を えらぶ。DEV）
+js/ui/server.js     GAS の サーバーと つなぐ（先生の せってい・ひきつぎ）
+js/ui/admin.js      開発モード（先生だけの 管理画面・ゲームを最新にする）
 js/ui/trophies.js   トロフィー（23こ。もらう しらべと 一覧の 画面。REQUIREMENTS 8.3）
 js/ui/zukan.js      ずかん（カード・てき・アーキタイプ・きろく。冒険を またいで のこる。REQUIREMENTS 8.1）
 js/ui/emblem.js     もんしょう（ポイント・スキルツリー・12時間。REQUIREMENTS 12章）
 js/ui/study.js      しゅぎょう（60秒の 問題・とけいの 絵・けっか）
-gas/                GAS 版（Code.gs：ゴーストの サーバー、index.html：1ファイル版）
+gas/                GAS 版（Code.gs：スプレッドシートを つかう サーバー、index.html：1ファイル版、cards.json）
 js/ui/view.js       カードの見た目・ルビ・シート（対象・割り振り・数）
 js/ui/sfx.js        効果音（WebAudio で合成）
 js/ui/glossary.js   ことばの せつめい（キーワード能力・用語 約65）
@@ -45,14 +48,14 @@ GAS 版では **オンライン バトル（非同期）** が遊べる：冒険
 GitHub Pages 版でも、見本デッキとの「れんしゅう」として遊べる。
 
 ```sh
-node mathtcg/tools/build_gas.mjs   # mathtcg/gas/ の 1ファイル版を つくりなおす
+node tools/build_gas.mjs   # gas/ の 1ファイル版を つくりなおす
 ```
 
 ## 漢字
 
 3年生までに 習う 漢字だけを つかう。それ いがいは、画面の ことばは ひらがな、カードの 文章は ふりがな「漢字（よみ）」（REQUIREMENTS 3.1）。
-カードの 文章は `docs/cards/*.md`・`docs/ENEMIES.md` に ふりがなを 書いて、`python3 mathtcg/tools/gen_texts.py` で `js/data/texts.js` に する。
-`node mathtcg/tools/kanji.mjs` で、ふりがなの ない 習わない 漢字が のこって いないか しらべられる。
+カードの 文章は `docs/cards/*.md`・`docs/ENEMIES.md` に ふりがなを 書いて、`python3 tools/gen_texts.py` で `js/data/texts.js` に する。
+`node tools/kanji.mjs` で、ふりがなの ない 習わない 漢字が のこって いないか しらべられる。
 
 ## 遊び方のポイント
 

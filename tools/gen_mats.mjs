@@ -1,5 +1,5 @@
 // プレイマットの 絵を つくる：tools/mats/<名前>.js の Canvas の 絵を ブラウザ（Chromium）で えがいて img/mats/<名前>.webp に する
-//   node mathtcg/tools/gen_mats.mjs nyx    … 1まい（なにも かかなければ ぜんぶ）
+//   node tools/gen_mats.mjs nyx    … 1まい（なにも かかなければ ぜんぶ）
 // 絵は コードで えがく ので、seed が おなじなら 毎回 おなじ 絵に なる
 import { createRequire } from 'module';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';

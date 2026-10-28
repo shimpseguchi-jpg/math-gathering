@@ -1,8 +1,8 @@
 // ブラウザで ロボットが 冒険を 最後まで あそぶ 通しテスト（Playwright）
-//   npx http-server -p 8124 -c-1 . &  →  node mathtcg/tools/e2e.mjs
+//   npx http-server -p 8124 -c-1 . &  →  node tools/e2e.mjs
 // 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）
 import { chromium } from 'playwright';
-const url = process.env.URL || 'http://localhost:8124/mathtcg/';
+const url = process.env.URL || 'http://localhost:8124/';
 const out = process.env.OUT || (await import('os')).tmpdir();
 const STEPS = Number(process.env.STEPS || 3000);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });

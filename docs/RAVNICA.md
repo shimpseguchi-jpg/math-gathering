@@ -66,7 +66,7 @@
 
 ## 5. シミュレーション（ふつう・見本 デッキ／ぼうけん 400回）
 
-`PLANE=ravnica node mathtcg/tools/sim.mjs runs`（`fights` で 階ごと）。
+`PLANE=ravnica node tools/sim.mjs runs`（`fights` で 階ごと）。
 
 | | テーロス | ラヴニカ |
 |---|---|---|

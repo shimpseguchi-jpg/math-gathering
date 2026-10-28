@@ -1,5 +1,5 @@
 // Google Apps Script（GAS）で くばる ための「1ファイル版」を つくる
-// つかいかた：node mathtcg/tools/build_gas.mjs   → mathtcg/gas/ に Code.gs・index.html・appsscript.json が できる
+// つかいかた：node tools/build_gas.mjs   → gas/ に Code.gs・index.html・appsscript.json が できる
 // しくみは リポジトリの tools/build_gas.mjs（アルカナンバー）と おなじ
 import { execFileSync } from 'child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -73,4 +73,4 @@ writeFileSync(join(OUT, 'appsscript.json'), JSON.stringify({
   timeZone: 'Asia/Tokyo', exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8',
   webapp: { executeAs: 'USER_DEPLOYING', access: 'DOMAIN' }, // 学内（ドメイン内）だけ。ひらいた 人の 学校アカウントが わかる
 }, null, 2) + '\n');
-console.log(`mathtcg/gas/ に できた：index.html ${(Buffer.byteLength(html) / 1024).toFixed(0)}KB、Code.gs（カード ${Object.keys(cards).length}種）`);
+console.log(`gas/ に できた：index.html ${(Buffer.byteLength(html) / 1024).toFixed(0)}KB、Code.gs（カード ${Object.keys(cards).length}種）`);

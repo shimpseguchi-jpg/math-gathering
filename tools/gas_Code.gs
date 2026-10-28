@@ -1,5 +1,5 @@
 // マスマティック・ザ・ギャザリング を Google Apps Script の ウェブアプリとして ひらく
-// ・ゲーム本体は index.html（node mathtcg/tools/build_gas.mjs で つくる 1ファイル版）
+// ・ゲーム本体は index.html（node tools/build_gas.mjs で つくる 1ファイル版）
 // ・データは この スクリプトが ついている スプレッドシートに おく（シートが なければ じどうで つくる）
 //   せってい・かんりしゃ・ゴースト・デッキの点・ランキング・レイド・レイドゴースト・あいことば・あいことばの記録・ひきつぎ
 // ・学内（ドメイン内）だけに 公開する。ひらいた 人の 学校アカウントで 先生（かんりしゃ）か どうかと、ひきつぎの もちぬしを 見わける
@@ -55,7 +55,7 @@ var CONF = [
   ['ランキングの時刻', '7,17', 'ランキングを こうしんする 時刻（日本時間・カンマで くぎる）'],
   ['ゴーストの数', '30', 'とどいた 階ごとに のこす ゴーストの 数（ふるい ものから けす）'],
   ['レイドゴーストの数', '20', '陣営ごとに のこす レイドの ゴーストの 数'],
-  ['読みこみ元', 'claude/math-tcg-requirements-8oklux', '「ゲームを 最新に する」で ゲーム本体を とる GitHub の ブランチ（マージした あとは ccr-a96fc02a-yijbz1）']
+  ['読みこみ元', 'main', '「ゲームを 最新に する」で ゲーム本体を とる GitHub の ブランチ（ふつうは main）']
 ];
 
 // データを おく スプレッドシート。スクリプト プロパティ SHEET_ID が あれば その シート（学校の アカウントの ドライブに おく とき）、
@@ -519,7 +519,7 @@ function mtgMigrate() {
 // ───── ゲーム本体を 最新に する（GitHub → スプレッドシート）─────
 // 開発モードの ボタンで、Google の サーバーが 公開リポジトリから gas/index.html と gas/cards.json を とって「ゲーム本体」シートに おく
 // iPad は GitHub に つながらない（学校の フィルターでも だいじょうぶ）。Code.gs（サーバーの しくみ）が かわった ときだけ clasp push が いる
-var REPO = 'shimpseguchi-jpg/app-maker', GAME_DIR = 'mathtcg/gas/';
+var REPO = 'shimpseguchi-jpg/math-gathering', GAME_DIR = 'gas/';
 var CHUNK_CACHE = 30000; // キャッシュ 1つの 大きさ（上限 100KB。日本語も あるので 小さめ）
 // とって ある ゲーム本体（clasp で 上げた ものの ほうが 新しければ ''。そのときは ファイルの ほうを つかう）
 function fresh_() { var m = gameMeta_(); return m && m.built > BUILT ? m : null; }

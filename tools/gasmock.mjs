@@ -50,7 +50,7 @@ const fetched = [];
 let edit = (name, text) => text;
 const web = (url) => {
   if (url.startsWith('https://api.github.com/')) return JSON.stringify({ sha: 'abc1234def' });
-  const m = /raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/mathtcg\/gas\/(.+)$/.exec(url);
+  const m = /raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/gas\/(.+)$/.exec(url);
   if (!m) return null;
   try { return edit(m[1], readFileSync(join(ROOT, 'gas', m[1]), 'utf8')); } catch { return null; }
 };

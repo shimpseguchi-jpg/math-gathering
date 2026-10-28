@@ -1,6 +1,6 @@
 // カード一覧（第1弾＋第2弾）を 1つの ファイルに まとめる
-// つかいかた：node mathtcg/tools/gen_cardlist.mjs   → mathtcg/docs/CARDLIST.md
-//             node mathtcg/tools/gen_cardlist.mjs --html=<ファイル>   → 色ごとに 見る ウェブページ（カードずかん）も 書く
+// つかいかた：node tools/gen_cardlist.mjs   → docs/CARDLIST.md
+//             node tools/gen_cardlist.mjs --html=<ファイル>   → 色ごとに 見る ウェブページ（カードずかん）も 書く
 // 文章は docs/cards/*.md の表から（gen_texts.py と おなじ）。どの弾かは js/data/cards.js の SET2 で きめる
 // ウェブページには、開発中の 弾（第3弾〜第6弾・アルケミー。開発モードで 遊べる）と、まだ 案の プロモも 入れる
 import { readFileSync, readdirSync, writeFileSync } from 'fs';
@@ -69,7 +69,7 @@ const goldAll = all.filter((r) => prefix(r.ID).length === 2);
 const out = [];
 out.push(`# カード一覧（第1弾 ${all.filter((r) => setOf(r.ID) === 1).length}種 ＋ 第2弾 ${all.filter((r) => setOf(r.ID) === 2).length}種 ＝ ${all.length}種）`);
 out.push('');
-out.push('マスマティック・ザ・ギャザリングの ぜんぶの カード。**自動生成**（`node mathtcg/tools/gen_cardlist.mjs`。手で なおさない）。もとは [`cards/`](cards/README.md) の 各ファイル、第2弾の コンセプトは [`SET2.md`](SET2.md)。');
+out.push('マスマティック・ザ・ギャザリングの ぜんぶの カード。**自動生成**（`node tools/gen_cardlist.mjs`。手で なおさない）。もとは [`cards/`](cards/README.md) の 各ファイル、第2弾の コンセプトは [`SET2.md`](SET2.md)。');
 out.push('');
 out.push('- **弾**：1 ＝ 第1弾、2 ＝ 第2弾「英雄譚（えいゆうたん）の 時代（じだい）」。パックは 2つを まぜて 出る');
 out.push('- **コスト**：「4 W」＝ 合計 4マナ、うち 白を 最低 1つ。「X R」＝ X ＋ 1マナ。「X X」＝ X を 2回 はらう。色は W＝白・U＝青・G＝緑・R＝赤');

@@ -1,5 +1,5 @@
 // 案（まだ データに なって いない カード）の ふりがなの チェック
-//   node mathtcg/tools/kanji_drafts.mjs   … docs/SET3〜6.md・ALCHEMY.md・PROMO.md の カード表の 名前・タイプ・テキストを しらべる
+//   node tools/kanji_drafts.mjs   … docs/SET3〜6.md・ALCHEMY.md・PROMO.md の カード表の 名前・タイプ・テキストを しらべる
 // きまりは kanji.mjs と おなじ（3年生までの 漢字 いがいは「漢字（よみ）」）
 import { readFileSync, existsSync } from 'fs';
 import { dirname, join } from 'path';

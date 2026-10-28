@@ -1,4 +1,4 @@
-// 自動生成：python3 mathtcg/tools/gen_texts.py（docs/SET3〜6.md・ALCHEMY.md の 表から。手で直さない）
+// 自動生成：python3 tools/gen_texts.py（docs/SET3〜6.md・ALCHEMY.md の 表から。手で直さない）
 // カードの 土台（名前・コスト・色・P/T・はじめの キーワード）。うごきは js/data/set3.js など
 export const SKEL = {
   K01: {"id": "K01", "name": "夜（よる）の 子（こ）", "rar": "C", "color": "K", "cost": 2, "types": ["creature"], "sub": ["vampire"], "kw": ["lifelink"], "pow": 2, "tou": 1},

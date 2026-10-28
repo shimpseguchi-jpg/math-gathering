@@ -1,5 +1,5 @@
 // しゅぎょうの もんだいを たくさん 作って、こたえと えらびが ただしいか しらべる
-//   node mathtcg/tools/check_quiz.mjs
+//   node tools/check_quiz.mjs
 import { GEN, CATS, KANJI, PARTICLES, quizSession, passed, pointsFor, clockLabel } from '../js/data/quiz.js';
 import { seeded } from '../js/engine/rng.js';
 

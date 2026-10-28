@@ -1,5 +1,5 @@
 // gas/Code.gs を Google の かわりの 「にせもの」で うごかして しらべる（スプレッドシート・キャッシュ・ロック・ログイン）
-// つかいかた：node mathtcg/tools/build_gas.mjs && node mathtcg/tools/gastest.mjs
+// つかいかた：node tools/build_gas.mjs && node tools/gastest.mjs
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { makeGas, OWNER } from './gasmock.mjs';
@@ -97,7 +97,7 @@ ok(rows('デッキの点').length > 1100, `デッキの点が 1000行を こえ�
 setUser(OWNER);
 ok(G.doGet().content === 'FILE:index', 'はじめは clasp で 上げた index を 出す');
 let info = G.mtgAdminUpdate();
-ok(info.from === 'file' && fetched.some((u) => u.includes('/abc1234def/mathtcg/gas/index.html')), 'おなじ 版なら ファイルの まま（コミットの sha で とる）');
+ok(info.from === 'file' && fetched.some((u) => u.includes('/abc1234def/gas/index.html')), 'おなじ 版なら ファイルの まま（コミットの sha で とる）');
 const bump = (n, s) => (n === 'index.html' ? s.replace(/<!--mtg-built:(\d+)/, (_, b) => `<!--mtg-built:${+b + 1000}`) : s.replace(/"cards":\{/, '"cards":{"NEW1":[2,"R"],'));
 setWeb(bump);
 info = G.mtgAdminUpdate();

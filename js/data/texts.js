@@ -1,4 +1,4 @@
-// 自動生成：python3 mathtcg/tools/gen_texts.py（docs の表から。手で直さない）
+// 自動生成：python3 tools/gen_texts.py（docs の表から。手で直さない）
 export const CARD_TEXT = {
 "G08": {
 "name": "荒々（あらあら）しい 一撃（いちげき）",

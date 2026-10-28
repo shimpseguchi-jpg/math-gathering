@@ -1,6 +1,6 @@
 // 漢字の チェック：3年生までに 習う 漢字（学年別漢字配当表 1〜3年・440字）いがいは、
 // 画面の ことばは ひらがな、カードの 文章（名前・タイプ・テキスト）は ふりがな「漢字（よみ）」に する
-//   node mathtcg/tools/kanji.mjs   … 画面に 出る 文字列と カードの 文章を しらべて、ふりがなの ない 漢字を 出す
+//   node tools/kanji.mjs   … 画面に 出る 文字列と カードの 文章を しらべて、ふりがなの ない 漢字を 出す
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';

@@ -2,18 +2,18 @@
 
 マスマティック・ザ・ギャザリングのルールをプログラムにして、AI に何千回も遊ばせて敵の強さを調整した記録。
 
-- ルールエンジン：`mathtcg/js/engine/game.js`（画面と分離。本番の画面からもそのまま使う予定）
-- AI：`mathtcg/js/engine/ai.js`（プレイヤー側）、敵は各階のルールどおりに自動で動く（`mathtcg/js/data/enemies.js`）
-- カードのデータ：`mathtcg/js/data/cards.js`（第1弾 126種＋第2弾 62種＋きほんカード5種）
-- 冒険の流れ（パック・デッキ構築・5階）：`mathtcg/js/engine/run.js`
+- ルールエンジン：`js/engine/game.js`（画面と分離。本番の画面からもそのまま使う予定）
+- AI：`js/engine/ai.js`（プレイヤー側）、敵は各階のルールどおりに自動で動く（`js/data/enemies.js`）
+- カードのデータ：`js/data/cards.js`（第1弾 126種＋第2弾 62種＋きほんカード5種）
+- 冒険の流れ（パック・デッキ構築・5階）：`js/engine/run.js`
 
 ## 動かし方
 
 ```sh
-node mathtcg/tools/sim.mjs runs      # パックからの冒険を N回（クリア率・階ごとの勝率）
-node mathtcg/tools/sim.mjs floors    # 各階を、その階で組めるデッキ（1階は3パック〜ボスは7パック）で N回
-node mathtcg/tools/sim.mjs fights    # 各アーキタイプの見本デッキ × 各階
-node mathtcg/tools/sim.mjs log RG hydra   # 1戦のログ
+node tools/sim.mjs runs      # パックからの冒険を N回（クリア率・階ごとの勝率）
+node tools/sim.mjs floors    # 各階を、その階で組めるデッキ（1階は3パック〜ボスは7パック）で N回
+node tools/sim.mjs fights    # 各アーキタイプの見本デッキ × 各階
+node tools/sim.mjs log RG hydra   # 1戦のログ
 # 環境変数：N（回数）DIFF（easy/normal/hard）RESHUFFLE（0 で山札切れ負け）SEED FLOOR SETS（パックに 入れる 弾。例 SETS=1）
 ```
 
@@ -258,7 +258,7 @@ WEB版の せってい画面（開発モード）で、パックに 入る 弾�
 
 ### もんしょう（2026-10-24）
 
-しゅぎょう（たたかいの そとの 60秒の 問題）で もらう もんしょうの つよさ。`EMBLEM=life1,basic1 node mathtcg/tools/sim.mjs runs`、冒険 1000回ずつ。くわしくは [`EMBLEMS.md`](EMBLEMS.md) 5章。
+しゅぎょう（たたかいの そとの 60秒の 問題）で もらう もんしょうの つよさ。`EMBLEM=life1,basic1 node tools/sim.mjs runs`、冒険 1000回ずつ。くわしくは [`EMBLEMS.md`](EMBLEMS.md) 5章。
 
 | もんしょう | ポイント | ふつう | ちがい |
 |---|---|---|---|
@@ -284,7 +284,7 @@ WEB版の せってい画面（開発モード）で、パックに 入る 弾�
 
 ## オンライン バトル（見本デッキどうし）
 
-`node mathtcg/tools/sim.mjs pvp`。どちらも AI、先攻は交互、100回ずつ。行のデッキの勝率。
+`node tools/sim.mjs pvp`。どちらも AI、先攻は交互、100回ずつ。行のデッキの勝率。
 
 |  | 白緑 | 青白 | 赤白 | 赤青 | 緑赤 | 青緑 |
 |---|---|---|---|---|---|---|
@@ -327,11 +327,11 @@ WEB版の せってい画面（開発モード）で、パックに 入る 弾�
 
 ## ラヴニカの 塔（2026-10-24）
 
-`PLANE=ravnica node mathtcg/tools/sim.mjs runs`（`fights` で 見本デッキ × 11の 階）。冒険 400回（ふつう）：クリア **66%**（テーロスは 61%）。階ごとの 勝率は ボロス 81%・セレズニア 85%・シミック 76%・イゼット 89%・ゴルガリ 90%・アゾリウス 78%・ラクドス 84%・オルゾフ 93%・グルール 74%・ディミーア 84%・ジェイス 76%。くわしくは [`RAVNICA.md`](RAVNICA.md) 5章。
+`PLANE=ravnica node tools/sim.mjs runs`（`fights` で 見本デッキ × 11の 階）。冒険 400回（ふつう）：クリア **66%**（テーロスは 61%）。階ごとの 勝率は ボロス 81%・セレズニア 85%・シミック 76%・イゼット 89%・ゴルガリ 90%・アゾリウス 78%・ラクドス 84%・オルゾフ 93%・グルール 74%・ディミーア 84%・ジェイス 76%。くわしくは [`RAVNICA.md`](RAVNICA.md) 5章。
 
 ## 第7弾「ラヴニカ：ギルドの 都」（2026-10-24・開発中）
 
-`SETS=1,2,9 node mathtcg/tools/sim.mjs runs`（9 が ラヴニカ）。冒険 300回（ふつう）：第1弾＋第2弾 61% → ＋ラヴニカ 48%、第1弾〜第3弾 45% → 38%、開発中 ぜんぶ 38% → 35%。パックが 10の ギルドに ばらける ため（くわしくは [`SET7.md`](SET7.md) 7章）。
+`SETS=1,2,9 node tools/sim.mjs runs`（9 が ラヴニカ）。冒険 300回（ふつう）：第1弾＋第2弾 61% → ＋ラヴニカ 48%、第1弾〜第3弾 45% → 38%、開発中 ぜんぶ 38% → 35%。パックが 10の ギルドに ばらける ため（くわしくは [`SET7.md`](SET7.md) 7章）。
 
 
 ## 通常パックの 整理（2026-10-26）

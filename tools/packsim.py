@@ -1,5 +1,5 @@
 # 2色まで の制限で、パックの枚数ごとに使えるカードの枚数と点数を見る
-# python3 mathtcg/tools/packsim.py
+# python3 tools/packsim.py
 import random, itertools
 cols=['R','U','W','G']; pairs=list(itertools.combinations(cols,2))
 def card():

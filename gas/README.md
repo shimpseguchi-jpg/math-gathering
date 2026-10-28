@@ -28,13 +28,13 @@
 
 1. パソコンに フォルダを 1つ作る（例：デスクトップに `mathgathering`）
 2. 次の 3つを 開いて、それぞれ「名前を付けて保存」（Ctrl+S）で その フォルダに 保存する。**名前は そのまま**（`Code.gs`・`index.html`・`appsscript.json`）
-   - [Code.gs](https://raw.githubusercontent.com/shimpseguchi-jpg/app-maker/claude/math-tcg-requirements-8oklux/mathtcg/gas/Code.gs)
-   - [index.html](https://raw.githubusercontent.com/shimpseguchi-jpg/app-maker/claude/math-tcg-requirements-8oklux/mathtcg/gas/index.html)
-   - [appsscript.json](https://raw.githubusercontent.com/shimpseguchi-jpg/app-maker/claude/math-tcg-requirements-8oklux/mathtcg/gas/appsscript.json)
+   - [Code.gs](https://raw.githubusercontent.com/shimpseguchi-jpg/math-gathering/main/gas/Code.gs)
+   - [index.html](https://raw.githubusercontent.com/shimpseguchi-jpg/math-gathering/main/gas/index.html)
+   - [appsscript.json](https://raw.githubusercontent.com/shimpseguchi-jpg/math-gathering/main/gas/appsscript.json)
    - Windows で「.txt」が 後ろに つかないように、保存の 種類は「すべてのファイル」にする
 3. ターミナルで その フォルダに 移る：`cd Desktop/mathgathering`（Windows は `cd Desktop\mathgathering`）
 
-（git が 使えるなら `git clone` して `mathtcg/gas` に 移っても よい。PR が マージされたあとは、リンクの `claude/math-tcg-requirements-8oklux` を `main` に 変える）
+（git が 使えるなら `git clone https://github.com/shimpseguchi-jpg/math-gathering.git` して `gas` に 移っても よい）
 
 ### 3. スプレッドシートとスクリプトを作る
 
@@ -94,7 +94,7 @@ clasp（パソコンに のこる ログイン）は 私物の Google アカウ�
 2. アプリを ひらきなおす（子どもの iPad も、ひらきなおすと 新しい 版に なる）
 
 - Google の サーバーが、公開リポジトリ（GitHub）から 最新の ゲーム本体と カードの 一覧を とって、スプレッドシートの「ゲーム本体」シート（かくして ある）に おきます。iPad は GitHub に つながりません
-- とってくる ブランチは「せってい」シートの **読みこみ元**（PR が マージされたら `ccr-a96fc02a-yijbz1` に かえる）
+- とってくる ブランチは「せってい」シートの **読みこみ元**（ふつうは `main`）
 - パソコンも clasp も いりません（iPad からでも 押せます）
 - 学校の 管理者が 外部サイトへの 接続を とめて いて エラーに なる ときは、下の「サーバーが かわった とき」と おなじ やりかたで ファイルごと 上げて ください
 
@@ -168,9 +168,9 @@ URL は変わりません。スプレッドシートのデータもそのまま�
 ## 開発者むけ
 
 ```sh
-node mathtcg/tools/build_gas.mjs   # → mathtcg/gas/ の Code.gs・index.html・appsscript.json を作り直す（esbuild を npx で使う）
-node mathtcg/tools/gastest.mjs     # Google の かわりの にせもので Code.gs を うごかして しらべる
+node tools/build_gas.mjs   # → gas/ の Code.gs・index.html・appsscript.json を作り直す（esbuild を npx で使う）
+node tools/gastest.mjs     # Google の かわりの にせもので Code.gs を うごかして しらべる
 ```
 
-`Code.gs` の元は `mathtcg/tools/gas_Code.gs`。カードの点数と色、弾の一覧は `js/data/cards.js` から自動で書きこまれます。
+`Code.gs` の元は `tools/gas_Code.gs`。カードの点数と色、弾の一覧は `js/data/cards.js` から自動で書きこまれます。
 ゲームの側でサーバーとつなぐところは `js/ui/server.js`、開発モードの画面は `js/ui/admin.js`。

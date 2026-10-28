@@ -105,4 +105,4 @@ MTG の「旗（Banner：タルキール）」「オベリスク（Obelisk：ア
 | 見た目 | 3色の カードの わく（いまは 2色の 帯 `b1-X b2-Y`）を 3色に。オンラインの デッキ名は「白緑赤デッキ」 |
 | サーバー | `checkDeck_`：色が 3つなら、その 3色の 旗が 入って いるか を 見る。`pairOf_` は 3文字に なる（ランキングは そのまま） |
 | オンラインの 公平さ | 3色・26点が 2色と 同じ くらいの 強さに なる ように、作った あとで `sim.mjs pvp` で 2色 対 3色を たしかめる |
-| シミュレーション | `N=1000 DIFF=normal V=two,tri,tri26,sp3 node mathtcg/tools/sim_colors.mjs`（この ページの 表。V の 名前は ファイルの 中の `ALLV`） |
+| シミュレーション | `N=1000 DIFF=normal V=two,tri,tri26,sp3 node tools/sim_colors.mjs`（この ページの 表。V の 名前は ファイルの 中の `ALLV`） |

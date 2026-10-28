@@ -1,5 +1,5 @@
 # docs/cards/*.md と docs/ENEMIES.md の表から、画面で見せるカードの名前・タイプ・テキストを js/data/texts.js に書き出す
-# python3 mathtcg/tools/gen_texts.py
+# python3 tools/gen_texts.py
 import re, glob, os, json
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -72,7 +72,7 @@ for fname, set_id, *only in DRAFTS:
         skel[row['ID']] = d
         if row['ID'] != 'B06': sets.setdefault(set_id, []).append(row['ID'])
 with open(os.path.join(here, '..', 'js', 'data', 'skel.js'), 'w', encoding='utf-8') as w:
-    w.write('// 自動生成：python3 mathtcg/tools/gen_texts.py（docs/SET3〜6.md・ALCHEMY.md の 表から。手で直さない）\n')
+    w.write('// 自動生成：python3 tools/gen_texts.py（docs/SET3〜6.md・ALCHEMY.md の 表から。手で直さない）\n')
     w.write('// カードの 土台（名前・コスト・色・P/T・はじめの キーワード）。うごきは js/data/set3.js など\n')
     w.write('export const SKEL = {\n' + ''.join(f'  {k}: {json.dumps(v, ensure_ascii=False)},\n' for k, v in skel.items()) + '};\n')
     w.write('export const SET_IDS = ' + json.dumps(sets) + ';\n')
@@ -89,7 +89,7 @@ for line in open(os.path.join(docs, 'ENEMIES.md'), encoding='utf-8'):
 
 out = os.path.join(here, '..', 'js', 'data', 'texts.js')
 with open(out, 'w', encoding='utf-8') as w:
-    w.write('// 自動生成：python3 mathtcg/tools/gen_texts.py（docs の表から。手で直さない）\n')
+    w.write('// 自動生成：python3 tools/gen_texts.py（docs の表から。手で直さない）\n')
     w.write('export const CARD_TEXT = ' + json.dumps(cards, ensure_ascii=False, indent=0) + ';\n')
     w.write('export const ENEMY_TEXT = ' + json.dumps(enemies, ensure_ascii=False, indent=0) + ';\n')
     w.write("export const plainName = (t) => t.replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '');\n")
@@ -106,7 +106,7 @@ for line in open(os.path.join(docs, 'LORE.md'), encoding='utf-8'):
     if c[2] not in WHEN: raise SystemExit(f'LORE.md：{c[0]} の「とき」が ちがう（{c[2]}）。つかえるのは {"・".join(WHEN)}')
     lore[c[0]] = {'when': WHEN[c[2]], 'say': c[3], **({'rule': c[4]} if c[4] else {})}
 with open(os.path.join(here, '..', 'js', 'data', 'lore.js'), 'w', encoding='utf-8') as w:
-    w.write('// 自動生成：python3 mathtcg/tools/gen_texts.py（docs/LORE.md の 表から。手で直さない）\n')
+    w.write('// 自動生成：python3 tools/gen_texts.py（docs/LORE.md の 表から。手で直さない）\n')
     w.write('// カードの せりふ（say）と、とくべつな ルールの しくみ（rule）。RPG の ように カードが じぶんで しゃべる\n')
     w.write('export const LORE = ' + json.dumps(lore, ensure_ascii=False, indent=0) + ';\n')
 print(len(lore), 'lore')

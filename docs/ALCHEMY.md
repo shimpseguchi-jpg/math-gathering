@@ -165,4 +165,4 @@ MTGA と 同じく、本の 弾の あとに 出す **小さい デジタル 弾
 | 恩恵 | `s.P.boons = [{ when: 'creatureCast', run }]`。おきたら けす。画面の 上に アイコン |
 | 二体掛り | `onAttack` で 同じ `def` を 手札に 創出し、どちらの 実体にも `perp.noDoubleTeam` |
 | 画面 | 永久の 変化は むらさき（`--perp`）、強度は バッジ、恩恵は 上の アイコン。ずかんに「デジタル」「創出だけ」の しるし |
-| ふりがな | `node mathtcg/tools/kanji_drafts.mjs` |
+| ふりがな | `node tools/kanji_drafts.mjs` |

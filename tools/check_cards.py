@@ -1,5 +1,5 @@
-# カードリスト（mathtcg/docs/cards/*.md・第1弾＋第2弾）の枚数とレアリティを数える
-# python3 mathtcg/tools/check_cards.py
+# カードリスト（docs/cards/*.md・第1弾＋第2弾）の枚数とレアリティを数える
+# python3 tools/check_cards.py
 import re, glob, os, collections
 
 here = os.path.dirname(os.path.abspath(__file__))

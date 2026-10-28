@@ -1,4 +1,4 @@
-// 自動生成：python3 mathtcg/tools/gen_texts.py（docs/LORE.md の 表から。手で直さない）
+// 自動生成：python3 tools/gen_texts.py（docs/LORE.md の 表から。手で直さない）
 // カードの せりふ（say）と、とくべつな ルールの しくみ（rule）。RPG の ように カードが じぶんで しゃべる
 export const LORE = {
 "WU07": {

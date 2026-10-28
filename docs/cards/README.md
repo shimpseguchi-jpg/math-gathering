@@ -3,8 +3,8 @@
 マスマティック・ザ・ギャザリングのカードリスト。第2弾は [`set2.md`](set2.md)（コンセプトは [`../SET2.md`](../SET2.md)）。要件は [`../REQUIREMENTS.md`](../REQUIREMENTS.md)。
 
 - 状態：第1弾 126種・第2弾 74種とも データ化ずみ（`js/data/cards.js`）。パックは 2つを まぜて 出す
-- **ぜんぶを 1つに まとめた 一覧**：[`../CARDLIST.md`](../CARDLIST.md)（`node mathtcg/tools/gen_cardlist.mjs` で 作りなおす）
-- 枚数とレアリティのチェック：`python3 mathtcg/tools/check_cards.py`
+- **ぜんぶを 1つに まとめた 一覧**：[`../CARDLIST.md`](../CARDLIST.md)（`node tools/gen_cardlist.mjs` で 作りなおす）
+- 枚数とレアリティのチェック：`python3 tools/check_cards.py`
 
 ## ファイル
 
