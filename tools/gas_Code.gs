@@ -512,7 +512,9 @@ function replace_(k, rows) {
 }
 
 // ───── まえの 版（スクリプト プロパティ）からの ひっこし：エディタで 1回だけ 実行する ─────
+// ウェブアプリからも よべて しまうので、先生だけ（エディタで 実行した 人は 先生）
 function mtgMigrate() {
+  needAdmin_();
   var p = PropertiesService.getScriptProperties(), all = p.getProperties(), n = 0;
   for (var t = 1; t <= 6; t++) if (all['ghosts:' + t]) JSON.parse(all['ghosts:' + t]).forEach(function (g) { add_('ghost', ghostRow_(g)); n++; });
   Object.keys(all).forEach(function (k) {
