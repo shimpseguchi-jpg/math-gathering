@@ -994,6 +994,26 @@ div.zk-card { cursor: default; }
 .lp-grid { padding-bottom: 24px; }
 .lp-grid .pool-item { opacity: 1; }
 .lp-grid .pool-item.cur .card { box-shadow: 0 0 0 3px var(--gold); }
+/* デッキの カード（デッキ構築の タブ）：同じ カードを 1行に まとめて マナコストの じゅん */
+.b-view { display: flex; gap: 6px; margin-top: 8px; }
+.b-view button { flex: 1; border: 2px solid var(--line); background: var(--table-2); color: var(--ink); border-radius: 10px; padding: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+.b-view button[aria-selected="true"] { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.dlist { display: flex; flex-direction: column; gap: 10px; padding-block: 8px 90px; }
+.dl-sum { margin: 0; font-size: 13px; color: var(--ink-dim); }
+.dl-curve { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 88px; background: var(--table-2); border-radius: 10px; padding: 8px; }
+.dl-curve span { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 2px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.dl-curve i { width: 70%; height: calc(var(--h) * 44px); min-height: 2px; background: var(--gold); border-radius: 4px 4px 0 0; }
+.dl-curve small { color: var(--ink-dim); }
+.dl-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dl-row { display: flex; align-items: center; gap: 6px; background: var(--table-2); border-radius: 10px; padding: 4px 6px; }
+.dl-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; background: none; border: 0; color: inherit; text-align: left; padding: 4px; cursor: pointer; font: inherit; }
+.dl-name b { flex: 1; min-width: 0; font-size: 14px; }
+.dl-name small { color: var(--ink-dim); font-size: 11px; flex: none; }
+.dl-name .zk-dots { margin: 0; flex: none; }
+.dl-cost { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--table-3); font-weight: 700; font-size: 13px; }
+.dl-n { font-weight: 700; color: var(--gold); min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.dl-btn { flex: none; width: 36px; height: 36px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font-size: 18px; font-weight: 700; cursor: pointer; }
+.dl-btn:disabled { opacity: 0.35; cursor: default; }
 .b-cmd { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--table-2); border: 1px solid var(--gold); border-radius: 10px; padding: 4px 6px 4px 10px; font-size: 13px; }
 .b-cmd .btn { min-height: 34px; padding: 4px 14px; }
 :root[data-theme="gba"] .b-cmd { background: var(--win); border: 2px solid var(--gold); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); }

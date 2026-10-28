@@ -24,7 +24,7 @@ import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateS
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
-import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast, byColorCost } from './view.js';
 import { BANNERS } from '../data/emblems.js';
 import { gacha } from './gacha.js';
 import { constructMenu } from './construct.js';
@@ -328,9 +328,9 @@ export function deckBuilder(C = advCtx()) {
   const identNo = (i) => (colorsOf(BY_ID[C.pool[i]]).every((c) => C.ident.includes(c)) ? '' : `統率者（とうそつしゃ）の 色（${C.ident.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`);
   const ruleNo = (i) => (C.ident && identNo(i)) || (C.noCap ? sizeNo() : C.ident ? whyNotPts(C.deck, i, C.pool) : whyNot(C.deck, i, C.pool, C.free));
   const outNo = (i) => (C.noCap || C.ident ? '' : whyNotOut(C.deck, i, C.pool, C.free));
-  // stack：同じ カードの 番号を まとめる（G：id → 番号の ならび）。見せるのは さいしょの 番号
+  // 同じ カードの 番号を まとめる（G：id → 番号の ならび）。stack では 見せるのは さいしょの 番号。デッキの カードの −／＋ でも つかう
   const G = new Map();
-  if (C.stack) C.pool.forEach((id, i) => { if (!G.has(id)) G.set(id, []); G.get(id).push(i); });
+  C.pool.forEach((id, i) => { if (!G.has(id)) G.set(id, []); G.get(id).push(i); });
   const copies = (i) => G.get(C.pool[i]);
   const nIn = (i) => copies(i).filter((k) => C.deck.includes(k)).length;
   const freeOf = (i) => copies(i).find((k) => !C.deck.includes(k)); // まだ 入れて いない 1まい
@@ -351,11 +351,31 @@ export function deckBuilder(C = advCtx()) {
     return `<button type="button" class="pool-item ${inDeck ? 'in' : ''} ${no ? 'no' : ''}" data-i="${i}">${cardFace(BY_ID[C.pool[i]])}<span class="pts">${ptsOf(BY_ID[C.pool[i]])}点</span></button>`;
   }).join('') : '<p class="pool-empty">あてはまる カードが ない。しぼりこみを へらそう。</p>');
   let mode = (() => { try { return localStorage.getItem(TAP_MODE) === 'quick' ? 'quick' : 'detail'; } catch { return 'detail'; } })();
+  // デッキの カード（view = 'deck'）：同じ カードを 1行に まとめて マナコストの じゅん。−／＋で 1まいずつ、なまえで せつめい
+  let view = 'pool';
+  const addOf = (id) => { const f = G.get(id).find((k) => !C.deck.includes(k)); return { f, no: f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f) }; };
+  const deckHtml = (st) => {
+    if (!st.count) return '<p class="pool-empty">まだ デッキに カードが ない。「カード」の タブから 入れよう。</p>';
+    const byId = new Map(); for (const k of C.deck) byId.set(C.pool[k], [...(byId.get(C.pool[k]) || []), k]);
+    const rows = [...byId.entries()].sort(([a], [b]) => (BY_ID[a].cost ?? 0) - (BY_ID[b].cost ?? 0) || byColorCost(BY_ID[a], BY_ID[b])).map(([id, ks]) => {
+      const d = BY_ID[id], add = addOf(id);
+      return `<li class="dl-row"><button type="button" class="dl-name" data-dd="${ks[0]}"><span class="dl-cost">${d.cost ?? 0}</span><span class="zk-dots">${colorsOf(d).map((c) => `<i class="m-${c}"></i>`).join('')}</span><b>${ruby(info(d).name)}</b><small>${ptsOf(d)}点</small></button>
+        <span class="dl-n">×${ks.length}</span><button type="button" class="dl-btn" data-dminus="${esc(id)}" aria-label="1まい はずす">−</button><button type="button" class="dl-btn" data-dplus="${esc(id)}" ${add.no ? 'disabled' : ''} aria-label="1まい 入れる">＋</button></li>`;
+    }).join('');
+    // マナコストごとの まい数（0〜6+）と クリーチャーの まい数
+    const curve = Array(7).fill(0); for (const d of st.ds) curve[Math.min(6, d.cost ?? 0)]++;
+    const top = Math.max(1, ...curve), cr = st.ds.filter((d) => (d.types || []).includes('creature')).length;
+    return `<section class="dlist">
+      <p class="dl-sum">クリーチャー ${cr}まい・ほか ${st.count - cr}まい・きほんカード ${DECK_SIZE - st.count}まい</p>
+      <div class="dl-curve" aria-label="マナコストごとの まい数">${curve.map((v, c) => `<span><b>${v || ''}</b><i style="--h:${v / top}"></i><small>${c === 6 ? '6+' : c}</small></span>`).join('')}</div>
+      <ul class="dl-rows">${rows}</ul>
+    </section>`;
+  };
   const draw = () => {
     const st = deckStats(C.deck, C.pool);
     const left = CAPACITY - st.points;
     const list = shownIdx();
-    app().innerHTML = `<main class="builder ${F.open ? 'has-filter' : ''}">
+    app().innerHTML = `<main class="builder ${F.open && view === 'pool' ? 'has-filter' : ''}">
       <header class="b-head">
         <h2>${ruby(C.title)}</h2>
         <div class="meters">
@@ -372,8 +392,9 @@ export function deckBuilder(C = advCtx()) {
         </div>
         <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}</p>
       </header>
-      ${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
-      <div class="pool ${mode}">${poolHtml(list)}</div>
+      <div class="b-view" role="tablist"><button type="button" role="tab" data-view="pool" aria-selected="${view === 'pool'}">カードを えらぶ</button><button type="button" role="tab" data-view="deck" aria-selected="${view === 'deck'}">デッキ ${st.count}まい</button></div>
+      ${view === 'deck' ? deckHtml(st) : `${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
+      <div class="pool ${mode}">${poolHtml(list)}</div>`}
       <footer class="actions">${C.back ? `<button type="button" class="btn" data-a="back">${esc(C.back.label)}</button>` : ''}<button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
     </main>`;
   };
@@ -411,15 +432,27 @@ export function deckBuilder(C = advCtx()) {
   app().onpointerup = app().onpointercancel = () => clearTimeout(press);
   // なまえ・テキストで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
   app().oninput = (e) => {
-    if (!onFilterInput(F, e.target)) return;
+    if (!onFilterInput(F, e.target) || !app().querySelector('.pool')) return;
     const list = shownIdx();
     app().querySelector('.pool').innerHTML = poolHtml(list);
     const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${total()}${unit} を 見せて いる`;
   };
   app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.fine) { F.open = !F.open; saveFilter(F); return draw(); }
+    if (b.dataset.fine) { F.open = !F.open; saveFilter(F); view = 'pool'; return draw(); }
     if (onFilterClick(F, b)) return draw();
+    if (b.dataset.view) { view = b.dataset.view; return draw(); }
+    // デッキの カード：なまえで せつめい、−／＋で 1まいずつ
+    if (b.dataset.dd != null) return showDetail(+b.dataset.dd);
+    if (b.dataset.dminus) {
+      const last = [...C.deck].reverse().find((k) => C.pool[k] === b.dataset.dminus);
+      const no = outNo(last); if (no) { toast(`はずせない：${no}`); return; }
+      C.deck = C.deck.filter((k) => k !== last); sfx.tap(); C.save(); return draw();
+    }
+    if (b.dataset.dplus) {
+      const { f, no } = addOf(b.dataset.dplus); if (no) { toast(`入れられない：${no}`); return; }
+      C.deck.push(f); sfx.tap(); C.save(); return draw();
+    }
     if (b.dataset.mode) { mode = b.dataset.mode; try { localStorage.setItem(TAP_MODE, mode); } catch { /* 保存できなくても 切りかえられる */ } return draw(); }
     if (b.dataset.a === 'cmd') return C.cmd.change();
     if (b.dataset.a === 'back') return C.back.go();
