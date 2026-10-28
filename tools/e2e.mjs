@@ -1,6 +1,7 @@
 // ブラウザで ロボットが 冒険を 最後まで あそぶ 通しテスト（Playwright）
 //   npx http-server -p 8124 -c-1 . &  →  node tools/e2e.mjs
 // 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）、CHROME（つかう chromium の パス）
+//   THEME（みため：classic・gba・clear。せっていの「みため」と おなじ）
 import { chromium } from 'playwright';
 import { existsSync } from 'fs';
 const url = process.env.URL || 'http://localhost:8124/';
@@ -15,7 +16,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(url);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
-await page.evaluate((sets) => { localStorage.clear(); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); }, SETS);
+await page.evaluate(([sets, theme]) => { localStorage.clear(); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); if (theme) localStorage.setItem('mtg-theme', theme); }, [SETS, process.env.THEME || '']);
 await page.reload();
 const shots = new Set();
 async function swipe(from, to) {

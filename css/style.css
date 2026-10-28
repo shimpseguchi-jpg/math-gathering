@@ -8,6 +8,7 @@
   --ink: #eef1f8;
   --ink-dim: #a3adc6;
   --gold: #f2c04f;
+  --gold-text: var(--gold); /* 文字に つかう 金色。くっきり（白地）では こい 茶色に する（ぬりつぶしの --gold は そのまま） */
   --gold-ink: #2a1d00;
   --good: #63d391;
   --bad: #ff7a69;
@@ -37,7 +38,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--ink-dim); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .row-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.eyebrow { margin: 0; font-size: 12px; letter-spacing: 0.12em; color: var(--gold); }
+.eyebrow { margin: 0; font-size: 12px; letter-spacing: 0.12em; color: var(--gold-text); }
 
 /* ---- タイトル ---- */
 .title { min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding-block: 24px; }
@@ -46,7 +47,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .title-mark span:nth-child(2) { border-top-color: var(--U); transform: rotate(-2deg) translateY(-6px); }
 .title-mark span:nth-child(3) { border-top-color: var(--G); transform: rotate(3deg) translateY(-4px); }
 .title-mark span:nth-child(4) { border-top-color: var(--R); transform: rotate(8deg); }
-.title h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 9vw, 48px); line-height: 1.15; color: var(--gold); }
+.title h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 9vw, 48px); line-height: 1.15; color: var(--gold-text); }
 .title-sub { margin: 0; color: var(--ink-dim); max-width: 32em; }
 .seg { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .seg legend { width: 100%; font-size: 13px; color: var(--ink-dim); margin-bottom: 6px; }
@@ -60,14 +61,14 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 
 /* ---- せってい（開発モードでは パックに 入る 弾を えらぶ） ---- */
 .settings { min-height: 100%; display: flex; flex-direction: column; gap: 14px; padding-block: 20px; max-width: 560px; }
-.settings h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); }
+.settings h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold-text); }
 .st-sec { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; background: var(--table-2); border-radius: 14px; padding: 12px; }
 .st-sec h3 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .st-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
 .st-sets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
 .st-sets label { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--line); cursor: pointer; }
 .st-sets input { width: 22px; height: 22px; flex: none; accent-color: var(--gold); }
-.st-sets input:checked + span { color: var(--gold); }
+.st-sets input:checked + span { color: var(--gold-text); }
 .st-sets span { display: flex; flex-direction: column; min-width: 0; }
 .st-sets b { font-weight: 700; }
 .st-sets small { font-weight: 500; font-size: 12px; color: var(--ink-dim); }
@@ -78,7 +79,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .adv-done { position: absolute; left: 4px; right: 4px; bottom: 4px; border-radius: 6px; background: var(--gold); color: var(--gold-ink); font-size: 9px; font-weight: 700; text-align: center; line-height: 1.5; pointer-events: none; }
 /* 呪文書・学習の カード：色の マナの かわりに はらう ライフ */
 .life-cost { position: absolute; left: 4px; bottom: 5px; padding: 0 5px; border-radius: 999px; background: #c62f3b; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.6; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; }
-.st-pool b { color: var(--gold); }
+.st-pool b { color: var(--gold-text); }
 
 /* ---- カード ---- */
 .card { --band: var(--C); position: relative; box-sizing: border-box; width: 100%; aspect-ratio: 5 / 7; max-width: 100%; border-radius: 9px; background: var(--paper); color: var(--paper-ink); border: 0; border-top: 7px solid var(--band); padding: 4px 5px 5px; display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: hidden; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); font-size: 11px; line-height: 1.25; }
@@ -187,7 +188,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .floors li { display: flex; justify-content: space-between; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--table-2); border: 2px solid var(--line); }
 .floors li.now { border-color: var(--gold); background: var(--table-3); }
 .floors li.done { opacity: 0.55; }
-.floors em { font-style: normal; font-size: 12px; color: var(--gold); white-space: nowrap; }
+.floors em { font-style: normal; font-size: 12px; color: var(--gold-text); white-space: nowrap; }
 .deckline { margin: 0; color: var(--ink-dim); font-size: 13px; }
 
 /* ---- たたかい ---- */
@@ -205,7 +206,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .empty { grid-column: 1 / -1; margin: 0; text-align: center; color: var(--ink-dim); font-size: 12px; align-self: center; }
 .logline { border: 0; background: none; text-align: left; padding: 0 4px; display: flex; flex-direction: column; font-size: 12px; color: var(--ink-dim); cursor: pointer; min-width: 0; }
 .logline span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.banner { margin: 0; font-size: 13px; font-weight: 700; color: var(--gold); text-align: center; }
+.banner { margin: 0; font-size: 13px; font-weight: 700; color: var(--gold-text); text-align: center; }
 .me-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
 .life { font-size: 13px; }
 .life b { font-family: var(--display); font-size: 24px; font-weight: 400; color: var(--good); vertical-align: -2px; font-variant-numeric: tabular-nums; }
@@ -213,8 +214,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .mana, .pile { border: 1px solid var(--line); background: var(--table-2); border-radius: 999px; padding: 3px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 span.pile { cursor: default; }
 /* 山札が のこり わずか：めだちすぎない 色だけ（うごかさない） */
-.pile.low { border-color: var(--gold); color: var(--gold); }
-.pile.sp { letter-spacing: 1px; } .pile.sp b { color: var(--gold); } /* 番外編 スターレイル：せんぎポイント */
+.pile.low { border-color: var(--gold); color: var(--gold-text); }
+.pile.sp { letter-spacing: 1px; } .pile.sp b { color: var(--gold-text); } /* 番外編 スターレイル：せんぎポイント */
 .pile.low small { font-size: 10px; opacity: 0.85; }
 .mana b { font-size: 16px; }
 .pip { font-style: normal; font-size: 11px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: inline-grid; place-items: center; padding: 0 3px; color: var(--paper-ink); }
@@ -230,7 +231,7 @@ span.pile { cursor: default; }
 #sheet { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
 .sheet-back { position: absolute; inset: 0; background: rgba(5, 8, 18, 0.6); }
 .sheet-body { position: relative; width: 100%; max-width: 560px; max-height: 88%; overflow-y: auto; background: var(--table-2); border-radius: 18px 18px 0 0; box-sizing: border-box; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 12px; animation: up 0.18s ease-out; }
-.sheet-title { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--gold); }
+.sheet-title { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--gold-text); }
 .sheet-content p { margin: 0 0 6px; }
 .sheet-content p.goal { font-size: 16px; line-height: 1.7; }
 .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
@@ -261,25 +262,25 @@ span.pile { cursor: default; }
 .mchip { font-size: 12px; padding: 3px 8px; border-radius: 8px; color: var(--paper-ink); font-weight: 700; }
 .mchip.used { opacity: 0.4; }
 .big-result { font-family: var(--display); font-size: 34px; margin: 8px 0; }
-.big-result.win { color: var(--gold); } .big-result.lose { color: var(--bad); } .big-result.draw { color: var(--ink); }
+.big-result.win { color: var(--gold-text); } .big-result.lose { color: var(--bad); } .big-result.draw { color: var(--ink); }
 
 /* 数を えらぶ・攻撃の けっか・待機 */
 .num-row { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 10px; }
 .num-row .step { height: 52px; }
-.num-val { text-align: center; font-family: var(--display); font-size: 40px; font-variant-numeric: tabular-nums; color: var(--gold); }
+.num-val { text-align: center; font-family: var(--display); font-size: 40px; font-variant-numeric: tabular-nums; color: var(--gold-text); }
 .cres { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .cres li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; background: var(--table-3); border-radius: 10px; padding: 8px 10px; }
 .cres li span:first-child { flex: 1 1 100%; font-size: 13px; color: var(--ink-dim); }
 .cres .eq { font-family: var(--display); font-size: 22px; font-variant-numeric: tabular-nums; }
 .cres b { font-size: 14px; }
-.cres b.exact { color: var(--gold); font-family: var(--display); font-weight: 400; font-size: 20px; }
+.cres b.exact { color: var(--gold-text); font-family: var(--display); font-weight: 400; font-size: 20px; }
 .susp { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; }
 .b.lv { background: var(--U); color: var(--paper-ink); }
 .b.lore { background: var(--gold); color: var(--paper-ink); }
 .b.time { background: var(--table-3); color: var(--ink); border: 1px solid var(--line); }
 .b.mark { background: var(--U); color: var(--paper-ink); }
 .b.hell { background: var(--R); color: var(--paper-ink); }
-.big-result.dice { color: var(--gold); }
+.big-result.dice { color: var(--gold-text); }
 
 /* ---- 卓：やまふだ・ぼち・マナゾーン（カードの 山で 見せる）---- */
 .battle { box-sizing: border-box; grid-template-rows: auto auto minmax(0, 1fr) auto auto minmax(0, 1fr) auto auto auto auto; }
@@ -290,7 +291,7 @@ span.pile { cursor: default; }
 .menu-btn:disabled { opacity: 0.4; cursor: default; }
 .mull-hand { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; } .mull-hand .card { min-height: 0; font-size: 9px; }
 .card-pt.loy { background: #3b2f6b; color: #fff; }
-.goal-btn { cursor: pointer; color: var(--gold); border-color: var(--gold); font-weight: 700; }
+.goal-btn { cursor: pointer; color: var(--gold-text); border-color: var(--gold); font-weight: 700; }
 .erow { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); gap: 6px; }
 .erow .zone { min-height: 0; }
 .zone { grid-auto-rows: max-content; }
@@ -299,10 +300,10 @@ span.pile { cursor: default; }
 .piles.foe { flex-direction: column; justify-content: flex-start; padding-top: 4px; }
 .pile2 { border: 0; background: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink-dim); }
 .pile2 small { font-size: 10px; white-space: nowrap; line-height: 1.1; }
-.pile2.low small { color: var(--gold); font-weight: 700; }
+.pile2.low small { color: var(--gold-text); font-weight: 700; }
 /* カードの 裏：ゲームの マーク（＋−×÷）と 金の わく */
 .cb { position: relative; width: 40px; aspect-ratio: 5 / 7; border-radius: 6px; display: grid; place-items: center; border: 2px solid var(--gold); background: repeating-linear-gradient(45deg, #1f2c52 0 4px, #18223f 4px 8px); }
-.cb::before { content: "＋−\A×÷"; white-space: pre; position: absolute; font-family: var(--display); font-size: 9px; line-height: 1.05; color: var(--gold); opacity: 0.22; text-align: center; }
+.cb::before { content: "＋−\A×÷"; white-space: pre; position: absolute; font-family: var(--display); font-size: 9px; line-height: 1.05; color: var(--gold-text); opacity: 0.22; text-align: center; }
 .cb b { position: relative; font-family: var(--display); font-weight: 400; font-size: 16px; color: var(--ink); text-shadow: 0 1px 3px #000, 0 0 2px #000; font-variant-numeric: tabular-nums; }
 .cb.th2 { box-shadow: 2px 2px 0 #0b1020; }
 .cb.th3 { box-shadow: 2px 2px 0 #0b1020, 4px 4px 0 #8a6a22, 5px 5px 0 #0b1020; }
@@ -353,7 +354,7 @@ span.pile { cursor: default; }
 
 /* ---- おわり ---- */
 .ending { min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding-block: 24px; }
-.ending h2 { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 8vw, 40px); color: var(--gold); }
+.ending h2 { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 8vw, 40px); color: var(--gold-text); }
 .ending.lose h2 { color: var(--ink); }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
 .stats div { background: var(--table-2); border-radius: 12px; padding: 10px; }
@@ -407,7 +408,7 @@ span.pile { cursor: default; }
 .big-back { width: 100%; height: 100%; border-radius: 14px; border: 3px solid var(--line); cursor: pointer; display: grid; place-items: center;
   background: repeating-linear-gradient(45deg, var(--table-3) 0 12px, var(--table-2) 12px 24px); font-family: var(--display); font-size: 48px; color: var(--ink-dim); }
 .big-back.g-U { border-color: #b9d7ff; box-shadow: 0 0 22px 4px rgba(150, 200, 255, 0.55); }
-.big-back.g-R { border-color: var(--gold); box-shadow: 0 0 30px 8px rgba(242, 192, 79, 0.7); color: var(--gold); }
+.big-back.g-R { border-color: var(--gold); box-shadow: 0 0 30px 8px rgba(242, 192, 79, 0.7); color: var(--gold-text); }
 .big-back.g-L { border-color: #ff8ad8; box-shadow: 0 0 40px 12px rgba(255, 120, 220, 0.7); color: #fff; animation: rainbow 1.2s linear infinite; }
 .big-back.crack { animation: shake 0.25s 4, rainbow 1.2s linear infinite; }
 .big-back.charging { animation: charge 0.9s ease-in forwards; }
@@ -483,8 +484,8 @@ span.pile { cursor: default; }
 .term-hint { margin: 0; font-size: 11px; opacity: 0.6; text-align: right; }
 
 .bonus { width: 100%; max-width: 440px; box-sizing: border-box; background: var(--table-2); border: 1px solid var(--gold); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.bonus-title { margin: 0; font-weight: 700; color: var(--gold); }
-.bonus b { font-family: var(--display); font-size: 18px; color: var(--gold); }
+.bonus-title { margin: 0; font-weight: 700; color: var(--gold-text); }
+.bonus b { font-family: var(--display); font-size: 18px; color: var(--gold-text); }
 .bonus small { color: var(--ink-dim); margin-left: 4px; }
 .tap-next { margin: 0; font-size: 12px; color: var(--ink-dim); min-height: 1.5em; text-align: center; }
 .gacha .stage.shown { cursor: pointer; }
@@ -510,26 +511,26 @@ span.pile { cursor: default; }
 
 /* ---- オンライン バトル ---- */
 .online { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; }
-.online h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); }
+.online h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold-text); }
 .ol-me { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; background: var(--table-2); border-radius: 14px; padding: 12px; }
 .ol-me > div:first-child { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .ol-name { font-family: var(--display); font-size: 20px; }
 .btn.small { min-height: 34px; padding: 4px 10px; font-size: 13px; }
 .ol-score { display: flex; flex-direction: column; align-items: flex-end; }
-.ol-score b { font-family: var(--display); font-size: 32px; color: var(--gold); line-height: 1; }
+.ol-score b { font-family: var(--display); font-size: 32px; color: var(--gold-text); line-height: 1; }
 .ol-score b small, .ol-rank b small { font-family: var(--body); font-size: 13px; margin-left: 2px; font-weight: 700; }
 .ol-score > span, .ol-score > small { font-size: 12px; color: var(--ink-dim); }
 .ol-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .ol-rank li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; background: var(--table-2); }
 .ol-rank li.me { outline: 2px solid var(--gold); }
-.ol-place { font-family: var(--display); min-width: 2em; text-align: center; color: var(--gold); }
+.ol-place { font-family: var(--display); min-width: 2em; text-align: center; color: var(--gold-text); }
 .ol-rank li:nth-child(-n+3) .ol-place { font-size: 18px; }
 .ol-dname { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; }
-.ol-dname small { font-size: 11px; color: var(--gold); }
+.ol-dname small { font-size: 11px; color: var(--gold-text); }
 .ol-rank b { font-family: var(--display); }
 .ol-news { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--paper); color: var(--paper-ink); font-weight: 700; }
 .ol-help { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
-.ol-h { margin: 4px 0 0; font-size: 14px; color: var(--gold); }
+.ol-h { margin: 4px 0 0; font-size: 14px; color: var(--gold-text); }
 .ol-decks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .ol-deck { text-align: left; border: 2px solid var(--line); background: var(--table-2); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; color: inherit; }
 .ol-deck small { font-size: 11px; color: var(--ink-dim); }
@@ -538,7 +539,7 @@ span.pile { cursor: default; }
 .ol-selects { display: flex; flex-wrap: wrap; gap: 6px; }
 .ol-selects select { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font: inherit; font-weight: 700; padding: 4px 8px; }
 .ol-empty { margin: 0; padding: 12px; border-radius: 12px; border: 2px dashed var(--line); color: var(--ink-dim); font-size: 13px; line-height: 1.9; }
-.ol-found { font-family: var(--display); font-size: 22px; color: var(--gold); margin: 0 0 4px; }
+.ol-found { font-family: var(--display); font-size: 22px; color: var(--gold-text); margin: 0 0 4px; }
 
 /* ---- トロフィー ---- */
 .cup { width: 22px; height: 22px; flex: none; fill: currentColor; }
@@ -546,8 +547,8 @@ span.pile { cursor: default; }
 .tro-btn { flex-direction: row; gap: 8px; }
 .tro-btn small { margin-left: 4px; }
 .trophies { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 560px; }
-.trophies h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); margin: 0; }
-.tro-count { margin: 0; font-size: 15px; } .tro-count b { font-family: var(--display); font-size: 30px; color: var(--gold); margin-right: 4px; }
+.trophies h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold-text); margin: 0; }
+.tro-count { margin: 0; font-size: 15px; } .tro-count b { font-family: var(--display); font-size: 30px; color: var(--gold-text); margin-right: 4px; }
 .tro-prog { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
 .tro-prog div { background: var(--table-2); border-radius: 10px; padding: 6px 8px; }
 .tro-prog dt { font-size: 11px; color: var(--ink-dim); } .tro-prog dd { margin: 0; font-weight: 700; }
@@ -562,21 +563,21 @@ span.pile { cursor: default; }
 .tro.got.tg-G, .tro.got.tg-P { border-color: color-mix(in srgb, var(--gold) 55%, transparent); }
 .trophy-pop { position: fixed; z-index: 60; left: 50%; top: 14px; transform: translateX(-50%); width: max-content; display: flex; align-items: center; gap: 10px; max-width: min(92vw, 420px); padding: 10px 16px; border-radius: 14px; background: #10162a; color: #fff; border: 2px solid var(--gold); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); animation: tro-in 0.35s ease-out; pointer-events: none; }
 .trophy-pop .cup { width: 34px; height: 34px; }
-.trophy-pop span { display: flex; flex-direction: column; } .trophy-pop small { font-size: 11px; color: var(--gold); } .trophy-pop b { font-size: 15px; }
+.trophy-pop span { display: flex; flex-direction: column; } .trophy-pop small { font-size: 11px; color: var(--gold-text); } .trophy-pop b { font-size: 15px; }
 .trophy-pop.out { opacity: 0; transform: translate(-50%, -20px); transition: opacity 0.35s, transform 0.35s; }
 @keyframes tro-in { from { opacity: 0; transform: translate(-50%, -24px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .trophy-pop { animation: none; } .trophy-pop.out { transition: none; } }
 
 /* ---- ずかん ---- */
 .zukan { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 720px; }
-.zukan h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); margin: 0; }
-.zk-total { margin: 0; font-size: 15px; } .zk-total b { font-family: var(--display); font-size: 26px; color: var(--gold); margin-right: 2px; }
+.zukan h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold-text); margin: 0; }
+.zk-total { margin: 0; font-size: 15px; } .zk-total b { font-family: var(--display); font-size: 26px; color: var(--gold-text); margin-right: 2px; }
 .zk-tabs, .zk-sets { display: flex; flex-wrap: wrap; gap: 6px; }
 .zukan .chip { font-size: 14px; padding: 6px 14px; cursor: pointer; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; }
 .zukan .chip.on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 700; }
 .zukan .chip small { font-size: 10px; color: var(--bad); font-weight: 700; }
 .zukan .chip.on small { color: var(--gold-ink); }
-.zk-count { margin: 0; font-size: 14px; } .zk-count b { color: var(--gold); font-size: 18px; }
+.zk-count { margin: 0; font-size: 14px; } .zk-count b { color: var(--gold-text); font-size: 18px; }
 .zk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
 .zk-card { position: relative; border: 0; padding: 0; background: none; cursor: pointer; text-align: left; }
 div.zk-card { cursor: default; }
@@ -592,7 +593,7 @@ div.zk-card { cursor: default; }
 .zk-list li b { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
 .zk-list li b small { font-size: 12px; color: var(--ink-dim); font-weight: 500; }
 .zk-list li em { font-style: normal; font-size: 12px; color: var(--ink-dim); }
-.zk-list li.got em { color: var(--gold); font-weight: 700; }
+.zk-list li.got em { color: var(--gold-text); font-weight: 700; }
 .zk-list li:not(.got) b { color: var(--ink-dim); }
 .zk-pips { display: inline-flex; gap: 3px; } .zk-pips i { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
 .zk-pips .m-W, .zk-dots .m-W { background: var(--W); } .zk-pips .m-U, .zk-dots .m-U { background: var(--U); } .zk-pips .m-K, .zk-dots .m-K { background: var(--K); } .zk-pips .m-G, .zk-dots .m-G { background: var(--G); } .zk-pips .m-R, .zk-dots .m-R { background: var(--R); }
@@ -603,13 +604,13 @@ div.zk-card { cursor: default; }
 .zk-stats dt { font-size: 11px; color: var(--ink-dim); } .zk-stats dd { margin: 0; font-family: var(--display); font-size: 22px; } .zk-stats small { font-family: var(--body); font-size: 12px; margin-left: 2px; }
 .zk-h { margin: 6px 0 0; font-size: 16px; }
 .zk-runs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
-.zk-runs li { font-size: 13px; } .zk-runs b { font-family: var(--display); color: var(--gold); margin-right: 8px; font-size: 16px; } .zk-runs em { font-style: normal; color: var(--ink-dim); margin-left: 8px; font-size: 11px; }
+.zk-runs li { font-size: 13px; } .zk-runs b { font-family: var(--display); color: var(--gold-text); margin-right: 8px; font-size: 16px; } .zk-runs em { font-style: normal; color: var(--ink-dim); margin-left: 8px; font-size: 11px; }
 
 /* ---- もんしょう・しゅぎょう（REQUIREMENTS 12章） ---- */
-.em-btn > span { color: var(--gold); }
+.em-btn > span { color: var(--gold-text); }
 .emblem, .study { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; max-width: 720px; }
-.emblem h2, .study h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold); margin: 0; }
-.em-pts { margin: 0; font-size: 15px; } .em-pts b { font-family: var(--display); font-size: 30px; color: var(--gold); margin-left: 4px; }
+.emblem h2, .study h2 { font-family: var(--display); font-weight: 400; font-size: clamp(24px, 7vw, 34px); color: var(--gold-text); margin: 0; }
+.em-pts { margin: 0; font-size: 15px; } .em-pts b { font-family: var(--display); font-size: 30px; color: var(--gold-text); margin-left: 4px; }
 .em-branch { background: var(--table-2); border-radius: 14px; padding: 10px 12px; }
 .em-branch h3 { font-size: 15px; margin: 0 0 8px; }
 .em-nodes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -620,22 +621,22 @@ div.zk-card { cursor: default; }
 .em-text { font-size: 12px; line-height: 1.45; }
 .em-node em { font-style: normal; font-size: 11px; color: var(--ink-dim); margin-top: auto; }
 .em-node.on { border-color: var(--gold); background: linear-gradient(160deg, rgba(242, 192, 79, 0.3), var(--table) 72%); box-shadow: 0 0 14px rgba(242, 192, 79, 0.35); }
-.em-node.on em { color: var(--gold); font-weight: 700; }
+.em-node.on em { color: var(--gold-text); font-weight: 700; }
 .em-node.can { border-color: var(--good); } .em-node.can em { color: var(--good); font-weight: 700; }
 .em-node.lock { opacity: 0.55; }
 .em-branch.one .em-nodes { grid-template-columns: repeat(2, 1fr); } .em-branch.one .em-nodes li + li::before { content: none; } .em-branch h3 small { font-size: 11px; color: var(--ink-dim); font-weight: 500; margin-left: 6px; }
 .em-pts small { display: block; font-size: 12px; color: var(--ink-dim); }
 .em-big { font-family: var(--display); font-size: 18px; margin: 0 0 4px; }
-.em-line { margin: 0; font-size: 13px; color: var(--gold); }
-.sheet-content .em-line { color: var(--gold); font-weight: 700; margin-top: 8px; }
+.em-line { margin: 0; font-size: 13px; color: var(--gold-text); }
+.sheet-content .em-line { color: var(--gold-text); font-weight: 700; margin-top: 8px; }
 .em-log { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .em-log li { display: flex; gap: 10px; font-size: 13px; background: var(--table-2); border-radius: 10px; padding: 6px 10px; }
-.em-log li span { color: var(--ink-dim); flex: 1; } .em-log li em { font-style: normal; color: var(--gold); font-weight: 700; min-width: 72px; text-align: right; }
+.em-log li span { color: var(--ink-dim); flex: 1; } .em-log li em { font-style: normal; color: var(--gold-text); font-weight: 700; min-width: 72px; text-align: right; }
 .qz-lead { margin: 0; }
 .qz-cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .qz-cat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 2px solid var(--line); background: var(--table-2); border-radius: 12px; padding: 8px 10px; cursor: pointer; opacity: 0.6; }
 .qz-cat.on { border-color: var(--gold); opacity: 1; } .qz-cat small { font-size: 11px; color: var(--ink-dim); }
-.qz-cat b::before { content: '○ '; color: var(--ink-dim); } .qz-cat.on b::before { content: '● '; color: var(--gold); }
+.qz-cat b::before { content: '○ '; color: var(--ink-dim); } .qz-cat.on b::before { content: '● '; color: var(--gold-text); }
 .study.run { gap: 10px; }
 .qz-top { display: flex; align-items: center; gap: 12px; font-size: 14px; } .qz-top b { font-family: var(--display); font-weight: 400; font-size: 22px; font-variant-numeric: tabular-nums; }
 .qz-time.low b { color: var(--bad); } .qz-quit { margin-left: auto; min-height: 36px; padding: 4px 10px; }
@@ -659,8 +660,8 @@ div.zk-card { cursor: default; }
 .qz-pad .sub { font-family: var(--body); font-size: 15px; font-weight: 700; }
 .qz-pad .go { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-family: var(--body); font-size: 16px; font-weight: 700; }
 .qz-choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } .qz-choices button { font-family: var(--body); font-weight: 700; font-size: 22px; }
-.qz-result { margin: 0; font-size: 18px; } .qz-result b { font-family: var(--display); font-weight: 400; font-size: 44px; color: var(--gold); } .qz-result small { margin-left: 6px; color: var(--ink-dim); }
-.qz-gain { margin: 0; font-size: 18px; font-weight: 700; } .qz-gain b { font-family: var(--display); font-weight: 400; font-size: 34px; color: var(--gold); margin-left: 6px; } .qz-gain small { margin-left: 8px; color: var(--good); }
+.qz-result { margin: 0; font-size: 18px; } .qz-result b { font-family: var(--display); font-weight: 400; font-size: 44px; color: var(--gold-text); } .qz-result small { margin-left: 6px; color: var(--ink-dim); }
+.qz-gain { margin: 0; font-size: 18px; font-weight: 700; } .qz-gain b { font-family: var(--display); font-weight: 400; font-size: 34px; color: var(--gold-text); margin-left: 6px; } .qz-gain small { margin-left: 8px; color: var(--good); }
 .qz-break { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
 .qz-break li { display: flex; justify-content: space-between; gap: 8px; background: var(--table-2); border-radius: 10px; padding: 6px 10px; font-size: 13px; }
 .qz-miss { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; } .qz-miss li { font-size: 16px; } .qz-miss small { display: block; font-size: 12px; color: var(--ink-dim); } .qz-miss .qz-target { color: var(--paper-ink); }
@@ -727,12 +728,12 @@ div.zk-card { cursor: default; }
 .rd-duels li { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--table-2); font-size: 13px; }
 .rd-duels span { display: flex; align-items: baseline; gap: 6px; }
 .rd-duels span i { flex: 1; font-style: normal; }
-.rd-duels span.me { color: var(--gold); font-weight: 700; }
+.rd-duels span.me { color: var(--gold-text); font-weight: 700; }
 .rd-duels em { font-style: normal; color: var(--ink-dim); font-size: 11px; }
 .raid .say { margin: 0; }
 .raid-banner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; padding: 12px 16px 12px; border-radius: 16px; cursor: pointer;
   border: 2px solid var(--gold); color: var(--ink); background: linear-gradient(120deg, #6b1d1d 0%, #3a1d4f 50%, #1d4a3a 100%); box-shadow: 0 0 0 0 rgba(242, 193, 78, .5); animation: raid-glow 2.4s ease-in-out infinite; }
-.raid-banner b { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 5vw, 28px); color: var(--gold); letter-spacing: .04em; }
+.raid-banner b { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 5vw, 28px); color: var(--gold-text); letter-spacing: .04em; }
 .raid-banner small { font-size: 12px; color: var(--ink); opacity: .9; }
 .raid-banner .rb-tag { position: absolute; top: -10px; left: 14px; padding: 1px 10px; border-radius: 999px; background: var(--gold); color: #1b1b1b; font-size: 11px; font-weight: 700; }
 .raid-banner.done { animation: none; filter: saturate(.6); }
@@ -740,7 +741,7 @@ div.zk-card { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .raid-banner { animation: none; } }
 /* 統率者を えらぶ（commander.js の pickCommander）：5まいを スワイプで めくる */
 .cmd-pick { min-height: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-block: 20px; }
-.cmd-pick h2 { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 6vw, 30px); color: var(--gold); margin: 0; }
+.cmd-pick h2 { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 6vw, 30px); color: var(--gold-text); margin: 0; }
 .cp-stage { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 460px; touch-action: pan-y; user-select: none; }
 .cp-card { flex: 1; min-width: 0; max-width: 320px; margin: 0 auto; }
 .cp-card.from-r { animation: cp-in-r .25s ease-out; }
@@ -774,14 +775,14 @@ div.zk-card { cursor: default; }
 .fx-hit { position: fixed; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 210, 120, 0.7) 30%, transparent 65%); animation: fx-hit 0.38s ease-out forwards; }
 @keyframes fx-hit { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
 .fx-stamp { position: fixed; transform: translate(-50%, -50%); }
-.fx-stamp b { display: block; font-family: var(--display); font-weight: 400; font-size: 34px; white-space: nowrap; color: var(--gold); -webkit-text-stroke: 1.5px #5a3a00; text-shadow: 0 3px 0 #5a3a00, 0 0 18px rgba(242, 192, 79, 0.95); animation: fx-stamp 1.25s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+.fx-stamp b { display: block; font-family: var(--display); font-weight: 400; font-size: 34px; white-space: nowrap; color: var(--gold-text); -webkit-text-stroke: 1.5px #5a3a00; text-shadow: 0 3px 0 #5a3a00, 0 0 18px rgba(242, 192, 79, 0.95); animation: fx-stamp 1.25s cubic-bezier(.2, 1.4, .4, 1) forwards; }
 @keyframes fx-stamp { 0% { transform: scale(2.6) rotate(-14deg); opacity: 0; } 22% { transform: scale(0.95) rotate(-8deg); opacity: 1; } 30% { transform: scale(1.05) rotate(-8deg); } 80% { opacity: 1; } 100% { transform: scale(1) rotate(-8deg) translateY(-14px); opacity: 0; } }
 .fx-fly { position: fixed; z-index: 2; border-radius: 10px; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55); }
 .fx-fly > .card { width: 100%; height: 100%; margin: 0; }
 .fx-spell { position: fixed; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(160, 200, 255, 0.6) 35%, transparent 70%); animation: fx-hit 0.6s ease-out forwards; transform-origin: center; }
 .fx-banner { position: fixed; left: 0; right: 0; top: 38%; display: grid; place-items: center; height: 76px; background: linear-gradient(90deg, transparent, rgba(16, 24, 46, 0.92) 18%, rgba(16, 24, 46, 0.92) 82%, transparent); border-block: 2px solid var(--gold); animation: fx-banner 1.25s ease-in-out forwards; }
 .fx-banner.foe { border-color: var(--bad); background: linear-gradient(90deg, transparent, rgba(59, 28, 51, 0.94) 18%, rgba(59, 28, 51, 0.94) 82%, transparent); }
-.fx-banner b { font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 0.1em; color: var(--gold); text-shadow: 0 2px 0 #000; animation: fx-banner-t 1.25s ease-in-out forwards; }
+.fx-banner b { font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 0.1em; color: var(--gold-text); text-shadow: 0 2px 0 #000; animation: fx-banner-t 1.25s ease-in-out forwards; }
 .fx-banner.foe b { color: #ffd2e4; }
 @keyframes fx-banner { 0% { transform: scaleY(0); opacity: 0; } 15%, 80% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(0.2); opacity: 0; } }
 @keyframes fx-banner-t { 0% { transform: translateX(60px); opacity: 0; } 18%, 78% { transform: none; opacity: 1; } 100% { transform: translateX(-60px); opacity: 0; } }
@@ -791,7 +792,7 @@ div.zk-card { cursor: default; }
 @keyframes fx-shake-h { 0%, 100% { transform: none; } 15% { transform: translate(-12px, 6px) rotate(-0.6deg); } 35% { transform: translate(10px, -6px) rotate(0.5deg); } 55% { transform: translate(-6px, 4px); } 75% { transform: translate(4px, -2px); } }
 .fx-result { position: fixed; inset: 0; z-index: 3; display: grid; place-items: center; background: radial-gradient(circle, rgba(10, 14, 28, 0.55), rgba(5, 8, 18, 0.88)); animation: fx-res-in 0.3s ease-out; cursor: pointer; }
 .fx-result.out { animation: fx-res-out 0.25s ease-in forwards; }
-.fx-result b { position: relative; font-family: var(--display); font-weight: 400; font-size: clamp(56px, 13vw, 112px); color: var(--gold); -webkit-text-stroke: 2px #5a3a00; text-shadow: 0 6px 0 #5a3a00, 0 0 40px rgba(242, 192, 79, 0.9); animation: fx-res-t 0.7s cubic-bezier(.2, 1.5, .4, 1); }
+.fx-result b { position: relative; font-family: var(--display); font-weight: 400; font-size: clamp(56px, 13vw, 112px); color: var(--gold-text); -webkit-text-stroke: 2px #5a3a00; text-shadow: 0 6px 0 #5a3a00, 0 0 40px rgba(242, 192, 79, 0.9); animation: fx-res-t 0.7s cubic-bezier(.2, 1.5, .4, 1); }
 .fx-result.lose b { color: #c9cfe2; -webkit-text-stroke-color: #1b2033; text-shadow: 0 6px 0 #1b2033; animation: fx-res-lose 1s ease-out; }
 .fx-result.draw b { color: var(--ink); -webkit-text-stroke-color: #1b2033; text-shadow: 0 6px 0 #1b2033; }
 .fx-rays { position: absolute; width: 160vmax; height: 160vmax; background: repeating-conic-gradient(rgba(242, 192, 79, 0.18) 0 10deg, transparent 10deg 20deg); animation: fx-spin 8s linear infinite; -webkit-mask: radial-gradient(circle, #000 0%, transparent 55%); mask: radial-gradient(circle, #000 0%, transparent 55%); }
@@ -886,19 +887,19 @@ div.zk-card { cursor: default; }
 /* メッセージの まど：さいごの 行は 1文字ずつ 出て、▼ が てんめつ */
 :root[data-theme="gba"] .logline { position: relative; font-family: var(--display); font-size: 13px; line-height: 1.7; color: var(--ink); background: var(--px); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); padding: 3px 24px 3px 10px; }
 :root[data-theme="gba"] .logline span:first-child:not(:last-child) { color: var(--ink-dim); }
-:root[data-theme="gba"] .logline::after { content: '▼'; position: absolute; right: 7px; bottom: 4px; font-size: 10px; line-height: 1; color: var(--gold); animation: gba-blink 0.9s steps(1) infinite; }
+:root[data-theme="gba"] .logline::after { content: '▼'; position: absolute; right: 7px; bottom: 4px; font-size: 10px; line-height: 1; color: var(--gold-text); animation: gba-blink 0.9s steps(1) infinite; }
 :root[data-theme="gba"] .logline.typed span:last-child { animation: gba-type 0.5s steps(16) both; }
 @keyframes gba-type { from { clip-path: inset(0 100% 0 0); } }
 :root[data-theme="gba"] .banner { text-shadow: 2px 2px 0 var(--px); }
 /* タイトル：ドットの 大きい 文字、マークは ぴょこぴょこ、ボタンは RPG の メニュー */
-:root[data-theme="gba"] .title h1 { color: var(--gold); text-shadow: 3px 3px 0 #b04010, 6px 6px 0 var(--px); letter-spacing: 0.04em; }
+:root[data-theme="gba"] .title h1 { color: var(--gold-text); text-shadow: 3px 3px 0 #b04010, 6px 6px 0 var(--px); letter-spacing: 0.04em; }
 :root[data-theme="gba"] .title-mark span { border-radius: 3px; font-family: var(--display); box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.5); animation: gba-bob 1.2s steps(1) infinite; }
 :root[data-theme="gba"] .title-mark span:nth-child(2n) { animation-delay: -0.6s; }
 :root[data-theme="gba"] .ld-mark span { border-radius: 2px; box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5); animation-timing-function: steps(2); } /* よみこみちゅう（index.html）も ドットふうに */
 @keyframes gba-bob { 50% { translate: 0 -5px; } }
 :root[data-theme="gba"] .title-btns { gap: 2px; padding: 10px 8px; background: var(--win); border: 3px solid var(--line); border-radius: 6px; box-shadow: 0 0 0 3px var(--px), 6px 6px 0 3px rgba(0, 0, 0, 0.45); }
 :root[data-theme="gba"] .title-btns .btn { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; column-gap: 8px; text-align: left; min-height: 40px; padding: 6px 10px 6px 26px; background: transparent; border-color: transparent; box-shadow: none; color: var(--ink); }
-:root[data-theme="gba"] .title-btns .btn.primary { color: var(--gold); }
+:root[data-theme="gba"] .title-btns .btn.primary { color: var(--gold-text); }
 :root[data-theme="gba"] .title-btns .btn small { color: var(--ink-dim); }
 :root[data-theme="gba"] .title-btns .btn:is(:hover, :focus-visible) { background: rgba(255, 255, 255, 0.1); }
 :root[data-theme="gba"] .title-btns .btn::before { left: 8px; }
@@ -957,7 +958,7 @@ div.zk-card { cursor: default; }
 
 /* ---- 塔の 統率者戦（2026-10-26）：伝説の クリーチャーを えらぶ（commander.js の pickLegend）・デッキ構築の 統率者 ---- */
 .legend-pick { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px 0; }
-.legend-pick h2 { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 6vw, 30px); color: var(--gold); }
+.legend-pick h2 { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 6vw, 30px); color: var(--gold-text); }
 .lp-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
 .lp-cur { margin: 0; font-size: 13px; }
 .lp-tabs .chip { cursor: pointer; font-size: 13px; padding: 4px 12px; }
@@ -975,7 +976,7 @@ div.zk-card { cursor: default; }
 
 /* ---- ドラフト（2026-10-26）：3まいから 1まい ---- */
 .draft { min-height: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-block: 16px 24px; }
-.draft h2 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 5.5vw, 28px); color: var(--gold); text-align: center; }
+.draft h2 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 5.5vw, 28px); color: var(--gold-text); text-align: center; }
 .draft .pk-top { align-self: stretch; }
 .draft-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 760px; }
 .draft-card { position: relative; border: 0; padding: 0; background: none; cursor: pointer; transition: transform 0.12s; }
@@ -992,20 +993,20 @@ div.zk-card { cursor: default; }
 
 /* ---- ストーリーモード「せかいめぐり」（2026-10-26：js/ui/story.js） ---- */
 .story { min-height: 100%; display: flex; flex-direction: column; gap: 14px; padding-block: 20px; max-width: 640px; }
-.story h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 7vw, 36px); color: var(--gold); }
+.story h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 7vw, 36px); color: var(--gold-text); }
 .st-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
 .st-ch { background: var(--table-2); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .st-ch h3 { margin: 0; font-size: 15px; display: flex; flex-direction: column; gap: 2px; }
-.st-guide { font-size: 11px; font-weight: 500; color: var(--gold); }
+.st-guide { font-size: 11px; font-weight: 500; color: var(--gold-text); }
 .st-ch ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .st-ep { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); background: var(--table); cursor: pointer; }
-.st-ep b { font-family: var(--display); font-weight: 400; color: var(--gold); }
+.st-ep b { font-family: var(--display); font-weight: 400; color: var(--gold-text); }
 .st-ep span { display: flex; flex-direction: column; font-weight: 700; }
 .st-title { font-style: normal; }
 .st-ep small { font-size: 11px; font-weight: 500; color: var(--ink-dim); }
 .st-ep em { font-style: normal; font-size: 12px; color: var(--ink-dim); white-space: nowrap; }
 .st-ep.open { border-color: var(--gold); }
-.st-ep.open em { color: var(--gold); font-weight: 700; }
+.st-ep.open em { color: var(--gold-text); font-weight: 700; }
 .st-ep.done em { color: var(--good); }
 .st-ep.lock { opacity: 0.45; cursor: default; }
 .coach.story { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 2px; padding: 5px 10px; font-size: 13px; line-height: 1.6; border-radius: 10px; }
@@ -1032,7 +1033,7 @@ div.zk-card { cursor: default; }
   .cb-in .btn { min-width: 200px; min-height: 52px; font-size: 18px; }
 }
 :root[data-theme="gba"] .cb-in { background: var(--win); color: var(--ink); border: 3px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; box-shadow: 0 0 0 3px var(--px); font-family: var(--display); }
-:root[data-theme="gba"] .cb-in .coach-who { color: var(--gold); }
+:root[data-theme="gba"] .cb-in .coach-who { color: var(--gold-text); }
 :root[data-theme="gba"] .coach-big { animation-timing-function: steps(4); }
 .coach:has(+ .coach-big) { visibility: hidden; } /* 大きい まどを 出して いる あいだは 小さい おびを かくす（場所は のこす） */
 
@@ -1045,7 +1046,7 @@ div.zk-card { cursor: default; }
 @keyframes hp-in { from { transform: translate(-50%, 16px); opacity: 0; } }
 @media (min-width: 640px) { .hint-pop { font-size: 20px; bottom: calc(200px + env(safe-area-inset-bottom, 0px)); } }
 :root[data-theme="gba"] .hint-pop { border-radius: 4px; background: var(--win); color: var(--ink); border-color: var(--line); box-shadow: 0 0 0 3px var(--px); font-family: var(--display); }
-:root[data-theme="gba"] .hint-pop b { color: var(--gold); }
+:root[data-theme="gba"] .hint-pop b { color: var(--gold-text); }
 
 /* ---- プレイマット（2026-10-27：js/ui/mats.js）：絵は コードで えがいた もの（tools/mats/*.js → tools/gen_mats.mjs → img/mats/*.webp）。たたかいの ときだけ 卓の 背景を かえる。せっていの 見本（.mat-sw）も おなじ もよう ---- */
 [data-m="plain"], body[data-mat="plain"] { --mat: var(--table); }
@@ -1113,3 +1114,159 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .admin .ad-words { white-space: nowrap; }
 .admin .ad-words select + select { margin-left: 2px; }
 .admin a { color: inherit; }
+
+/* ==== みため：くっきり（見やすい）2026-10-28 ==== */
+/* せっていの「みため」で <html data-theme="clear">。画面の つくりは おなじで、白い 画面に 黒い 文字・太い 黒の わく・ひとまわり 大きい 文字に する */
+/* 明るい 教室・テレビに うつす とき・目が つかれやすい 子 むけ。光る かげ・すける 色・うすい 文字は つかわない */
+/* 金色の きまり：ぬりつぶし（ボタン・えらんだ もの）は あかるい 金色（--gold）の まま。文字の 金色は こい 茶色（--gold-text）、わくの 金色は --gold-line（白地で 見える こさ） */
+:root[data-theme="clear"] {
+  --table: #ffffff; --table-2: #f1f3f8; --table-3: #e1e5ee; --line: #1b1f2a;
+  --ink: #111318; --ink-dim: #4a5261;
+  --gold: #ffc43d; --gold-ink: #1a1200; --gold-text: #7d5200; --gold-line: #b07a00;
+  --good: #1b7f3b; --bad: #c62828;
+  --paper: #ffffff; --paper-ink: #111318;
+  --W: #f0d878; --U: #4a90e8; --K: #6b5c86; --G: #3cb060; --R: #ea5a3c; --C: #a9aec0;
+  --enemy: #4a1d3f; --enemy-2: #7b2f66; --enemy-ink: #ffffff;
+  --cw: 84px; /* バトルの カードは すこし 大きく（場の 1行の まい数は かわらない：下の #app の よはくを せまく する） */
+  color-scheme: light;
+}
+:root[data-theme="clear"] body { background: var(--table); font-size: 17px; }
+:root[data-theme="clear"] rt { font-size: 0.6em; }
+:root[data-theme="clear"] .card rt { font-size: 0.5em; } /* 小さい カードの ふりがなは もとの 大きさの まま（名前の 行が ふえて P/T が かくれない ように） */
+:root[data-theme="clear"] button:focus-visible, :root[data-theme="clear"] input:focus-visible + span { outline: 4px solid var(--gold-line); }
+/* 文字：うすい 文字も 読める こさ（--ink-dim）・ひとまわり 大きく */
+:root[data-theme="clear"] :is(.title-sub, .fine, .hint, .st-note, .pick-note, .what, .deckline, .pile-note, .lp-note, .ol-help, .zk-note, .cp-info, .st-sets small, .tro small, .em-text, .meter span, .meter em, .tap-next, .gacha-hint, .foil-sub) { font-size: 14.5px; }
+:root[data-theme="clear"] :is(.turn, .chip, .mana, .pile, .snd, .chip-f, .intent, .me-bar, .empty, .floors em, .stats dt, .zk-count, .elog, .cres li span:first-child, .detail-sub, .detail-meta, .detail-type, .st-ep small, .st-ep em, .em-node em, .qz-cat small, .zk-list li em, .tro em, .ol-score > span, .ol-score > small, .ol-deck small, .rd-duels li, .pile2 small, .say, .tapmode, .tapmode button, .flabel) { font-size: 13.5px; }
+:root[data-theme="clear"] :is(.floor, .pick, .detail-text, .term-text, .sheet-content p.goal, .qz-ask, .zk-total, .tro-count, .em-pts, .st-pool, .wait) { font-size: 17px; }
+:root[data-theme="clear"] .detail-text { line-height: 1.9; }
+:root[data-theme="clear"] .detail h2 { font-size: 21px; }
+:root[data-theme="clear"] .eyebrow { font-size: 13.5px; letter-spacing: 0.08em; }
+:root[data-theme="clear"] .intent b { font-size: 12.5px; }
+:root[data-theme="clear"] .title h1 { text-shadow: none; }
+:root[data-theme="clear"] .title-mark span { box-shadow: 0 0 0 2px var(--line), 0 5px 0 var(--line); }
+:root[data-theme="clear"] .title-btns .btn { font-size: 18px; }
+/* ボタン・つまみ：黒い 太い わく。えらんで いる ものは 金色に ぬる */
+:root[data-theme="clear"] .btn { border: 3px solid var(--line); border-radius: 10px; min-height: 50px; font-size: 17px; box-shadow: 0 3px 0 var(--line); transition: none; }
+:root[data-theme="clear"] .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
+:root[data-theme="clear"] .btn.primary { background: var(--gold); border-color: var(--line); color: var(--gold-ink); }
+:root[data-theme="clear"] .btn.primary small { color: var(--gold-ink); opacity: 1; }
+:root[data-theme="clear"] .btn.ghost { border-color: transparent; box-shadow: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+:root[data-theme="clear"] .btn small { font-size: 13px; }
+:root[data-theme="clear"] .btn:disabled { opacity: 0.5; }
+:root[data-theme="clear"] .btn.small { min-height: 38px; font-size: 14.5px; }
+:root[data-theme="clear"] :is(.chip, .mana, .pile, .menu-btn, .seg span, .tapmode button, .snd, .chip-f, .pick, .step, .qz-pad button, .qz-choices button, .cp-arrow, .ol-selects select, .fq, .mat-btn, .em-node, .st-ep, .ol-deck, .qz-cat, .st-sets label) { border: 2px solid var(--line); }
+:root[data-theme="clear"] .menu-btn { font-size: 22px; width: 38px; height: 38px; }
+:root[data-theme="clear"] .chip.hot { background: var(--enemy-2); border-color: var(--enemy); color: #fff; }
+:root[data-theme="clear"] :is(.seg input:checked + span, .tapmode button[aria-pressed="true"], .chip.on, .chip-f[aria-pressed="true"], .pick.on, .zukan .chip.on, .lp-tabs .chip.on, .qz-pad .go) { background: var(--gold); color: var(--gold-ink); border-color: var(--line); }
+/* えらんで いる わく：黒い わくの 外に 金色の 輪（金色の 線だけ だと 白地で うすい） */
+:root[data-theme="clear"] :is(.floors li.now, .st-ep.open, .ol-deck.on, .mat-btn.on, .em-node.on, .qz-cat.on) { border-color: var(--line); box-shadow: 0 0 0 3px var(--gold); }
+:root[data-theme="clear"] :is(.goal-btn, .pile.low, .b-cmd, .bonus, .hint-pop) { border-color: var(--gold-line); }
+:root[data-theme="clear"] .ol-rank li.me { outline: 3px solid var(--gold-line); }
+:root[data-theme="clear"] .hint-pop::after { border-top-color: var(--gold-line); }
+:root[data-theme="clear"] .tut-hl { outline: 4px solid var(--gold-line); }
+:root[data-theme="clear"] .perm.can { outline: 4px dashed var(--gold-line); outline-offset: 1px; }
+:root[data-theme="clear"] .perm.sel { outline: 4px solid var(--gold-line); }
+:root[data-theme="clear"] .perm.attacking { outline: 4px solid var(--bad); }
+:root[data-theme="clear"] .perm.drop-ok { outline: 5px solid var(--gold-line); }
+:root[data-theme="clear"] .perm.pick-roll { outline: 4px solid var(--gold-line); filter: none; }
+:root[data-theme="clear"] #arrow line { stroke-width: 7; }
+:root[data-theme="clear"] #arrow.ok line { stroke: var(--gold-line); }
+:root[data-theme="clear"] :is(.pool-item.in .card, .lp-grid .pool-item.cur .card) { box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--gold); }
+:root[data-theme="clear"] .pool-item { opacity: 0.6; }
+:root[data-theme="clear"] .pool-item.no { opacity: 0.3; }
+:root[data-theme="clear"] .pool-item .pts { box-shadow: 0 0 0 1.5px var(--line); }
+:root[data-theme="clear"] :is(.pool, .zk-grid) { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
+:root[data-theme="clear"] .b-head { border-bottom: 2px solid var(--line); }
+:root[data-theme="clear"] .dots li.now { outline-color: var(--gold-line); }
+/* カード：白い 紙に 黒い わく。色の 帯は 太め。文字は 大きめ */
+:root[data-theme="clear"] .card { border-top-width: 8px; border-radius: 8px; box-shadow: 0 0 0 2px var(--line); font-size: 12px; }
+:root[data-theme="clear"] .c-gold.c-tri { border-top-width: 10px; }
+:root[data-theme="clear"] :is(.zone, .hand) .card { box-shadow: 0 0 0 2px var(--line), 0 4px 0 rgba(0, 0, 0, 0.25); }
+:root[data-theme="clear"] .card-name { font-size: 12.5px; }
+:root[data-theme="clear"] .cost { min-width: 20px; height: 20px; border-radius: 10px; font-size: 12.5px; }
+:root[data-theme="clear"] .cost.big { min-width: 36px; height: 36px; border-radius: 18px; font-size: 19px; }
+:root[data-theme="clear"] .rar { font-size: 10px; opacity: 0.85; }
+:root[data-theme="clear"] .card-kw span { font-size: 10.5px; background: rgba(17, 19, 24, 0.12); }
+:root[data-theme="clear"] .c-E .card-kw span { background: rgba(255, 255, 255, 0.2); }
+:root[data-theme="clear"] .card-pt { font-size: 16px; }
+:root[data-theme="clear"] .card-type { font-size: 10.5px; opacity: 0.85; }
+:root[data-theme="clear"] .b { font-size: 9.5px; }
+:root[data-theme="clear"] :is(.b.ctr, .b.lv, .b.mark, .b.hell, .new) { color: #fff; }
+:root[data-theme="clear"] .b.time { border-color: var(--line); }
+:root[data-theme="clear"] .card-label { font-size: 10.5px; box-shadow: 0 0 0 1.5px var(--line); }
+:root[data-theme="clear"] :is(.card-pips i, .zk-dots i, .zk-pips i, .detail-colors .dc i) { box-shadow: inset 0 0 0 1.5px var(--line); }
+:root[data-theme="clear"] .perm.tapped { filter: saturate(0.4) brightness(0.82); }
+:root[data-theme="clear"] .pip { font-size: 12px; min-width: 18px; height: 18px; border-radius: 9px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3); }
+:root[data-theme="clear"] .mchip { box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.3); }
+:root[data-theme="clear"] .face-tile { background: var(--enemy); border: 2px dashed #e9a7cf; }
+:root[data-theme="clear"] .zone .card.perm.ab { box-shadow: 0 0 0 2px var(--line), 0 0 0 5px #1e88e5; }
+:root[data-theme="clear"] :is(.zone .card.perm.ab-big, .card.perm.hogu) { box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--gold-line); animation: clear-ab 1s steps(1) infinite; }
+@keyframes clear-ab { 50% { box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--gold); } }
+:root[data-theme="clear"] .pile.brk.ready { background: var(--gold); border-color: var(--line); animation: none; outline: 3px solid var(--gold-line); outline-offset: 2px; }
+/* たたかい：場は うすい 色に ぬって 太い わく。すけさせない。上の 文字が 大きく なった ぶん、行の あいだを すこし つめて 場の 高さを のこす */
+:root[data-theme="clear"] .battle { gap: 5px; }
+:root[data-theme="clear"] .zone { border-radius: 10px; border: 3px solid var(--line); padding: 6px; gap: 6px; box-shadow: none; }
+:root[data-theme="clear"] .zone.enemy { background: #fbe6ef; border-color: var(--enemy-2); }
+:root[data-theme="clear"] .zone.mine { background: #e6effc; border-color: #2f6fd6; }
+:root[data-theme="clear"] body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: none; }
+:root[data-theme="clear"] .life { width: 56px; height: 56px; color: var(--ink); border: 3px solid var(--good); background: #e3f6ea; box-shadow: 0 0 0 2px #fff; }
+:root[data-theme="clear"] .life small { font-size: 10.5px; opacity: 1; }
+:root[data-theme="clear"] .life b { font-size: 24px; color: #0f6b30; }
+:root[data-theme="clear"] .life.low { border-color: var(--bad); background: #fde7e4; }
+:root[data-theme="clear"] .life.low b { color: var(--bad); }
+:root[data-theme="clear"] .mana b { font-size: 18px; }
+:root[data-theme="clear"] .logline { color: var(--ink); font-weight: 700; font-size: 14px; background: var(--table-2); border: 2px solid var(--line); border-radius: 8px; padding: 3px 10px; }
+:root[data-theme="clear"] .logline span:first-child:not(:last-child) { color: var(--ink-dim); font-weight: 500; }
+:root[data-theme="clear"] .banner { text-shadow: none; font-size: 15px; }
+:root[data-theme="clear"] .intent span { background: #fde7e4; border: 2px solid var(--bad); }
+:root[data-theme="clear"] .actions { border-top: 3px solid var(--line); }
+:root[data-theme="clear"] .cb b { color: #fff; }
+:root[data-theme="clear"] .cb::before { color: var(--gold); }
+:root[data-theme="clear"] .gyc:not(.none) { box-shadow: 0 0 0 1.5px var(--line); }
+:root[data-theme="clear"] .gyc.stack { box-shadow: 0 0 0 1.5px var(--line), 3px 3px 0 #9aa0b0; }
+/* シート・まど・せつめい：黒い わく */
+:root[data-theme="clear"] .sheet-back { background: rgba(17, 19, 24, 0.55); }
+:root[data-theme="clear"] .sheet-body { border: 3px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0; }
+:root[data-theme="clear"] .detail { box-shadow: 0 0 0 2px var(--line); border-radius: 12px; }
+:root[data-theme="clear"] :is(.st-sec, .meter, .floors li, .cres li, .stats div, .tro-prog div, .zk-stats div, .em-branch, .st-ch, .ol-me, .ol-rank li, .zk-list li, .tro, .em-log li, .qz-break li, .rd-bar, .rd-duels li, .fpanel, .div-row, .lore) { border: 2px solid var(--line); }
+:root[data-theme="clear"] :is(.tro.got.tg-G, .tro.got.tg-P) { border-color: var(--gold-line); }
+:root[data-theme="clear"] :is(.coach, .cb-in, .talk, .qz-q, .ol-news, .term-pop, #toast, #say) { box-shadow: 0 0 0 2px var(--line); }
+:root[data-theme="clear"] .coach-big { background: linear-gradient(transparent, rgba(17, 19, 24, 0.35) 30%); }
+:root[data-theme="clear"] #toast { font-size: 15px; }
+:root[data-theme="clear"] .say b { color: var(--gold-text); }
+:root[data-theme="clear"] .say span { background: var(--table-2); border: 2px solid var(--line); }
+:root[data-theme="clear"] .dev-badge { color: #fff; }
+:root[data-theme="clear"] .meter > i { box-shadow: 0 0 0 1px var(--line); }
+:root[data-theme="clear"] .qz-bar { border: 2px solid var(--line); }
+:root[data-theme="clear"] .admin :is(input, select) { color-scheme: light; }
+/* くらい ものの 上の 文字は 明るい まま（カードの 裏・トロフィーの しらせ・レイドの おび・演出）。白地では 光る かげの かわりに 黒い ふち */
+:root[data-theme="clear"] .trophy-pop small { color: var(--gold); }
+:root[data-theme="clear"] .raid-banner b { color: var(--gold); }
+:root[data-theme="clear"] .raid-banner small { color: #fff; }
+:root[data-theme="clear"] .big-back.g-L { color: #c2185b; }
+:root[data-theme="clear"] .cup.tg-S { color: #6f7c8c; } :root[data-theme="clear"] .cup.tg-G { color: #c98f00; } :root[data-theme="clear"] .cup.tg-P { color: #0288d1; } :root[data-theme="clear"] .cup.tg-X { color: rgba(0, 0, 0, 0.22); }
+:root[data-theme="clear"] :is(.fx-banner b, .fx-result b, .fx-stamp b) { color: var(--gold); }
+:root[data-theme="clear"] .fx-banner.foe b { color: #ffd2e4; }
+:root[data-theme="clear"] .fx-result.lose b { color: #c9cfe2; }
+:root[data-theme="clear"] .fx-result.draw b { color: #fff; }
+:root[data-theme="clear"] .fx-stamp b { text-shadow: 0 3px 0 #5a3a00; }
+:root[data-theme="clear"] .fx-num { text-shadow: 0 3px 0 #5b0e06; }
+:root[data-theme="clear"] .fx-num.heal { text-shadow: 0 3px 0 #0d4a26; }
+:root[data-theme="clear"] .fx-shard { background: #9aa0b0; box-shadow: 0 0 0 1px var(--line); }
+:root[data-theme="clear"] .fx-hit { background: radial-gradient(circle, rgba(255, 196, 61, 0.95) 0%, rgba(234, 90, 60, 0.7) 30%, transparent 65%); }
+:root[data-theme="clear"] .fx-spell { background: radial-gradient(circle, rgba(74, 144, 232, 0.9), rgba(74, 144, 232, 0.5) 35%, transparent 70%); }
+/* 大きさ：タブレットは もう すこし 大きく。スマホの たたかいは 画面の よはくを せまく して、場の 1行に 入る まい数を かえない */
+@media (max-width: 959px) {
+  :root[data-theme="clear"] #app:has(> .battle) { padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+}
+@media (min-width: 640px) {
+  :root[data-theme="clear"] { --cw: 98px; }
+  :root[data-theme="clear"] .card { font-size: 13px; }
+  :root[data-theme="clear"] .card-name { font-size: 13.5px; }
+}
+@media (min-width: 960px) and (orientation: landscape) {
+  :root[data-theme="clear"] .battle { --cw: 116px; }
+  :root[data-theme="clear"] .battle .card { font-size: 14px; }
+  :root[data-theme="clear"] .battle .card-name { font-size: 14.5px; }
+  :root[data-theme="clear"] .battle .zone { gap: 8px; padding: 8px; }
+}
