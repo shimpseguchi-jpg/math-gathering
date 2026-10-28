@@ -119,7 +119,7 @@ export function settingsScreen(app, back, o = {}) {
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('こうちくモード：カードを ぜんぶ 開放（かいほう）')}</h3>
         <p class="st-note">${ruby('こうちくモードで、ぜんぶの カードを 4まいずつ もって いる ことに する。ほんとうの もちものと パックけんは のこり、なしに すると もどる。')}</p>
-        <button type="button" class="btn" data-allcards="1" aria-pressed="${openAllSaved()}">${ruby('ぜんぶ 開放（かいほう）')} ${openAllSaved() ? 'あり' : 'なし'}</button>
+        <button type="button" class="btn" data-allcards="1" aria-pressed="${openAllSaved()}"><span>${ruby('ぜんぶ 開放（かいほう）')} ${openAllSaved() ? 'あり' : 'なし'}</span></button>
       </section>
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('しゅうろくする 弾（だん）')}</h3>

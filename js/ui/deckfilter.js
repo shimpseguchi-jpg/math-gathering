@@ -1,12 +1,16 @@
 // デッキ構築の「こまかく」：ならべかえ（ソート）と しぼりこみ。せっていは この 端末に のこる
+// こうちくモード（docs/CONSTRUCTED.md）は べつの key に のこす（ぜんぶの 弾が まざるので、弾の しぼりこみが 冒険に のこらない ように）
+import { SETS, SET_OF } from '../data/cards.js';
 import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
 import { info, ruby, esc, byColorCost, COLOR_NAME, RAR } from './view.js';
 
 const KEY = 'mtg-build-filter';
-const FRESH = () => ({ open: false, sort: 'color', desc: false, q: '', cost: [], colors: [], types: [], subs: [], rar: [], kws: [], deck: 'all' });
-export function loadFilter() { try { return { ...FRESH(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return FRESH(); } }
-export function saveFilter(F) { try { localStorage.setItem(KEY, JSON.stringify(F)); } catch { /* 保存できなくても つかえる */ } }
+const FRESH = () => ({ open: false, sort: 'color', desc: false, q: '', cost: [], colors: [], types: [], subs: [], rar: [], kws: [], sets: [], deck: 'all' });
+export function loadFilter(key = KEY) { try { return { ...FRESH(), ...JSON.parse(localStorage.getItem(key) || '{}'), key }; } catch { return { ...FRESH(), key }; } }
+export function saveFilter(F) { try { localStorage.setItem(F.key || KEY, JSON.stringify(F)); } catch { /* 保存できなくても つかえる */ } }
+// 弾の みじかい なまえ（サブセット・番外編は「」の 中）
+const setLabel = (x) => (x.sub || x.extra ? (/「(.*)」/.exec(x.name)?.[1] || x.name) : x.name.replace(/「.*$/, ''));
 
 const plain = (s) => s.replace(/（[ぁ-ゖー]+）/g, '').trim();
 // クリーチャーの しゅるい（表の「クリーチャー — 人間・兵士」の うしろ）。ふりがなつきで かえす
@@ -29,7 +33,7 @@ const SORTS = [
 ];
 const on = (list, v) => list.includes(v);
 const flip = (list, v) => (on(list, v) ? list.filter((x) => x !== v) : [...list, v]);
-export const filterCount = (F) => F.cost.length + F.colors.length + F.types.length + F.subs.length + F.rar.length + F.kws.length + (F.deck !== 'all' ? 1 : 0) + (F.q ? 1 : 0);
+export const filterCount = (F) => F.cost.length + F.colors.length + F.types.length + F.subs.length + F.rar.length + F.kws.length + F.sets.length + (F.deck !== 'all' ? 1 : 0) + (F.q ? 1 : 0);
 
 // items：{ i（プールの ばんごう）, d, inDeck, no（入れられない わけ）, more（まとめて 見せる とき：もう 1まい 入れられる）}。しぼりこんで ならべた i を かえす
 export function applyFilter(F, items) {
@@ -42,6 +46,7 @@ export function applyFilter(F, items) {
     if (F.subs.length && !subsOf(d).some((x) => on(F.subs, plain(x)))) return false;
     if (F.rar.length && !on(F.rar, d.rar)) return false;
     if (F.kws.length && !F.kws.every((k) => (d.kw || []).includes(k))) return false;
+    if (F.sets.length && !on(F.sets, SET_OF[d.id])) return false;
     if (F.deck === 'in' && !inDeck) return false;
     if (F.deck === 'out' && inDeck) return false;
     if (F.deck === 'ok' && (more !== undefined ? !more : inDeck || no)) return false;
@@ -55,21 +60,24 @@ export function applyFilter(F, items) {
 }
 
 const chip = (attr, v, label, pressed, extra = '') => `<button type="button" class="chip-f ${extra}" data-${attr}="${esc(v)}" aria-pressed="${pressed}">${label}</button>`;
-// こまかく の パネル。defs は プールの カード（しゅるいの こうほを つくる）。unit：数の たんい（まとめて 見せる ときは しゅるい）
-export function filterPanel(F, defs, shown, total, unit = 'まい') {
+// こまかく の パネル。defs は プールの カード（しゅるい・弾の こうほを つくる）。unit：数の たんい（まとめて 見せる ときは しゅるい）。o.noDeck：デッキの 行を 出さない
+export function filterPanel(F, defs, shown, total, unit = 'まい', o = {}) {
   if (!F.open) return '';
+  const setIds = new Set(defs.map((d) => SET_OF[d.id]).filter(Boolean));
+  const sets = SETS.filter((x) => setIds.has(x.id));
   const subs = [...new Map(defs.flatMap(subsOf).map((x) => [plain(x), x])).entries()].sort((a, b) => a[0].localeCompare(b[0], 'ja'));
   const n = filterCount(F);
   return `<section class="fpanel" aria-label="ならべかえと しぼりこみ">
     <div class="frow"><span class="flabel">ならべる</span><button type="button" class="chip-f dir" data-fdir="1" aria-label="じゅんばんを ぎゃくに">${F.desc ? '↓ 大きい じゅん' : '↑ 小さい じゅん'}</button>${SORTS.map(([k, l]) => chip('fsort', k, l, F.sort === k)).join('')}</div>
     <div class="frow"><span class="flabel">なまえ</span><input type="search" class="fq" data-fq="1" value="${esc(F.q)}" placeholder="なまえで さがす" aria-label="なまえで さがす"></div>
+    ${sets.length > 1 ? `<div class="frow"><span class="flabel">${ruby('弾（だん）')}</span><div class="fscroll">${sets.map((x) => chip('fset', x.id, ruby(setLabel(x)), on(F.sets, x.id))).join('')}</div></div>` : ''}
     <div class="frow"><span class="flabel">マナコスト</span>${COSTS.map((c) => chip('fcost', c, c, on(F.cost, c))).join('')}</div>
     <div class="frow"><span class="flabel">いろ</span>${Object.entries(COLOR_NAME).map(([c, l]) => chip('fcolor', c, `<i class="pip m-${c}">${l}</i>`, on(F.colors, c))).join('')}${chip('fcolor', 'multi', '2色いじょう', on(F.colors, 'multi'))}${chip('fcolor', 'none', 'むしょく', on(F.colors, 'none'))}</div>
     <div class="frow"><span class="flabel">しゅるい</span>${TYPES.map(([k, l]) => chip('ftype', k, ruby(l), on(F.types, k))).join('')}</div>
     ${subs.length ? `<div class="frow"><span class="flabel" title="クリーチャーの しゅるい">しゅぞく</span><div class="fscroll">${subs.map(([k, l]) => chip('fsub', k, ruby(l), on(F.subs, k))).join('')}</div></div>` : ''}
     <div class="frow"><span class="flabel">レアリティ</span>${['C', 'U', 'R', 'L'].map((r) => chip('frar', r, RAR[r], on(F.rar, r))).join('')}</div>
     <div class="frow"><span class="flabel">のうりょく</span>${KWS.map(([k, l]) => chip('fkw', k, ruby(l), on(F.kws, k))).join('')}</div>
-    <div class="frow"><span class="flabel">デッキ</span>${[['all', 'ぜんぶ'], ['in', '入れた カード'], ['out', '入れて いない'], ['ok', 'いま 入れられる']].map(([k, l]) => chip('fdeck', k, l, F.deck === k)).join('')}</div>
+    ${o.noDeck ? '' : `<div class="frow"><span class="flabel">デッキ</span>${[['all', 'ぜんぶ'], ['in', '入れた カード'], ['out', '入れて いない'], ['ok', 'いま 入れられる']].map(([k, l]) => chip('fdeck', k, l, F.deck === k)).join('')}</div>`}
     <div class="frow fsum"><span>${shown} / ${total}${unit} を 見せて いる${n ? `（しぼりこみ ${n}こ）` : ''}</span>${n ? '<button type="button" class="chip-f" data-freset="1">しぼりこみを けす</button>' : ''}</div>
   </section>`;
 }
@@ -85,6 +93,7 @@ export function onFilterClick(F, b) {
   else if (d.fsub) F.subs = flip(F.subs, d.fsub);
   else if (d.frar) F.rar = flip(F.rar, d.frar);
   else if (d.fkw) F.kws = flip(F.kws, d.fkw);
+  else if (d.fset) F.sets = flip(F.sets, +d.fset);
   else if (d.fdeck) F.deck = d.fdeck;
   else if (d.freset) Object.assign(F, { ...FRESH(), open: true, sort: F.sort, desc: F.desc });
   else return false;

@@ -308,7 +308,8 @@ function whyNotPts(sel, i, pool = A.pool) {
 
 // 冒険の デッキ構築。ctx を わたすと ほかの プールでも つかえる（レイドの 統率者デッキ：raid.js、こうちくモード：construct.js）
 // ctx = { pool: カードIDの ならび, deck: えらんだ 番号, save(), auto() → 番号, ok(), title, free: 色の きまりを 見ない, colorNote,
-//         noCap: キャパシティと 色を 見ない（エターナル）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる, back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない） }
+//         noCap: キャパシティと 色を 見ない（エターナル）, ident: 統率者の 色（この 色の カードだけ。noCap でも 見る）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる,
+//         back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない）, filterKey：こまかくの せっていを のこす key }
 const advCtx = () => ({
   get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false,
   colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
@@ -321,10 +322,12 @@ const advCtx = () => ({
 });
 export function deckBuilder(C = advCtx()) {
   if (!C.deck) { C.deck = C.auto(); C.save(); }
-  const F = loadFilter(); // こまかく：ならべかえ・しぼりこみ（deckfilter.js）
-  // 入れられない わけ。エターナル（noCap）は まい数だけ
-  const ruleNo = (i) => (C.noCap ? (C.deck.length >= DECK_SIZE ? `デッキは ${DECK_SIZE}まいまで` : '') : whyNot(C.deck, i, C.pool, C.free));
-  const outNo = (i) => (C.noCap ? '' : whyNotOut(C.deck, i, C.pool, C.free));
+  const F = loadFilter(C.filterKey); // こまかく：ならべかえ・しぼりこみ（deckfilter.js）
+  // 入れられない わけ。エターナル（noCap）は まい数だけ。統率者（ident）は その 色だけ
+  const sizeNo = () => (C.deck.length >= DECK_SIZE ? `デッキは ${DECK_SIZE}まいまで` : '');
+  const identNo = (i) => (colorsOf(BY_ID[C.pool[i]]).every((c) => C.ident.includes(c)) ? '' : `統率者（とうそつしゃ）の 色（${C.ident.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`);
+  const ruleNo = (i) => (C.ident && identNo(i)) || (C.noCap ? sizeNo() : C.ident ? whyNotPts(C.deck, i, C.pool) : whyNot(C.deck, i, C.pool, C.free));
+  const outNo = (i) => (C.noCap || C.ident ? '' : whyNotOut(C.deck, i, C.pool, C.free));
   // stack：同じ カードの 番号を まとめる（G：id → 番号の ならび）。見せるのは さいしょの 番号
   const G = new Map();
   if (C.stack) C.pool.forEach((id, i) => { if (!G.has(id)) G.set(id, []); G.get(id).push(i); });
@@ -333,7 +336,7 @@ export function deckBuilder(C = advCtx()) {
   const freeOf = (i) => copies(i).find((k) => !C.deck.includes(k)); // まだ 入れて いない 1まい
   const lastIn = (i) => [...C.deck].reverse().find((k) => C.pool[k] === C.pool[i]);
   // ぜんぶ はずすと 3色の デッキに なれない（旗）
-  const outAllNo = (i) => { const d = BY_ID[C.pool[i]]; if (C.noCap || !d.banner || C.free) return ''; const rest = deckStats(C.deck.filter((k) => C.pool[k] !== d.id), C.pool); return rest.colors.length > 2 && !rest.banner ? '3色めの カードを さきに はずそう（はたが ないと 2色まで）' : ''; };
+  const outAllNo = (i) => { const d = BY_ID[C.pool[i]]; if (C.noCap || C.ident || !d.banner || C.free) return ''; const rest = deckStats(C.deck.filter((k) => C.pool[k] !== d.id), C.pool); return rest.colors.length > 2 && !rest.banner ? '3色めの カードを さきに はずそう（はたが ないと 2色まで）' : ''; };
   const stackItem = (i) => { const f = freeOf(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f); return { i, d: BY_ID[C.pool[i]], inDeck: nIn(i) > 0, no, more: !no }; };
   const shownIdx = () => applyFilter(F, C.stack ? [...G.values()].map((l) => stackItem(l[0])) : C.pool.map((id, i) => { const inDeck = C.deck.includes(i); return { i, d: BY_ID[id], inDeck, no: !inDeck && ruleNo(i) }; }));
   const total = () => (C.stack ? G.size : C.pool.length);
@@ -358,7 +361,7 @@ export function deckBuilder(C = advCtx()) {
         <div class="meters">
           ${C.noCap ? `<div class="meter"><span>てんすう</span><b>${st.points}<small>点</small></b><em>せいげん なし</em></div>` : `<div class="meter"><span>キャパシティ</span><b>${st.points}<small>/${CAPACITY}点</small></b><i style="--v:${st.points / CAPACITY}"></i><em>のこり ${left}点</em></div>`}
           <div class="meter"><span>カード</span><b>${st.count}<small>まい</small></b><i style="--v:${st.count / DECK_SIZE}"></i><em>きほんカード ${DECK_SIZE - st.count}まい</em></div>
-          <div class="meter"><span>${C.noCap ? '色（なんしょくでも）' : C.free || C.colorNote ? ruby(C.colorNote || '色') : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
+          <div class="meter"><span>${C.colorNote ? ruby(C.colorNote) : C.noCap ? '色（なんしょくでも）' : C.free ? '色' : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
         </div>
         ${C.cmd ? `<div class="b-cmd"><span>${ruby(C.cmd.label)}</span><button type="button" class="btn" data-a="cmd">かえる</button></div>` : ''}
         <div class="tapmode" role="group" aria-label="カードを タップしたとき">
@@ -401,7 +404,7 @@ export function deckBuilder(C = advCtx()) {
   let press = null, pressed = false;
   app().onpointerdown = (e) => {
     clearTimeout(press); pressed = false;
-    const el = mode === 'quick' && e.target.closest('.pool-item');
+    const el = mode === 'quick' && e.target.closest('.pool-item[data-i]'); // 統率者を えらぶ 画面（.pool-item[data-lid]）に うつっても はたらかない
     if (!el || e.target.closest('[data-term]')) return;
     press = setTimeout(() => { pressed = true; showDetail(+el.dataset.i); }, 450);
   };
@@ -479,7 +482,7 @@ function tower() {
   };
 }
 
-const CMD_BUFF_FROM = 2; // 0 から かぞえる：2 ＝ 3階
+export const CMD_BUFF_FROM = 2; // 0 から かぞえる：2 ＝ 3階（こうちくモードの れんしゅうも 同じ）
 function fight() {
   const f = A.floors[A.idx];
   startBattle({

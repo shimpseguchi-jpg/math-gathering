@@ -11,9 +11,12 @@ export const STUDY_DAY_MAX = 5; // しゅぎょうで もらえる パックけ�
 export const TROPHY_TICKETS = { B: 1, S: 2, G: 3, P: 5 };
 export const ENDLESS_PER = 5; // むげんの とうは 5階 のぼるごとに 1まい
 export const DECK_MAX = 10;
-export const RULES = { normal: 'ノーマル', eternal: 'エターナル' };
+// デッキの ルール（4つ）：ノーマル（30点・2色）／エターナル（点と 色の せいげん なし）と、それぞれの 統率者（統率者の 色だけ）
+export const RULES = { normal: 'ノーマル', eternal: 'エターナル', normalCmd: 'ノーマル（統率者（とうそつしゃ））', eternalCmd: 'エターナル（統率者（とうそつしゃ））' };
+export const isCmdRule = (rule) => rule === 'normalCmd' || rule === 'eternalCmd';
+export const isEternal = (rule) => rule === 'eternal' || rule === 'eternalCmd';
 
-// { tickets, cards: { id: まい数 }, decks: [{ id, rule, n, cards: [id…], t }], study: { day, n }, tro: { トロフィーid: 1 }, got: もらった パックけんの 合計 }
+// { tickets, cards: { id: まい数 }, decks: [{ id, rule, n, cmd: 統率者の id（統率者の ルール）, cards: [id…], t }], study: { day, n }, tro: { トロフィーid: 1 }, got: もらった パックけんの 合計 }
 function load() {
   try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && v.cards) return v; } catch { /* こわれていたら はじめから */ }
   return { tickets: 0, cards: {}, decks: [], study: { day: '', n: 0 }, tro: {}, got: 0 };
@@ -85,9 +88,10 @@ export function saveDeck(deck) {
 export function dropDeck(id) { C.decks = C.decks.filter((x) => x.id !== id); save(); }
 // あたらしい デッキの ばんごう（ルールごとに 1・2・3…）
 export const nextDeckNo = (rule) => Math.max(0, ...C.decks.filter((x) => x.rule === rule).map((x) => x.n || 0)) + 1;
-// もって いない カード（ぜんぶ 開放を やめた あとなど）
+// もって いない カード（ぜんぶ 開放を やめた あとなど）。統率者も 1まい つかう
 export function missing(deck) {
   const need = {};
+  if (deck.cmd) need[deck.cmd] = 1;
   for (const id of deck.cards) need[id] = (need[id] || 0) + 1;
   return Object.entries(need).reduce((t, [id, n]) => t + Math.max(0, n - ownCount(id)), 0);
 }

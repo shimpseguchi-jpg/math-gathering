@@ -205,8 +205,9 @@ const ORDER = 'WUKRG';
 export const legendCreatures = () => [...new Map(SETS.flatMap((st) => st.cards).filter((d) => d.legend && (d.types || []).includes('creature')).map((d) => [d.id, d])).values()]
   .sort((a, b) => { const ca = colorsOf(a), cb = colorsOf(b); const k = (cs) => (cs.length === 1 ? ORDER.indexOf(cs[0]) : cs.length ? 5 + cs.length : 9); return k(ca) - k(cb) || ca.join('').localeCompare(cb.join('')) || a.cost - b.cost; });
 export const cmdColorText = colorText;
+// o.only(def)：えらべる ものだけ（こうちくモード：もって いる 伝説の クリーチャー）
 export function pickLegend(o = {}) {
-  const list = legendCreatures();
+  const list = legendCreatures().filter((d) => !o.only || o.only(d));
   const el = document.getElementById('app');
   let tab = o.cur ? (colorsOf(BY_ID[o.cur]).length > 1 ? 'multi' : colorsOf(BY_ID[o.cur])[0] || 'C') : 'all';
   const shown = () => list.filter((d) => { const cs = colorsOf(d); return tab === 'all' || (tab === 'multi' ? cs.length > 1 : tab === 'C' ? !cs.length : cs.length === 1 && cs[0] === tab); });
