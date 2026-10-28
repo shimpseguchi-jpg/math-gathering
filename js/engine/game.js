@@ -12,7 +12,7 @@ export const isCreature = (p) => is(p, 'creature');
 export const isPW = (p) => is(p, 'planeswalker');
 export const onBf = (s, p) => s[p.side].bf.includes(p);
 export const card = (def) => ({ uid: UID++, def });
-// 攻撃・ブロック できない（門の 五神は 数の 条件で かわる：関数）
+// 攻撃・ブロック できない（信心の 神は 数の 条件で かわる：関数）
 export const cant = (s, p, k) => { const v = p.def[k]; return typeof v === 'function' ? !!v(s, p, api) : !!v; };
 
 // カードの効果・各階のルールから使う関数をまとめたもの（ai.js がAI用の関数を足す）
@@ -598,6 +598,7 @@ const dead = (s) => (s.floor.id === 'pvp' && s.E.life <= 0 ? 'draw' : 'lose');
 export function gainLife(s, n) {
   if (s.P.noLifeGain || n <= 0) return;
   s.P.life += n; zzBreak(s, 'W', '白：ライフを えた');
+  for (const q of [...s.P.bf]) if (q.def.onGain && onBf(s, q)) q.def.onGain(s, q, api, n); // ライフを えるたび（太陽の 冠の ヘリオッド W44）
   // 死なずの 騎士（KG09）：その ターン はじめて ライフを えたとき、墓地から 手札へ
   if (s.P.flags.gainT === s.turn) return;
   s.P.flags.gainT = s.turn;

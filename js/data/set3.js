@@ -33,6 +33,10 @@ const millMay = (s, E, n) => { if (s.P.lib.length >= n + 4) E.mill(s, n); };
 const isSpellD = (d) => d.types.includes('instant') || d.types.includes('sorcery');
 // 絢爛の 呪文：さきに 攻撃して ダメージを 入れてから（あとの メインで）唱える
 const later = (s, E, ctx) => ctx.phase === 1 && !ctx.human && !E.dmgThisTurn(s);
+const elemU = cr('t_elemU', 'エレメンタル', null, 'U', 0, 2, 1, ['elemental']);
+const harpy = cr('t_harpy', 'ハーピー', null, 'K', 0, 1, 1, ['harpy'], ['flying']);
+// 青銅の 血の プルフォロス：手札の 赤の クリーチャーを 出して、ターンの おわりに 墓地へ
+const sneak = (s, p, E, c) => { s.P.hand.splice(s.P.hand.indexOf(c), 1); const q = E.enter(s, 'P', c.def, { card: c.def }); if (q) { q.sneakBy = p.uid; q.sneakT = s.turn; } };
 const insectG = cr('t_insectG', '昆虫（こんちゅう）', null, 'G', 0, 1, 1, ['insect']);
 const beast44 = cr('t_beast44', 'ビースト', null, 'G', 0, 4, 4, ['beast']);
 
@@ -192,35 +196,43 @@ export const S3 = {
   R41: { ...bolt(3), madness: { cost: 1, req: ['R'] } },
   R42: devour(3),
   // ---- サイクル ----
+  // 信心の レジェンド（2026-10-28 に アモンケットの 門の 五神から かえた。五神は docs/RAID.md 2.4）
   W44: {
-    ...godUnless((s, p, E) => E.creatures(s, p.side).filter((q) => q !== p).length >= 3),
-    acts: [{ cost: 4, req: ['W'], when: [1, 2], label: '戦士（せんし）を 出す', play: (s, p, E) => ({ score: 5, run: () => E.token(s, 'P', T.warriorV) }) }],
-  },
-  U44: {
-    // 手札は 毎ターン 5まいに もどるので 4まい いじょう（2026-10-25 に 6 から）。引く 能力も 2マナに
-    ...godUnless((s, p) => (s[p.side].hand || []).length >= 4),
-    acts: [{ cost: 2, req: ['U'], when: [1, 2], label: '1まい 引く', play: (s, p, E, ctx) => (ctx.phase === 2 || s.P.hand.length < 4 ? { score: 4, run: () => E.drawCard(s) } : null) }],
-  },
-  K40: {
-    ...godUnless((s, p) => (s[p.side].gy || []).filter((c) => isCr(c.def)).length >= 3),
+    ...godUnless((s, p, E) => E.devotion(s, 'W', p.side) >= 4),
+    onGain: (s, p, E) => { if (p.side !== 'P' || (p.flags.turn.gains || 0) >= 3) return; p.flags.turn.gains = (p.flags.turn.gains || 0) + 1; const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 1); },
     acts: [{
-      cost: 2, req: ['K'], when: [1, 2], label: 'ほかの クリーチャーを ぼちに おく：せんじゅつ 1・1点', can: (s, p, E) => mine(s, E).some((q) => q !== p),
-      play: (s, p, E) => { const f = fodder(s, E, p).filter((q) => q.token)[0]; return f ? { score: 3, run: () => { E.leave(s, f, 'gy', { died: true }); drain(s, E, 1, p); return E.scry(s, 1); } } : null; },
-      tgt: [{ side: 'P', label: 'ぼちに おく クリーチャー', filter: (s, E, q) => q.def.id !== 'K40' }],
-      apply: (s, E, [[f]], x, p) => { E.leave(s, f, 'gy', { died: true }); drain(s, E, 1, p); return E.scry(s, 1); },
+      cost: 2, req: ['W'], when: [1], label: 'ほかの クリーチャーに 絆魂（はんこん）',
+      play: (s, p, E) => { const t = mine(s, E).filter((q) => q !== p && !q.sick && !E.hasKw(s, q, 'lifelink')).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; return t && !p.flags.turn.used ? { score: 2 + E.power(s, t), run: () => { p.flags.turn.used = true; E.target(s, t); E.pump(t, 0, 0, ['lifelink']); } } : null; },
+      tgt: [{ side: 'P', label: '絆魂（はんこん）を あたえる クリーチャー', filter: (s, E, q) => q.def.id !== 'W44' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 0, 0, ['lifelink']); },
     }],
   },
+  U44: { etb: (s, p, E) => { if (p.side !== 'P') return; const n = E.devotion(s, 'U', 'P'); E.L(s, `青の 信心（しんじん） ${n}：エレメンタル ${n}体`); E.token(s, 'P', elemU, n); } },
+  K40: {
+    etb: (s, p, E) => { if (p.side !== 'P') return; const n = E.devotion(s, 'K', 'P'); E.L(s, `黒の 信心（しんじん） ${n}：ハーピー ${n}体`); E.token(s, 'P', harpy, n); },
+    upkeep: (s, p, E) => {
+      if (p.side !== 'P') return;
+      const f = fodder(s, E, p)[0] || mine(s, E).filter((q) => q !== p).sort((a, b) => E.power(s, a) - E.power(s, b))[0];
+      E.leave(s, f || p, 'gy', { died: true }); E.sba(s);
+    },
+  },
   R43: {
-    ...godUnless((s, p) => (s[p.side].hand || []).length <= 2), // 2026-10-25 に 1 から
-    acts: [{ cost: 3, req: ['R'], discard: 1, when: [1, 2], label: 'てきに 2点', play: (s, p, E) => (s.P.hand.length <= 2 ? { score: 4, run: () => E.hitEnemy(s, 2, p) } : null) }],
+    ...godUnless((s, p, E) => E.devotion(s, 'R', p.side) >= 4),
+    grant: (s, q, p, E) => (p !== q && E.isCreature(p) ? ['haste'] : null),
+    acts: [{
+      cost: 2, req: ['R'], when: [1], label: '赤の クリーチャーを てふだから 出す', can: (s) => s.P.hand.some((c) => isCr(c.def) && (c.def.color || '').includes('R')), cantWhy: '手札（てふだ）に 赤の クリーチャーが ない',
+      play: (s, p, E) => {
+        const c = [...s.P.hand].filter((x) => isCr(x.def) && (x.def.color || '').includes('R') && x.def.cost >= 4).sort((a, b) => b.def.cost - a.def.cost)[0];
+        return c ? { score: 3 + c.def.cost, run: () => sneak(s, p, E, c) } : null;
+      },
+    }],
+    endStep: (s, p, E) => { for (const q of [...s.P.bf]) if (q.sneakBy === p.uid && q.sneakT === s.turn) { E.L(s, `${q.def.name} は ぼちへ`); E.leave(s, q, 'gy', { died: true }); } },
   },
   G44: {
-    ...godUnless((s, p, E) => E.creatures(s, p.side).some((q) => q !== p && E.power(s, q) >= 4)),
+    ...godUnless((s, p, E) => E.devotion(s, 'G', p.side) >= 4),
+    costCut: (s, q, d) => (isCr(d) ? 1 : 0),
     acts: [{
-      cost: 3, req: ['G'], when: [1], label: 'ほかの クリーチャーに ＋2/＋0 と トランプル',
-      play: (s, p, E) => { const t = E.bestBuffTarget(s, p, { ready: true }); return t && !p.flags.turn.used ? { score: 3, run: () => { p.flags.turn.used = true; E.target(s, t); E.pump(t, 2, 0, ['trample']); } } : null; },
-      tgt: [{ side: 'P', label: '＋2/＋0 と トランプルを あたえる クリーチャー', filter: (s, E, q) => q.def.id !== 'G44' }],
-      apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 2, 0, ['trample']); },
+      cost: 2, req: ['G'], when: [2], label: 'やまふだの 一番上を 見る',
+      play: (s, p, E) => (s.P.lib.length && !p.flags.turn.used ? { score: 2, run: () => { p.flags.turn.used = true; const c = s.P.lib[0]; E.L(s, `一番上：${c.def.name}`); if (isCr(c.def)) { s.P.lib.shift(); s.P.hand.push(c); } } } : null),
     }],
   },
   W43: {

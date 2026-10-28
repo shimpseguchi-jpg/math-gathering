@@ -184,7 +184,7 @@ export const devour = (n, after) => ({
 // 探査：墓地の カード 1まいで 1マナ ぶん（色の ぶんは はらう）
 export const delve = (x = {}) => ({ delve: true, costLess: (s) => s.P.gy.length, ...x });
 export const delveOf = (d) => ({ ...delve(), costMin: pips(d) });
-// 門の 五神：数の 条件が そろわないと 攻撃も ブロックも できない
+// 神（信心の レジェンド・レイドの 門の 五神）：数の 条件が そろわないと 攻撃も ブロックも できない
 export const godUnless = (f) => ({ cantAttack: (s, p, E) => !f(s, p, E), cantBlock: (s, p, E) => !f(s, p, E) });
 // 絢爛 n：この ターンに 敵が ダメージを うけていたら n マナ 安い（第3弾の 赤・第7弾の ラクドス）
 export const spectacle = (n) => ({ spectacle: n, costLess: (s, E) => (E.dmgThisTurn(s) > 0 ? n : 0) });
