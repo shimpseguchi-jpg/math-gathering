@@ -1,0 +1,249 @@
+<title>マスギャザ カードずかん</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* レイアウト：夜の塔の卓（ゲームと おなじ 色）に カードを ならべる。上に 色の タブと しぼりこみ（ついてくる）、下に カードの グリッド */
+:root {
+  --bg: #121a2c; --bg-2: #1a2440; --bg-3: #24304f; --line: #34416a;
+  --ink: #eef1f8; --ink-dim: #a3adc6; --gold: #f2c04f; --gold-ink: #2a1d00;
+  --face: #1a2440; --head-mix: 34%;
+  --W: #e7d9ad; --U: #5f9fe2; --K: #b39ad8; --G: #4fae6b; --R: #e0624a; --C: #a9aec0;
+  --display: 'Dela Gothic One', 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
+  --body: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #e9edf5; --bg-2: #ffffff; --bg-3: #dde3ef; --line: #c3cbdd;
+    --ink: #1b2235; --ink-dim: #556078; --gold: #9a6b00; --gold-ink: #ffffff;
+    --face: #ffffff; --head-mix: 42%;
+    --W: #c9b46e; --U: #3f84cf; --K: #6c5794; --G: #2f9150; --R: #cc4a31; --C: #8d93a6;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #e9edf5; --bg-2: #ffffff; --bg-3: #dde3ef; --line: #c3cbdd;
+  --ink: #1b2235; --ink-dim: #556078; --gold: #9a6b00; --gold-ink: #ffffff;
+  --face: #ffffff; --head-mix: 42%;
+  --W: #c9b46e; --U: #3f84cf; --K: #6c5794; --G: #2f9150; --R: #cc4a31; --C: #8d93a6;
+  color-scheme: light;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+rt { font-size: 0.55em; }
+.no-rt rt { display: none; }
+button, input { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+/* 上：タイトル・タブ・しぼりこみ */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-direction: column; gap: 10px; padding-block: 14px 12px; }
+.title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 4vw, 28px); line-height: 1.2; margin: 0; text-wrap: balance; }
+h1 small { font-family: var(--body); font-size: 13px; color: var(--ink-dim); font-weight: 700; margin-left: 8px; letter-spacing: 0.02em; }
+.title-row .sp { flex: 1; }
+.toggle { border: 1px solid var(--line); background: var(--bg-2); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+.toggle[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 10px; padding: 6px 12px; cursor: pointer; font-weight: 700; }
+.tab b { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-dim); font-weight: 700; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab[aria-selected="true"] b { color: var(--bg); opacity: 0.75; }
+.filters { display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: center; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--bg-2); padding: 4px 10px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--bg-3); font-weight: 700; color: var(--ink); box-shadow: inset 0 -2px 0 var(--gold); }
+.flab { color: var(--ink-dim); margin-right: 6px; }
+.sel { border: 1px solid var(--line); background: var(--bg-2); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+.search { flex: 1 1 200px; min-width: 0; border: 1px solid var(--line); background: var(--bg-2); border-radius: 8px; padding: 5px 10px; }
+
+/* カード */
+main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; gap: 14px; }
+.count { color: var(--ink-dim); font-size: 13px; margin: 0; font-variant-numeric: tabular-nums; }
+.group-title { font-family: var(--display); font-weight: 400; font-size: 18px; margin: 8px 0 0; display: flex; align-items: center; gap: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 12px; align-items: start; }
+.card { --c1: var(--C); --c2: var(--c1); --c3: var(--c2); background: var(--face); border: 1px solid color-mix(in srgb, var(--c1) 45%, var(--line)); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.card.c-W { --c1: var(--W); } .card.c-U { --c1: var(--U); } .card.c-K { --c1: var(--K); } .card.c-G { --c1: var(--G); } .card.c-R { --c1: var(--R); }
+.card.draft { border-style: dashed; }
+/* 色の 帯：2色・3色は 色ごとに くぎる（まざって 見えにくく ならないように） */
+.card::before { content: ''; flex: none; height: 7px; background: var(--stripe, var(--c1)); }
+.card.pair { --stripe: linear-gradient(90deg, var(--c1) 0 50%, var(--c2) 50% 100%); }
+.card.tri { --stripe: linear-gradient(90deg, var(--c1) 0 33.4%, var(--c2) 33.4% 66.7%, var(--c3) 66.7% 100%); }
+.card.dev { box-shadow: inset 0 0 0 2px rgba(255, 179, 0, 0.55); }
+.card-head { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px 7px; background: linear-gradient(90deg, color-mix(in srgb, var(--c1) var(--head-mix), var(--face)), color-mix(in srgb, var(--c2) var(--head-mix), var(--face))); }
+.card.tri .card-head { background: linear-gradient(90deg, color-mix(in srgb, var(--c1) var(--head-mix), var(--face)), color-mix(in srgb, var(--c2) var(--head-mix), var(--face)), color-mix(in srgb, var(--c3) var(--head-mix), var(--face))); }
+.cost { flex: none; display: inline-flex; align-items: center; gap: 2px; min-width: 30px; height: 28px; padding: 0 7px; border-radius: 999px; background: var(--bg); color: var(--ink); font-family: var(--display); font-size: 15px; justify-content: center; font-variant-numeric: tabular-nums; }
+.pip { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent); }
+.pip.p-W { background: var(--W); } .pip.p-U { background: var(--U); } .pip.p-K { background: var(--K); } .pip.p-G { background: var(--G); } .pip.p-R { background: var(--R); }
+.name { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; line-height: 1.5; margin: 0; padding-top: 1px; }
+.rar { flex: none; width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; font-family: var(--display); font-size: 13px; background: var(--bg); color: var(--ink-dim); }
+.rar.r-U { color: var(--ink-dim); } .rar.r-R { color: var(--gold); } .rar.r-L { background: var(--gold); color: var(--gold-ink); } .rar.r-P { border: 1px solid var(--gold); color: var(--gold); }
+.card-body { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.type { margin: 0; font-size: 12.5px; color: var(--ink-dim); display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.pt { font-family: var(--display); font-weight: 400; font-size: 17px; color: var(--ink); white-space: nowrap; }
+.text { margin: 0; font-size: 14px; line-height: 1.85; overflow-wrap: anywhere; }
+.text em { color: var(--ink-dim); font-size: 13px; }
+.math { margin: 0; font-size: 12.5px; background: color-mix(in srgb, var(--gold) 12%, transparent); border-radius: 6px; padding: 4px 8px; }
+.math b { color: var(--gold); margin-right: 4px; }
+.card-foot { margin-top: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 12px 9px; border-top: 1px dashed var(--line); font-size: 11.5px; color: var(--ink-dim); }
+.card-foot .id { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.set { border-radius: 4px; padding: 0 6px; border: 1px solid var(--line); }
+.set.s2 { border-color: var(--gold); color: var(--gold); }
+.set.draft { border-style: dashed; }
+.set.dev { background: #fff3cd; }
+.set-title { font-family: var(--body); font-weight: 700; font-size: 14px; color: var(--ink-dim); margin: 6px 0 -4px; letter-spacing: 0.04em; }
+.motif { margin-left: auto; font-style: italic; text-align: right; }
+.empty { color: var(--ink-dim); border: 1px dashed var(--line); border-radius: 12px; padding: 24px; text-align: center; }
+.note { color: var(--ink-dim); font-size: 13px; margin: 0; }
+@media (prefers-reduced-motion: no-preference) { .card { transition: border-color 0.15s; } }
+/* スマホ：上の しぼりこみは 画面の 半分を とるので、いっしょに スクロールする */
+@media (max-width: 640px) { .top { position: static; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="title-row">
+      <h1>マスギャザ カードずかん<small id="total"></small></h1>
+      <span class="sp"></span>
+      <button type="button" class="toggle" id="rt-toggle" aria-pressed="true">ふりがな</button>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="色"></nav>
+    <div class="filters">
+      <label><span class="flab">弾</span><select class="sel" id="f-set">
+        <option value="all">すべて</option><option value="play">遊べる（第1・2弾）</option><option value="dev">開発中（第3弾から・開発モード）</option><option value="draft">案（プロモ）</option>
+        <option value="1">第1弾</option><option value="2">第2弾</option><option value="3">第3弾（開発中）</option><option value="4">第4弾（開発中）</option>
+        <option value="5">第5弾（開発中）</option><option value="6">サブセット 三つの旗（開発中）</option><option value="7">サブセット ラヴニカ（開発中）</option><option value="A">サブセット アルケミー（開発中）</option><option value="W">サブセット プレインズウォーカー（開発中）</option><option value="F">番外編 FGO（開発中）</option><option value="S">番外編 スターレイル（開発中）</option><option value="Z">番外編 ゼンゼロ（開発中）</option><option value="P">プロモ（案）</option>
+      </select></label>
+      <span><span class="flab">レア</span><span class="seg" id="f-rar"><button type="button" data-v="C" aria-pressed="true">C</button><button type="button" data-v="U" aria-pressed="true">U</button><button type="button" data-v="R" aria-pressed="true">R</button><button type="button" data-v="L" aria-pressed="true">L</button><button type="button" data-v="P" aria-pressed="true" title="プロモ">P</button></span></span>
+      <input class="search" id="q" type="search" placeholder="なまえ・ことばで さがす（例：ぴったり、飛行）" aria-label="さがす">
+    </div>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <p class="count" id="count"></p>
+    <div id="list"></div>
+    <p class="note">コスト：「4」と 色の 丸 ＝ 合計 4マナ、うち その色を 最低 1つ（丸が 2つなら どちらかの 色、3つなら そのうち 2つの 色）。「X＋1」は X ＋ 1マナ、「XX」は X を 2回。レア：C 1点・U 2点・R 3点・L 4点・プロモ 2点（デッキは 20まい・30点まで・2色まで）。オレンジの ふちは <b>開発中</b>（タイトルの「せってい」で えらぶと 開発モードで 遊べる）、点線の わくは <b>案</b>（まだ ゲームでは 遊べない カード）。</p>
+  </div>
+</main>
+
+<script>
+const DATA = /*DATA*/null;
+const TABS = [
+  { k: 'W', label: '白', pip: 'W' }, { k: 'U', label: '青', pip: 'U' }, { k: 'K', label: '黒', pip: 'K' }, { k: 'R', label: '赤', pip: 'R' }, { k: 'G', label: '緑', pip: 'G' },
+  { k: 'gold', label: '2色' }, { k: 'tri', label: '3色' }, { k: 'C', label: '無色' }, { k: 'basic', label: 'きほん' }, { k: 'token', label: 'トークン' },
+];
+const PAIRS = [
+  ['WG', '白緑', 'W', 'G'], ['WU', '青白', 'W', 'U'], ['RW', '赤白', 'R', 'W'], ['UR', '赤青', 'U', 'R'], ['RG', '緑赤', 'R', 'G'], ['GU', '青緑', 'G', 'U'],
+  ['WK', '白黒', 'W', 'K'], ['UK', '青黒', 'U', 'K'], ['KR', '黒赤', 'K', 'R'], ['KG', '黒緑', 'K', 'G'],
+];
+const TRIS = [
+  ['AB', 'アブザン', 'W', 'K', 'G'], ['JE', 'ジェスカイ', 'U', 'R', 'W'], ['SU', 'スゥルタイ', 'K', 'G', 'U'], ['MA', 'マルドゥ', 'R', 'W', 'K'], ['TE', 'ティムール', 'G', 'U', 'R'],
+  ['BA', 'バント', 'G', 'W', 'U'], ['ES', 'エスパー', 'W', 'U', 'K'], ['GX', 'グリクシス', 'U', 'K', 'R'], ['JU', 'ジャンド', 'K', 'R', 'G'], ['NA', 'ナヤ', 'R', 'G', 'W'],
+];
+const SETS = [['1', '第1弾'], ['2', '第2弾'], ['3', '第3弾（開発中）'], ['4', '第4弾（開発中）'], ['5', '第5弾（開発中）'], ['6', 'サブセット 三つの旗（開発中）'], ['7', 'サブセット ラヴニカ（開発中）'], ['A', 'サブセット アルケミー（開発中）'], ['W', 'サブセット プレインズウォーカー（開発中）'], ['F', '番外編 FGO（開発中）'], ['S', '番外編 スターレイル（開発中）'], ['Z', '番外編 ゼンゼロ（開発中）'], ['P', 'プロモ（案）']];
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* なくても うごく */ } } };
+const st = { tab: 'W', set: 'all', rars: new Set(['C', 'U', 'R', 'L', 'P']), q: '' };
+const hash = location.hash.slice(1);
+st.tab = TABS.some((t) => t.k === hash) ? hash : (TABS.some((t) => t.k === store.get('cl-tab')) ? store.get('cl-tab') : 'W');
+if (store.get('cl-rt') === '0') document.body.classList.add('no-rt');
+if ([...document.querySelectorAll('#f-set option')].some((o) => o.value === store.get('cl-set'))) st.set = store.get('cl-set');
+
+const $ = (id) => document.getElementById(id);
+const inTab = (c, k) => (k === 'gold' ? PAIRS.some((p) => p[0] === c.group) : k === 'tri' ? TRIS.some((t) => t[0] === c.group) : c.group === k);
+const nDraft = DATA.cards.filter((c) => c.draft).length, nDev = DATA.cards.filter((c) => c.dev).length;
+$('total').textContent = `${DATA.cards.length - nDraft - nDev}種 ＋ 開発中 ${nDev}種 ＋ 案 ${nDraft}種`;
+$('f-set').value = st.set;
+const setOk = (c) => st.set === 'all' || (st.set === 'play' ? !c.draft && !c.dev : st.set === 'dev' ? c.dev : st.set === 'draft' ? c.draft : c.set === st.set);
+
+function tabsHtml() {
+  return TABS.map((t) => {
+    const n = t.k === 'basic' ? DATA.basics.length : t.k === 'token' ? DATA.tokens.length : DATA.cards.filter((c) => inTab(c, t.k) && setOk(c)).length;
+    return `<button type="button" class="tab" role="tab" data-k="${t.k}" aria-selected="${st.tab === t.k}">${t.pip ? `<i class="pip p-${t.pip}"></i>` : ''}${t.label}<b>${n}</b></button>`;
+  }).join('');
+}
+const colorClass = (c) => (TRIS.some((t) => t[0] === c.group) ? 'tri' : c.group.length === 2 ? `c-${c.group[0]} pair` : `c-${c.group}`);
+const goldStyle = (c) => {
+  const p = PAIRS.find((x) => x[0] === c.group), t = TRIS.find((x) => x[0] === c.group);
+  if (t) return ` style="--c1: var(--${t[2]}); --c2: var(--${t[3]}); --c3: var(--${t[4]})"`;
+  return p ? ` style="--c1: var(--${p[2]}); --c2: var(--${p[3]})"` : '';
+};
+const setTag = (c) => `<span class="set s${c.set}${c.draft ? ' draft' : ''}${c.dev ? ' dev' : ''}">${c.setLabel}${c.extra ? `・${c.extra}` : ''}${c.draft ? '（案）' : c.dev ? '（開発中）' : ''}</span>`;
+function cardHtml(c) {
+  return `<article class="card ${colorClass(c)}${c.draft ? ' draft' : ''}${c.dev ? ' dev' : ''}"${goldStyle(c)}>
+    <div class="card-head"><span class="cost">${c.cost}</span><h3 class="name">${c.name}</h3>${c.rar ? `<span class="rar r-${c.rar}" title="${c.rarName}">${c.rar}</span>` : ''}</div>
+    <div class="card-body">
+      <p class="type"><span>${c.type}</span>${c.pt && c.pt !== '−' ? `<span class="pt">${c.pt}</span>` : ''}</p>
+      ${c.text ? `<p class="text">${c.text}</p>` : ''}
+      ${c.math && c.math !== '−' ? `<p class="math"><b>算数</b>${c.math}</p>` : ''}
+    </div>
+    <div class="card-foot"><span class="id">${c.id}</span>${c.setLabel && (c.set !== '1' || c.rar) ? setTag(c) : ''}${c.motif ? `<span class="motif">${c.motif}</span>` : ''}</div>
+  </article>`;
+}
+function tokenHtml(t) {
+  const g = { 白: 'W', 青: 'U', 黒: 'K', 緑: 'G', 赤: 'R' }[t.color] || 'C';
+  return `<article class="card c-${g}${t.draft ? ' draft' : ''}${t.dev ? ' dev' : ''}">
+    <div class="card-head"><h3 class="name">${t.name}</h3></div>
+    <div class="card-body"><p class="type"><span>トークン（${t.color}）${t.draft ? '・案' : t.dev ? '・開発中' : ''}</span>${t.pt && t.pt !== '−' ? `<span class="pt">${t.pt}</span>` : ''}</p>${t.text && t.text !== '−' ? `<p class="text">${t.text}</p>` : ''}</div>
+    <div class="card-foot"><span>出す カード：${t.from}</span></div>
+  </article>`;
+}
+const match = (plain) => !st.q || plain.includes(st.q);
+function render() {
+  $('tabs').innerHTML = tabsHtml();
+  const isCards = !['basic', 'token'].includes(st.tab);
+  document.querySelector('.filters').style.visibility = isCards ? 'visible' : 'hidden';
+  let html = '', shown = 0, all = 0;
+  if (st.tab === 'basic') { all = shown = DATA.basics.length; html = `<div class="grid">${DATA.basics.map(cardHtml).join('')}</div>`; }
+  else if (st.tab === 'token') { all = shown = DATA.tokens.length; html = `<div class="grid">${DATA.tokens.map(tokenHtml).join('')}</div>`; }
+  else {
+    const base = DATA.cards.filter((c) => inTab(c, st.tab));
+    all = base.length;
+    const list = base.filter((c) => setOk(c) && st.rars.has(c.rar) && match(c.plain));
+    shown = list.length;
+    // 弾ごとに 見出し（1つの 弾だけの ときは 見出しなし）
+    const bySet = (cs) => {
+      const parts = SETS.map(([k, name]) => [name, cs.filter((c) => c.set === k)]).filter(([, x]) => x.length);
+      if (parts.length === 1) return `<div class="grid">${parts[0][1].map(cardHtml).join('')}</div>`;
+      return parts.map(([name, x]) => `<h3 class="set-title">${name}（${x.length}）</h3><div class="grid">${x.map(cardHtml).join('')}</div>`).join('');
+    };
+    const groups = st.tab === 'gold' ? PAIRS.map(([k, name, ...cs]) => [k, name, cs]) : st.tab === 'tri' ? TRIS.map(([k, name, ...cs]) => [k, name, cs]) : null;
+    if (groups) {
+      for (const [k, name, cs] of groups) {
+        const sub = list.filter((c) => c.group === k);
+        if (sub.length) html += `<h2 class="group-title">${cs.map((x) => `<i class="pip p-${x}"></i>`).join('')}${name}</h2>${bySet(sub)}`;
+      }
+    } else html = list.length ? bySet(list) : '';
+    if (!list.length) html = '<p class="empty">あてはまる カードが ない。しぼりこみを ゆるめてね。</p>';
+  }
+  $('list').innerHTML = html;
+  $('count').textContent = isCards ? `${all}まい中 ${shown}まい・弾ごとに コストの 小さい じゅん` : `${all}しゅるい（オレンジの ふちは 開発中、点線は 案）`;
+}
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-k]'); if (!b) return;
+  st.tab = b.dataset.k; store.set('cl-tab', st.tab);
+  try { history.replaceState(null, '', `#${st.tab}`); } catch { /* できなくても よい */ }
+  render(); window.scrollTo({ top: 0 });
+});
+$('f-set').addEventListener('change', (e) => { st.set = e.target.value; store.set('cl-set', st.set); render(); });
+$('f-rar').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  const v = b.dataset.v;
+  if (st.rars.has(v) && st.rars.size > 1) st.rars.delete(v); else st.rars.add(v);
+  for (const x of $('f-rar').children) x.setAttribute('aria-pressed', String(st.rars.has(x.dataset.v)));
+  render();
+});
+$('q').addEventListener('input', (e) => { st.q = e.target.value.trim(); render(); });
+$('rt-toggle').setAttribute('aria-pressed', String(!document.body.classList.contains('no-rt')));
+$('rt-toggle').addEventListener('click', (e) => {
+  const on = document.body.classList.toggle('no-rt');
+  e.currentTarget.setAttribute('aria-pressed', String(!on));
+  store.set('cl-rt', on ? '0' : '1');
+});
+render();
+</script>
