@@ -24,14 +24,17 @@
    ブラウザが開くので、**学校の Google アカウント** でログインして「許可」
 3. https://script.google.com/home/usersettings を開いて「Google Apps Script API」を **オン** にする
 
-### 2. このリポジトリを手元に置く
+### 2. 3つの ファイルを 手元に置く（git は いりません）
 
-```sh
-git clone https://github.com/shimpseguchi-jpg/app-maker.git
-cd app-maker/mathtcg/gas
-```
+1. パソコンに フォルダを 1つ作る（例：デスクトップに `mathgathering`）
+2. 次の 3つを 開いて、それぞれ「名前を付けて保存」（Ctrl+S）で その フォルダに 保存する。**名前は そのまま**（`Code.gs`・`index.html`・`appsscript.json`）
+   - [Code.gs](https://raw.githubusercontent.com/shimpseguchi-jpg/app-maker/claude/math-tcg-requirements-8oklux/mathtcg/gas/Code.gs)
+   - [index.html](https://raw.githubusercontent.com/shimpseguchi-jpg/app-maker/claude/math-tcg-requirements-8oklux/mathtcg/gas/index.html)
+   - [appsscript.json](https://raw.githubusercontent.com/shimpseguchi-jpg/app-maker/claude/math-tcg-requirements-8oklux/mathtcg/gas/appsscript.json)
+   - Windows で「.txt」が 後ろに つかないように、保存の 種類は「すべてのファイル」にする
+3. ターミナルで その フォルダに 移る：`cd Desktop/mathgathering`（Windows は `cd Desktop\mathgathering`）
 
-（PR がマージされる前は `git checkout claude/math-tcg-requirements-8oklux` も）
+（git が 使えるなら `git clone` して `mathtcg/gas` に 移っても よい。PR が マージされたあとは、リンクの `claude/math-tcg-requirements-8oklux` を `main` に 変える）
 
 ### 3. スプレッドシートとスクリプトを作る
 
@@ -42,9 +45,7 @@ clasp create --type sheets --title "マスマティック・ザ・ギャザリ�
 - Google ドライブに **スプレッドシート** と、それにつながった **スクリプト** ができます
 - このフォルダに `.clasp.json`（どのスクリプトに上げるかのメモ）ができます。**消さないでください**
 - clasp が `appsscript.json` を書きかえることがあるので、つづけて元に戻します：
-  ```sh
-  git checkout appsscript.json
-  ```
+  2 で 保存した `appsscript.json` を もう一度 保存しなおしてください（git を 使った ときは `git checkout appsscript.json`）
 
 ### 4. アップロードしてデプロイ
 
@@ -67,11 +68,8 @@ clasp open        # ブラウザで スクリプトの エディタが ひらく
 
 ## ゲームを新しくしたとき
 
-```sh
-cd app-maker && git pull
-node mathtcg/tools/build_gas.mjs     # gas/ の 3つの ファイルを 作りなおす（なくても 最新の ものが リポジトリに ある）
-cd mathtcg/gas && clasp push
-```
+1. 2 と おなじ リンクから `Code.gs` と `index.html` を 保存しなおす（同じ フォルダに 上書き。`.clasp.json` は 消さない）
+2. その フォルダで `clasp push`
 
 エディタの「デプロイ」→「デプロイを管理」→ ✏️（編集）→ バージョンを「新バージョン」→「デプロイ」。
 URL は変わりません。スプレッドシートのデータもそのまま残ります。
