@@ -121,5 +121,11 @@ throws(() => G.mtgAdminUpdate(), '子どもは 最新に できない');
 { const m = makeGas(); m.props.SHEET_ID = ' SCHOOL '; ok(m.G.mtgConfig().login, 'SHEET_ID の シートを つかう'); }
 { const m = makeGas(); m.props.SHEET_ID = 'NOPE'; throws(() => m.G.mtgRanking(), 'SHEET_ID が まちがって いたら エラー'); }
 
+// ---- index.html を 上げて いない とき（エディタに Code.gs だけ）----
+{ const m = makeGas(OWNER); m.setNoFile(true);
+  ok(/mtgAdminUpdate/.test(m.G.doGet().content), 'index が ない ときは あんないを 出す');
+  m.G.mtgAdminUpdate();
+  ok(m.G.doGet().content.includes('pack-js'), 'mtgAdminUpdate の あとは とって きた ゲームを 出す（おなじ 版でも）'); }
+
 console.log(bad ? `\n${bad}こ NG` : '\nぜんぶ OK');
 process.exit(bad ? 1 : 0);

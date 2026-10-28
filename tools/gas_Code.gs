@@ -5,8 +5,16 @@
 // ・学内（ドメイン内）だけに 公開する。ひらいた 人の 学校アカウントで 先生（かんりしゃ）か どうかと、ひきつぎの もちぬしを 見わける
 //   シートには 子どもの メールアドレスは 書かない（ひきつぎは 読めない 番号に かえて おく）
 function doGet() {
-  var g = game_();
-  var out = g.html ? HtmlService.createHtmlOutput(g.html) : HtmlService.createHtmlOutputFromFile('index');
+  var g = game_(), out = null;
+  if (g.html) out = HtmlService.createHtmlOutput(g.html);
+  else {
+    try { out = HtmlService.createHtmlOutputFromFile('index'); } catch (err) {
+      // index.html を 上げて いない とき（エディタに Code.gs だけ）：とって ある ゲームを つかう（おなじ 版でも）
+      var h = game_(true).html;
+      if (!h) return HtmlService.createHtmlOutput('<p style="font:16px sans-serif;padding:24px">じゅんびちゅう です。先生は スクリプトの エディタで 関数 <b>mtgAdminUpdate</b> を 1回 実行して ください（GitHub から ゲームを とって きます）。</p>');
+      out = HtmlService.createHtmlOutput(h);
+    }
+  }
   out.setTitle('マスマティック・ザ・ギャザリング')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   out.addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
@@ -522,9 +530,9 @@ function mtgMigrate() {
 var REPO = 'shimpseguchi-jpg/math-gathering', GAME_DIR = 'gas/';
 var CHUNK_CACHE = 30000; // キャッシュ 1つの 大きさ（上限 100KB。日本語も あるので 小さめ）
 // とって ある ゲーム本体（clasp で 上げた ものの ほうが 新しければ ''。そのときは ファイルの ほうを つかう）
-function fresh_() { var m = gameMeta_(); return m && m.built > BUILT ? m : null; }
-function game_() {
-  var meta = fresh_();
+function fresh_(any) { var m = gameMeta_(); return m && (any || m.built > BUILT) ? m : null; }
+function game_(any) {
+  var meta = fresh_(any);
   if (!meta) return { html: '' };
   var c = CacheService.getScriptCache(), keys = [];
   for (var i = 0; i < (meta.parts || 0); i++) keys.push('game:' + meta.sha + ':' + i);
