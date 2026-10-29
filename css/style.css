@@ -41,21 +41,59 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .eyebrow { margin: 0; font-size: 12px; letter-spacing: 0.12em; color: var(--gold-text); }
 
 /* ---- タイトル ---- */
-.title { min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding-block: 24px; }
+/* メニュー（タイトル）：スマホの ゲームの ホーム画面の ように。上に ロゴ、あそぶ ボタンと ぼうけんの せってい、メニューの タイル（2026-10-29） */
+.title { min-height: 100%; display: flex; flex-direction: column; gap: 16px; padding-block: 20px 28px; }
+.t-head { display: flex; flex-direction: column; gap: 12px; }
+.t-logo { display: flex; flex-direction: column; gap: 6px; }
+.t-main { display: flex; flex-direction: column; gap: 12px; }
+.t-opts { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--table-2); }
+.t-opts-h { margin: 0 0 2px; font-size: 12px; letter-spacing: 0.08em; color: var(--gold-text); font-weight: 700; }
+.t-menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 66px; padding: 8px 10px; border: 2px solid var(--line); border-radius: 14px; background: var(--table-2); color: var(--ink); text-align: left; cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); transition: transform 0.08s, box-shadow 0.08s; }
+.tile:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+@media (hover: hover) { .tile:hover { border-color: var(--gold); } }
+.tile.ghost { background: transparent; box-shadow: none; border-style: dashed; }
+.ti-wrap { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--table-3); color: var(--gold); }
+.ti-wrap .ti, .ti-wrap .cup { width: 22px; height: 22px; }
+.ti-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.ti-text b { font-size: 14.5px; line-height: 1.3; }
+.ti-text small { font-size: 11px; color: var(--ink-dim); line-height: 1.4; }
+.t-foot { display: flex; flex-direction: column; gap: 4px; }
+/* まだ あそべない もの（unlock.js）：うすく・てんせんの わく・かぎ。タップで わけが 出る */
+.seg label.lock span { opacity: 0.45; border-style: dashed; padding-right: 8px; }
+.seg label.lock span:hover { opacity: 0.7; }
+.lk { width: 12px; height: 12px; margin-left: 4px; vertical-align: -1px; }
+.btn.lock { opacity: 0.55; border-style: dashed; box-shadow: none; }
+.btn.lock small { color: var(--ink-dim); }
+.tile.next { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 3px 0 rgba(0, 0, 0, 0.35); position: relative; }
+.tile.next::after { content: 'つぎは ここ'; position: absolute; top: -9px; right: 10px; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-size: 10.5px; font-weight: 700; }
+@media (min-width: 640px) {
+  .t-head { flex-direction: row; align-items: center; gap: 22px; }
+  .t-menu { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* 横画面（iPad・PC）：左に ロゴ・あそぶ・せってい、右に メニューの タイル */
+@media (min-width: 960px) and (orientation: landscape) {
+  #app:has(> .title) { max-width: 1120px; }
+  .title { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "head head" "main menu" "foot foot"; column-gap: 36px; align-content: start; }
+  .t-head { grid-area: head; } .t-main { grid-area: main; } .t-foot { grid-area: foot; }
+  .t-menu { grid-area: menu; align-content: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .title-mark { display: flex; gap: 8px; }
 .title-mark span { width: 44px; height: 60px; border-radius: 8px; display: grid; place-items: center; font-family: var(--display); font-size: 26px; background: var(--paper); color: var(--paper-ink); border-top: 8px solid var(--W); transform: rotate(-6deg); box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35); }
 .title-mark span:nth-child(2) { border-top-color: var(--U); transform: rotate(-2deg) translateY(-6px); }
 .title-mark span:nth-child(3) { border-top-color: var(--G); transform: rotate(3deg) translateY(-4px); }
 .title-mark span:nth-child(4) { border-top-color: var(--R); transform: rotate(8deg); }
 .title h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 9vw, 48px); line-height: 1.15; color: var(--gold-text); }
-.title-sub { margin: 0; color: var(--ink-dim); max-width: 32em; }
-.seg { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.seg legend { width: 100%; font-size: 13px; color: var(--ink-dim); margin-bottom: 6px; }
+.title-sub { margin: 0; color: var(--ink-dim); max-width: 32em; font-size: 13.5px; }
+.seg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.seg-l { flex: 0 0 5.5em; font-size: 12.5px; color: var(--ink-dim); font-weight: 700; }
 .seg label { position: relative; }
 .seg input { position: absolute; opacity: 0; inset: 0; }
-.seg span { display: inline-block; padding: 8px 14px; border-radius: 999px; border: 2px solid var(--line); background: var(--table-2); font-weight: 700; cursor: pointer; }
+.seg span { display: inline-block; padding: 6px 10px; border-radius: 999px; border: 2px solid var(--line); background: var(--table); font-weight: 700; font-size: 14px; cursor: pointer; }
 .seg input:checked + span { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
-.title-btns { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+.title-btns { display: flex; flex-direction: column; gap: 10px; }
+.title-btns .btn.primary { min-height: 58px; font-size: 18px; }
+.title-btns .btn.primary small { font-size: 12px; }
 .fine { font-size: 12px; color: var(--ink-dim); margin: 0; }
 .dev-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--bad); color: var(--gold-ink); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; vertical-align: 1px; }
 
@@ -973,6 +1011,11 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] .title-btns .btn::before { left: 8px; }
 :root[data-theme="gba"] .title-btns .btn.primary::before { content: '▶'; position: absolute; top: 50%; font-size: 11px; line-height: 1; transform: translateY(-50%); animation: gba-nudge 0.6s steps(1) infinite; }
 @media (hover: hover) { :root[data-theme="gba"] .title-btns:hover .btn.primary:not(:hover)::before { content: none; } }
+:root[data-theme="gba"] :is(.tile, .t-opts) { border-radius: 4px; background: var(--win); border: 2px solid var(--line); box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .tile.ghost { border-style: solid; }
+:root[data-theme="gba"] .tile:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--px), 2px 2px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .ti-text b { font-family: var(--display); font-weight: 400; }
+:root[data-theme="gba"] .ti-wrap { border-radius: 3px; background: var(--px); }
 :root[data-theme="gba"] .raid-banner { border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
 /* iPad よこ：手札は かたむけずに まっすぐ ならべる */
 :root[data-theme="gba"] .hand-slot { transform: none; transition: none; } /* ドットの カードは かたむけない（かさねかたは おなじ） */
@@ -1231,6 +1274,12 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 :root[data-theme="clear"] .title h1 { text-shadow: none; }
 :root[data-theme="clear"] .title-mark span { box-shadow: 0 0 0 2px var(--line), 0 5px 0 var(--line); }
 :root[data-theme="clear"] .title-btns .btn { font-size: 18px; }
+:root[data-theme="clear"] .tile { box-shadow: 0 3px 0 var(--line); }
+:root[data-theme="clear"] .tile:active { box-shadow: 0 1px 0 var(--line); }
+:root[data-theme="clear"] .tile.ghost { box-shadow: none; }
+:root[data-theme="clear"] .ti-wrap { background: var(--table-3); color: var(--gold-text); }
+:root[data-theme="clear"] .t-opts { border: 2px solid var(--line); }
+:root[data-theme="clear"] .ti-text small { font-size: 12px; }
 /* ボタン・つまみ：黒い 太い わく。えらんで いる ものは 金色に ぬる */
 :root[data-theme="clear"] .btn { border: 3px solid var(--line); border-radius: 10px; min-height: 50px; font-size: 17px; box-shadow: 0 3px 0 var(--line); transition: none; }
 :root[data-theme="clear"] .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }

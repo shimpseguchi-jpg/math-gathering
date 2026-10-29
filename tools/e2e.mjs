@@ -16,7 +16,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(url);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
-await page.evaluate(([sets, theme]) => { localStorage.clear(); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); if (theme) localStorage.setItem('mtg-theme', theme); }, [SETS, process.env.THEME || '']);
+await page.evaluate(([sets, theme]) => { localStorage.clear(); localStorage.setItem('mtg-unlock-all', '1'); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); if (theme) localStorage.setItem('mtg-theme', theme); }, [SETS, process.env.THEME || '']); // ぜんぶ あそべる：ひらく じゅんばん（unlock.js）を とばす
 await page.reload();
 const shots = new Set();
 async function swipe(from, to) {

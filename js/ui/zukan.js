@@ -6,10 +6,10 @@ import { cardFace, detail, sheet, esc, ruby, byColorCost, colorClass, COLOR_NAME
 import { DEV } from './settings.js';
 
 const KEY = 'mtg-zukan';
-// { cards: { id: { t: はじめて 出た 日時, n: 出た 回数, sp: サプライズで 出た } }, foes: { id: たおした 回数 }, pairs: { 色: クリア回数 }, clears: { diff: 回数 }, adventures, exactTotal, runs: [上位10] }
+// { cards: { id: { t: はじめて 出た 日時, n: 出た 回数, sp: サプライズで 出た } }, foes: { id: たおした 回数 }, pairs: { 色: クリア回数 }, clears: { diff: 回数 }, won: { 'せかい:diff': 回数 }, adventures, exactTotal, runs: [上位10] }
 function load() {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && v.cards) return v; } catch { /* こわれていたら はじめから */ }
-  return { cards: {}, foes: {}, pairs: {}, clears: {}, adventures: 0, exactTotal: 0, runs: [] };
+  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && v.cards) { if (!v.won) v.won = Object.fromEntries(Object.entries(v.clears || {}).map(([d, n]) => [`theros:${d}`, n])); return v; } } catch { /* こわれていたら はじめから */ } // won が ない ふるい きろくは テーロス（ラヴニカが できる まえ）
+  return { cards: {}, foes: {}, pairs: {}, clears: {}, won: {}, adventures: 0, exactTotal: 0, runs: [] };
 }
 let Z = load();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(Z)); } catch { /* 保存できなくても あそべる */ } };
@@ -36,13 +36,16 @@ export function zukanBattle(r) {
   save();
 }
 // 冒険の おわり
-export function zukanRun({ diff, reached, exact, pair, win }) {
+export function zukanRun({ diff, plane = 'theros', reached, exact, pair, win }) {
   Z.adventures++;
-  if (win) { Z.clears[diff] = (Z.clears[diff] || 0) + 1; if (pair) Z.pairs[pair] = (Z.pairs[pair] || 0) + 1; }
+  if (win) { Z.clears[diff] = (Z.clears[diff] || 0) + 1; Z.won[`${plane}:${diff}`] = (Z.won[`${plane}:${diff}`] || 0) + 1; if (pair) Z.pairs[pair] = (Z.pairs[pair] || 0) + 1; }
   Z.runs.push({ t: Date.now(), diff, reached, exact, pair, win: !!win, score: scoreOf(reached, exact) });
   Z.runs = Z.runs.sort((a, b) => b.score - a.score || a.t - b.t).slice(0, 10);
   save();
 }
+// せかい・むずかしさ ごとの クリア回数と、ぼうけんの 回数（unlock.js の ひらく じゅんばん）
+export const clearedCount = (plane, diff) => Z.won[`${plane}:${diff}`] || 0;
+export const adventuresCount = () => Z.adventures || 0;
 export const zukanCount = () => Object.keys(Z.cards).filter((id) => BY_ID[id] && !BY_ID[id].basic).length;
 
 // ---- 画面 ----

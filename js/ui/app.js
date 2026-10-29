@@ -20,6 +20,7 @@ import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme, applyConf } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
+import { GATES, diffOpen, planeOpen, nextStep, LOCK_TEXT, NEWS_TEXT, unlockNews } from './unlock.js';
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy, blessStudy } from './emblem.js';
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
@@ -83,38 +84,87 @@ const defs = (ids) => ids.map((id) => BY_ID[id]);
 // ---- タイトル ----
 const tutorialDone = () => { try { return !!localStorage.getItem(TUTORIAL_DONE); } catch { return true; } };
 
+// メニュー（タイトル）の 絵：線だけの 小さい マーク（24×24。スマホの ゲームの ホーム画面の ように、ボタンを タイルで ならべる）
+const T_ICON = {
+  build: '<rect x="3" y="6" width="11" height="15" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/>',
+  emblem: '<path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.5 2.4-7.4L2 9.6h7.6z" fill="currentColor" stroke="none"/>',
+  online: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  tut: '<path d="M5 21V4h12l-2 4 2 4H5"/>',
+  story: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
+  zukan: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>',
+};
+const tIcon = (k) => `<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${T_ICON[k]}</svg>`;
+// メニューの タイル：絵・名前・みじかい しらせ（data-go は これまでと おなじ）
+const tile = (go, label, sub, ic = tIcon(go), cls = '') => `<button type="button" class="tile ${cls}" data-go="${go}"><span class="ti-wrap">${ic}</span><span class="ti-text"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+// ぼうけんの せってい：1行に 名前と えらぶ つまみ（input の name・id は これまでと おなじ）。まだ あそべない ものは うすく、タップで わけ（unlock.js）
+const LOCK_SVG = '<svg class="lk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
+const segRow = (name, label, items, cur, rb = false, locked = () => false) => `<div class="seg" role="radiogroup" aria-label="${label}"><b class="seg-l">${label}</b>${items.map(([k, l]) => locked(k)
+  ? `<label class="lock" data-lock="${k}" role="button" tabindex="0" aria-label="${l}（まだ あそべない）"><span>${rb ? ruby(l) : l}${LOCK_SVG}</span></label>`
+  : `<label><input type="radio" name="${name}" id="${name}-${k}" value="${k}" ${cur === k ? 'checked' : ''}><span>${rb ? ruby(l) : l}</span></label>`).join('')}</div>`;
+
 export function title() {
   const old = load();
   const first = !tutorialDone() && !old;
-  const pref = old || { diff: 'normal' };
+  const pref = old || { diff: 'easy' }; // はじめては「かんたん」
+  // ひらく じゅんばん：まだの ものは えらべない。えらんで いた ものが まだ なら、あそべる ほうに
+  const step = nextStep(); // 'tutorial' | 'story' | null（とうは あそべる）
+  const plane0 = planeOpen(pref.plane || 'theros') ? (pref.plane || 'theros') : 'theros';
+  const diff0 = diffOpen(pref.diff) ? pref.diff : 'normal';
+  const lockBtn = (key) => `<button type="button" class="btn lock" data-lock="${key}">あたらしい ぼうけん<small>${key === 'tutorial' ? 'チュートリアルの あとで' : 'ストーリー 1章の あとで'}</small></button>`;
   app().innerHTML = `<main class="title">
-    <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
-    <h1>マスマティック・<br>ザ・ギャザリング</h1>
-    <p class="title-sub">算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。</p>
-    ${raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
-    <fieldset class="seg"><legend>せかい</legend>${PLANES.map(([k, l]) => `<label><input type="radio" name="plane" id="plane-${k}" value="${k}" ${(pref.plane || 'theros') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
-    <fieldset class="seg"><legend>むずかしさ</legend>${DIFFS.map(([k, l]) => `<label><input type="radio" name="diff" id="diff-${k}" value="${k}" ${pref.diff === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
-    <fieldset class="seg"><legend>ルール</legend>${RULES.map(([k, l]) => `<label><input type="radio" name="rule" id="rule-${k}" value="${k}" ${(pref.cmd ? 'cmd' : 'normal') === k ? 'checked' : ''}><span>${ruby(l)}</span></label>`).join('')}</fieldset>
-    <fieldset class="seg"><legend>カードの あつめかた</legend>${GETS.map(([k, l]) => `<label><input type="radio" name="get" id="get-${k}" value="${k}" ${(pref.draft ? 'draft' : 'pack') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
-    <div class="title-btns">
-      ${first ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
-      ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから（${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階`}）</button>` : ''}
-      <button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>
-      <button type="button" class="btn tro-btn" data-go="build">こうちく<small>パックけん ${tickets()}まい</small></button>
-      <button type="button" class="btn tro-btn em-btn" data-go="emblem"><span aria-hidden="true">✦</span>もんしょう<small>${activeIds().length ? `${activeIds().length}こ ついて いる` : 'しゅぎょうで てに いれる'}・ポイント ${emblemPoints()}</small></button>
-      <button type="button" class="btn" data-go="online">オンライン バトル${hasServer() ? '' : '<small>（れんしゅう）</small>'}</button>
-      ${first ? '' : '<button type="button" class="btn" data-go="tut">チュートリアル</button>'}
-      <button type="button" class="btn tro-btn" data-go="story">ストーリー<small>せかいめぐり ${storyCount()} / ${STORY_TOTAL}話</small></button>
-      <button type="button" class="btn tro-btn" data-go="zukan">ずかん<small>カード ${zukanCount()}しゅるい</small></button>
-      <button type="button" class="btn tro-btn" data-go="trophy">${cup(trophyCount() ? 'G' : 'X')}トロフィー<small>${trophyCount()} / ${TROPHIES.length}</small></button>
-      <button type="button" class="btn ghost" data-go="settings">せってい</button>
-      ${hasServer() && CONF.admin ? '<button type="button" class="btn ghost" data-go="admin">開発モード（先生）</button>' : ''}
-    </div>
-    ${DEV ? `<p class="fine"><span class="dev-badge">デバッグモード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
-    ${endlessBest() ? `<p class="fine">むげんの とうの きろく：${endlessBest().floor}階・${endlessBest().score}てん</p>` : ''}
-    <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
+    <header class="t-head">
+      <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
+      <div class="t-logo">
+        <h1>マスマティック・<br>ザ・ギャザリング</h1>
+        <p class="title-sub">算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。</p>
+      </div>
+    </header>
+    <section class="t-main">
+      ${raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
+      <div class="title-btns">
+        ${first || step === 'tutorial' ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
+        ${step === 'story' ? '<button type="button" class="btn primary" data-go="story">ストーリーを すすめる<small>1章を クリアすると とうへ</small></button>' : ''}
+        ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから<small>${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階から`}</small></button>` : ''}
+        ${step ? lockBtn(step) : `<button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>`}
+      </div>
+      ${step ? '' : `<div class="t-opts">
+        <p class="t-opts-h">ぼうけんの せってい</p>
+        ${segRow('plane', 'せかい', PLANES, plane0, false, (k) => !planeOpen(k))}
+        ${segRow('diff', 'むずかしさ', DIFFS, diff0, false, (k) => !diffOpen(k))}
+        ${segRow('rule', 'ルール', RULES, pref.cmd ? 'cmd' : 'normal', true)}
+        ${segRow('get', 'あつめかた', GETS, pref.draft ? 'draft' : 'pack')}
+      </div>`}
+    </section>
+    <nav class="t-menu" aria-label="メニュー">
+      ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
+      ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
+      ${tile('story', 'ストーリー', step === 'story' ? '1章を クリアすると とうへ' : `せかいめぐり ${storyCount()} / ${STORY_TOTAL}話`, tIcon('story'), step === 'story' ? 'next' : '')}
+      ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
+      ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
+      ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
+      ${first ? '' : tile('tut', 'チュートリアル', 'はじめての 人へ')}
+      ${tile('settings', 'せってい', 'みため・おと', tIcon('settings'), 'ghost')}
+      ${hasServer() && CONF.admin ? tile('admin', '開発モード（先生）', 'かんり の がめん', tIcon('admin'), 'ghost') : ''}
+    </nav>
+    <footer class="t-foot">
+      ${DEV ? `<p class="fine"><span class="dev-badge">デバッグモード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
+      ${endlessBest() ? `<p class="fine">むげんの とうの きろく：${endlessBest().floor}階・${endlessBest().score}てん</p>` : ''}
+      <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
+    </footer>
   </main>`;
+  // ひらいた しらせ（1回だけ）。ひらいた ものが 2つ あれば、まどを 2つ じゅんばんに
+  for (const k of unlockNews()) sheet(`<p class="goal">${ruby(NEWS_TEXT[k].text)}</p>`, [{ label: 'やった！', value: 1, kind: 'primary' }], { title: NEWS_TEXT[k].title });
   app().onclick = (e) => {
+    // まだ あそべない もの：わけと、つぎに いく ところ
+    const lk = e.target.closest('[data-lock]');
+    if (lk) {
+      const t = LOCK_TEXT[lk.dataset.lock]; if (!t) return;
+      const choices = t.go ? [{ label: t.label, value: 'go', kind: 'primary' }, { label: 'とじる', value: 0 }] : [{ label: 'わかった', value: 1, kind: 'primary' }];
+      sheet(`<p class="goal">${ruby(t.text)}</p>`, choices, { title: t.title }).then((v) => { if (v === 'go') (t.go === 'tut' ? tutorial() : storyMenu(title)); });
+      return;
+    }
     const b = e.target.closest('[data-go]'); if (!b) return;
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     if (b.dataset.go === 'tut') return tutorial();
@@ -552,7 +602,7 @@ const pairOf = () => (A.deck ? [...deckStats(A.deck).colors].sort((a, b) => 'WUK
 function recordRun(win) {
   const reached = win ? 5 : A.idx + 1, pair = pairOf();
   if (win && A.deck) onClear({ diff: A.diff, continued: A.continues < 1, pair });
-  zukanRun({ diff: A.diff, reached, exact: A.exact || 0, pair, win });
+  zukanRun({ diff: A.diff, plane: A.plane || 'theros', reached, exact: A.exact || 0, pair, win });
   A.recorded = true;
 }
 // こうちくモードの パックけん（docs/CONSTRUCTED.md）：クリアした 階 1つに 1まい、むげんの とうは 5階ごとに 1まい。とうの おわりに まとめて
