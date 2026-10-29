@@ -1,6 +1,7 @@
 // ブラウザで ロボットが 冒険を 最後まで あそぶ 通しテスト（Playwright）
 //   npx http-server -p 8124 -c-1 . &  →  node tools/e2e.mjs
 // 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）、CHROME（つかう chromium の パス）
+//   PLANE（せかい。例 PLANE=strixhaven SETS=1,2,5）、DIFF（むずかしさ。例 DIFF=easy）：タイトルで えらんでから はじめる
 //   THEME（みため：classic・gba・clear。せっていの「みため」と おなじ）
 import { chromium } from 'playwright';
 import { existsSync } from 'fs';
@@ -41,7 +42,11 @@ if (process.env.START) {
   }, [Number(process.env.START), process.env.FLOOR3 || 'factory', process.env.FLOORS || '', SETS]);
   await page.reload();
   await page.click('[data-go=cont]');
-} else await page.click('[data-go=new]');
+} else {
+  if (process.env.PLANE) await page.locator(`label:has(#plane-${process.env.PLANE})`).click();
+  if (process.env.DIFF) await page.locator(`label:has(#diff-${process.env.DIFF})`).click();
+  await page.click('[data-go=new]');
+}
 let ended = false, battles = 0;
 for (let i = 0; i < STEPS && !ended; i++) {
   await page.waitForTimeout(30);

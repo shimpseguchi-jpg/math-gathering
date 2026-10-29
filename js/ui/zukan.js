@@ -36,8 +36,10 @@ export function zukanBattle(r) {
   save();
 }
 // 冒険の おわり
-export function zukanRun({ diff, plane = 'theros', reached, exact, pair, win }) {
+// stars：ストリクスヘイヴンの 通知表の ★（いちばん よかった 数を のこす）
+export function zukanRun({ diff, plane = 'theros', reached, exact, pair, win, stars = null }) {
   Z.adventures++;
+  if (stars != null) Z.stars = Math.max(Z.stars || 0, stars);
   if (win) { Z.clears[diff] = (Z.clears[diff] || 0) + 1; Z.won[`${plane}:${diff}`] = (Z.won[`${plane}:${diff}`] || 0) + 1; if (pair) Z.pairs[pair] = (Z.pairs[pair] || 0) + 1; }
   Z.runs.push({ t: Date.now(), diff, reached, exact, pair, win: !!win, score: scoreOf(reached, exact) });
   Z.runs = Z.runs.sort((a, b) => b.score - a.score || a.t - b.t).slice(0, 10);
@@ -59,6 +61,9 @@ const FOES = [
   ['izzet', '2階 イゼットの ニヴ＝ミゼット'], ['golgari', '2階 ゴルガリの ジャラド'], ['azorius', '2階 アゾリウスの イスペリア'],
   ['rakdos', '3階 ラクドス'], ['orzhov', '3階 オルゾフの テイサ'], ['gruul', '4階 グルールの ボルボルグミ'], ['dimir', '4階 ディミーアの ラザーヴ'],
   ['jace', '5階 ギルドパクトの ジェイス'],
+  // ストリクスヘイヴンの 塔（docs/STRIXHAVEN.md）
+  ['sx_silverquill', 'シルバークイルの シャイル'], ['sx_prismari', 'プリズマリの ウヴィルダ'], ['sx_witherbloom', 'ウィザーブルームの リゼット'],
+  ['sx_lorehold', 'ロアホールドの アウグスタ'], ['sx_quandrix', 'クアンドリクスの キアン'], ['sx_extus', '6階 オリークの エクタス'],
 ];
 // 2色の アーキタイプ（REQUIREMENTS 4.2・SET3.md 1.1）。キーは W・U・K・R・G の じゅん
 const ARCH = [
@@ -99,6 +104,7 @@ export function zukanScreen(app, back) {
           <div><dt>ぴったり ぜんぶで</dt><dd>${Z.exactTotal}<small>回</small></dd></div>
         </dl>
         <p class="zk-note">クリア：${Object.entries(DIFF).map(([k, v]) => `${v} ${Z.clears[k] || 0}回`).join('・')}</p>
+        ${Z.stars ? `<p class="zk-note">${ruby(`ストリクスヘイヴンの 通知表（つうちひょう）：さいこう ★ ${Z.stars} / 18`)}</p>` : ''}
         <h3 class="zk-h">さいこう スコア</h3>
         <p class="zk-note">スコア ＝ とどいた 階 × 100 ＋ ぴったり × 10</p>
         ${Z.runs.length ? `<ol class="zk-runs">${Z.runs.map((r) => `<li><b>${r.score}</b><span>${DIFF[r.diff] || ''}・${r.win ? 'クリア' : `${r.reached}階まで`}・ぴったり ${r.exact}回${r.pair ? `・${[...r.pair].map((c) => COLOR_NAME[c]).join('')}` : ''}</span><em>${day(r.t)}</em></li>`).join('')}</ol>` : '<p class="zk-note">まだ ない。ぼうけんを おえると のこる。</p>'}`;

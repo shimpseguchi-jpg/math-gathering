@@ -5,6 +5,7 @@ import { AI, ptsOf } from './ai.js';
 import { ALL, ALL_DEV, BASICS, SET_OF, SETS, BY_ID, bindEngine } from '../data/cards.js';
 import { FLOORS, pickFloors } from '../data/enemies.js';
 import { pickRavnica } from '../data/ravnica.js';
+import { STRIX, COLLEGES, pickStrix, grown, starsOf, byDiff } from '../data/strixhaven.js';
 import { blessChoices, blessFx, endlessBuff, ENDLESS } from '../data/blessings.js';
 import { api } from './game.js';
 
@@ -157,6 +158,7 @@ export async function fight(deck, floorId, o = {}) {
 }
 
 export async function runAdventure(o = {}) {
+  if (o.plane === 'strixhaven') return runStrix(o);
   const rng = seeded(o.seed || 1);
   const pool = [];
   // パックの もんしょう：きまぐれの 色は ぼうけんの はじめに きめる。はじめの 旗は さいしょから もつ
@@ -181,6 +183,50 @@ export async function runAdventure(o = {}) {
       return log;
     }
     if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? { sets: o.sets, em } : { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, o); }
+  }
+  log.cleared = true;
+  return log;
+}
+
+// ストリクスヘイヴンの 塔（docs/STRIXHAVEN.md）：入学式で 寮を えらぶ（パックは その 2色だけ）→ 6階。ライフは ひきつぐ。
+// 階の あいだは 休み時間（保健室・図書室・授業）。AI の 休み時間：ライフが o.healAt（18）いか なら 保健室、図書室を o.packs（2）回 まで、のこりは 授業
+export async function runStrix(o = {}) {
+  const rng = seeded(o.seed || 1);
+  const keys = Object.keys(COLLEGES);
+  const college = o.college || keys[Math.floor(rng() * keys.length)];
+  const C = COLLEGES[college], only = [...C.cols], sets = o.strixSets || STRIX.sets;
+  const pk = o.emblem?.pack;
+  const em = pk ? { ...pk, colors: (pk.colors || []).filter((c) => only.includes(c)), extra: [] } : undefined;
+  const pool = [].concat(C.gift).map((id) => BY_ID[id]);
+  for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets, em, only }));
+  const bo = { ...o, pair: only };
+  let b = buildDeck(pool, bo);
+  const floors = o.floors || pickStrix(rng);
+  const grow = {}, healAt = o.healAt ?? 18, packMax = o.packs ?? 2;
+  const diff = o.diff || 'normal';
+  const cap = byDiff(STRIX.life, diff) + (o.emblem?.life || 0); // ライフは はじめの 数より ふえない
+  let continues = o.continues ?? 1, life = cap;
+  const log = { college, floors: [], cleared: false, decks: [], stars: 0, rests: { heal: 0, pack: 0, grow: 0 } };
+  for (let i = 0; i < floors.length; i++) {
+    log.decks.push({ pair: b.pair, real: b.real, points: b.points }); log.deckIds = b.deck.map((d) => d.id);
+    let continued = false;
+    for (;;) {
+      const s = await fight(b.deck.map((d) => grown(d, grow[d.id] || 0)), floors[i], { ...o, life, seed: Math.floor(rng() * 1e9), log: o.logFloor === floors[i] });
+      if (s.logOn) (log.fightLogs ||= []).push(s.logs.join('\n'));
+      log.floors.push({ floor: floors[i], result: s.over, turns: s.stats.playerTurns, life: s.P.life, start: life, exact: s.stats.exact, reshuffled: s.stats.reshuffled });
+      if (s.over === 'win') { log.stars += starsOf({ win: true, continued, exact: s.stats.exact, lost: life - s.P.life }); life = Math.min(cap, s.P.life); break; }
+      if (continues > 0) { continues--; continued = true; life = STRIX.cont; continue; }
+      log.lostAt = i + 1;
+      return log;
+    }
+    if (i === floors.length - 1) break;
+    // 休み時間
+    if (life <= healAt) { life = Math.min(cap, life + byDiff(STRIX.heal, diff)); log.rests.heal++; }
+    else if (log.rests.pack < packMax) { pool.push(...openPack(rng, { cleared: i + 1, sets, em, only })); b = buildDeck(pool, bo); log.rests.pack++; }
+    else {
+      const t = b.deck.filter((d) => !d.basic).sort((x, y) => (y.types.includes('creature') - x.types.includes('creature')) || cardValue(y) - cardValue(x))[0];
+      if (t) { grow[t.id] = (grow[t.id] || 0) + 1; log.rests.grow++; }
+    }
   }
   log.cleared = true;
   return log;
