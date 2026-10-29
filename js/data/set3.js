@@ -1,7 +1,7 @@
 // 第3弾「冥界の 門」のうごき（名前・コスト・P/T は skel.js、文は docs/SET3.md）
 import {
   T, hit, mine, theirs, isSub, saga, bestIn, lowestKeep, isCr, chosen1, regrow, dig, foeBest, shrink, foe1, bolt, killIt, edict, fodder, devour,
-  delve, godUnless, gyCount,
+  delve, godUnless, gyCount, cr, spectacle,
 } from './kit.js';
 
 const minus1 = (s, E, t, n = 1) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, n); E.sba(s); } };
@@ -19,6 +19,26 @@ const shepherd = (s, q, E) => {
   const [c] = s.P.gy.splice(i, 1); s.P.exile.push(c);
   E.token(s, 'P', { ...c.def, pow: 1, tou: 1, rar: null, levels: null });
 };
+
+// ---- 5色に する 追加（3.7） ----
+// 降霊：墓地から うらの すがた（スピリット）で 唱えられる。うらの すがたは 墓地の かわりに 追放
+const ghost = (id, name, rar, cost, pow, tou, kw, text, x = {}) => ({
+  ...cr(`${id}D`, name, rar, 'W', cost, pow, tou, ['spirit'], kw), exileOnLeave: true, typeOver: 'クリーチャー — スピリット（降霊（こうれい））', textOver: text, ...x,
+});
+const disturb = (cost, back) => ({ disturb: { cost, req: ['W'], back } });
+const gain1 = { onOtherEnter: (s, p, q, E) => { if (p.side === 'P' && q.side === 'P' && E.isCreature(q)) E.gain(s, 1); } };
+const kindred = (s, E, side) => E.creatures(s, side).filter((q) => ['spirit', 'cleric', 'human'].some((t) => isSub(q, t))).length;
+// 切削してもよい：やまふだが 少ない ときは しない（つくりなおすと ライフが へる）
+const millMay = (s, E, n) => { if (s.P.lib.length >= n + 4) E.mill(s, n); };
+const isSpellD = (d) => d.types.includes('instant') || d.types.includes('sorcery');
+// 絢爛の 呪文：さきに 攻撃して ダメージを 入れてから（あとの メインで）唱える
+const later = (s, E, ctx) => ctx.phase === 1 && !ctx.human && !E.dmgThisTurn(s);
+const elemU = cr('t_elemU', 'エレメンタル', null, 'U', 0, 2, 1, ['elemental']);
+const harpy = cr('t_harpy', 'ハーピー', null, 'K', 0, 1, 1, ['harpy'], ['flying']);
+// 青銅の 血の プルフォロス：手札の 赤の クリーチャーを 出して、ターンの おわりに 墓地へ
+const sneak = (s, p, E, c) => { s.P.hand.splice(s.P.hand.indexOf(c), 1); const q = E.enter(s, 'P', c.def, { card: c.def }); if (q) { q.sneakBy = p.uid; q.sneakT = s.turn; } };
+const insectG = cr('t_insectG', '昆虫（こんちゅう）', null, 'G', 0, 1, 1, ['insect']);
+const beast44 = cr('t_beast44', 'ビースト', null, 'G', 0, 4, 4, ['beast']);
 
 export const S3 = {
   // ---- 黒 ----
@@ -176,35 +196,43 @@ export const S3 = {
   R41: { ...bolt(3), madness: { cost: 1, req: ['R'] } },
   R42: devour(3),
   // ---- サイクル ----
+  // 信心の レジェンド（2026-10-28 に アモンケットの 門の 五神から かえた。五神は docs/RAID.md 2.4）
   W44: {
-    ...godUnless((s, p, E) => E.creatures(s, p.side).filter((q) => q !== p).length >= 3),
-    acts: [{ cost: 4, req: ['W'], when: [1, 2], label: '戦士（せんし）を 出す', play: (s, p, E) => ({ score: 5, run: () => E.token(s, 'P', T.warriorV) }) }],
-  },
-  U44: {
-    // 手札は 毎ターン 5まいに もどるので 4まい いじょう（2026-10-25 に 6 から）。引く 能力も 2マナに
-    ...godUnless((s, p) => (s[p.side].hand || []).length >= 4),
-    acts: [{ cost: 2, req: ['U'], when: [1, 2], label: '1まい 引く', play: (s, p, E, ctx) => (ctx.phase === 2 || s.P.hand.length < 4 ? { score: 4, run: () => E.drawCard(s) } : null) }],
-  },
-  K40: {
-    ...godUnless((s, p) => (s[p.side].gy || []).filter((c) => isCr(c.def)).length >= 3),
+    ...godUnless((s, p, E) => E.devotion(s, 'W', p.side) >= 4),
+    onGain: (s, p, E) => { if (p.side !== 'P' || (p.flags.turn.gains || 0) >= 3) return; p.flags.turn.gains = (p.flags.turn.gains || 0) + 1; const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 1); },
     acts: [{
-      cost: 2, req: ['K'], when: [1, 2], label: 'ほかの クリーチャーを ぼちに おく：せんじゅつ 1・1点', can: (s, p, E) => mine(s, E).some((q) => q !== p),
-      play: (s, p, E) => { const f = fodder(s, E, p).filter((q) => q.token)[0]; return f ? { score: 3, run: () => { E.leave(s, f, 'gy', { died: true }); drain(s, E, 1, p); return E.scry(s, 1); } } : null; },
-      tgt: [{ side: 'P', label: 'ぼちに おく クリーチャー', filter: (s, E, q) => q.def.id !== 'K40' }],
-      apply: (s, E, [[f]], x, p) => { E.leave(s, f, 'gy', { died: true }); drain(s, E, 1, p); return E.scry(s, 1); },
+      cost: 2, req: ['W'], when: [1], label: 'ほかの クリーチャーに 絆魂（はんこん）',
+      play: (s, p, E) => { const t = mine(s, E).filter((q) => q !== p && !q.sick && !E.hasKw(s, q, 'lifelink')).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; return t && !p.flags.turn.used ? { score: 2 + E.power(s, t), run: () => { p.flags.turn.used = true; E.target(s, t); E.pump(t, 0, 0, ['lifelink']); } } : null; },
+      tgt: [{ side: 'P', label: '絆魂（はんこん）を あたえる クリーチャー', filter: (s, E, q) => q.def.id !== 'W44' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 0, 0, ['lifelink']); },
     }],
   },
+  U44: { etb: (s, p, E) => { if (p.side !== 'P') return; const n = E.devotion(s, 'U', 'P'); E.L(s, `青の 信心（しんじん） ${n}：エレメンタル ${n}体`); E.token(s, 'P', elemU, n); } },
+  K40: {
+    etb: (s, p, E) => { if (p.side !== 'P') return; const n = E.devotion(s, 'K', 'P'); E.L(s, `黒の 信心（しんじん） ${n}：ハーピー ${n}体`); E.token(s, 'P', harpy, n); },
+    upkeep: (s, p, E) => {
+      if (p.side !== 'P') return;
+      const f = fodder(s, E, p)[0] || mine(s, E).filter((q) => q !== p).sort((a, b) => E.power(s, a) - E.power(s, b))[0];
+      E.leave(s, f || p, 'gy', { died: true }); E.sba(s);
+    },
+  },
   R43: {
-    ...godUnless((s, p) => (s[p.side].hand || []).length <= 2), // 2026-10-25 に 1 から
-    acts: [{ cost: 3, req: ['R'], discard: 1, when: [1, 2], label: 'てきに 2点', play: (s, p, E) => (s.P.hand.length <= 2 ? { score: 4, run: () => E.hitEnemy(s, 2, p) } : null) }],
+    ...godUnless((s, p, E) => E.devotion(s, 'R', p.side) >= 4),
+    grant: (s, q, p, E) => (p !== q && E.isCreature(p) ? ['haste'] : null),
+    acts: [{
+      cost: 2, req: ['R'], when: [1], label: '赤の クリーチャーを てふだから 出す', can: (s) => s.P.hand.some((c) => isCr(c.def) && (c.def.color || '').includes('R')), cantWhy: '手札（てふだ）に 赤の クリーチャーが ない',
+      play: (s, p, E) => {
+        const c = [...s.P.hand].filter((x) => isCr(x.def) && (x.def.color || '').includes('R') && x.def.cost >= 4).sort((a, b) => b.def.cost - a.def.cost)[0];
+        return c ? { score: 3 + c.def.cost, run: () => sneak(s, p, E, c) } : null;
+      },
+    }],
+    endStep: (s, p, E) => { for (const q of [...s.P.bf]) if (q.sneakBy === p.uid && q.sneakT === s.turn) { E.L(s, `${q.def.name} は ぼちへ`); E.leave(s, q, 'gy', { died: true }); } },
   },
   G44: {
-    ...godUnless((s, p, E) => E.creatures(s, p.side).some((q) => q !== p && E.power(s, q) >= 4)),
+    ...godUnless((s, p, E) => E.devotion(s, 'G', p.side) >= 4),
+    costCut: (s, q, d) => (isCr(d) ? 1 : 0),
     acts: [{
-      cost: 3, req: ['G'], when: [1], label: 'ほかの クリーチャーに ＋2/＋0 と トランプル',
-      play: (s, p, E) => { const t = E.bestBuffTarget(s, p, { ready: true }); return t && !p.flags.turn.used ? { score: 3, run: () => { p.flags.turn.used = true; E.target(s, t); E.pump(t, 2, 0, ['trample']); } } : null; },
-      tgt: [{ side: 'P', label: '＋2/＋0 と トランプルを あたえる クリーチャー', filter: (s, E, q) => q.def.id !== 'G44' }],
-      apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 2, 0, ['trample']); },
+      cost: 2, req: ['G'], when: [2], label: 'やまふだの 一番上を 見る',
+      play: (s, p, E) => (s.P.lib.length && !p.flags.turn.used ? { score: 2, run: () => { p.flags.turn.used = true; const c = s.P.lib[0]; E.L(s, `一番上：${c.def.name}`); if (isCr(c.def)) { s.P.lib.shift(); s.P.hand.push(c); } } } : null),
     }],
   },
   W43: {
@@ -258,6 +286,79 @@ export const S3 = {
   K39: { acts: [{ cost: 0, when: [2], label: '2点の ライフを うしなう：せんじゅつ 2', play: (s, p, E) => (s.P.life > 12 && !p.flags.turn.used ? { score: 1, run: () => { p.flags.turn.used = true; E.hurt(s, 2); return E.scry(s, 2); } } : null) }] },
   K41: { onCombatHit: (s, p, E) => { for (const q of mine(s, E)) if (q.attacking) E.addCounters(s, q, 1); } },
 };
+
+// 5色に する 追加：白（降霊）・青（切削・フラッシュバック）・赤（絢爛）・緑（上陸）
+Object.assign(S3, {
+  W82: disturb(3, ghost('W82', 'やさしい 霊（れい）', 'C', 3, 1, 1, ['flying', 'vigilance'], '飛行（ひこう）。警戒（けいかい）。')),
+  W83: disturb(4, ghost('W83', '朝（あさ）の まぼろし', 'C', 4, 2, 1, ['flying', 'vigilance'], '飛行（ひこう）。警戒（けいかい）。')),
+  W84: disturb(2, ghost('W84', '先祖（せんぞ）の 守（まも）り', 'C', 2, 1, 1, ['flying', 'lifelink'], '飛行（ひこう）。絆魂（はんこん）。')),
+  W85: { play: (s, E) => ({ score: 7, run: () => E.token(s, 'P', T.spirit, 2) }) },
+  W86: { trick: { kind: 'single', p: 2, t: 2 }, singleRun: (s, E, q) => { const n = isSub(q, 'spirit') ? 3 : 2; E.pump(q, n, n); } },
+  W87: disturb(3, ghost('W87', '二刀（にとう）の まもり霊（れい）', 'U', 3, 1, 1, ['flying', 'double'], '飛行（ひこう）。二段攻撃（にだんこうげき）。')),
+  W88: { anthem: (s, q, p) => (p !== q && isSub(p, 'spirit') ? [1, 1] : null) },
+  W89: disturb(3, ghost('W89', '礼拝堂（れいはいどう）の 守（まも）り霊（れい）', 'U', 3, 2, 1, ['flying', 'first'], '飛行（ひこう）。先制攻撃（せんせいこうげき）。')),
+  W90: { ...gain1, ...disturb(2, ghost('W90', '光（ひかり）の まぼろし', 'R', 2, 1, 1, ['flying'], '飛行（ひこう）。ほかの クリーチャーが あなたの戦場（せんじょう）に出るたび、あなたは1点のライフを得（え）る。', gain1)) },
+  W91: {
+    pow: (s, p, E) => kindred(s, E, p.side), tou: (s, p, E) => kindred(s, E, p.side),
+    ...disturb(4, ghost('W91', '守（まも）り手（て）の 夜明（よあ）け', 'L', 4, 2, 2, ['flying', 'lifelink'], '飛行（ひこう）。絆魂（はんこん）。ほかの あなたの スピリットは 絆魂（はんこん）を 持（も）つ。', {
+      legend: true, grant: (s, q, p) => (p !== q && isSub(p, 'spirit') ? ['lifelink'] : null),
+    })),
+  },
+  U76: { play: (s, E) => ({ score: 4, run: () => { E.mill(s, 2); E.drawCard(s); } }) },
+  U77: { landfall: (s, p, E) => millMay(s, E, 2) },
+  U78: { play: (s, E, ctx) => ({ score: 8 - (ctx.phase === 1 ? 1 : 0), run: () => E.drawCard(s, 2) }), flashback: { cost: 4, req: ['U'] } },
+  U79: {
+    play: (s, E, ctx) => (s.P.lib.length >= 4 && ctx.phase === 2 ? {
+      score: 5,
+      run: () => {
+        const top = s.P.lib.splice(0, 4), pick = [...top].sort((a, b) => E.keepValue(s, b) - E.keepValue(s, a))[0];
+        if (!pick) return; // コピーで もう一度 うごいて やまふだが ない とき
+        s.P.hand.push(pick); s.P.gy.push(...top.filter((c) => c !== pick));
+        E.L(s, `4まい 見て 1まいを てふだへ、3まいを ぼちへ（4 ＝ 1 ＋ 3）`);
+      },
+    } : null),
+    flashback: { cost: 6, req: ['U'] },
+  },
+  U80: { pow: (s, p) => 1 + ((s[p.side].gy || []).length >= 8 ? 3 : 0), tou: (s, p) => 1 + ((s[p.side].gy || []).length >= 8 ? 3 : 0) },
+  U81: {
+    play: (s, E, ctx) => (s.P.lib.length >= 7 && ctx.phase === 2 ? { score: 2 + (s.P.gy.length + 3 >= 8 ? 4 : 0), run: () => { E.mill(s, 3); if (s.P.gy.length >= 8) E.drawCard(s); } } : null),
+    flashback: { cost: 2, req: ['U'] },
+  },
+  U82: { ...foe1('てふだに もどす クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) E.bounce(s, t); E.sba(s); }), flashback: { cost: 5, req: ['U'] } },
+  U83: { onOtherEnter: (s, p, q, E) => { if (p.side === 'P' && q.side === 'P' && E.isCreature(q) && (q.def.color || '').includes('U')) millMay(s, E, 2); } },
+  U84: { etb: (s, p, E) => { if (p.side === 'P') regrow(s, E, isSpellD); } },
+  U85: { allFlashback: true },
+  R74: { ...spectacle(2), play: (s, E, ctx) => (later(s, E, ctx) ? null : { score: 7, run: () => E.drawCard(s, 2) }) },
+  R75: {
+    ...spectacle(2),
+    etb: (s, p, E) => { if (p.side !== 'P') return; const c = lowestKeep(s, E); if (c) { E.discard(s, [c]); E.drawCard(s); } },
+  },
+  R76: { acts: [{ cost: 0, tap: true, when: [1, 2], label: 'てきに 1点', play: (s, p, E) => ({ score: 3, run: () => E.hitEnemy(s, 1, p) }) }] },
+  R77: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.satyrR); } },
+  R78: spectacle(2),
+  R79: { ...spectacle(2), play: (s, E, ctx) => (later(s, E, ctx) ? null : { score: 9, run: () => E.token(s, 'P', T.satyrR, 4) }) },
+  R80: { ...spectacle(2), etb: (s, p, E) => { if (p.side === 'P' && E.dmgThisTurn(s) > 0) E.hitEnemy(s, 2, p); } },
+  R81: { ...spectacle(2), play: (s, E, ctx) => (later(s, E, ctx) ? null : { score: 5, run: () => E.hitEnemy(s, 3, null) }) },
+  R82: spectacle(2),
+  R83: {
+    endStep: (s, p, E) => {
+      const d = E.dmgThisTurn(s), n = Math.floor(d / 2);
+      if (p.side !== 'P' || !n) return;
+      E.L(s, `${p.def.name}：${d} ÷ 2 ＝ ${n}${d % 2 ? ' あまり 1' : ''}`);
+      E.hitEnemy(s, n, p);
+    },
+  },
+  G77: { landfall: (s, p, E) => E.pump(p, 2, 2) },
+  G78: { landfall: (s, p, E) => E.gain(s, 2) },
+  G79: { landfall: (s, p, E) => E.pump(p, 1, 1) },
+  G80: { play: (s, E) => ({ score: 6, run: () => { const c = lowestKeep(s, E); if (c && s.P.mana.length < 10) E.charge(s, c, false); E.drawCard(s); } }) },
+  G81: { trick: { kind: 'single', p: 2, t: 2 }, singleRun: (s, E, q) => { const n = E.landfallNow(s) ? 4 : 2; E.pump(q, n, n); } },
+  G82: { landfall: (s, p, E) => E.token(s, 'P', T.shard) },
+  G83: { landfall: (s, p, E) => E.token(s, 'P', insectG, E.creatures(s, 'P').length >= 6 ? 2 : 1) },
+  G84: { landfall: (s, p, E) => E.token(s, 'P', T.treasure) },
+  G85: { landfall: (s, p, E) => E.token(s, 'P', beast44) },
+  G86: { pow: (s, p) => (s[p.side].mana || []).length, tou: (s, p) => (s[p.side].mana || []).length },
+});
 
 // 黒の きほんカード：−1/−1（ターン終了時まで）
 export const B06 = { basic: true, ...foe1('−1/−1 する クリーチャー', (s, E, t) => shrink(s, E, t, 1), { n: 1, score: 1 }) };

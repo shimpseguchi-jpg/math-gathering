@@ -68,6 +68,7 @@ export const T = {
   illusion: cr('t_illusion', 'イリュージョン', null, 'U', 0, 2, 2, ['illusion'], ['flying']),
   kraken: cr('t_kraken', 'クラーケン', null, 'U', 0, 8, 8, ['kraken']),
   satyr: cr('t_satyr', 'サテュロス', null, 'R', 0, 1, 1, ['satyr'], [], { cantBlock: true }),
+  satyrR: cr('t_satyrR', 'サテュロス', null, 'R', 0, 1, 1, ['satyr']), // テーロスの 弾の ゴブリンの かわり（ブロックできる）
   pegasus: cr('t_pegasus', 'ペガサス', null, 'W', 0, 2, 2, ['pegasus'], ['flying']),
   human: cr('t_human', '人間', null, 'W', 0, 1, 1, ['human']),
   shark: cr('t_shark', 'サメ', null, 'U', 0, 0, 0, ['shark'], ['flying']), // X/X は 出すときに きめる
@@ -184,8 +185,23 @@ export const devour = (n, after) => ({
 // 探査：墓地の カード 1まいで 1マナ ぶん（色の ぶんは はらう）
 export const delve = (x = {}) => ({ delve: true, costLess: (s) => s.P.gy.length, ...x });
 export const delveOf = (d) => ({ ...delve(), costMin: pips(d) });
-// 門の 五神：数の 条件が そろわないと 攻撃も ブロックも できない
+// 神（信心の レジェンド・レイドの 門の 五神）：数の 条件が そろわないと 攻撃も ブロックも できない
 export const godUnless = (f) => ({ cantAttack: (s, p, E) => !f(s, p, E), cantBlock: (s, p, E) => !f(s, p, E) });
+// 絢爛 n：この ターンに 敵が ダメージを うけていたら n マナ 安い（第3弾の 赤・第7弾の ラクドス）
+export const spectacle = (n) => ({ spectacle: n, costLess: (s, E) => (E.dmgThisTurn(s) > 0 ? n : 0) });
+// 暴動：人は 出す 前に 画面で えらぶ（chosen）。AI は じゃまな ブロッカーが いなければ 速攻（第7弾の グルール・第4弾の RG09）
+export const riot = (x = {}) => ({
+  riot: true, ...x,
+  etb: (s, p, E, o) => {
+    let c = chosen1(o);
+    if (c == null) {
+      const [, tou] = E.pt(s, p);
+      const wall = theirs(s, E).some((q) => !q.tapped && E.power(s, q) >= tou);
+      c = s.active === 'P' && p.side === 'P' && !wall ? 'haste' : 'ctr';
+    }
+    if (c === 'haste') { E.pump(p, 0, 0, ['haste']); E.L(s, `ぼうどう：${p.def.name} は そっこう`); } else { E.addCounters(s, p, 1); E.L(s, `ぼうどう：${p.def.name} に ＋1/＋1カウンター`); }
+  },
+});
 // 墓地の その 種類の カードの 数
 export const gyCount = (s, t) => s.P.gy.filter((c) => (c.def.types || []).includes(t)).length;
 Object.assign(T, {
@@ -281,10 +297,22 @@ function chooseOne(s, E, defs, title, then) {
   if (s.ai.pickCard && !s.swapped) return s.ai.pickCard(s, defs, title).then((d) => then(d || defs[0]));
   return then(aiChoice(s, E, defs));
 }
-// 学習：レッスンの 3まいから 1まいを えらんで 手札に
+// 学習（2026-10-29）：どちらかを えらぶ
+//   本：デッキの 色で 唱えられる 学習呪文（色の ない ものも）から ランダムに 1まい 手札に
+//   次の ページ：手札を 1まい 捨てて、1まい 引く（MTG の 学習の もう1つの えらび方）
 export const LESSONS = [];
 export function learn(s, E) {
-  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：レッスンを 1まい えらぶ', (d) => { const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう：${d.name}`); });
+  const book = () => {
+    const ok = LESSONS.filter((d) => fitsDeck(s, E, d)), pool = ok.length ? ok : LESSONS;
+    const d = pool[Math.floor(s.rng() * pool.length)];
+    if (!d) return null;
+    const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう（本）：${d.name}`);
+    return c;
+  };
+  const page = (c) => { E.discard(s, [c]); E.drawCard(s); E.L(s, 'がくしゅう（次の ページ）：1まい すてて 1まい 引いた'); };
+  if (s.ai.learn && !s.swapped) return s.ai.learn(s, { book, page });
+  // AI は いつも 本（手札は 毎ターン 5まいに もどる ので 本の 1まいが 得。次の ページも 使う AI は 第5弾の 冒険で クリア 41% → 32〜36% に 下がった）
+  return book();
 }
 // 再帰（さいき）を ふせぐ（パワーの 合計で 強く なる カードどうし）
 export function guard(s, k, f, dflt) {

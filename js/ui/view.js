@@ -12,12 +12,14 @@ export const ruby = (t) => mapRuby(String(t ?? ''), (b, y) => `<ruby>${esc(b)}<r
 export const noRuby = (t) => String(t ?? '').replace(/（[ぁ-ゖー]+）/g, '');
 
 // 文章の中の ことば（キーワード・用語）に 点線を つける。長おし・2回タップで せつめい（それぞれ 最初の1つだけ）
-export function richText(raw) {
+// alias：同じ ことばでも べつの せつめいを 出す とき（タイプ欄の「学習」は 学習呪文）
+export function richText(raw, alias = {}) {
   const t = String(raw ?? '');
   const used = new Set();
   let out = '', last = 0;
   for (const m of t.matchAll(TERM_RE)) {
-    const g = termAt(m.slice(1));
+    let g = termAt(m.slice(1));
+    if (g && alias[g.key]) g = TERM[alias[g.key]];
     if (!g || used.has(g.key)) continue;
     used.add(g.key);
     out += ruby(t.slice(last, m.index)) + `<span class="term" data-term="${esc(g.key)}">${ruby(m[0])}</span>`;
@@ -26,6 +28,8 @@ export function richText(raw) {
   // *…* は フレーバー（ななめの 小さい 文）
   return (out + ruby(t.slice(last))).replace(/\*([^*]+)\*/g, '<em class="flavor">$1</em>');
 }
+// タイプ欄（「ソーサリー — 学習」の 学習は「学習する」では なく 学習呪文の せつめい）
+const richType = (t) => richText(t, { 学習: '学習呪文' });
 
 export function showTerm(key) {
   const g = TERM[key]; if (!g) return;
@@ -154,7 +158,7 @@ export function fullCard(def) {
   return `<div class="fcard ${colorClass(def)}">
     <div class="fc-head"><span class="fc-name">${ruby(i.name)}</span><span class="cost">${esc(costLabel(def))}</span></div>
     <div class="fc-art">${cs.length > 1 ? cs.map((c) => `<span class="emb m-${c}">${emblem(c)}</span>`).join('') : (cs.length ? cs : ['C']).map(emblem).join('')}</div>
-    <div class="fc-type"><span>${ruby(i.type)}</span><span class="fc-rar r-${def.rar}">${esc(def.rar || '')}</span></div>
+    <div class="fc-type"><span>${richType(i.type)}</span><span class="fc-rar r-${def.rar}">${esc(def.rar || '')}</span></div>
     <div class="fc-text ${size}">
       <p>${richText(i.text) || '（とくべつな のうりょくは ない）'}</p>
       ${i.reward && i.reward !== '−' ? `<p>${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
@@ -249,7 +253,7 @@ export function detail(def, o = {}) {
       ${enemy ? '' : `<span class="cost big">${esc(costLabel(def))}</span>`}
     </div>
     ${enemy ? '' : colorRow(def)}
-    <div class="detail-type">${richText(i.type)} ${pts}</div>
+    <div class="detail-type">${richType(i.type)} ${pts}</div>
     <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
     ${loreHtml(def)}
     ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}

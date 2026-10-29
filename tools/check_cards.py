@@ -3,7 +3,7 @@
 import re, glob, os, collections
 
 here = os.path.dirname(os.path.abspath(__file__))
-row = re.compile(r'\| ((?:W|U|G|R|C)\d\d|(?:WG|WU|RW|UR|RG|GU)\d\d) \| [^|]+ \| (C|U|R|L) \|')
+row = re.compile(r'\| ((?:W|U|G|R|C)\d{2,3}|(?:WG|WU|RW|UR|RG|GU)\d\d) \| [^|]+ \| (C|U|R|L) \|')
 count = collections.Counter()
 ids = []
 for f in sorted(glob.glob(os.path.join(here, '..', 'docs', 'cards', '*.md'))):
@@ -16,10 +16,10 @@ for f in sorted(glob.glob(os.path.join(here, '..', 'docs', 'cards', '*.md'))):
 
 dups = [i for i, n in collections.Counter(ids).items() if n > 1]
 print('全部', len(ids), '種', '（重複ID: ' + ', '.join(dups) + '）' if dups else '')
-# 第1弾 126種 ＋ 第2弾 74種
-expect = {'W': (17, 10, 9, 4), 'U': (17, 10, 9, 4), 'G': (17, 10, 9, 4), 'R': (17, 10, 9, 4),
-          'C': (6, 5, 3, 2), 'gold': (0, 12, 12, 0)}
-ok = not dups and len(ids) == 200
+# 第1弾 126種 ＋ 第2弾 120種（74種 ＋ 2026-10-28 の 追加 46種：set2_plus.md）
+expect = {'W': (22, 12, 10, 5), 'U': (22, 12, 10, 5), 'G': (22, 12, 10, 5), 'R': (22, 12, 10, 5),
+          'C': (8, 7, 3, 2), 'gold': (0, 18, 12, 0)}
+ok = not dups and len(ids) == 246
 for c, want in expect.items():
     got = tuple(count[(c, r)] for r in 'CURL')
     ok &= got == want

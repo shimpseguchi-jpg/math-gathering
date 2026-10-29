@@ -12,7 +12,7 @@ export const isCreature = (p) => is(p, 'creature');
 export const isPW = (p) => is(p, 'planeswalker');
 export const onBf = (s, p) => s[p.side].bf.includes(p);
 export const card = (def) => ({ uid: UID++, def });
-// 攻撃・ブロック できない（門の 五神は 数の 条件で かわる：関数）
+// 攻撃・ブロック できない（信心の 神は 数の 条件で かわる：関数）
 export const cant = (s, p, k) => { const v = p.def[k]; return typeof v === 'function' ? !!v(s, p, api) : !!v; };
 
 // カードの効果・各階のルールから使う関数をまとめたもの（ai.js がAI用の関数を足す）
@@ -256,6 +256,7 @@ export function rampTop(s) {
   if (!s.P.lib.length) return;
   const c = s.P.lib.shift();
   s.P.mana.push({ ...c, tapped: true });
+  return manaIn(s, 1);
 }
 
 // やまふだから きほんカードを n まい さがして、タップ状態で マナゾーンに（MTG の「基本土地を さがす」。強い カードを マナに しない）
@@ -267,15 +268,26 @@ export function rampBasic(s, n = 1) {
     const [c] = s.P.lib.splice(i, 1);
     s.P.mana.push({ ...c, tapped: true });
   }
-  if (k) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}きほんカードを ${k}まい さがして マナゾーンへ`); }
+  if (k) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}きほんカードを ${k}まい さがして マナゾーンへ`); manaIn(s, k); }
   return k;
 }
 export const basicsInLib = (s) => s.P.lib.filter((c) => c.def.basic).length;
+
+// 上陸（第3弾の 緑）：マナゾーンに カードが 置かれるたび（1まい ごとに 1回）
+export function manaIn(s, n) {
+  if (s.P.flags.manaInT !== s.turn) s.P.flags.manaInN = 0;
+  s.P.flags.manaInT = s.turn; s.P.flags.manaInN += n; // この ターンに マナゾーンに 置いた 数（あらわれる 数列 G107）
+  for (let i = 0; i < n; i++) for (const q of [...s.P.bf]) if (q.def.landfall && onBf(s, q)) { L(s, `じょうりく：${q.def.name}`); q.def.landfall(s, q, api); }
+}
+export const landfallNow = (s) => s.P.flags.manaInT === s.turn;
+export const manaInNow = (s) => (s.P.flags.manaInT === s.turn ? s.P.flags.manaInN : 0);
+export const gainedNow = (s) => (s.P.flags.gainedT === s.turn ? s.P.flags.gainedN : 0);
 
 export function charge(s, c, tapped = colorsOf(c.def).length > 1) {
   s.P.hand.splice(s.P.hand.indexOf(c), 1);
   s.P.mana.push({ ...c, tapped });
   L(s, `${foe(s, 'P')}マナ：${c.def.name}`);
+  manaIn(s, 1);
   // きほんの もんしょう レベル2：きほんカードを マナに おくと、その こうかも おきる（あいては じどうで えらぶ。占術は 人が えらぶ ので Promise を かえす）
   if (c.def.basic && s.P.emblem?.basicCharge) {
     const r = c.def.play?.(s, api, { phase: 2, c, charge: true });
@@ -329,7 +341,7 @@ export function basePT(s, p) {
   const d = levelRow(p) || p.def;
   const P = p.setPT ? p.setPT[0] : p.base2 ? 2 : typeof d.pow === 'function' ? d.pow(s, p, api) : (d.pow ?? 0);
   const T = p.setPT ? p.setPT[1] : typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
-  return [P, T];
+  return p.auraPT && !p.setPT ? [...p.auraPT] : [P, T];
 }
 export function pt(s, p) {
   const d = levelRow(p) || p.def;
@@ -337,6 +349,7 @@ export function pt(s, p) {
   let T = typeof d.tou === 'function' ? d.tou(s, p, api) : (d.tou ?? 0);
   if (p.base2) P = 2;
   if (p.setPT) [P, T] = p.setPT;
+  if (p.auraPT) [P, T] = p.auraPT; // オーラで もとの P/T が かわる（カエルに なれ U90）。ターンを こえても のこる
   P += p.ctr - (p.mctr || 0) + p.mP; T += p.ctr - (p.mctr || 0) + p.mT;
   if (p.side === 'E' && s.E.buff && isCreature(p)) { P += s.E.buff; T += s.E.buff; } // むげんの とう：しゅうかいごとに つよく なる
   for (const q of s[p.side].bf) if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
@@ -493,6 +506,13 @@ export function costOf(s, d) {
 // この ターンに 敵が うけた ダメージ（本体と クリーチャー）
 export const dmgThisTurn = (s) => (s.E.flags.dmgT === s.turn ? s.E.flags.dmgTaken : 0);
 const noteDmg = (s, n) => { if (s.E.flags.dmgT !== s.turn) { s.E.flags.dmgT = s.turn; s.E.flags.dmgTaken = 0; } s.E.flags.dmgTaken += n; };
+// 墓地から 唱えられる とき：フラッシュバック・降霊（うらの すがた）・リエール（インスタントと ソーサリーは みな フラッシュバック）
+export function gyCast(s, d) {
+  if (d.flashback) return { ...d.flashback, kind: 'flashback' };
+  if (d.disturb) return { cost: d.disturb.cost, req: d.disturb.req, kind: 'disturb' };
+  if ((d.types.includes('instant') || d.types.includes('sorcery')) && s.P.bf.some((q) => q.def.allFlashback)) return { cost: d.cost, req: colorsOf(d), kind: 'flashback' };
+  return null;
+}
 // ライブラリーの 上から N まいを 墓地へ（切削）
 export function mill(s, n) {
   const c = s.P.lib.splice(0, n); s.P.gy.push(...c);
@@ -531,6 +551,7 @@ export function boostDmg(s, n, src, enemy) {
   for (const q of s.P.bf) {
     if (q.def.redPlus && enemy && (src ? colorsOf(src.def).includes('R') : s.resolvingRed)) n += q.def.redPlus;
     if (q.def.dmgMult) n *= q.def.dmgMult;
+    if (q.def.giantDouble && src && (src.def.sub || []).includes('giant')) n *= 2; // わざわいを まねく 巨人（R90）：巨人の ダメージは 2倍
   }
   return n;
 }
@@ -577,7 +598,17 @@ export function hurt(s, n, src) {
 // ライフが 0：オンラインバトルで あいても 0 なら ひきわけ
 const dead = (s) => (s.floor.id === 'pvp' && s.E.life <= 0 ? 'draw' : 'lose');
 
-export function gainLife(s, n) { if (!s.P.noLifeGain && n > 0) { s.P.life += n; zzBreak(s, 'W', '白：ライフを えた'); } }
+export function gainLife(s, n) {
+  if (s.P.noLifeGain || n <= 0) return;
+  s.P.life += n; zzBreak(s, 'W', '白：ライフを えた');
+  if (s.P.flags.gainedT !== s.turn) { s.P.flags.gainedT = s.turn; s.P.flags.gainedN = 0; }
+  s.P.flags.gainedN += n; // この ターンに えた ライフ（腕ききの 錬金術師 G108）
+  for (const q of [...s.P.bf]) if (q.def.onGain && onBf(s, q)) q.def.onGain(s, q, api, n); // ライフを えるたび（太陽の 冠の ヘリオッド W44）
+  // 死なずの 騎士（KG09）：その ターン はじめて ライフを えたとき、墓地から 手札へ
+  if (s.P.flags.gainT === s.turn) return;
+  s.P.flags.gainT = s.turn;
+  for (const c of s.P.gy.filter((x) => x.def.backOnGain)) { s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.hand.push(c); L(s, `${foe(s, 'P')}ぼちから てふだへ：${c.def.name}`); }
+}
 
 // 「敵に～点」（本体がある階は本体、ない階はAIが選んだ敵のパーマネント）
 export function hitEnemy(s, n, src, o = {}) {
@@ -651,6 +682,7 @@ export function leave(s, p, to = 'gy', o = {}) {
   side.bf.splice(side.bf.indexOf(p), 1);
   // 手札に もどす：手札の ない 塔の 敵は、かわりに やまふだの 一番上へ（つぎの ターンに また めくられて 出てくる）。トークンは きえる
   if ((to === 'hand' && !side.hand) || to === 'lib') to = 'lib';
+  if (to === 'gy' && p.def.exileOnLeave) to = 'exile'; // 降霊で 出た うらの すがたは 墓地の かわりに 追放
   if (!p.token) {
     const c = { uid: p.uid, def: p.card };
     // 統率者は 墓地・追放・手札・やまふだの かわりに 統率領域へ もどる
@@ -769,6 +801,8 @@ export function canBlock(s, b, a) {
   if (b.def.blockOnlyFlyers && !hasKw(s, a, 'flying')) return false;
   if (a.flags.turn?.hasteOnly && !hasKw(s, b, 'haste')) return false;
   if (s.smallCantBlock === s.turn && power(s, b) <= 1) return false;
+  if (s.groundCantBlock === s.turn && !hasKw(s, b, 'flying')) return false;
+  if (b.noBlockT === s.turn) return false; // この ターン ブロックできない（ろうかの 見はり R101） // 最初の 噴火（R96 の 英雄譚 I）：ひこうの ない クリーチャーは ブロックできない
   if (s.cantBlock3 === s.turn && power(s, b) <= 3) return false;
   if (a.def.minBlockPow && power(s, b) < a.def.minBlockPow) return false; // はがね葉の チャンピオン：パワー 2 いかには ブロックされない
   if (hasKw(s, a, 'flying') && !hasKw(s, b, 'flying') && !hasKw(s, b, 'reach')) return false;
@@ -940,5 +974,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
 });

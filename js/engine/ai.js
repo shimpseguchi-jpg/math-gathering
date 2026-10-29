@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, gyCast, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
   zzBreak, useBreak, BREAK_ALL, BREAK_ONE, BREAK_FACE, ZZ_BLUE,
 } from './game.js';
 
@@ -92,7 +92,8 @@ export function castCard(s, c, pl, o = {}) {
     c.def = { ...c.def, perp: true, pow: typeof P0 === 'function' ? (a, b, e) => P0(a, b, e) + k : (P0 ?? 0) + k, tou: typeof T0 === 'function' ? (a, b, e) => T0(a, b, e) + k : (T0 ?? 0) + k };
     L(s, `おんけい：${c.def.name} は えいきゅうに ＋${k}/＋${k}`);
   }
-  const P = s.P, def = c.def, from = o.from || 'hand';
+  const P = s.P, from = o.from || 'hand';
+  const def = from === 'gy' && c.def.disturb ? c.def.disturb.back : c.def; // 降霊：うらの すがたで 出る
   if (from === 'hand') P.hand.splice(P.hand.indexOf(c), 1);
   else if (from === 'gy' || from === 'escape' || from === 'madness') P.gy.splice(P.gy.indexOf(c), 1);
   else if (from === 'cmd') { P.cmd.splice(P.cmd.indexOf(c), 1); P.cmdCasts = (P.cmdCasts || 0) + 1; L(s, `${s.swapped ? 'てき：' : ''}とうそつりょういきから（つぎは ＋${(P.cmdStep ?? 2) * P.cmdCasts}マナ）`); }
@@ -122,7 +123,7 @@ export function castCard(s, c, pl, o = {}) {
       if (ep) { pay(s, ep); L(s, `ゆすり：${q.def.name}`); api.hitEnemy(s, 1, null); api.gain(s, 1); for (const r of [...P.bf]) r.def.onExtort?.(s, r, api); }
     }
   }
-  if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: def, chosen: o.chosen, escaped: from === 'escape', kicked: !!o.kicked }); sba(s); return; }
+  if (isPermDef(def)) { enter(s, 'P', def, { ctr: (o.ctr || 0) + (from === 'escape' ? def.escape.ctr || 0 : 0), convoked, card: c.def, chosen: o.chosen, escaped: from === 'escape', kicked: !!o.kicked }); sba(s); return; }
   const done = () => {
     if (from === 'escape' || from === 'madness') P.gy.push(c);
     else if (from === 'gy' || (o.free && from !== 'lib')) P.exile.push(c); // やまふだから タダで 唱えた ものは ふつうに 墓地へ
@@ -216,9 +217,10 @@ function bestowOptions(s, c, phase) {
 // いちばん 少ない マナ（墓地を できるだけ 使う）。AI は いつも これで 唱える
 export const escapeMin = (s, d) => Math.max(1, d.escape.total - (s.P.gy.length - 1));
 function optionsFor0(s, c, phase, from) {
-  const def = c.def;
-  const cost = from === 'gy' ? def.flashback.cost : from === 'escape' ? escapeMin(s, def) : (from === 'cmd' ? cmdCost(s, def) : costOf(s, def));
-  const req = from === 'gy' ? def.flashback.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
+  const gc = from === 'gy' && gyCast(s, c.def);
+  const def = gc?.kind === 'disturb' ? c.def.disturb.back : c.def;
+  const cost = gc ? gc.cost : from === 'escape' ? escapeMin(s, def) : (from === 'cmd' ? cmdCost(s, def) : costOf(s, def));
+  const req = gc ? gc.req : from === 'escape' ? def.escape.req || colorsOf(def) : colorsOf(def);
   const o = { convoke: def.kw?.includes('convoke'), sickOnly: phase === 1, req2: def.req2, lifeKeep: c.conj ? 5 : 0 };
   if (def.discardCost && from === 'hand' && s.P.hand.length - 1 < def.discardCost) return [];
   const mul = def.xMul || 1;
@@ -370,7 +372,7 @@ function main(s, phase) {
   for (let guard = 0; guard < 40 && !s.over; guard++) {
     const opts = [];
     for (const c of [...s.P.hand]) if (!c.locked) opts.push(...optionsFor(s, c, phase, 'hand'));
-    for (const c of s.P.gy) if (c.def.flashback) opts.push(...optionsFor(s, c, phase, 'gy'));
+    for (const c of s.P.gy) if (gyCast(s, c.def)) opts.push(...optionsFor(s, c, phase, 'gy'));
     for (const c of s.P.cmd || []) opts.push(...optionsFor(s, c, phase, 'cmd'));
     for (const c of s.P.gy) if (c.def.escape) opts.push(...optionsFor(s, c, phase, 'escape'));
     if (phase === 1 && s.P.bf.some((q) => q.def.unearthAll)) for (const c of s.P.gy) if (isCrDef(c.def)) opts.push(...unearthOption(s, c));
