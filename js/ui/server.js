@@ -1,14 +1,20 @@
 // GAS 版の サーバー（gas/Code.gs）と つなぐ ところ。サーバーが ない とき（GitHub Pages など）は 何も しない
 // はじめに mtgConfig を よんで、先生の せってい（パックの 弾・つかわない 弾・レイドの 期間）と、ひらいた 人が 先生か どうかを もらう
+import { busy } from './loading.js';
+
 export const hasServer = () => !!(window.google && window.google.script && window.google.script.run);
-export function call(fn, arg, ms = 20000) {
+// まって いる あいだは「よみこみちゅう」を 出す（quiet の ときは 出さない）
+export function call(fn, arg, ms = 20000, quiet = false) {
+  if (!quiet) busy(true);
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('つながらなかった')), ms);
     window.google.script.run
       .withSuccessHandler((r) => { clearTimeout(t); resolve(r); })
       .withFailureHandler((e) => { clearTimeout(t); reject(e); })[fn](arg);
-  });
+  }).finally(() => { if (!quiet) busy(false); });
 }
+// うしろで おくるだけ（まって いない）の ときは「よみこみちゅう」を 出さない（しゅぎょうの 点 など）
+export const send = (fn, arg) => call(fn, arg, undefined, true);
 
 // せってい：つながらない ときの ために この 端末にも おぼえて おく
 const KEY = 'mtg-server-conf';
@@ -17,7 +23,7 @@ export let CONF = (() => { try { return { ...EMPTY, ...JSON.parse(localStorage.g
 export async function loadConf() {
   if (!hasServer()) return CONF;
   try {
-    CONF = { ...EMPTY, ...(await call('mtgConfig', undefined, 10000)) };
+    CONF = { ...EMPTY, ...(await call('mtgConfig', undefined, 10000, true)) }; // はじめは がめんに よみこみちゅうが 出て いる
     try { localStorage.setItem(KEY, JSON.stringify(CONF)); } catch { /* この あいだだけ */ }
   } catch { /* つながらない ときは まえの せってい */ }
   return CONF;

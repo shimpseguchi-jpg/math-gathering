@@ -16,7 +16,7 @@ const rows = (n) => (book.sheets[n]?.sh.cells || []).slice(1).filter((r) => r &&
 // ---- はじめ ----
 const c0 = G.mtgConfig();
 ok(c0.login && !c0.admin && c0.sets === null && c0.raid && c0.raid.id === 'tarkir-1', 'mtgConfig（子ども・はじめ）');
-ok(rows('せってい').length === 8, 'せってい シートが できる');
+ok(rows('せってい').length === 9, 'せってい シートが できる');
 throws(() => G.mtgAdminGet(), '子どもは 管理画面を ひらけない');
 
 // ---- ゴースト ----
@@ -78,6 +78,12 @@ ok(a.admins.length === 1 && a.admins[0][0] === 'tanaka@school.ed.jp' && a.codes.
 setUser('tanaka@school.ed.jp');
 const c1 = G.mtgConfig();
 ok(c1.admin && String(c1.sets) === '1,2,3' && String(c1.ban) === '10,11' && c1.raid.ends === Date.UTC(2026, 11, 1, 11), `シートに 書いた 先生も かんりしゃ・せってい ${JSON.stringify(c1)}`);
+// 開発モードで レイドを 出さない → レイドなし（点と ゴーストは のこる）
+G.mtgAdminSave({ conf: { 'レイドを出す': '出さない' } });
+ok(G.mtgConfig().raid === null, 'レイドを 出さない');
+throws(() => G.mtgRaidAdd({ id: 'tarkir-1', f: 'human', c: 'AB02', w: 1 }), '出さない ときは レイドの 点を たせない');
+G.mtgAdminSave({ conf: { 'レイドを出す': '出す' } });
+ok(G.mtgConfig().raid?.id === 'tarkir-1' && G.mtgRaidState({ id: 'tarkir-1' }).f.human === 18, 'また 出すと つづきから');
 
 // ---- あいことば ----
 setUser('taro@school.ed.jp');
@@ -120,6 +126,12 @@ throws(() => G.mtgAdminUpdate(), '子どもは 最新に できない');
 // ---- SHEET_ID（データを 学校の ドライブの シートに）----
 { const m = makeGas(); m.props.SHEET_ID = ' SCHOOL '; ok(m.G.mtgConfig().login, 'SHEET_ID の シートを つかう'); }
 { const m = makeGas(); m.props.SHEET_ID = 'NOPE'; throws(() => m.G.mtgRanking(), 'SHEET_ID が まちがって いたら エラー'); }
+
+// ---- ひっこし（エディタで 実行する）は 先生だけ ----
+{ const m = makeGas('taro@school.ed.jp'); m.props['deck:2-00000001'] = JSON.stringify({ s: 3, n: [1, 2], p: 'R', u: 0 });
+  throws(() => m.G.mtgMigrate(), '子どもは ひっこしを よべない');
+  m.setUser(OWNER); m.G.mtgMigrate();
+  ok((m.book.sheets['デッキの点']?.sh.cells || []).slice(1).some((r) => r && r[0] === '2-00000001'), '先生は ひっこしできる'); }
 
 // ---- index.html を 上げて いない とき（エディタに Code.gs だけ）----
 { const m = makeGas(OWNER); m.setNoFile(true);

@@ -5,6 +5,7 @@ import { CATS, pointsFor, passed } from '../data/quiz.js';
 import { sheet, esc, ruby, info, noRuby, toast } from './view.js';
 import { studyScreen } from './study.js';
 import { DEV, extraOff } from './settings.js';
+import { studyTicket, studyLeft, STUDY_DAY_MAX } from './collection.js';
 
 const KEY = 'mtg-emblem-v1';
 const HOUR = 3600 * 1000;
@@ -39,6 +40,8 @@ function recordQuiz(r, mode) {
   const pass = passed(n, ok);
   const gain = mode === 'gate' ? (pass ? GATE_PTS : 0) : pointsFor(n, ok) + (mode === 'bonus' && pass ? BONUS_PTS : 0);
   if (mode === 'bonus' && pass) r.bonus = BONUS_PTS;
+  // こうちくモードの パックけん：ごうかくで 1まい（1日 5まいまで。docs/CONSTRUCTED.md）
+  if (pass) { r.ticket = studyTicket(); r.ticketNote = r.ticket ? `きょう あと ${studyLeft()}まい` : `きょうの パックけん（${STUDY_DAY_MAX}まい）は もう もらった。また あした！`; }
   M.pts += gain;
   M.total.quiz++; if (gain) { M.total.pass++; M.total.pts += gain; }
   M.log = [{ t: Date.now(), n, ok, gain }, ...M.log].slice(0, 20);

@@ -6,6 +6,8 @@ import { soundOn, setSound } from './sfx.js';
 import { ruby, sheet } from './view.js';
 import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 import { hasServer, call, CONF, setSaved, packSave, unpackSave } from './server.js';
+import { openAllSaved, setOpenAll } from './collection.js';
+import { raidHidden, setRaidHidden } from './raidstore.js';
 
 // デバッグモード（開発用の 項目：弾・こうこく・プレイマットを 自由に かえる）
 // WEB版（サーバーなし）は いつも オン。GAS 版は 先生（かんりしゃ）が 開発モードの 画面で オンに した 端末だけ。子どもには 出ない
@@ -56,11 +58,18 @@ const banned = () => (hasServer() ? CONF.ban || [] : []);
 export const extraOff = () => [...new Set([...off, ...banned()])];
 const setExtraOff = (v) => { off = v; try { localStorage.setItem(OFF_KEY, JSON.stringify(v)); } catch { /* この あいだだけ */ } };
 const EXTRA_EMBLEM = Object.fromEntries(EMBLEMS.filter((e) => e.fx.packExtra).map((e) => [e.fx.packExtra, e]));
-// みため（2026-10-26）：'classic'（いまの みため）か 'gba'（ドット。ゲームボーイアドバンスの ころの カードゲーム ふう）
+// みため（2026-10-26）：'classic'（いまの みため）・'gba'（ドット。ゲームボーイアドバンスの ころの カードゲーム ふう）
+// ・'clear'（くっきり。2026-10-28：白い 画面に 黒い 文字・太い わく・大きめの 文字。明るい 教室や テレビで 見やすい）
 const THEME_KEY = 'mtg-theme';
-export const theme = () => { try { return localStorage.getItem(THEME_KEY) === 'gba' ? 'gba' : 'classic'; } catch { return 'classic'; } };
+const THEMES = ['classic', 'gba', 'clear'];
+export const theme = () => { try { const t = localStorage.getItem(THEME_KEY); return THEMES.includes(t) ? t : 'classic'; } catch { return 'classic'; } };
 export const applyTheme = (t = theme()) => { document.documentElement.dataset.theme = t; };
 const setTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できなくても この あいだは かわる */ } applyTheme(t); };
+// ぜんぶ あそべる（2026-10-29）：ひらく じゅんばん（unlock.js）を とばす。デバッグモードだけ（先生の たしかめ・e2e）
+const UNLOCK_KEY = 'mtg-unlock-all';
+let unlockAllOn = (() => { try { return localStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; } })();
+export const unlockAll = () => DEV && unlockAllOn;
+const setUnlockAll = (v) => { unlockAllOn = v; try { localStorage.setItem(UNLOCK_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } };
 // ぼうけんの まえと おわりの しゅぎょう（広告。docs/EMBLEMS.md 8章）。開発モードでは せっていで オフに できる
 const AD_KEY = 'mtg-ads-off';
 let adsOff = (() => { try { return localStorage.getItem(AD_KEY) === '1'; } catch { return false; } })();
@@ -80,7 +89,8 @@ export function settingsScreen(app, back, o = {}) {
       <h2>せってい</h2>
       <section class="st-sec">
         <h3>みため</h3>
-        <div class="row-btns st-theme">${[['classic', 'いまの みため'], ['gba', 'ドット（GBA ふう）']].map(([k, l]) => `<button type="button" class="btn ${theme() === k ? 'primary' : ''}" data-look="${k}" aria-pressed="${theme() === k}">${l}</button>`).join('')}</div>
+        <p class="st-note">${ruby('「くっきり」は 白い 画面に 黒い 文字・太い わく・大きめの 文字。明るい ところや テレビに うつす ときに 見やすい。')}</p>
+        <div class="row-btns st-theme">${[['classic', 'いまの みため'], ['gba', 'ドット（GBA ふう）'], ['clear', 'くっきり（見やすい）']].map(([k, l]) => `<button type="button" class="btn ${theme() === k ? 'primary' : ''}" data-look="${k}" aria-pressed="${theme() === k}">${l}</button>`).join('')}</div>
       </section>
       <section class="st-sec">
         <h3>プレイマット</h3>
@@ -110,6 +120,21 @@ export function settingsScreen(app, back, o = {}) {
         <button type="button" class="btn" data-ads="1" aria-pressed="${adsOn()}">こうこく ${adsOn() ? 'あり' : 'なし'}</button>
       </section>
       <section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>ひらく じゅんばん</h3>
+        <p class="st-note">${ruby('ふつうは、チュートリアル → ストーリー 1章 → テーロスの とう、「ふつう」で のぼりきると「むずかしい」と ラヴニカ。オンに すると ぜんぶ あそべる。')}</p>
+        <button type="button" class="btn" data-unlock="1" aria-pressed="${unlockAll()}">ぜんぶ あそべる ${unlockAll() ? 'オン' : 'オフ'}</button>
+      </section>
+      ${hasServer() ? '' : `<section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>レイド</h3>
+        <p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
+        <button type="button" class="btn" data-raid="1" aria-pressed="${!raidHidden()}">レイド ${raidHidden() ? 'なし' : 'あり'}</button>
+      </section>`}
+      <section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>${ruby('こうちくモード：カードを ぜんぶ 開放（かいほう）')}</h3>
+        <p class="st-note">${ruby('こうちくモードで、ぜんぶの カードを 4まいずつ もって いる ことに する。ほんとうの もちものと パックけんは のこり、なしに すると もどる。')}</p>
+        <button type="button" class="btn" data-allcards="1" aria-pressed="${openAllSaved()}"><span>${ruby('ぜんぶ 開放（かいほう）')} ${openAllSaved() ? 'あり' : 'なし'}</span></button>
+      </section>
+      <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
         <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
@@ -128,6 +153,9 @@ export function settingsScreen(app, back, o = {}) {
     const th = e.target.closest('[data-look]'); if (th) { setTheme(th.dataset.look); draw(); }
     const mt = e.target.closest('button[data-mat]'); if (mt && !mt.disabled) { useMat(mt.dataset.mat); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
+    if (e.target.closest('[data-unlock]')) { setUnlockAll(!unlockAll()); draw(); }
+    if (e.target.closest('[data-raid]')) { setRaidHidden(!raidHidden()); draw(); }
+    if (e.target.closest('[data-allcards]')) { setOpenAll(!openAllSaved()); draw(); }
     if (e.target.closest('[data-up]')) upload().then(draw);
     if (e.target.closest('[data-down]')) download();
   };

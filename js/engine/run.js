@@ -69,6 +69,9 @@ function pickFavored(rng, list, favor, colors = [], extra = [], ident = null) {
 }
 
 // o.em：パックの もんしょう { colors：出やすい 色, unc, leg }
+// こうちくモードの ショップ（docs/CONSTRUCTED.md）：o.have（もって いる まい数）が o.max まいの カードは 出ない。
+// その レアリティが ぜんぶ そろって いたら ちかい レアリティから 出す。のこりが なければ その わくは なし
+const NEAR = { C: ['C', 'U', 'R', 'L'], U: ['U', 'C', 'R', 'L'], R: ['R', 'U', 'L', 'C'], L: ['L', 'R', 'U', 'C'] };
 export function openPack(rng, o = {}) {
   const em = o.em || {};
   const odds = o.rare ? RARE_ODDS : packOdds(o.cleared || 0, em);
@@ -77,15 +80,23 @@ export function openPack(rng, o = {}) {
   const inOnly = (d) => { const cs = colorsOf(d); return cs.length && cs.every((c) => o.only.includes(c)); };
   const pool = o.only?.length ? Object.fromEntries(Object.entries(base).map(([r, l]) => [r, l.filter(inOnly)])) : base;
   if (pool !== base && !pool.C.length) pool.C = pool.U.length ? pool.U : base.C;
-  const take = (r) => pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || [], em.ident || null);
+  let got = {}; // この パックで 出た まい数（o.have と あわせて o.max まで）
+  const room = (d) => (o.have[d.id] || 0) + (got[d.id] || 0) < o.max;
+  const takeLeft = (r) => {
+    for (const k of NEAR[r]) { const l = pool[k].filter(room); if (l.length) { const d = pick(rng, l); got[d.id] = (got[d.id] || 0) + 1; return d; } }
+    return null;
+  };
+  const take = (r) => (o.have ? takeLeft(r) : pickFavored(rng, pool[r].length ? pool[r] : pool.C, o.favor, em.colors || [], em.extra || [], em.ident || null));
   for (let tries = 0; ; tries++) {
+    got = {};
     const cards = [];
     for (let i = 0; i < PACK.C; i++) cards.push(take(rng() < odds.cToU ? 'U' : 'C'));
     for (let i = 0; i < PACK.U; i++) cards.push(take(rng() < odds.uToR ? 'R' : 'U'));
     for (let i = 0; i < PACK.R; i++) cards.push(take(rng() < odds.rToL ? 'L' : 'R'));
     const surprise = rng() < odds.surprise;
-    if (surprise) cards[0] = take('L');
+    if (surprise) { if (o.have && cards[0]) got[cards[0].id]--; cards[0] = take('L'); }
     if (em.unc) cards.push(take(rng() < odds.uToR ? 'R' : 'U')); // アンコモンの もんしょう：9まいめ
+    if (o.have && cards.includes(null)) { const left = cards.filter(Boolean); left.surprise = surprise && !!cards[0]; return left; } // のこりが すくない 弾
     // 1パックに 4色 いじょう（5色の ときも 4色で よい）
     const cols = new Set(cards.flatMap(colorsOf));
     if (cols.size >= 4 || pool !== base || tries >= 20) { cards.surprise = surprise; return cards; }

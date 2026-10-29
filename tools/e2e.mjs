@@ -1,18 +1,22 @@
 // ブラウザで ロボットが 冒険を 最後まで あそぶ 通しテスト（Playwright）
 //   npx http-server -p 8124 -c-1 . &  →  node tools/e2e.mjs
-// 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）
+// 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）、CHROME（つかう chromium の パス）
+//   THEME（みため：classic・gba・clear。せっていの「みため」と おなじ）
 import { chromium } from 'playwright';
+import { existsSync } from 'fs';
 const url = process.env.URL || 'http://localhost:8124/';
 const out = process.env.OUT || (await import('os')).tmpdir();
 const STEPS = Number(process.env.STEPS || 3000);
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+// 決めうちの chromium が ない 環境では、playwright の ふつうの chromium を 使う
+const CHROME = process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const browser = await chromium.launch(existsSync(CHROME) ? { executablePath: CHROME } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(url);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
-await page.evaluate((sets) => { localStorage.clear(); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); }, SETS);
+await page.evaluate(([sets, theme]) => { localStorage.clear(); localStorage.setItem('mtg-unlock-all', '1'); if (sets) localStorage.setItem('mtg-sets', JSON.stringify(sets)); if (theme) localStorage.setItem('mtg-theme', theme); }, [SETS, process.env.THEME || '']); // ぜんぶ あそべる：ひらく じゅんばん（unlock.js）を とばす
 await page.reload();
 const shots = new Set();
 async function swipe(from, to) {
@@ -22,6 +26,8 @@ async function swipe(from, to) {
   for (let i = 1; i <= 8; i++) await page.mouse.move(a.x + a.width / 2 + (b.x - a.x) * i / 8, a.y + a.height / 2 + (b.y + b.height / 2 - a.y - a.height / 2) * i / 8);
   await page.mouse.up(); await page.waitForTimeout(80);
 }
+// たたかいの ボタン・手札：しらべた あとに シートが 出ると おせない。30びょう またずに、つぎの まわりで やりなおす
+const tap = (sel) => (typeof sel === 'string' ? page.locator(sel).first() : sel).click({ timeout: 3000 }).then(() => true, (e) => { if (e.name === 'TimeoutError') return false; throw e; });
 const tag = process.env.START ? `s${process.env.START}${process.env.FLOOR3 || ''}_` : '';
 const shot = async (name) => { if (shots.has(name)) return; shots.add(name); await page.screenshot({ path: `${out}/mtg_${tag}${name}.png` }); };
 await shot('title');
@@ -39,6 +45,8 @@ if (process.env.START) {
 let ended = false, battles = 0;
 for (let i = 0; i < STEPS && !ended; i++) {
   await page.waitForTimeout(30);
+  // 用語の せつめい（点線の ことばを 長おし・2回タップで 出る。画面 ぜんぶを おおう）：タップで とじる
+  if (await page.locator('#term:not([hidden])').count()) { await shot('term'); await page.click('#term'); continue; }
   // ぼうけんの まえの しゅぎょう：はじめて すぐ やめる → もんしょうの 画面 →「ぼうけんへ すすむ」
   if (await page.locator('main.study [data-start]').count()) { await shot('gate'); await page.click('main.study [data-start]'); continue; }
   if (await page.locator('main.study.run [data-quit]').count() && !(await page.locator('#sheet:not([hidden])').count())) { await page.click('main.study.run [data-quit]'); await page.click('#sheet button:has-text("やめる")'); continue; }
@@ -81,19 +89,21 @@ for (let i = 0; i < STEPS && !ended; i++) {
     if (await page.locator('[data-act=blockauto]').count()) {
       // スワイプで ブロック（自分の クリーチャー → 攻撃してくる 敵）
       const me = page.locator('.zone.mine .perm.drag'), at = page.locator('.zone.enemy .perm.attacking');
-      if (await me.count() && await at.count()) { await swipe(me.first(), at.first()); await shot(`block${battles}`); }
-      await page.click('[data-act=blockdone]'); continue;
+      if (await me.count() && await at.count()) { await swipe(me.first(), at.first()); await shot(`block${battles}`); await page.waitForTimeout(400); } // スワイプの すぐあとの タップは むしされる
+      // 「ブロック けってい」の あとも、こうげきの 演出（fx.lunge）が おわるまで ボタンが のこる。2どおし しないよう、きえるまで まつ
+      if (await tap('[data-act=blockdone]')) await page.locator('[data-act=blockdone]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
+      continue;
     }
-    if (await page.locator('[data-act=auto]').count()) { await page.click('[data-act=auto]'); await page.click('[data-act=declare]'); continue; }
+    if (await page.locator('[data-act=auto]').count()) { if (await tap('[data-act=auto]')) await tap('[data-act=declare]'); continue; }
     // スワイプで 攻撃（自分の クリーチャー → 敵）
     const dr = page.locator('.zone.mine .perm.drag'), en = page.locator('.zone.enemy .perm');
     if (await dr.count() && await en.count() && Math.random() < 0.5) { await swipe(dr.first(), en.first()); continue; }
-    if (await page.locator('[data-act=damage]').count()) { await page.click('[data-act=damage]'); continue; }
+    if (await page.locator('[data-act=damage]').count()) { await tap('[data-act=damage]'); continue; }
     // 手札を1まい ためす → 使えたら 使う、だめなら マナに
     const hand = page.locator('.hand-slot');
-    if (await hand.count() && Math.random() < 0.7) { await hand.nth(Math.floor(Math.random() * await hand.count())).click(); continue; }
-    if (await page.locator('[data-act=attack]').count()) { await page.click('[data-act=attack]'); continue; }
-    if (await page.locator('[data-act=end]').count()) { await page.click('[data-act=end]'); continue; }
+    if (await hand.count() && Math.random() < 0.7) { await tap(hand.nth(Math.floor(Math.random() * await hand.count()))); continue; }
+    if (await page.locator('[data-act=attack]').count()) { await tap('[data-act=attack]'); continue; }
+    if (await page.locator('[data-act=end]').count()) { await tap('[data-act=end]'); continue; }
   }
 }
 await page.screenshot({ path: `${out}/mtg_last.png` });
