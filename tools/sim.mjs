@@ -13,6 +13,7 @@ import { fight, runAdventure, openPack, buildDeck } from '../js/engine/run.js';
 import { seeded } from '../js/engine/rng.js';
 import { EMBLEMS, emblemEffects } from '../js/data/emblems.js';
 import { RAV_SLOTS } from '../js/data/ravnica.js';
+import { STRIXHAVEN } from '../js/data/strixhaven.js';
 
 const N = Number(process.env.N ?? 200);
 const DIFF = process.env.DIFF ?? 'normal';
@@ -21,12 +22,12 @@ const SEED = Number(process.env.SEED ?? 1);
 const SETS = process.env.SETS ? process.env.SETS.split(',').map(Number) : undefined;
 // もんしょう（12章）：EMBLEM=life1,basic1 など。all で ぜんぶ
 const EM = process.env.EMBLEM ? (process.env.EMBLEM === 'all' ? EMBLEMS.filter((e) => !['leader', 'pack', 'color'].includes(e.branch)).map((e) => e.id) : process.env.EMBLEM.split(',')) : [];
-// PLANE=ravnica で ラヴニカの 塔（docs/RAVNICA.md）
+// PLANE=ravnica で ラヴニカの 塔（docs/RAVNICA.md）、PLANE=strixhaven で ストリクスヘイヴンの 塔（docs/STRIXHAVEN.md。COLLEGE=quandrix などで 寮を きめる・HEAL_AT・PACKS で 休み時間の AI）
 const PLANE = process.env.PLANE || 'theros';
-const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM, { pBanner: process.env.BANNER }), plane: PLANE };
+const opts = { diff: DIFF, reshuffle: RESHUFFLE, sets: SETS, emblem: emblemEffects(EM, { pBanner: process.env.BANNER }), plane: PLANE, college: process.env.COLLEGE, healAt: process.env.HEAL_AT ? Number(process.env.HEAL_AT) : undefined, packs: process.env.PACKS ? Number(process.env.PACKS) : undefined };
 
 const deckOf = (k) => SAMPLE[k].split(' ').map((id) => BY_ID[id]);
-const FLOOR_IDS = PLANE === 'ravnica' ? RAV_SLOTS.flat() : ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];
+const FLOOR_IDS = PLANE === 'ravnica' ? RAV_SLOTS.flat() : PLANE === 'strixhaven' ? Object.keys(STRIXHAVEN) : ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'erebos'];
 const pct = (x) => `${Math.round(x * 100)}%`.padStart(4);
 const avg = (a) => (a.length ? a.reduce((t, x) => t + x, 0) / a.length : 0);
 
@@ -57,9 +58,9 @@ if (mode === 'runs') {
   for (let i = 0; i < N; i++) res.push(await runAdventure({ ...opts, seed: SEED * 100000 + i }));
   const cleared = res.filter((r) => r.cleared).length;
   console.log(`冒険 ${N}回（${DIFF}）：クリア ${pct(cleared / N)}`);
-  const lost = [0, 0, 0, 0, 0, 0];
+  const top = PLANE === 'strixhaven' ? 6 : 5, lost = Array(top + 1).fill(0);
   for (const r of res) if (!r.cleared) lost[r.lostAt]++;
-  console.log('どこで終わったか：' + [1, 2, 3, 4, 5].map((f) => `${f}階 ${lost[f]}`).join('、'));
+  console.log('どこで終わったか：' + Array.from({ length: top }, (_, i) => i + 1).map((f) => `${f}階 ${lost[f]}`).join('、'));
   const byFloor = {};
   for (const r of res) for (const f of r.floors) {
     const b = (byFloor[f.floor] ||= { n: 0, win: 0, turns: [], life: [], phase: [], resh: 0 });
@@ -73,6 +74,15 @@ if (mode === 'runs') {
   const pairs = {};
   for (const r of res) { const p = r.decks[r.decks.length - 1].pair; (pairs[p] ||= { n: 0, c: 0 }).n++; if (r.cleared) pairs[p].c++; }
   console.log('最後のデッキの2色：' + Object.entries(pairs).sort((a, b) => b[1].n - a[1].n).map(([p, v]) => `${p} ${v.n}回（クリア${pct(v.c / v.n)}）`).join('、'));
+  if (PLANE === 'strixhaven') {
+    const byC = {};
+    for (const r of res) { (byC[r.college] ||= { n: 0, c: 0 }).n++; if (r.cleared) byC[r.college].c++; }
+    console.log('寮ごと：' + Object.entries(byC).map(([k, v]) => `${k} ${v.n}回（クリア${pct(v.c / v.n)}）`).join('、'));
+    const cl = res.filter((r) => r.cleared);
+    console.log(`通知表（クリアした とき）：★ 平均 ${avg(cl.map((r) => r.stars)).toFixed(1)} / 18。休み時間 平均：保健室 ${avg(res.map((r) => r.rests.heal)).toFixed(1)}・図書室 ${avg(res.map((r) => r.rests.pack)).toFixed(1)}・授業 ${avg(res.map((r) => r.rests.grow)).toFixed(1)}`);
+    const st = {}; for (const r of res) for (const f of r.floors) if (f.result === 'win') (st[f.floor] ||= []).push(f.start);
+    console.log('階に 入る ときの ライフ（平均）：' + Object.keys(STRIXHAVEN).map((f) => `${f.replace('sx_', '')} ${avg(st[f] || []).toFixed(1)}`).join('、'));
+  }
   const real = res.map((r) => r.decks[0].real), real5 = res.filter((r) => r.decks.length === 5).map((r) => r.decks[4].real);
   console.log(`デッキのきほんカード以外の枚数：最初 ${avg(real).toFixed(1)}枚 → ボス前 ${avg(real5).toFixed(1)}枚`);
 }

@@ -304,6 +304,8 @@ function jace() {
   };
 }
 
+// ほかの 次元の 塔（ストリクスヘイヴン：data/strixhaven.js）も 使う 部品
+export const RAV_KIT = { lifeFloor, att, wall, speak, pinch };
 export const RAVNICA = { boros, selesnya, simic, izzet, golgari, azorius, rakdos, orzhov, gruul, dimir, jace };
 Object.assign(FLOORS, RAVNICA);
 export const RAV_SLOTS = [['boros', 'selesnya', 'simic'], ['izzet', 'golgari', 'azorius'], ['rakdos', 'orzhov'], ['gruul', 'dimir'], ['jace']];

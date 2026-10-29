@@ -11,6 +11,7 @@ import { spOf, spMax } from '../data/set11.js';
 // せんぎポイント ●●●○○（花火が いると 7こ）
 const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</b> ${'●'.repeat(n)}${'○'.repeat(spMax(s) - n)}`; };
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
+import '../data/strixhaven.js'; // ストリクスヘイヴンの 塔の 階も
 import { permFace, cardFace, detail, loreHtml, speak, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
 import { LORE } from '../data/lore.js';

@@ -55,10 +55,12 @@ export const GATE_PTS = 1, BONUS_PTS = 2;
 const GATE_SAY = {
   theros: { who: 'テーロスの 神々', text: 'ちしきの ない ものは、かみに えっけんする ことは できない' },
   ravnica: { who: 'ジェイス', text: 'ぼくの とうに のぼりたいなら、さいていげんの ちえを みせてくれ' },
+  strixhaven: { who: 'ストリクスヘイヴンの 先生たち', text: '入学（にゅうがく）の まえに、ちょっとした テストを しましょう' },
 };
 const MORE_SAY = {
   theros: { who: 'テーロスの 神々', text: 'もっと つよく なりたいか？' },
   ravnica: { who: 'ジェイス', text: 'もっと つよく なりたいかい？' },
+  strixhaven: { who: 'ストリクスヘイヴンの 先生たち', text: 'もっと まなびたいかな？' },
 };
 // ぼうけんの まえ：しゅぎょう（ごうかくで ＋1）→ もんしょうを えらぶ（ここで もう いちど やると ボーナス ＋2）→ next（パックへ）
 export function gateStudy(app, plane, next) {

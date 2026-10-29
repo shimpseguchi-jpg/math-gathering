@@ -3,6 +3,7 @@ import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, pac
 import { BY_ID, BASICS, SETS } from '../data/cards.js';
 import { pickFloors } from '../data/enemies.js';
 import { RAV_NAMES, pickRavnica } from '../data/ravnica.js';
+import { STRIX, COLLEGES, STRIX_NAMES, SUBJECT_OF, pickStrix, grown, growText, starsOf, gradeOf, byDiff } from '../data/strixhaven.js';
 import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
 import { startBattle } from './battle.js';
@@ -25,7 +26,7 @@ import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateS
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
-import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast, byColorCost } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast, byColorCost, pickMany } from './view.js';
 import { BANNERS } from '../data/emblems.js';
 import { gacha } from './gacha.js';
 import { constructMenu } from './construct.js';
@@ -38,10 +39,15 @@ export const FLOOR_NAMES = {
   hydra: '1階 ハイドラとの たいじ', horde: '2階 たいぐんとの たたかい', factory: '3階 ゴーレムの工場', slime: '3階 ふえるスライム',
   xenagos: '4階 神を うて', erebos: '5階 死者の神 エレボス',
   clock: '1階 からくり とけいとう', dragon: '2階 ドラゴンの たからの 山', twins: '3階 ふたごの きょじん', gorgon: '4階 メドゥーサの 石の 庭',
-  ...RAV_NAMES,
+  ...RAV_NAMES, ...STRIX_NAMES,
 };
-// せかい（プレーン）：どの 塔に のぼるか（docs/RAVNICA.md）
-const PLANES = [['theros', 'テーロス'], ['ravnica', 'ラヴニカ']];
+// せかい（プレーン）：どの 塔に のぼるか（docs/RAVNICA.md・docs/STRIXHAVEN.md）
+const PLANES = [['theros', 'テーロス'], ['ravnica', 'ラヴニカ'], ['strixhaven', 'ストリクスヘイヴン']];
+const pickFor = (plane) => (plane === 'ravnica' ? pickRavnica : plane === 'strixhaven' ? pickStrix : pickFloors)(Math.random);
+// ストリクスヘイヴン：入学式で えらんだ 寮・その 2色・階の なまえ（階の じゅんばんは ランダムなので ばんごうを つける）
+const strix = () => A?.plane === 'strixhaven';
+const college = () => (A?.college ? COLLEGES[A.college] : null);
+const floorLabel = (i) => (strix() ? `${i + 1}階 ${FLOOR_NAMES[A.floors[i]]}` : FLOOR_NAMES[A.floors[i]]);
 const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
 // ルール：統率者戦（2026-10-26）は さいしょに 伝説の クリーチャーを 統率者に えらぶ（A.cmd）
 const RULES = [['normal', 'ふつう'], ['cmd', '統率者（とうそつしゃ）戦（せん）']];
@@ -52,7 +58,7 @@ const cmdDef = () => (A?.cmd ? BY_ID[A.cmd] : null);
 const cmdIdent = () => (A?.cmd ? colorsOf(BY_ID[A.cmd]) : null);
 // ドラフトの 色（2026-10-27：デュエプレの ドラフトの ように）。2色か、旗の ある 3色を えらぶと、その 色の カード だけが 出る
 // 3色を えらぶと その 3色の 旗を 1まい もらう（デッキが 3色に できる）。統率者戦では 統率者の 色。階を のぼる ときに かえられる
-const draftCols = () => (A?.cmd ? cmdIdent() : A?.draftCols || null);
+const draftCols = () => (A?.cmd ? cmdIdent() : A?.draftCols || (college() ? [...college().cols] : null));
 const colsText = (cs) => ['W', 'U', 'K', 'R', 'G'].filter((c) => cs.includes(c)).map((c) => COLOR_NAME[c]).join('・'); // いつもの じゅん（白・青・黒・赤・緑）
 // デュエプレの ように：2色か 3色（旗つき）の くみあわせが ランダムに 3つ 出て、そこから 1つ えらぶ
 const PAIRS = ['WU', 'UK', 'KR', 'RG', 'GW', 'WK', 'UR', 'KG', 'RW', 'GU'];
@@ -183,16 +189,17 @@ export function title() {
     const draft = app().querySelector('input[name=get]:checked')?.value === 'draft';
     // 統率者戦：さいしょに 統率者を えらぶ → しゅぎょう（広告の ように）→ もんしょうを えらぶ → パック
     const begin = async () => {
-    const cmd = rule === 'cmd' ? await pickLegend({ back: 'タイトルへ' }) : null;
-    if (rule === 'cmd' && !cmd) return title();
+    const cmd = rule === 'cmd' && plane !== 'strixhaven' ? await pickLegend({ back: 'タイトルへ' }) : null; // ストリクスヘイヴンは 統率者戦 なし（入学式の 2色）
+    if (rule === 'cmd' && plane !== 'strixhaven' && !cmd) return title();
     const start = () => {
       if (old && !old.paid) payTower(old, false); // とちゅうで やめた ぼうけん：のぼった 階の パックけん
       // パックの もんしょう：きまぐれな いろは ここで きめる。はじめの 旗は さいしょから もつ
       const pk = activeEffects()?.pack;
       const cols = packColors(withExtra(enabledSets(), pk?.extra));
       const luck = pk?.rand ? cols[Math.floor(Math.random() * cols.length)] : null;
-      A = { diff, plane, luck, pool: pk?.banner ? [pk.banner] : [], deck: null, floors: (plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0, cmd, draft };
+      A = { diff, plane, luck, pool: pk?.banner && plane !== 'strixhaven' ? [pk.banner] : [], deck: null, floors: pickFor(plane), idx: 0, continues: 1, toOpen: 3, opened: 0, exact: 0, cmd, draft };
       save();
+      if (plane === 'strixhaven') return enroll().then(packs);
       packs();
     };
     if (adsOn()) gateStudy(app, plane, start); else start(); // 開発モードの せっていで こうこく なし
@@ -232,7 +239,23 @@ function emblemPackNote(em) {
   if (em.leg) out.push(`<span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(A.idx, em) * 100)}%</b>（もんしょう）</span>`);
   return out.join('');
 }
-function resume() { if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
+function resume() { if (strix() && !A.college) return enroll().then(resume); if (A.recess) return recess(); if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
+
+// ---- ストリクスヘイヴン：入学式（寮を えらぶ）----
+async function enroll() {
+  const ks = Object.keys(COLLEGES);
+  app().innerHTML = `<main class="tower"><p class="eyebrow">ストリクスヘイヴン</p><h2>${ruby('入学式（にゅうがくしき）')}</h2></main>`; // うしろの 画面
+  const v = await sheet(`<p>${ruby('魔法（まほう）学院（がくいん）ストリクスヘイヴンへ ようこそ！ 5つの 寮（りょう）から 1つ えらぼう。デッキは その 寮（りょう）の 2色に なり、パックからも その 2色の カードだけが 出る。')}</p>`,
+    ks.map((k) => { const c = COLLEGES[k]; return { label: `<span>${c.cols.split('').map((x) => `<i class="pip m-${x}">${COLOR_NAME[x]}</i>`).join(' ')} ${ruby(c.name)}（${c.subject}）</span>`, value: k, kind: 'primary', note: ruby(`入学いわい：${[].concat(c.gift).map((id) => info(BY_ID[id]).name).join('・')}`) }; }),
+    { title: ruby('入学式（にゅうがくしき）'), dismiss: false });
+  const c = COLLEGES[v];
+  const cap = byDiff(STRIX.life, A.diff) + (activeEffects()?.life || 0);
+  Object.assign(A, { college: v, cap, life: cap, grow: {}, report: [] });
+  A.pool.push(...[].concat(c.gift));
+  save();
+  await sheet(`<p>${ruby(`${c.name}に 入学（にゅうがく）した！ 入学いわいに ${[].concat(c.gift).map((id) => info(BY_ID[id]).name).join('と ')}を もらった。`)}</p><p>${ruby(`ライフは ${cap}。かっても まけても、のこった ライフで つぎの 階へ すすむ（${cap}より ふえない）。階と 階の あいだの 休み時間に、保健室（ほけんしつ）・図書室・授業（じゅぎょう）から 1つ えらべるよ。`)}</p>`,
+    [{ label: 'パックを あける', value: 1, kind: 'primary' }], { title: ruby(`${c.name}の 寮（りょう）`), dismiss: false });
+}
 
 // ---- パック開封（ガチャの 演出は gacha.js） ----
 function packs() {
@@ -244,8 +267,9 @@ function packs() {
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
   if (A.draft && !draftCols()) return chooseDraftColors().then(() => packs()); // ドラフト：さいしょに 色を えらぶ
-  const only = A.draft ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ
-  const roll = () => openPack(Math.random, { cleared, favor, sets: withExtra(enabledSets(), pk?.extra), em, rare, only });
+  const only = A.draft || college() ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ。ストリクスヘイヴンは 寮の 2色だけ
+  const sets = college() ? STRIX.sets : withExtra(enabledSets(), pk?.extra); // ストリクスヘイヴン：ファウンデーションズ ＋ 第5弾
+  const roll = () => openPack(Math.random, { cleared, favor, sets, em, rare, only });
   if (A.draft) return draftPick(roll);
   const cards = roll();
   const bonus = rare ? `<div class="bonus"><p class="bonus-title">むげんの とう さんせんの レアパック</p>
@@ -278,7 +302,7 @@ function draftPick(roll) {
     <div class="pk-top"><p class="eyebrow">ドラフト　パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}　えらぶ ${A.pick.n + 1} / ${DRAFT_PER_PACK}</p>
       <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>
     <h2>${DRAFT_SHOW}まいから 1まい えらぼう</h2>
-    <p class="dr-cols">${ruby(`ドラフトの 色：${colsText(draftCols() || [])}`)}${!A.cmd && A.idx > 0 && A.pick.n === 0 ? ' <button type="button" class="btn" data-dcol="1">色を かえる</button>' : ''}</p>
+    <p class="dr-cols">${ruby(`ドラフトの 色：${colsText(draftCols() || [])}`)}${!A.cmd && !college() && A.idx > 0 && A.pick.n === 0 ? ' <button type="button" class="btn" data-dcol="1">色を かえる</button>' : ''}</p>
     <div class="draft-row">${opts.map((id) => `<button type="button" class="draft-card" data-pick="${id}">${fullCard(BY_ID[id])}${have(id) ? `<span class="dr-have">もって いる ${have(id)}まい</span>` : ''}</button>`).join('')}</div>
     <p class="hint">タップで せつめい → えらぶ。${A.cmd ? ruby(`統率者（とうそつしゃ）の 色：${cmdIdent().map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}。`) : ''}いま もって いる カード ${A.pool.length}まい（${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}）</p>
   </main>`;
@@ -300,7 +324,7 @@ function draftPick(roll) {
 
 // ---- デッキ構築 ----
 function autoDeck() {
-  const b = buildDeck(defs(A.pool), A.cmd ? { pair: cmdIdent() } : {});
+  const b = buildDeck(defs(A.pool), A.cmd ? { pair: cmdIdent() } : college() ? { pair: [...college().cols] } : {});
   const used = new Set(), sel = [];
   for (const d of b.deck) {
     if (d.basic) continue;
@@ -320,7 +344,7 @@ export function finalDeck() {
   const { ds, colors } = deckStats(A.deck);
   // 冒険の あいだ ずっと（アルケミー YW05・YG05）：クリアした 階の 数だけ 強く なる
   const g = A.idx || 0;
-  const deck = ds.map((d) => (d.id === 'YW05' && g ? { ...d, pow: d.pow + g, tou: d.tou + g } : d.id === 'YG05' && g ? { ...d, grow: 1 + g } : d));
+  const deck = ds.map((d) => (d.id === 'YW05' && g ? { ...d, pow: d.pow + g, tou: d.tou + g } : d.id === 'YG05' && g ? { ...d, grow: 1 + g } : d)).map((d) => grown(d, A.grow?.[d.id] || 0)); // ストリクスヘイヴンの 授業
   const cnt = Object.fromEntries(colors.map((c) => [c, ds.filter((d) => colorsOf(d).includes(c)).length]));
   const order = colors.length ? [...colors].sort((a, b) => cnt[b] - cnt[a]) : ['C'];
   const fill = colors.length ? order : cmdIdent()?.length ? cmdIdent() : order;
@@ -544,17 +568,61 @@ export function deckBuilder(C = advCtx()) {
 }
 
 // ---- 塔 ----
+const TOWER_TITLE = { theros: 'テーロスの とう', ravnica: 'ラヴニカの とう', strixhaven: 'ストリクスヘイヴンの とう（魔法（まほう）学院（がくいん））' };
+const starText = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
+const reportStars = () => (A.report || []).reduce((t, x) => t + x.stars, 0);
+// 授業で そだった カード（塔の 画面）
+const grownLine = () => { const g = Object.entries(A.grow || {}).filter(([, n]) => n > 0); return g.length ? `<p class="deckline">${ruby(`そだった カード：${g.map(([id, n]) => `${info(BY_ID[id]).name} ${growText(BY_ID[id])}${n > 1 ? ` ×${n}` : ''}`).join('、')}`)}</p>` : ''; };
+// 通知表（ストリクスヘイヴンの おわり）：教科ごとの ★と ごうけい
+function reportCard() {
+  const total = reportStars(), max = A.floors.length * 3;
+  return `<section class="report"><h3>${ruby('通知表（つうちひょう）')}</h3>
+    <ul class="zk-list">${A.floors.map((f, i) => `<li class="${A.report?.[i] ? 'got' : ''}"><b>${SUBJECT_OF[f]}<small>${ruby(FLOOR_NAMES[f].replace(/（.*）$/, '').replace(/^そつぎょう しけん：/, ''))}</small></b><em class="stars">${A.report?.[i] ? starText(A.report[i].stars) : 'まだ'}</em></li>`).join('')}</ul>
+    <p class="report-total">★ <b>${total}</b> / ${max}　${gradeOf(total)}</p>
+    <p class="fine">★：かった（コンティニュー なし）・ぴったりで たおした・へった ライフが 4 いか</p></section>`;
+}
+// ---- ストリクスヘイヴン：休み時間（保健室・図書室・授業から 1つ）----
+const canGrow = (d, n) => (d.types.includes('creature') ? typeof d.pow === 'number' : grown(d, n + 1).cost < grown(d, n).cost);
+function growNote(d) {
+  const n = A.grow?.[d.id] || 0, a = grown(d, n), b = grown(d, n + 1);
+  return d.types.includes('creature') ? `${a.pow}/${a.tou} → ${b.pow}/${b.tou}` : `コスト ${a.cost} → ${b.cost}`;
+}
+async function recess() {
+  tower(); // うしろに 塔の 画面
+  const heal = byDiff(STRIX.heal, A.diff), full = A.life >= A.cap;
+  const v = await sheet(`<p>${ruby(`休み時間（やすみじかん）。つぎは ${floorLabel(A.idx)}。1つ えらぼう。`)}</p><p class="em-line">ライフ ${A.life} / ${A.cap}</p>`, [
+    { label: `<span>${ruby('保健室（ほけんしつ）で やすむ')}</span>`, value: 'heal', kind: 'primary', disabled: full, note: full ? 'ライフは もう いっぱい' : `ライフ ${A.life} ＋ ${heal} ＝ ${A.life + heal}${A.life + heal > A.cap ? `（${A.cap}まで）` : ''}` },
+    { label: '<span>図書室で パックを あける</span>', value: 'pack', kind: 'primary', note: ruby(`${college().name}の 2色の カード`) },
+    { label: `<span>${ruby('授業（じゅぎょう）を うける')}</span>`, value: 'grow', kind: 'primary', note: 'デッキの カード 1しゅるいが ずっと つよく なる' },
+  ], { title: ruby('休み時間（やすみじかん）'), dismiss: false });
+  if (v === 'grow') {
+    const list = [...new Set((A.deck ? deckStats(A.deck).ds : defs(A.pool)).map((d) => d.id))].map((id) => BY_ID[id]).filter((d) => canGrow(d, A.grow?.[d.id] || 0)).sort(byColorCost);
+    const pick = await pickMany(ruby('授業（じゅぎょう）：つよく する カードを 1しゅるい えらぶ'), list.map((d) => ({ label: `${ruby(info(d).name)}<small>${growNote(d)}</small>`, value: d.id })),
+      { min: 1, max: 1, note: 'クリーチャーは ＋1/＋1、ほかは コスト −1。ぼうけんの あいだ ずっと' });
+    if (!pick?.length) return recess();
+    A.grow = { ...(A.grow || {}), [pick[0]]: (A.grow?.[pick[0]] || 0) + 1 };
+    toast(ruby(`${info(BY_ID[pick[0]]).name}が つよく なった！`));
+  }
+  if (v === 'heal') { A.life = Math.min(A.cap, A.life + heal); toast(`ライフが ${A.life}に なった`); }
+  A.recess = false;
+  if (v === 'pack') { A.toOpen = 1; save(); return packs(); }
+  save();
+  return tower();
+}
+
 function tower() {
   if (A.endless) return endlessTower();
   const st = deckStats(A.deck);
+  const done = (i) => (strix() && A.report?.[i] ? `クリア ${starText(A.report[i].stars)}` : 'クリア');
   app().innerHTML = `<main class="tower">
     <p class="eyebrow">${DIFFS.find(([k]) => k === A.diff)[1]}　コンティニュー のこり ${A.continues}回</p>
-    <h2>${A.plane === 'ravnica' ? 'ラヴニカの とう' : 'テーロスの とう'}</h2>
-    <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${ruby(FLOOR_NAMES[f])}</span><em>${i < A.idx ? 'クリア' : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
+    <h2>${ruby(TOWER_TITLE[A.plane || 'theros'])}</h2>
+    <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${ruby(floorLabel(i))}</span><em>${i < A.idx ? done(i) : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
+    ${strix() ? `<p class="deckline">${ruby(`${college().name}の 寮（りょう）`)}　ライフ <b>${A.life}</b> / ${A.cap}</p>${grownLine()}` : ''}
     ${A.cmd ? `<p class="deckline">${ruby(`統率者（とうそつしゃ）：${info(cmdDef()).name}`)}（${cmdColorText(cmdDef()) || 'むしょく'}）</p>` : ''}
     <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     ${emblemLine() ? `<p class="em-line">もんしょう：${esc(emblemLine())}</p>` : ''}
-    <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(FLOOR_NAMES[A.floors[A.idx]])}へ</button></div>
+    <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(floorLabel(A.idx))}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
   </main>`;
   app().onclick = (e) => {
@@ -567,27 +635,34 @@ function tower() {
 
 export const CMD_BUFF_FROM = 2; // 0 から かぞえる：2 ＝ 3階（こうちくモードの れんしゅうも 同じ）
 function fight() {
-  const f = A.floors[A.idx];
+  const f = A.floors[A.idx], start = A.life;
   startBattle({
-    deck: finalDeck(), floorId: f, diff: A.diff, floorName: FLOOR_NAMES[f], emblem: activeEffects(), emblemNote: emblemLine(), cmd: cmdDef(),
+    deck: finalDeck(), floorId: f, diff: A.diff, floorName: floorLabel(A.idx), emblem: activeEffects(), emblemNote: emblemLine(), cmd: cmdDef(),
+    life: strix() ? A.life : null, // ストリクスヘイヴン：ライフを ひきつぐ
     // 統率者モード：3階から 上は てきの クリーチャーが ＋1/＋1（統率者が いると つよすぎた。docs/REQUIREMENTS.md 8.5）
-    buff: A.cmd && A.idx >= CMD_BUFF_FROM ? 1 : 0, extraNote: A.cmd && A.idx >= CMD_BUFF_FROM ? '統率者（とうそつしゃ）が いるので、てきも 本気（ほんき）！ てきの クリーチャーは ＋1/＋1' : '',
+    buff: A.cmd && A.idx >= CMD_BUFF_FROM ? 1 : 0,
+    extraNote: strix() ? `ライフ ${A.life} から はじまる。のこった ライフで つぎの 階へ すすむ。` : A.cmd && A.idx >= CMD_BUFF_FROM ? '統率者（とうそつしゃ）が いるので、てきも 本気（ほんき）！ てきの クリーチャーは ＋1/＋1' : '',
     quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
       onBattle(r, { advExact: A.exact, floorIdx: A.idx, points: deckStats(A.deck).points });
       zukanBattle(r);
       if (r.win) {
+        if (strix()) {
+          A.report = [...(A.report || []), { f, stars: starsOf({ win: true, continued: A.contAt === A.idx, exact: r.exact, lost: start - r.life }) }];
+          A.life = Math.min(A.cap, Math.max(1, r.life));
+        }
         A.idx++;
-        if (A.idx >= A.floors.length) return askEndless();
+        if (A.idx >= A.floors.length) { if (!strix()) return askEndless(); A.over = 'clear'; save(); return ending(true); } // ストリクスヘイヴンは 通知表で おわり
+        if (strix()) { A.recess = true; save(); return recess(); }
         A.toOpen = 1; save();
         await sheet('<p>パックを 1つ あけて、デッキを くみなおせる。</p>', [{ label: 'パックを あける', value: 1, kind: 'primary' }], { title: 'ごほうび', dismiss: false });
         return packs();
       }
       if (A.continues > 0) {
-        const v = await sheet(`<p>コンティニューすると、${ruby(FLOOR_NAMES[f])}の はじめから やりなおせる（ライフは はじめの 数に もどる）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
+        const v = await sheet(`<p>コンティニューすると、${ruby(floorLabel(A.idx))}の はじめから やりなおせる（${strix() ? `ライフは ${Math.min(A.cap, STRIX.cont)}` : 'ライフは はじめの 数に もどる'}）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
           [{ label: 'コンティニュー（のこり1回）', value: 'c', kind: 'primary' }, { label: 'あきらめる', value: 'x' }], { title: 'まけてしまった', dismiss: false });
-        if (v === 'c') { A.continues--; save(); return tower(); }
+        if (v === 'c') { A.continues--; if (strix()) { A.life = Math.min(A.cap, STRIX.cont); A.contAt = A.idx; } save(); return tower(); }
       }
       A.over = 'lose'; save(); return ending(false);
     },
@@ -600,9 +675,9 @@ const emblemHint = (over = false) => (activeIds().length ? '' : `<p class="em-li
 const pairOf = () => (A.deck ? [...deckStats(A.deck).colors].sort((a, b) => 'WUKRG'.indexOf(a) - 'WUKRG'.indexOf(b)).join('') : '');
 // とうの きろく（トロフィー・ずかん）。むげんの とうに すすむ ときは ここで きろくする
 function recordRun(win) {
-  const reached = win ? 5 : A.idx + 1, pair = pairOf();
+  const reached = win ? A.floors.length : A.idx + 1, pair = pairOf();
   if (win && A.deck) onClear({ diff: A.diff, continued: A.continues < 1, pair });
-  zukanRun({ diff: A.diff, plane: A.plane || 'theros', reached, exact: A.exact || 0, pair, win });
+  zukanRun({ diff: A.diff, plane: A.plane || 'theros', reached, exact: A.exact || 0, pair, win, stars: strix() ? reportStars() : null });
   A.recorded = true;
 }
 // こうちくモードの パックけん（docs/CONSTRUCTED.md）：クリアした 階 1つに 1まい、むげんの とうは 5階ごとに 1まい。とうの おわりに まとめて
@@ -614,17 +689,18 @@ function payTower(a = A, quiet = true) {
 }
 const ticketLine = (n) => (n ? `<p class="what tk-get"><b>パックけん ＋${n}まい</b><span>タイトルの「こうちく」の ショップで パックと ひきかえられる</span></p>` : '');
 function ending(win) {
-  const reached = win ? 5 : A.idx + 1;
+  const reached = win ? A.floors.length : A.idx + 1;
   if (!A.recorded) recordRun(win);
   const got = payTower();
   const mat = win && awardMat(TOWER_MAT[A.plane || 'theros']) ? TOWER_MAT[A.plane || 'theros'] : null; // 塔を のぼりきった：プレイマット
   // デッキを ゴーストに して あずける（オンライン バトルで ほかの 人と たたかえる）
-  if (A.deck) saveGhost(finalDeck(), win ? 6 : reached);
+  if (A.deck) saveGhost(finalDeck(), win ? 6 : Math.min(5, reached));
   app().innerHTML = `<main class="ending ${win ? 'win' : 'lose'}">
     <p class="eyebrow">${win ? 'とうを のぼりきった' : `${reached}階で ちからつきた`}</p>
-    <h2>${win ? (A.plane === 'ravnica' ? 'ジェイスに みとめられた！' : 'エレボスを たおした！') : 'ぼうけん おわり'}</h2>
+    <h2>${win ? (strix() ? 'そつぎょう おめでとう！' : A.plane === 'ravnica' ? 'ジェイスに みとめられた！' : 'エレボスを たおした！') : 'ぼうけん おわり'}</h2>
+    ${strix() ? reportCard() : ''}
     <dl class="stats">
-      <div><dt>とどいた 階</dt><dd>${reached}<small>/5</small></dd></div>
+      <div><dt>とどいた 階</dt><dd>${reached}<small>/${A.floors.length}</small></dd></div>
       <div><dt>ぴったり</dt><dd>${A.exact || 0}<small>回</small></dd></div>
       <div><dt>あけた パック</dt><dd>${A.opened}</dd></div>
       <div><dt>トロフィー</dt><dd>${trophyCount()}<small>/${TROPHIES.length}</small></dd></div>
@@ -632,7 +708,7 @@ function ending(win) {
     ${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}
     ${ticketLine(got)}
     <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
-    ${adsOn() ? `<p class="say"><b>${A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
+    ${adsOn() ? `<p class="say"><b>${strix() ? 'ストリクスヘイヴンの 先生たち' : A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${strix() ? 'もっと まなびたいかな？' : A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>` : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
   </main>`;
   clearSave();
@@ -644,7 +720,7 @@ function ending(win) {
 function endlessBest() { try { return JSON.parse(localStorage.getItem(ENDLESS_BEST) || 'null'); } catch { return null; } }
 const lapOf = (floor) => Math.floor((floor - ENDLESS.start) / 5) + 1; // 6〜10階が 1周め
 const floorTitle = (f, n) => `${n}階 ${FLOOR_NAMES[f].replace(/^\d+階 /, '')}`;
-const pickPlane = () => (A.plane === 'ravnica' ? pickRavnica : pickFloors)(Math.random);
+const pickPlane = () => pickFor(A.plane);
 const blessLine = (have) => PATHS.filter((p) => have[p.id]).map((p) => `${p.name} ${'●'.repeat(have[p.id])}${'○'.repeat(BLESS_MAX - have[p.id])}`).join('　');
 
 async function askEndless() {
