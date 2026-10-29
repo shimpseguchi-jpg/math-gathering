@@ -44,7 +44,7 @@ export const packTactics = (s, E, atk) => E.totalPower(s, atk.map((a) => a.p).fi
 // 激励：対象を ふやせるだけ ふやす（2つめから 1つにつき n マナ）
 export const strive = (list, n, ctx) => list.slice(0, Math.max(1, 1 + Math.floor((ctx.manaLeft ?? 0) / n)));
 export const single = (p, t, more = {}) => ({ trick: { kind: 'single', p, t, ...more }, singleRun: (s, E, q) => E.pump(q, p, t, more.kw || []) });
-export const mass = (p, t, filter) => ({ trick: { kind: 'mass', p, t }, massRun: (s, E) => { for (const q of mine(s, E)) if (!filter || filter(q)) E.pump(q, p, t); } });
+export const mass = (p, t, filter, atk = false) => ({ trick: { kind: 'mass', p, t, atk }, massRun: (s, E) => { for (const q of mine(s, E)) if (!filter || filter(q)) E.pump(q, p, t); } });
 
 // ---- トークン ----
 export const T = {

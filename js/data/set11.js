@@ -16,6 +16,7 @@ const canSwing = (s, E, p) => !p.tapped && (!p.sick || E.hasKw(s, p, 'haste'));
 const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
 const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, null); E.sba(s); };
 const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
+const foeTurn = (s) => (s.active === 'E' ? s.turn : s.turn + 1); // 「つぎの てきの ターン」：てきの ターンの あいだ（ブロックの あとの まど）に 使ったら この ターン
 const foeThreat = (s, E) => theirs(s, E).some((t) => t.def.attacks !== false && E.power(s, t) >= 2);
 
 // 戦技：ポイント 1つ、メインフェイズ、1ターンに max 回。sk = { label, play(s, p, E, ctx) → { score, run } , tgt?, apply?(s, E, picks, p) }
@@ -51,8 +52,8 @@ const selfPump = (label, a, kws = []) => ({
 });
 const shieldOne = {
   label: 'つぎの てきの ターン、1体は ダメージを うけない',
-  play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== s.turn + 1 ? { score: 2, run: () => { t.shieldT = s.turn + 1; } } : null; },
-  tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = s.turn + 1; E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
+  play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== foeTurn(s) ? { score: 2, run: () => { t.shieldT = foeTurn(s); } } : null; },
+  tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = foeTurn(s); E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
 };
 const spPit = (s, p, E) => addSP(s, E, 1);
 const draw1 = (s, p, E) => E.drawCard(s);
@@ -100,7 +101,7 @@ export const S11 = {
     anthem: (s, q, p) => (p !== q && p.side === q.side && E_isCr(p) ? [1, 0] : null),
     skill: foeSkill('タップする クリーチャー（つぎも おきない）', 0, detain, { pick: (s, E) => biggest(s, E, (t) => !t.frozen && t.def.attacks !== false) }),
   }),
-  SR23: trail({ skill: { label: 'つぎの てきの ターン、みんな ダメージを うけない', play: (s, p, E) => (foeThreat(s, E) && mine(s, E).some((q) => q.shieldT !== s.turn + 1) ? { score: 4, run: () => { for (const q of mine(s, E)) q.shieldT = s.turn + 1; } } : null) } }),
+  SR23: trail({ skill: { label: 'つぎの てきの ターン、みんな ダメージを うけない', play: (s, p, E) => (foeThreat(s, E) && mine(s, E).some((q) => q.shieldT !== foeTurn(s)) ? { score: 4, run: () => { for (const q of mine(s, E)) q.shieldT = foeTurn(s); } } : null) } }),
   SR24: trail({ skill: { label: 'ライフ ＋3', play: (s, p, E) => (s.P.life < 15 ? { score: 2, run: () => E.gain(s, 3) } : null) } }),
   SR25: trail({ skill: {
     label: '＋1/＋1カウンター', play: (s, p, E) => { const t = E.bestBuffTarget(s, null); return t ? { score: 3, run: () => E.addCounters(s, t, 1) } : null; },
