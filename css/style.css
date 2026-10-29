@@ -1056,6 +1056,19 @@ div.zk-card { cursor: default; }
 :root[data-theme="gba"] .meter > i { height: 6px; border-radius: 0; background: linear-gradient(90deg, var(--gold) calc(var(--v) * 100%), var(--px) 0); box-shadow: 0 0 0 1px var(--line); }
 :root[data-theme="gba"] .b-head { background: var(--table); box-shadow: 0 3px 0 var(--px); }
 
+/* ---- いま 使える カード（2026-10-29）：手札は 金色の わくと「つかえる」（battle.js の handMark）、ぼちは 山が 光る（gyUsable）。場の 能力は 下の .ab/.ab-big ---- */
+.hand-slot.ok .card { box-shadow: 0 0 0 2.5px var(--gold), 0 0 12px 3px rgba(242, 192, 79, 0.55), 0 3px 0 rgba(0, 0, 0, 0.35); animation: hand-ok 1.6s ease-in-out infinite; }
+@keyframes hand-ok { 50% { box-shadow: 0 0 0 2.5px #ffe08a, 0 0 18px 6px rgba(242, 192, 79, 0.8), 0 3px 0 rgba(0, 0, 0, 0.35); } }
+.hand-slot.ok::after { content: 'つかえる'; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); z-index: 1; white-space: nowrap; padding: 0 6px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-size: 9px; font-weight: 700; line-height: 1.6; pointer-events: none; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.pile2.grave.ok .gyc { box-shadow: 0 0 0 2px var(--gold), 0 0 10px 3px rgba(242, 192, 79, 0.6); animation: hand-ok 1.6s ease-in-out infinite; }
+.pile2.grave.ok small { color: var(--gold-text); font-weight: 700; }
+.ml-item.ok .card { box-shadow: 0 0 0 3px var(--gold), 0 0 10px 2px rgba(242, 192, 79, 0.6); }
+:root[data-theme="gba"] .hand-slot.ok .card, :root[data-theme="gba"] .ml-item.ok .card { box-shadow: 0 0 0 2px var(--px), 0 0 0 5px var(--gold), 0 0 0 7px var(--px); animation: gba-ab 0.8s steps(1) infinite; }
+:root[data-theme="gba"] .pile2.grave.ok .gyc { box-shadow: 0 0 0 2px var(--px), 0 0 0 5px var(--gold), 0 0 0 7px var(--px); animation: gba-ab 0.8s steps(1) infinite; }
+:root[data-theme="gba"] .hand-slot.ok::after { border-radius: 2px; font-family: var(--display); box-shadow: 0 0 0 1px var(--px); }
+:root[data-theme="clear"] .hand-slot.ok .card, :root[data-theme="clear"] .ml-item.ok .card { box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--gold-line); animation: clear-ab 1s steps(1) infinite; }
+:root[data-theme="clear"] .pile2.grave.ok .gyc { box-shadow: 0 0 0 1.5px var(--line), 0 0 0 4px var(--gold); animation: none; }
+:root[data-theme="clear"] .hand-slot.ok::after { box-shadow: 0 0 0 1.5px var(--line); }
 /* ---- 能力が 使える カード（2026-10-26）：battle.js の abilityMark ---- */
 /* つよい 能力（宝具・戦技・エネルギー・PW）は 金色に 光る わく、ふつうの 能力（タップ・そうび など）は 水色の わく */
 .zone .card.perm.ab { box-shadow: 0 0 0 2px #7fd8ff, 0 0 8px 2px rgba(127, 216, 255, 0.6); }
