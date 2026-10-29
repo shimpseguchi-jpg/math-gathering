@@ -154,9 +154,8 @@ export function title() {
       <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
     </footer>
   </main>`;
-  // ひらいた しらせ（1回だけ）
-  const news = unlockNews();
-  if (news.length) sheet(news.map((k) => `<p class="goal"><b>${NEWS_TEXT[k].title}</b><br>${ruby(NEWS_TEXT[k].text)}</p>`).join(''), [{ label: 'やった！', value: 1, kind: 'primary' }], { title: 'ひらいた！' });
+  // ひらいた しらせ（1回だけ）。ひらいた ものが 2つ あれば、まどを 2つ じゅんばんに
+  for (const k of unlockNews()) sheet(`<p class="goal">${ruby(NEWS_TEXT[k].text)}</p>`, [{ label: 'やった！', value: 1, kind: 'primary' }], { title: NEWS_TEXT[k].title });
   app().onclick = (e) => {
     // まだ あそべない もの：わけと、つぎに いく ところ
     const lk = e.target.closest('[data-lock]');
