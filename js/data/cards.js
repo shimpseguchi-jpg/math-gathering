@@ -966,7 +966,7 @@ export const SETS = [
   { id: 2, name: '第2弾（だん）「英雄譚（えいゆうたん）の 時代（じだい）」', cards: SET2, released: true },
   { id: 3, name: '第3弾（だん）「冥界（めいかい）の 門（もん）」', cards: SET3 },
   { id: 4, name: '第4弾（だん）「星（ほし）めぐりの 夜（よる）」', cards: SET4 },
-  { id: 5, name: '第5弾（だん）「大きな 数の 塔（とう）」', cards: SET5 },
+  { id: 5, name: '第5弾（だん）「大きな 数の 塔（とう）」', cards: SET5, released: true }, // 2026-10-29 に 出した（ストリクスヘイヴン編：塔・ストーリー 5章 と いっしょ）
   // サブセット（sub）：小さい 弾。それだけでは パックに しない。もんしょう「サブセット」で メインセットの パックに まざる（docs/ROADMAP.md）
   { id: 6, name: 'サブセット「三つの 旗（はた）」', cards: SET6, sub: true },
   { id: 7, name: 'サブセット「アルケミー」（デジタル 限定（げんてい））', cards: SET7, sub: true },

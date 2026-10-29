@@ -1,5 +1,6 @@
 // ストーリーモード「せかいめぐり」（2026-10-26。docs/ROADMAP.md 9.2）
-// ゲームの しくみを 1つずつ おぼえる チュートリアルの つづき。4章 × 3話。章ごとに プレインズウォーカーが 案内する
+// ゲームの しくみを 1つずつ おぼえる チュートリアルの つづき。5章 × 3話。章ごとに プレインズウォーカーが 案内する
+// 5章（ストリクスヘイヴン）は 第5弾と いっしょ：第5弾が パックに 入る ときだけ 出る（set: 5）
 // 1話 ＝ 案内役の ことば → きまった デッキで 1戦（コーチの ことばが 出る。そうさは しぼらない）→ はじめて クリアで もんしょうポイント
 import { BY_ID, BASICS } from '../data/cards.js';
 import { pvp } from '../data/enemies.js';
@@ -13,6 +14,7 @@ import { addEmblemPoints } from './emblem.js';
 import { awardMat, matName, CHAPTER_MAT } from './mats.js';
 import { deckBuilder } from './app.js';
 import { sheet, ruby, info, cardFace } from './view.js';
+import { enabledSets } from './settings.js';
 
 const KEY = 'mtg-story';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { done: {} }; } catch { return { done: {} }; } };
@@ -43,6 +45,7 @@ const fixed = ({ hand, lib, mana = [], bf = [] }) => ({
 const turns = (n) => (s) => s.stats.playerTurns >= n;
 const onField = (id) => (s) => s.P.bf.some((p) => p.def.id === id);
 const inGy = (id) => (s) => s.P.gy.some((c) => c.def.id === id);
+const lessonCast = (s) => s.P.gy.some((c) => c.def.sub?.includes('lesson')); // 学習呪文を 唱えた
 
 // ---- 章と 話 ----
 export const CHAPTERS = [
@@ -152,8 +155,43 @@ export const CHAPTERS = [
         ] },
     ],
   },
+  {
+    id: 5, name: 'ストリクスヘイヴン「まほうの 授業（じゅぎょう）」', guide: 'PW31', set: 5,
+    eps: [
+      { id: '5-1', title: '魔技（まぎ）', learn: '魔技（まぎ）・じゅもんを たくさん 唱（とな）える', kind: 'battle',
+        intro: ['ぼくは クイントリウス。ストリクスヘイヴンの ロアホールドで、むかしの ことを しらべて いる 学生だよ。', 'この 学院の まほうは、じゅもんを 唱（とな）えると おきる「魔技（まぎ）」。赤の 1年生と いっしょに ためして みよう。'],
+        ...fixed({ hand: ['R59', 'R04', 'R60', 'B04', 'B04'], mana: ['B04', 'B04'], lib: ['R103', 'B04', 'R04', 'R59', 'B04', 'R10', 'R58', 'B04', 'R60', 'B04', 'R103', 'B04', 'R04', 'B04', 'R10'] }),
+        floor: () => foe('オリークの 見習（みなら）い', ['W57', 'K57', 'G60', 'W57', 'K57', 'G60'], 14),
+        coach: [
+          { text: '「もえる 1年生」を 出そう。魔技（まぎ）を もつ クリーチャーだ。', done: onField('R59') },
+          { text: '魔技（まぎ）は、インスタントか ソーサリーを 唱（とな）える たびに おきる。「シヴの 炎（ほのお）」を 唱（とな）えて みよう。1年生に ＋1/＋1カウンターが のるよ。', done: (s) => s.P.bf.some((p) => p.def.id === 'R59' && p.ctr > 0) },
+          { text: 'じゅもんを 2つ 唱（とな）えれば 魔技（まぎ）も 2回。たくさん 唱（とな）えて、1年生を 大きく しよう！', next: true },
+        ] },
+      { id: '5-2', title: '学習（がくしゅう）', learn: '学習・学習呪文（がくしゅうじゅもん）・本と 次の ページ', kind: 'battle',
+        intro: ['つぎは「学習（がくしゅう）」。ぼくも まいにち 本を ひらいて いるよ。', '学習すると、「本」から 学習呪文（がくしゅうじゅもん）を 1まい もらうか、「次の ページ」で 1まい すてて 1まい 引くか、えらべるんだ。'],
+        ...fixed({ hand: ['U64', 'W108', 'B02', 'B01', 'B02'], mana: ['B02', 'B01'], lib: ['U58', 'B01', 'W64', 'B02', 'W59', 'B01', 'U63', 'B02', 'W108', 'B01', 'U64', 'B02', 'W60', 'B01', 'U58'] }),
+        floor: () => foe('ウィザーブルームの いたずらっ子', ['K57', 'G60', 'K55', 'G62', 'K57', 'G60'], 16),
+        coach: [
+          { text: '「学習の ふくろう」を 出そう。出た とき「学習（がくしゅう）」する。', done: onField('U64') },
+          { text: '本を えらぶと、学習呪文（がくしゅうじゅもん）が てふだに くる。いらない カードが ある ときは「次の ページ」でも いいよ。', next: true },
+          { text: '学習呪文（がくしゅうじゅもん）を 唱（とな）えて みよう。タイプに「学習」と 書いて ある じゅもんだ。', done: lessonCast },
+          { text: '「みちびく 声（こえ）」も 学習する じゅもん。学習を つかって、てきを たおそう！', next: true },
+        ] },
+      { id: '5-3', title: 'クアンドリクスの しけん', learn: 'フラクタル・カウンターを 2倍（ここまでの まとめ）', kind: 'battle',
+        intro: ['さいごは クアンドリクスの しけん。', 'キアン学長の フラクタルは 2・4・6・8 と ふえる。きみの デッキにも フラクタルが ある。カウンターを 2倍に して こたえよう！'],
+        deck: () => fill(['GU08', 'GU11', 'G58', 'U60', 'G61', 'G61', 'LS04', 'G107', 'U64', 'G63', 'GU06', 'U58', 'G60']), floorId: 'sx_quandrix',
+        coach: [
+          { text: 'フラクタルは 0/0。のって いる ＋1/＋1カウンターの 数が そのまま 大きさに なる。', next: true },
+          { text: '「どんどん カウンター」は カウンターを 2倍に する。4こ なら 8こ！', done: inGy('G61') },
+          { text: 'ここからは じぶんで かんがえよう。こまったら 右上の「かちかた」を 見てね。', next: true },
+        ] },
+    ],
+  },
 ];
-const ALL = CHAPTERS.flatMap((c) => c.eps.map((e) => ({ ...e, ch: c })));
+// その 弾が パックに 入る ときだけ 出る 章（5章 ストリクスヘイヴン：第5弾）
+const chapterOn = (c) => !c.set || enabledSets().includes(c.set);
+const chapters = () => CHAPTERS.filter(chapterOn);
+const allEps = () => chapters().flatMap((c) => c.eps.map((e) => ({ ...e, ch: c })));
 const REWARD = 1, CHAPTER_REWARD = 2; // はじめて クリア：1話 ＋1、章の さいごの 話は ＋2
 
 export function storyDone() {
@@ -162,18 +200,18 @@ export function storyDone() {
   try { if (localStorage.getItem(TUTORIAL_DONE)) S.done['1-1'] = true; } catch { /* なし */ }
   return S;
 }
-const isOpen = (S, i) => i === 0 || !!S.done[ALL[i - 1].id];
+const isOpen = (S, ALL, i) => i === 0 || !!S.done[ALL[i - 1].id];
 
 export function storyMenu(back) {
-  const S = storyDone();
+  const S = storyDone(), ALL = allEps();
   const n = ALL.filter((e) => S.done[e.id]).length;
   app().innerHTML = `<main class="story">
     <p class="eyebrow">ストーリー　${n} / ${ALL.length}話</p>
     <h2>せかいめぐり</h2>
     <p class="st-note">${ruby('ゲームの しくみを 1つずつ おぼえよう。章（しょう）ごとに プレインズウォーカーが 案内（あんない）して くれる。はじめて クリアすると もんしょうポイント。')}</p>
-    ${CHAPTERS.map((c) => `<section class="st-ch">
+    ${chapters().map((c) => `<section class="st-ch">
       <h3><span class="st-guide">${ruby(info(BY_ID[c.guide]).name)}</span><span class="st-cname">${ruby(`${c.id}章　${c.name}`)}</span></h3>
-      <ol>${c.eps.map((e) => { const i = ALL.findIndex((x) => x.id === e.id); const open = isOpen(S, i); return `<li><button type="button" class="st-ep ${S.done[e.id] ? 'done' : open ? 'open' : 'lock'}" data-ep="${e.id}" ${open ? '' : 'disabled'}>
+      <ol>${c.eps.map((e) => { const i = ALL.findIndex((x) => x.id === e.id); const open = isOpen(S, ALL, i); return `<li><button type="button" class="st-ep ${S.done[e.id] ? 'done' : open ? 'open' : 'lock'}" data-ep="${e.id}" ${open ? '' : 'disabled'}>
         <b>${e.id}</b><span><i class="st-title">${ruby(e.title)}</i><small>${ruby(`まなぶ こと：${e.learn}`)}</small></span><em>${S.done[e.id] ? 'クリア' : open ? 'あそべる' : 'まだ'}</em></button></li>`; }).join('')}</ol>
     </section>`).join('')}
     <div class="row-btns"><button type="button" class="btn" data-st="back">タイトルへ</button></div>
@@ -241,5 +279,5 @@ async function buildEp(ep, coach, quit, onEnd) {
   deckBuilder(C);
 }
 
-export const storyCount = () => ALL.filter((e) => storyDone().done[e.id]).length;
-export const STORY_TOTAL = ALL.length;
+export const storyCount = () => allEps().filter((e) => storyDone().done[e.id]).length;
+export const storyTotal = () => allEps().length;

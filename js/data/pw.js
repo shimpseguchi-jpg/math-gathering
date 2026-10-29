@@ -113,6 +113,16 @@ export const SPW = {
     ],
   },
 
+  // クイントリウス（2026-10-29。ストーリー 5章の 案内役）：墓地を ほって スピリット・いちばん 大きい クリーチャーを もどす
+  PW31: {
+    acts: [
+      pwAbility(1, 'ぼちを 1まい ほって スピリット', { play: (s) => ({ score: s.P.gy.length ? 5 : 2, run: () => undefined }) }),
+      pwAbility(-3, 'ぼちの いちばん 大きい クリーチャーを もどす', {
+        play: (s, p, E, ctx) => { const c = gyBiggest(s); return c && (p.loy > 3 || ctx?.human) && (powOf(c.def) >= 3 || ctx?.human) ? { score: 4 + powOf(c.def) * 2, run: () => undefined } : null; },
+      }),
+    ],
+  },
+
   // ---- サポート ----
   PW11: {
     etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.soldier, 2); },
@@ -201,6 +211,10 @@ export const SPW = {
   },
 };
 
+// クイントリウス：ほる カード（きほんカード → コストの 小さい もの）・いちばん パワーの 大きい クリーチャー
+const powOf = (d) => (typeof d.pow === 'number' ? d.pow : 0);
+const digOne = (s) => [...s.P.gy].sort((a, b) => (b.def.rar === 'B') - (a.def.rar === 'B') || (a.def.cost || 0) - (b.def.cost || 0))[0];
+const gyBiggest = (s) => s.P.gy.filter((c) => c.def.types?.includes('creature')).sort((a, b) => powOf(b.def) - powOf(a.def))[0] || null;
 const untap2 = (s) => { let k = 0; for (const m of s.P.mana) if (m.tapped && k < 2) { m.tapped = false; k++; } };
 // こうか（AI の play と 人の apply で おなじ ものを つかう）
 const FX = {
@@ -214,6 +228,10 @@ const FX = {
   PW08: [(s, E, t) => { if (t && E.onBf(s, t)) E.pump(t, 2, 0, ['flying']); }, (s, E) => E.token(s, 'P', TK.dragon)],
   PW09: [(s, E, t) => detain(s, E, t), (s, E, t) => { if (t) hit(s, E, t, 3); }],
   PW10: [(s, E) => E.drawCard(s), (s, E) => E.token(s, 'P', TK.construct)],
+  PW31: [
+    (s, E) => { const c = digOne(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.exile.push(c); E.L(s, `ほりだした：${c.def.name}`); E.token(s, 'P', T.spiritRW); },
+    (s, E) => { const c = gyBiggest(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); E.L(s, `${c.def.name}（パワー ${powOf(c.def)}）が もどった`); },
+  ],
 };
 for (const [id, fx] of Object.entries(FX)) {
   SPW[id].acts.forEach((a, i) => {

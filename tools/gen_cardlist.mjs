@@ -129,7 +129,7 @@ if (htmlArg) {
   const DRAFTS = [['SET3.md', '3'], ['SET4.md', '4'], ['SET5.md', '5'], ['SET6.md', '6'], ['SET7.md', '7'], ['ALCHEMY.md', 'A'], ['PLANESWALKERS.md', 'W'], ['PROMO.md', 'P']];
   const SET_LABEL = { 1: '第1弾 ファウンデーションズ', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: 'サブ 三つの旗', 7: 'サブ ラヴニカ', A: 'サブ アルケミー', W: 'サブ プレインズウォーカー', F: '番外編 FGO', S: '番外編 スターレイル', Z: '番外編 ゼンゼロ', P: 'プロモ' };
   const draftSet = {}, drafts = {};
-  const DEV = new Set(['3', '4', '5', '6', '7', 'A', 'W', 'F', 'S', 'Z']);
+  const DEV = new Set(['3', '4', '6', '7', 'A', 'W', 'F', 'S', 'Z']); // 第5弾は 2026-10-29 に 出した
   for (const [f, k] of DRAFTS) {
     const got = {};
     readTables(join(ROOT, 'docs', f), got);

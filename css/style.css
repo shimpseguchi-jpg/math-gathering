@@ -1199,6 +1199,8 @@ div.zk-card { cursor: default; }
 [data-m="neon"], body[data-mat="neon"] { --mat: url("../img/mats/neon.webp") center / cover no-repeat, #090514; }
 [data-m="erebos"], body[data-mat="erebos"] { --mat: url("../img/mats/erebos.webp") center / cover no-repeat, #07040c; }
 [data-m="jace"], body[data-mat="jace"] { --mat: url("../img/mats/jace.webp") center / cover no-repeat, #050d1a; }
+[data-m="chalk"], body[data-mat="chalk"] { --mat: url("../img/mats/chalk.webp") center / cover no-repeat, #142b22; }
+[data-m="lantern"], body[data-mat="lantern"] { --mat: url("../img/mats/lantern.webp") center / cover no-repeat, #0b0a24; }
 body[data-mat]:not([data-mat="plain"]):has(.battle) { background: var(--mat); background-attachment: fixed; }
 /* マットの 上では 場の わくを すこし すかす */
 body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blur(1px); }
