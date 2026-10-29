@@ -863,6 +863,39 @@ function actCheck(s, p, a) {
 }
 // つよい 能力（宝具・戦技・エネルギー・PW の 忠誠度）は 金色、ふつうの 能力（タップ など）は 水色の わく
 const bigAct = (a) => !!(a.npUse || a.spUse || a.bonUse || a.loyalty != null);
+// 手札で いま 使える カード（2026-10-29）：金色の わくと「つかえる」で しらせる。tapHand で えらべる ものと おなじ 判定（castInfo は 見るだけで なにも かえない）
+// チュートリアルは じぶんの 光らせかた（tut-hl）が あるので 出さない
+function handMark(c) {
+  const s = B.s, d = c.def;
+  if (B.tut || B.busy || s.active !== 'P') return '';
+  if (B.mode === 'main') {
+    if (castInfo(c).ok) return 'ok';
+    if (d.suspend && plan(s, d.suspend.cost, d.suspend.req || [])) return 'ok';
+    if (d.adv && !c.advDone && plan(s, d.adv.cost, d.adv.req)) return 'ok';
+    if (d.bestow && plan(s, d.bestow.cost, d.bestow.req || colorsOf(d))) return 'ok';
+    return '';
+  }
+  if (B.mode === 'tricks') {
+    if (d.ninjutsu && njPlan(s, c) && B.atk.some((a) => onBf(s, a.p) && !B.blocks.get(a.p.uid) && !a.p.token)) return 'ok';
+    if (d.flash && !isSpell(d) && !d.types.includes('creature') && castInfo(c).ok) return 'ok';
+    const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
+    if (tr || (d.modes && d.types.includes('instant'))) {
+      const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
+      if (plan(s, cost, req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 })) return 'ok';
+    }
+  }
+  return '';
+}
+// ぼちで いま となえられる カード（フラッシュバック・降霊・だっしゅつ）の カード番号。showGy の えらべる ものと おなじ 判定
+function gyUsable() {
+  const s = B.s, ids = new Set();
+  if (B.tut || B.busy || s.active !== 'P' || B.mode !== 'main') return ids;
+  for (const c of s.P.gy) {
+    if (ids.has(c.def.id)) continue;
+    if ((gyCast(s, c.def) && castInfo(c, 'gy').ok) || (c.def.escape && castInfo(c, 'escape').ok)) ids.add(c.def.id);
+  }
+  return ids;
+}
 function abilityMark(s, p) {
   if (s.active !== 'P') return '';
   if (B.mode === 'tricks') return p.attacking && (p.def.acts || []).some((a) => a.pumpP && plan(s, a.cost, a.req || [])) ? 'ab' : '';
@@ -958,7 +991,7 @@ async function showGy() {
     choices.push({ label: `${ruby(info(c.def).name)} を だっしゅつで となえる（ごうけい ${c.def.escape.total} ＝ マナ ＋ ほかの ぼち）`, value: { c, from: 'escape' }, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
   }
   choices.push({ label: 'とじる', value: null });
-  const v = await sheet(pileList(s.P.gy), choices, { title: `ぼち（${s.P.gy.length}まい）` });
+  const v = await sheet(pileList(s.P.gy, false, gyUsable()), choices, { title: `ぼち（${s.P.gy.length}まい）` });
   if (v) doCast(v.c, v.from);
 }
 
@@ -1160,7 +1193,8 @@ function deckPile(side) {
 function gravePile(side) {
   const s = B.s, gy = s[side].gy, top = gy[gy.length - 1];
   const esc2 = side === 'P' && gy.some((c) => c.def.escape);
-  return `<button type="button" class="pile2 grave ${side === 'E' ? 'foe' : ''}" data-act="${side === 'P' ? 'gy' : 'egy'}" aria-label="${side === 'P' ? '' : 'てきの '}ぼち ${gy.length}まい">
+  const ok = side === 'P' && gyUsable().size > 0; // いま ぼちから となえられる カードが ある：光らせる
+  return `<button type="button" class="pile2 grave ${side === 'E' ? 'foe' : ''} ${ok ? 'ok' : ''}" data-act="${side === 'P' ? 'gy' : 'egy'}" aria-label="${side === 'P' ? '' : 'てきの '}ぼち ${gy.length}まい${ok ? '（つかえる カードが ある）' : ''}">
     <span class="gyc ${top ? (side === 'E' && s.floor.id !== 'pvp' ? 'b1-E b2-E' : band(top.def)) : 'none'} ${gy.length > 1 ? 'stack' : ''}">${top ? `<i>${ruby(info(top.def).name)}</i>` : ''}<b>${gy.length}</b></span>
     <small>${esc2 ? 'だっしゅつ' : 'ぼち'}</small></button>`;
 }
@@ -1170,7 +1204,8 @@ function cmdPile(side) {
   if (!S.cmdId) return '';
   const c = S.cmd[0], def = c?.def || cmdOnBf(S)?.def;
   if (!def) return '';
-  return `<button type="button" class="pile2 grave cmdz ${side === 'E' ? 'foe' : ''}" data-act="${side === 'P' ? 'cmd' : 'ecmd'}" aria-label="${side === 'P' ? '' : 'あいての '}とうそつしゃ">
+  const ok = side === 'P' && !!c && !B.tut && !B.busy && B.s.active === 'P' && B.mode === 'main' && !!castInfo(c, 'cmd').ok; // いま 出せる：光らせる（showCmd と おなじ 判定）
+  return `<button type="button" class="pile2 grave cmdz ${side === 'E' ? 'foe' : ''} ${ok ? 'ok' : ''}" data-act="${side === 'P' ? 'cmd' : 'ecmd'}" aria-label="${side === 'P' ? '' : 'あいての '}とうそつしゃ${ok ? '（いま 出せる）' : ''}">
     <span class="gyc ${c ? band(def) : 'none'}">${c ? `<i>${ruby(info(def).name)}</i><b>${Math.max(def.cost - (S.cmdLess || 0) + (S.cmdStep ?? 2) * (S.cmdCasts || 0), 1)}</b>` : '<b>出</b>'}</span>
     <small>${c ? 'とうそつ' : 'せんじょう'}</small></button>`;
 }
@@ -1189,12 +1224,12 @@ async function showCmd() {
   if (v) doCast(c, 'cmd');
 }
 // やまふだ・ぼちの 中身：おなじ カードは まとめて「×2」。じゅんばんは デッキ構築と おなじ（色 → コスト）
-function pileList(cards, enemy = false) {
+function pileList(cards, enemy = false, ok = new Set()) { // ok：いま となえられる カード番号（金色の わく）
   const groups = new Map();
   for (const c of cards) { const g = groups.get(c.def.id ?? c.def.name); if (g) g.n++; else groups.set(c.def.id ?? c.def.name, { def: c.def, n: 1 }); }
   const list = [...groups.values()].sort((a, b) => byColorCost(a.def, b.def));
   if (!list.length) return '<p>からっぽ</p>';
-  return `<div class="mini-list">${list.map(({ def, n }) => `<div class="ml-item">${cardFace(def, { enemy })}${n > 1 ? `<b class="ml-n">×${n}</b>` : ''}</div>`).join('')}</div>`;
+  return `<div class="mini-list">${list.map(({ def, n }) => `<div class="ml-item ${ok.has(def.id) ? 'ok' : ''}">${cardFace(def, { enemy })}${n > 1 ? `<b class="ml-n">×${n}</b>` : ''}</div>`).join('')}</div>`;
 }
 
 function render() {
@@ -1257,7 +1292,7 @@ function render() {
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>
     </div>
     ${s.P.suspended.length ? `<div class="susp">${s.P.suspended.map((x) => `<span class="chip">たいき：${ruby(info(x.c.def).name)}　あと ${x.n}</span>`).join('')}</div>` : ''}
-    <div class="hand" style="--n:${s.P.hand.length}" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''}" style="--i:${i};--o:${i - (s.P.hand.length - 1) / 2};--oy:${Math.abs(i - (s.P.hand.length - 1) / 2)}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}${lifeNeed(s, c) ? `<span class="life-cost" aria-label="ライフ ${lifeNeed(s, c)}で 色を はらう">♥${lifeNeed(s, c)}</span>` : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
+    <div class="hand" style="--n:${s.P.hand.length}" aria-label="てふだ ${s.P.hand.length}まい">${s.P.hand.map((c, i) => `<button type="button" class="hand-slot ${isNew(pv.hand, c.uid) ? 'drawn' : ''} ${handMark(c)}" style="--i:${i};--o:${i - (s.P.hand.length - 1) / 2};--oy:${Math.abs(i - (s.P.hand.length - 1) / 2)}" data-hand="${i}" data-card="${esc(c.def.id)}">${cardFace(c.def)}${c.advDone ? '<span class="adv-done">できごと ずみ</span>' : ''}${lifeNeed(s, c) ? `<span class="life-cost" aria-label="ライフ ${lifeNeed(s, c)}で 色を はらう">♥${lifeNeed(s, c)}</span>` : ''}</button>`).join('') || '<p class="empty">てふだは ない</p>'}</div>
     <footer class="actions">${btns}</footer>
   </div>`;
   B.tut?.highlight(app());
