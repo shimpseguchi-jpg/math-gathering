@@ -192,7 +192,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .deckline { margin: 0; color: var(--ink-dim); font-size: 13px; }
 
 /* ---- たたかい ---- */
-.battle { height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto minmax(0, 1fr) auto auto auto; gap: 6px; padding-block: 8px 0; }
+.battle { height: 100%; display: grid; gap: 0 6px; padding-block: 8px 0; } /* 行の ならび・あいだは「たたかいの レイアウト」の ブロックで */
 .bt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; }
 .floor { font-family: var(--display); font-size: 15px; margin-right: 8px; }
 .turn { font-size: 12px; color: var(--ink-dim); }
@@ -220,8 +220,8 @@ span.pile { cursor: default; }
 .mana b { font-size: 16px; }
 .pip { font-style: normal; font-size: 11px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: inline-grid; place-items: center; padding: 0 3px; color: var(--paper-ink); }
 .m-W { background: var(--W); } .m-U { background: var(--U); } .m-K { background: var(--K); color: #fff; } .m-G { background: var(--G); } .m-R { background: var(--R); } .m-C { background: var(--C); }
-.hand { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 8px; scroll-snap-type: x proximity; }
-.hand-slot { flex: 0 0 var(--cw); min-width: 0; border: 0; padding: 0; background: none; cursor: pointer; scroll-snap-align: start; } /* min-width: 0：ながい 名前（自動機兵・戦犬 など）で 手札の カードが 大きく ならない */
+.hand { display: flex; } /* ならべかた（おうぎ形）は「たたかいの レイアウト」の ブロックで */
+.hand-slot { flex: 0 0 var(--cw); min-width: 0; border: 0; padding: 0; background: none; cursor: pointer; } /* min-width: 0：ながい 名前（自動機兵・戦犬 など）で 手札の カードが 大きく ならない */
 .card-name ruby { word-break: break-all; }
 .actions { position: sticky; bottom: 0; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding-block: 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--table); border-top: 1px solid var(--line); }
 .actions .btn { flex: 1 1 auto; }
@@ -283,7 +283,7 @@ span.pile { cursor: default; }
 .big-result.dice { color: var(--gold-text); }
 
 /* ---- 卓：やまふだ・ぼち・マナゾーン（カードの 山で 見せる）---- */
-.battle { box-sizing: border-box; grid-template-rows: auto auto minmax(0, 1fr) auto auto minmax(0, 1fr) auto auto auto auto; }
+.battle { box-sizing: border-box; }
 .bt-head { flex-wrap: wrap; row-gap: 4px; }
 .bt-title { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .bt-head .chips { justify-content: flex-end; }
@@ -292,12 +292,10 @@ span.pile { cursor: default; }
 .mull-hand { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; } .mull-hand .card { min-height: 0; font-size: 9px; }
 .card-pt.loy { background: #3b2f6b; color: #fff; }
 .goal-btn { cursor: pointer; color: var(--gold-text); border-color: var(--gold); font-weight: 700; }
-.erow { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); gap: 6px; }
+.erow { display: contents; } /* てきの 場と やまふだ・ぼちは、たたかいの グリッドに じかに ならべる（場所は レイアウトの ブロックで） */
 .erow .zone { min-height: 0; }
 .zone { grid-auto-rows: max-content; }
-.piles.foe { min-height: 0; overflow: hidden; }
 .piles { display: flex; gap: 6px; align-items: flex-end; }
-.piles.foe { flex-direction: column; justify-content: flex-start; padding-top: 4px; }
 .pile2 { border: 0; background: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink-dim); }
 .pile2 small { font-size: 10px; white-space: nowrap; line-height: 1.1; }
 .pile2.low small { color: var(--gold-text); font-weight: 700; }
@@ -847,17 +845,58 @@ div.zk-card { cursor: default; }
 .life.low { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 122, 105, 0.55); }
 @media (hover: hover) { .hand-slot:hover .card { transform: translateY(-6px); } .hand-slot .card { transition: transform 0.15s; } }
 
-/* iPad の よこ画面：バトルを 画面いっぱいに。手札は おうぎ形に ならべる */
+/* ==== たたかいの レイアウト（2026-10-29）：縦画面（スマホ）と 横画面（iPad・PC）で ならべかたを かえる（スマホの カードゲーム ふう） ==== */
+/* 画面の 部品は おなじで、グリッドの 「場所の 名前（grid-area）」だけ かえる。
+   あいだは gap では なく margin-top（ある ときだけ 出る 部品：リーダーの セリフ・たいき が ない ときに すきまが のこらない） */
+.battle > :not(:first-child), .erow > * { margin-top: 6px; }
+.bt-head { grid-area: head; } .say { grid-area: say; } .intent { grid-area: intent; } .zone.enemy { grid-area: ezone; } .piles.foe { grid-area: epiles; }
+.logline { grid-area: log; } .battle > .banner, .battle > .coach { grid-area: banner; } .zone.mine { grid-area: mzone; } .me-bar { grid-area: me; } .susp { grid-area: susp; } .hand { grid-area: hand; } .actions { grid-area: actions; }
+/* 縦画面：上から てき（やまふだ・ぼちは「つぎの てき」の 行の 右）→ てきの 場（はば いっぱい）→ ログ → 自分の 場 → ライフ・マナ・やまふだ → 手札（おうぎ形）→ ボタン */
+.battle { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas: "head head" "say say" "intent epiles" "ezone ezone" "log log" "banner banner" "mzone mzone" "me me" "susp susp" "hand hand" "actions actions"; }
+.intent { align-self: end; min-width: 0; }
+.piles.foe { align-self: end; justify-self: end; flex-direction: row; align-items: flex-end; gap: 8px; }
+.piles.foe .pile2 { gap: 2px; }
+.piles.foe .pile2 small { font-size: 9.5px; }
+.piles.foe .cb { width: 26px; border-width: 1.5px; border-radius: 4px; }
+.piles.foe .cb b { font-size: 12px; }
+.piles.foe .cb::before { font-size: 6px; }
+.piles.foe .gyc { width: 26px; border-radius: 4px; }
+.piles.foe .gyc i { font-size: 6px; padding: 5px 2px 0; } .piles.foe .gyc b { font-size: 9px; padding: 1px 2px; }
+.foe .cb.th3, .foe .cb.th4 { box-shadow: 1.5px 1.5px 0 #0b1020, 3px 3px 0 var(--enemy-2); }
+/* 手札：おうぎ形。はいりきらない ぶんだけ かさねる（margin の 100% は 手札の はば）。まんなかが 高く、はしは すこし かたむく。おした カードは 上に 出る */
+.hand { justify-content: center; align-items: flex-end; overflow: visible; gap: 0; padding: 12px 6px 6px; }
+.hand-slot { margin-left: calc(-1 * max(0px, (var(--n) * var(--cw) - 100%) / (var(--n) - 1))); transform-origin: 50% 125%; transform: translateY(calc(var(--oy) * var(--oy) * 1px)) rotate(calc(var(--o) * 1.6deg)); transition: transform 0.15s; z-index: 0; }
+.hand-slot:first-child { margin-left: 0; }
+.hand-slot:active, .hand-slot:focus-visible { transform: translateY(-12px) scale(1.04); z-index: 2; }
+@media (hover: hover) { .hand-slot:hover { transform: translateY(-14px) scale(1.06); z-index: 2; } .hand-slot:hover .card { transform: none; } }
+.actions .btn.primary { flex: 2 1 auto; }
+/* 横画面（iPad・PC）：左に やまふだ・ぼち（てき）と ライフ・マナ（自分）、まんなかに 場と 手札、右に てきの よていと ボタン（スマホの カードゲームの 卓の ように） */
 @media (min-width: 960px) and (orientation: landscape) {
-  #app:has(> .battle) { max-width: 1180px; }
-  .battle { --cw: 106px; }
+  #app:has(> .battle) { max-width: 1280px; }
+  .battle { --cw: 106px; gap: 0 14px; padding-block: 8px; grid-template-columns: 164px minmax(0, 1fr) 196px; grid-template-rows: auto auto minmax(0, 1fr) auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "head head head" "epiles ezone intent" "epiles ezone say" "epiles log ." "epiles banner ." "me mzone actions" "me susp actions" "me hand actions"; } /* てきの 場は 2行め＋3行め（よてい の 高さ ＋ のこり）。セリフは よていの すぐ 下 */
   .battle .zone { gap: 10px; padding: 10px; }
   .battle .card { font-size: 12.5px; }
-  .battle .hand { justify-content: center; overflow: visible; gap: 0; padding: 14px 8px 6px; }
-  .battle .hand-slot { flex: 0 0 var(--cw); margin-inline: calc(max(0, var(--n) - 7) * -4px - 4px); transform-origin: 50% 120%; transform: translateY(calc(var(--oy) * var(--oy) * 1.2px)) rotate(calc(var(--o) * 2.2deg)); transition: transform 0.15s; z-index: 0; }
-  .battle .hand-slot:hover, .battle .hand-slot:focus-visible { transform: translateY(-16px) scale(1.07); z-index: 2; }
-  .battle .hand-slot:hover .card { transform: none; }
-  .battle .actions .btn { min-width: 180px; }
+  .piles.foe { align-self: start; justify-self: start; flex-wrap: wrap; align-items: flex-start; gap: 6px; }
+  .piles.foe .pile2 { gap: 3px; }
+  .piles.foe .cb { width: 34px; border-width: 2px; border-radius: 6px; } .piles.foe .cb b { font-size: 14px; } .piles.foe .cb::before { font-size: 8px; }
+  .piles.foe .gyc { width: 34px; border-radius: 6px; } .piles.foe .gyc i { font-size: 7.5px; padding: 7px 3px 0; } .piles.foe .gyc b { font-size: 12px; padding: 2px 3px; }
+  .intent { align-self: start; flex-direction: column; align-items: stretch; gap: 6px; }
+  .intent b { align-self: flex-start; }
+  .intent span { text-align: center; }
+  .say { align-self: start; flex-direction: column; }
+  .me-bar { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 10px; }
+  .me-bar .life { width: 64px; height: 64px; } .me-bar .life b { font-size: 26px; }
+  .me-mana { flex-direction: column; align-items: flex-start; }
+  .battle .hand { padding: 14px 8px 6px; }
+  .hand-slot { transform-origin: 50% 120%; transform: translateY(calc(var(--oy) * var(--oy) * 1.2px)) rotate(calc(var(--o) * 2.2deg)); }
+  .hand-slot:active, .hand-slot:focus-visible { transform: translateY(-16px) scale(1.07); }
+  @media (hover: hover) { .hand-slot:hover { transform: translateY(-16px) scale(1.07); } }
+  .actions { position: static; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 10px; padding: 0 0 8px; background: none; border-top: 0; }
+  .actions .btn { flex: 0 0 auto; min-width: 0; min-height: 58px; font-size: 16px; }
+  .actions .btn.primary { flex: 0 0 auto; min-height: 68px; font-size: 18px; }
+  .actions .wait { text-align: center; }
 }
 
 /* ==== みため：ドット（GBA ふう）2026-10-26 ==== */
@@ -936,10 +975,8 @@ div.zk-card { cursor: default; }
 @media (hover: hover) { :root[data-theme="gba"] .title-btns:hover .btn.primary:not(:hover)::before { content: none; } }
 :root[data-theme="gba"] .raid-banner { border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
 /* iPad よこ：手札は かたむけずに まっすぐ ならべる */
-@media (min-width: 960px) and (orientation: landscape) {
-  :root[data-theme="gba"] .battle .hand-slot { transform: none; transition: none; margin-inline: calc(max(0, var(--n) - 8) * -6px + 3px); }
-  :root[data-theme="gba"] .battle .hand-slot:is(:hover, :focus-visible) { transform: translateY(-14px); }
-}
+:root[data-theme="gba"] .hand-slot { transform: none; transition: none; } /* ドットの カードは かたむけない（かさねかたは おなじ） */
+:root[data-theme="gba"] .hand-slot:is(:hover, :focus-visible, :active) { transform: translateY(-14px); }
 /* 演出：なめらかに うごかさず、コマ送り（steps）で。数字は ドットの ふちどり */
 :root[data-theme="gba"] .fx-num { font-family: var(--display); -webkit-text-stroke: 0; text-shadow: 2px 0 var(--px), -2px 0 var(--px), 0 2px var(--px), 0 -2px var(--px), 4px 4px 0 var(--px); animation-timing-function: steps(6); }
 :root[data-theme="gba"] .fx-num:not(.heal) { color: #ffd0c0; }
@@ -1253,7 +1290,7 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 @keyframes clear-ab { 50% { box-shadow: 0 0 0 2px var(--line), 0 0 0 5px var(--gold); } }
 :root[data-theme="clear"] .pile.brk.ready { background: var(--gold); border-color: var(--line); animation: none; outline: 3px solid var(--gold-line); outline-offset: 2px; }
 /* たたかい：場は うすい 色に ぬって 太い わく。すけさせない。上の 文字が 大きく なった ぶん、行の あいだを すこし つめて 場の 高さを のこす */
-:root[data-theme="clear"] .battle { gap: 5px; }
+:root[data-theme="clear"] .battle > :not(:first-child), :root[data-theme="clear"] .erow > * { margin-top: 5px; }
 :root[data-theme="clear"] .zone { border-radius: 10px; border: 3px solid var(--line); padding: 6px; gap: 6px; box-shadow: none; }
 :root[data-theme="clear"] .zone.enemy { background: #fbe6ef; border-color: var(--enemy-2); }
 :root[data-theme="clear"] .zone.mine { background: #e6effc; border-color: #2f6fd6; }
