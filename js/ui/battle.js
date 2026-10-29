@@ -1196,7 +1196,7 @@ function gravePile(side) {
   const ok = side === 'P' && gyUsable().size > 0; // いま ぼちから となえられる カードが ある：光らせる
   return `<button type="button" class="pile2 grave ${side === 'E' ? 'foe' : ''} ${ok ? 'ok' : ''}" data-act="${side === 'P' ? 'gy' : 'egy'}" aria-label="${side === 'P' ? '' : 'てきの '}ぼち ${gy.length}まい${ok ? '（つかえる カードが ある）' : ''}">
     <span class="gyc ${top ? (side === 'E' && s.floor.id !== 'pvp' ? 'b1-E b2-E' : band(top.def)) : 'none'} ${gy.length > 1 ? 'stack' : ''}">${top ? `<i>${ruby(info(top.def).name)}</i>` : ''}<b>${gy.length}</b></span>
-    <small>${ok ? 'つかえる' : esc2 ? 'だっしゅつ' : 'ぼち'}</small></button>`;
+    <small>${esc2 ? 'だっしゅつ' : 'ぼち'}</small></button>`;
 }
 // 統率者（統率者戦）：統率領域に いれば 名前と コスト（統率者税 こみ）
 function cmdPile(side) {
@@ -1204,7 +1204,8 @@ function cmdPile(side) {
   if (!S.cmdId) return '';
   const c = S.cmd[0], def = c?.def || cmdOnBf(S)?.def;
   if (!def) return '';
-  return `<button type="button" class="pile2 grave cmdz ${side === 'E' ? 'foe' : ''}" data-act="${side === 'P' ? 'cmd' : 'ecmd'}" aria-label="${side === 'P' ? '' : 'あいての '}とうそつしゃ">
+  const ok = side === 'P' && !!c && !B.tut && !B.busy && B.s.active === 'P' && B.mode === 'main' && !!castInfo(c, 'cmd').ok; // いま 出せる：光らせる（showCmd と おなじ 判定）
+  return `<button type="button" class="pile2 grave cmdz ${side === 'E' ? 'foe' : ''} ${ok ? 'ok' : ''}" data-act="${side === 'P' ? 'cmd' : 'ecmd'}" aria-label="${side === 'P' ? '' : 'あいての '}とうそつしゃ${ok ? '（いま 出せる）' : ''}">
     <span class="gyc ${c ? band(def) : 'none'}">${c ? `<i>${ruby(info(def).name)}</i><b>${Math.max(def.cost - (S.cmdLess || 0) + (S.cmdStep ?? 2) * (S.cmdCasts || 0), 1)}</b>` : '<b>出</b>'}</span>
     <small>${c ? 'とうそつ' : 'せんじょう'}</small></button>`;
 }
