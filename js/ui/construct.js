@@ -16,7 +16,8 @@ import { onPack, syncTrophyTickets } from './trophies.js';
 import { zukanPack } from './zukan.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
 import { hasServer, CONF } from './server.js';
-import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME } from './view.js';
+import { cardFace, detail, sheet, numberSheet, esc, ruby, info, byColorCost, COLOR_NAME } from './view.js';
+import { sfx } from './sfx.js';
 import {
   tickets, useTicket, studyLeft, STUDY_DAY_MAX, TROPHY_TICKETS, MAX_COPY, DECK_MAX, RULES, isCmdRule, isEternal,
   realCount, realCards, ownCount, ownPool, addCards, openAll, decks, saveDeck, dropDeck, nextDeckNo, missing,
@@ -91,7 +92,8 @@ function shop() {
     return `<li class="cs-set ${done ? 'done' : ''}">
       <span class="cs-set-name">${x.released || x.sub || x.extra ? '' : '<small><em class="st-dev">開発中</em></small>'}<b>${ruby(x.name)}</b>
         <small>もって いる ${have} / ${list.length}しゅるい・4まい そろった ${full}</small></span>
-      <button type="button" class="btn ${done ? '' : 'primary'}" data-buy="${x.id}" ${done || tickets() < 1 ? 'disabled' : ''}>${done ? 'コンプリート！' : 'あける'}<small>${done ? 'ぜんぶ 4まい' : 'パックけん 1まい'}</small></button>
+      <span class="cs-buy"><button type="button" class="btn ${done ? '' : 'primary'}" data-buy="${x.id}" ${done || tickets() < 1 ? 'disabled' : ''}>${done ? 'コンプリート！' : 'あける'}<small>${done ? 'ぜんぶ 4まい' : 'パックけん 1まい'}</small></button>
+        ${done ? '' : `<button type="button" class="btn" data-bulk="${x.id}" ${tickets() < 2 || packsLeft(x) < 2 ? 'disabled' : ''}>まとめて<small>2パック いじょう</small></button>`}</span>
     </li>`;
   }).join('');
   app().innerHTML = `<main class="zukan construct">
@@ -105,8 +107,11 @@ function shop() {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.back) return menu();
     if (b.dataset.buy) return buy(SETS.find((x) => x.id === +b.dataset.buy));
+    if (b.dataset.bulk) return bulk(SETS.find((x) => x.id === +b.dataset.bulk));
   };
 }
+// コンプリートまで あと 何パック（4まいに たりない まい数 ÷ 8。さいごの パックは 8まいより すくない ことも ある）
+const packsLeft = (x) => Math.ceil(packCards(x).reduce((t, d) => t + Math.max(0, MAX_COPY - realCount(d.id)), 0) / 8);
 async function buy(x) {
   const t = tickets();
   if (t < 1) return say('<p>パックけんが ない。とうを のぼるか、しゅぎょうで もらおう。</p>', 'ショップ');
@@ -123,6 +128,59 @@ async function buy(x) {
     bonus: `<div class="bonus"><p class="bonus-title">${ruby(x.name)}</p><span>4まい もって いる カードは 出ない</span></div>`,
     done: () => { onPack(cards); shop(); }, // トロフィー（めくりおわってから）
   });
+}
+
+// まとめて あける（2パック いじょう）：1まいずつ めくらずに、出た カードを まとめて 見せる。
+// 4まいの きまりは パックを またいで かぞえる。とちゅうで コンプリートしたら そこで やめて、のこりの パックけんは つかわない
+async function bulk(x) {
+  const t = tickets(), left = packsLeft(x), most = Math.min(t, left);
+  if (most < 2) return shop();
+  const allLabel = most === left ? `コンプリートまで（${most}パック）` : `パックけん ぜんぶ（${most}パック）`;
+  const opts = [...new Set([5, 10, most])].filter((n) => n >= 2 && n <= most).sort((a, b) => a - b);
+  let n = await sheet(`<p>${ruby(`${x.name}の パックを まとめて あける。`)}</p><p class="zk-note">いくつ あける？ 1まいずつ めくらずに、出た カードを まとめて 見せる。</p>`, [
+    ...opts.map((k) => ({ label: k === most ? allLabel : `${k}パック`, value: k, kind: 'primary', note: `パックけん ${t} − ${k} ＝ ${t - k}まい` })),
+    ...(most > 2 ? [{ label: 'かずを えらぶ', value: 'num' }] : []),
+    { label: 'やめる', value: 0 },
+  ], { title: 'まとめて あける' });
+  if (n === 'num') {
+    n = await numberSheet('まとめて あける', { min: 2, max: most, value: Math.min(10, most), note: `パックけん ${t}まい。いくつ あける？` });
+    if (n && !(await sheet(`<p class="cs-math">パックけん ${t} − ${n} ＝ <b>${t - n}</b>まい</p>`, [{ label: `${n}パック あける`, value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'まとめて あける' }))) n = 0;
+  }
+  if (!n) return shop();
+  const before = { ...realCards() }, have = { ...before }, packs = [];
+  for (let i = 0; i < n; i++) {
+    const cards = openPack(Math.random, { sets: [x.id], have, max: MAX_COPY });
+    if (!cards.length) break;
+    for (const d of cards) have[d.id] = (have[d.id] || 0) + 1;
+    packs.push(cards);
+  }
+  for (const cards of packs) { useTicket(); addCards(cards); zukanPack(cards); } // さきに のこす
+  bulkResult(x, packs, n, new Set(Object.keys(before)));
+}
+const RAR_ORDER = { L: 0, R: 1, U: 2, C: 3 };
+function bulkResult(x, packs, asked, owned) {
+  const all = packs.flat(), cnt = {};
+  for (const d of all) cnt[d.id] = (cnt[d.id] || 0) + 1;
+  const ids = Object.keys(cnt).sort((a, b) => RAR_ORDER[BY_ID[a].rar] - RAR_ORDER[BY_ID[b].rar] || byColorCost(BY_ID[a], BY_ID[b]));
+  const by = (r) => all.filter((d) => d.rar === r).length;
+  const fresh = ids.filter((id) => !owned.has(id)).length;
+  app().innerHTML = `<main class="zukan construct">
+    <p class="eyebrow">ショップ　${ruby(x.name)}</p>
+    <h2>${packs.length}パック あけた！</h2>
+    ${by('L') ? `<p class="cs-legend">LEGEND!! ×${by('L')}</p>` : ''}
+    <p class="cs-sum">レジェンド <b>${by('L')}</b>・レア <b>${by('R')}</b>・アンコモン <b>${by('U')}</b>・コモン <b>${by('C')}</b>（ぜんぶで ${all.length}まい）<br>はじめての カード（NEW） <b>${fresh}</b>しゅるい</p>
+    ${packs.length < asked ? `<p class="zk-note">${ruby(`ぜんぶ 4まい そろったので ${packs.length}パックで おわり。パックけんは ${asked - packs.length}まい のこした。`)}</p>` : ''}
+    <p class="zk-note">パックけん のこり ${tickets()}まい。カードを タップで せつめい。</p>
+    <div class="zk-grid">${ids.map((id) => `<button type="button" class="zk-card" data-id="${esc(id)}">${cardFace(BY_ID[id])}${owned.has(id) ? '' : '<span class="new">NEW</span>'}${cnt[id] > 1 ? `<span class="cs-n">×${cnt[id]}</span>` : ''}</button>`).join('')}</div>
+    <button type="button" class="btn primary" data-back="1">ショップへ</button>
+  </main>`;
+  (by('L') ? sfx.legend : by('R') ? sfx.rare : sfx.flip)();
+  for (const cards of packs) onPack(cards); // トロフィー（レジェンド・サプライズ）
+  app().onclick = async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.back) return shop();
+    if (b.dataset.id) await sheet(`${detail(BY_ID[b.dataset.id])}<p class="zk-note">この パックで ${cnt[b.dataset.id]}まい・もって いる ${realCount(b.dataset.id)}まい</p>`, [{ label: 'とじる', value: 0 }]);
+  };
 }
 
 // ---- デッキ ----
