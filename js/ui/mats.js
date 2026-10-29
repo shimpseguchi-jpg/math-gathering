@@ -9,9 +9,11 @@ export const MATS = [
   { id: 'neon', name: '番外編（ばんがいへん）の ネオン', how: 'ストーリー 4章を クリア' },
   { id: 'erebos', name: 'エレボスの 冥界（めいかい）', how: 'テーロスの とうを のぼりきる' },
   { id: 'jace', name: 'ジェイスの 心の 図書館', how: 'ラヴニカの とうを のぼりきる' },
+  { id: 'chalk', name: 'ストリクスヘイヴンの 黒板（こくばん）', how: 'ストーリー 5章を クリア' },
+  { id: 'lantern', name: '卒業（そつぎょう）の ランタン', how: 'ストリクスヘイヴンの とうを のぼりきる' },
 ];
-export const CHAPTER_MAT = { 1: 'nyx', 2: 'guild', 3: 'scale', 4: 'neon' };
-export const TOWER_MAT = { theros: 'erebos', ravnica: 'jace' };
+export const CHAPTER_MAT = { 1: 'nyx', 2: 'guild', 3: 'scale', 4: 'neon', 5: 'chalk' };
+export const TOWER_MAT = { theros: 'erebos', ravnica: 'jace', strixhaven: 'lantern' };
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { got: [], use: 'plain' }; } catch { return { got: [], use: 'plain' }; } };
 const save = (M) => { try { localStorage.setItem(KEY, JSON.stringify(M)); } catch { /* 保存できなくても この あいだは つかえる */ } };
 // 開発モード（デモ）では ぜんぶ えらべる（settings.js が setMatFree(DEV) を よぶ）

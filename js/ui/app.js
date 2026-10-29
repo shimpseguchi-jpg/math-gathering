@@ -11,7 +11,7 @@ import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
-import { storyMenu, storyCount, STORY_TOTAL } from './story.js';
+import { storyMenu, storyCount, storyTotal } from './story.js';
 import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
 import { RAID, raidOpen, raidShown, raidFree, applyRaid } from './raidstore.js';
 import { CONF, loadConf } from './server.js';
@@ -146,7 +146,7 @@ export function title() {
     <nav class="t-menu" aria-label="メニュー">
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
-      ${tile('story', 'ストーリー', step === 'story' ? '1章を クリアすると とうへ' : `せかいめぐり ${storyCount()} / ${STORY_TOTAL}話`, tIcon('story'), step === 'story' ? 'next' : '')}
+      ${tile('story', 'ストーリー', step === 'story' ? '1章を クリアすると とうへ' : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}

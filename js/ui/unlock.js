@@ -1,6 +1,6 @@
 // あそべる ものが ひらく じゅんばん（2026-10-29。REQUIREMENTS 8.7）
 //   はじめての 人：チュートリアル → ストーリー 1章「はじめの いっぽ」→ テーロスの とう（かんたん・ふつう）
-//   テーロスを「ふつう」で のぼりきる → 「むずかしい」と ラヴニカ（第5弾が 出て いれば ストリクスヘイヴンも）
+//   テーロスを「ふつう」で のぼりきる → 「むずかしい」と ラヴニカ → ラヴニカを「ふつう」で のぼりきる → ストリクスヘイヴン（第5弾が 出て いる とき）
 // まえから あそんで いる 人（ぼうけんの きろくが ある）は、とうは さいしょから あそべる
 // デバッグモードの せってい「ぜんぶ あそべる」で ぜんぶ ひらく（先生の たしかめ用・e2e）
 import { TUTORIAL_DONE } from './tutorial.js';
@@ -16,8 +16,8 @@ export const GATES = {
   adventure: () => unlockAll() || adventuresCount() > 0 || (tutDone() && chapter1Done()),
   hard: () => unlockAll() || normalCleared(),
   ravnica: () => unlockAll() || normalCleared(),
-  // ストリクスヘイヴン：第5弾と いっしょに ひらく（第5弾が パックに 入る とき）＋ テーロスを「ふつう」で のぼりきる（docs/STRIXHAVEN.md）
-  strixhaven: () => enabledSets().includes(5) && (unlockAll() || normalCleared()),
+  // ストリクスヘイヴン：第5弾と いっしょに ひらく（第5弾が パックに 入る とき）＋ ラヴニカを「ふつう」で のぼりきる（2026-10-29。docs/STRIXHAVEN.md）
+  strixhaven: () => enabledSets().includes(5) && (unlockAll() || clearedCount('ravnica', 'normal') > 0),
 };
 export const diffOpen = (d) => (d === 'hard' ? GATES.hard() : GATES.adventure());
 export const planeOpen = (p) => (GATES[p] ? GATES[p]() : true);
@@ -30,7 +30,7 @@ export const LOCK_TEXT = {
   story: { title: 'テフェリーが まって いる', text: 'くんれんは おわった。でも とうに のぼる まえに、せかいめぐりの 1章「はじめの いっぽ」を おわらせよう。テフェリーが、テーロスの 神々（かみがみ）の ことを 教（おし）えて くれる。', go: 'story', label: 'ストーリーへ' },
   hard: { title: '「むずかしい」は まだ', text: 'エレボスは まだ 本気（ほんき）を 出して いない。テーロスの とうを「ふつう」で のぼりきった とき、ほんとうの たたかいが はじまる。' },
   ravnica: { title: 'ラヴニカへの 門（もん）', text: '10の ギルドが ひしめく 大きな まち、ラヴニカ。ギルドパクトの ジェイスは、テーロスの とうを「ふつう」で のぼりきった ものだけを まねく。――まずは テーロスの 神々（かみがみ）に いどもう。' },
-  strixhaven: { title: 'ストリクスヘイヴンへの 門（もん）', text: '魔法（まほう）学院（がくいん）ストリクスヘイヴンは、第5弾（だん）「大きな 数の 塔（とう）」と いっしょに ひらく。テーロスの とうを「ふつう」で のぼりきって、第5弾（だん）が とどいたら 入学（にゅうがく）できるよ。' },
+  strixhaven: { title: 'ストリクスヘイヴンへの 門（もん）', text: '魔法（まほう）学院（がくいん）ストリクスヘイヴンは、第5弾（だん）「大きな 数の 塔（とう）」と いっしょに ひらく。ラヴニカの とうを「ふつう」で のぼりきると、入学（にゅうがく）の てがみが とどくよ。' },
 };
 // ひらいた ときの しらせ
 export const NEWS_TEXT = {
