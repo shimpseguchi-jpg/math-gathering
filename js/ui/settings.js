@@ -65,6 +65,11 @@ const THEMES = ['classic', 'gba', 'clear'];
 export const theme = () => { try { const t = localStorage.getItem(THEME_KEY); return THEMES.includes(t) ? t : 'classic'; } catch { return 'classic'; } };
 export const applyTheme = (t = theme()) => { document.documentElement.dataset.theme = t; };
 const setTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できなくても この あいだは かわる */ } applyTheme(t); };
+// ぜんぶ あそべる（2026-10-29）：ひらく じゅんばん（unlock.js）を とばす。デバッグモードだけ（先生の たしかめ・e2e）
+const UNLOCK_KEY = 'mtg-unlock-all';
+let unlockAllOn = (() => { try { return localStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; } })();
+export const unlockAll = () => DEV && unlockAllOn;
+const setUnlockAll = (v) => { unlockAllOn = v; try { localStorage.setItem(UNLOCK_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } };
 // ぼうけんの まえと おわりの しゅぎょう（広告。docs/EMBLEMS.md 8章）。開発モードでは せっていで オフに できる
 const AD_KEY = 'mtg-ads-off';
 let adsOff = (() => { try { return localStorage.getItem(AD_KEY) === '1'; } catch { return false; } })();
@@ -114,6 +119,11 @@ export function settingsScreen(app, back, o = {}) {
         <p class="st-note">ぼうけんの まえと おわりに 出る 60びょうの しゅぎょう。オフに すると すぐ パックに すすむ。</p>
         <button type="button" class="btn" data-ads="1" aria-pressed="${adsOn()}">こうこく ${adsOn() ? 'あり' : 'なし'}</button>
       </section>
+      <section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>ひらく じゅんばん</h3>
+        <p class="st-note">${ruby('ふつうは、チュートリアル → ストーリー 1章 → テーロスの とう、「ふつう」で のぼりきると「むずかしい」と ラヴニカ。オンに すると ぜんぶ あそべる。')}</p>
+        <button type="button" class="btn" data-unlock="1" aria-pressed="${unlockAll()}">ぜんぶ あそべる ${unlockAll() ? 'オン' : 'オフ'}</button>
+      </section>
       ${hasServer() ? '' : `<section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>レイド</h3>
         <p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
@@ -143,6 +153,7 @@ export function settingsScreen(app, back, o = {}) {
     const th = e.target.closest('[data-look]'); if (th) { setTheme(th.dataset.look); draw(); }
     const mt = e.target.closest('button[data-mat]'); if (mt && !mt.disabled) { useMat(mt.dataset.mat); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }
+    if (e.target.closest('[data-unlock]')) { setUnlockAll(!unlockAll()); draw(); }
     if (e.target.closest('[data-raid]')) { setRaidHidden(!raidHidden()); draw(); }
     if (e.target.closest('[data-allcards]')) { setOpenAll(!openAllSaved()); draw(); }
     if (e.target.closest('[data-up]')) upload().then(draw);
