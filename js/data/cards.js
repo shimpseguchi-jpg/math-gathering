@@ -962,7 +962,7 @@ export const SET13 = setOf(13).map((d) => ({ ...d, noPack: true }));
 LESSONS.push(...SET5.filter((d) => isSub({ def: d }, 'lesson')));
 // 弾（だん）：開発モードの せってい画面で、パックに 入れる 弾を えらぶ。released が ない 弾は 開発中（開発モードで えらんだ ときだけ パックに 入る）
 export const SETS = [
-  { id: 1, name: '第1弾（だん）', cards: SET1, released: true },
+  { id: 1, name: '第1弾（だん）「ファウンデーションズ」', cards: SET1, released: true }, // 基本セット（2026-10-29 に 名前を きめた）
   { id: 2, name: '第2弾（だん）「英雄譚（えいゆうたん）の 時代（じだい）」', cards: SET2, released: true },
   { id: 3, name: '第3弾（だん）「冥界（めいかい）の 門（もん）」', cards: SET3 },
   { id: 4, name: '第4弾（だん）「星（ほし）めぐりの 夜（よる）」', cards: SET4 },
