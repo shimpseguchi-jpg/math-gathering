@@ -192,6 +192,7 @@ export async function enemyTurn(s) {
   for (const p of s.E.bf) { untap(s, p); p.sick = false; }
   s.E.flags.turn = {};
   await s.floor.enemyTurn(s, api);
+  if (!s.over) await s.ai.endOfTurn?.(s); // てきの ターンの おわり：プレイヤーが インスタントを 使える（battle.js の humanAI。AI どうしの シミュレーションでは なし）
   if (!s.over) endTurn(s);
 }
 

@@ -103,6 +103,8 @@ for (let i = 0; i < STEPS && !ended; i++) {
     // スワイプで 攻撃（自分の クリーチャー → 敵）
     const dr = page.locator('.zone.mine .perm.drag'), en = page.locator('.zone.enemy .perm');
     if (await dr.count() && await en.count() && Math.random() < 0.5) { await swipe(dr.first(), en.first()); continue; }
+    // てきの ターンの インスタント（defend・eot の まど）：光っている カードが あれば ときどき 使う、なければ つぎへ
+    if (await page.locator('[data-act=pass]').count()) { if (Math.random() < 0.6 && await page.locator('.hand-slot.ok').count()) await tap('.hand-slot.ok'); else await tap('[data-act=pass]'); continue; }
     if (await page.locator('[data-act=damage]').count()) { await tap('[data-act=damage]'); continue; }
     // 手札を1まい ためす → 使えたら 使う、だめなら マナに
     const hand = page.locator('.hand-slot');
