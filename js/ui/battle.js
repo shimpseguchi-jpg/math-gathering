@@ -215,7 +215,9 @@ const WIN_MODES = ['defend', 'eot'];
 const inWindow = () => WIN_MODES.includes(B.mode);
 const winCtx = () => (B.mode === 'defend' && B.winCtx ? B.winCtx : {});
 const blockersNow = () => [...new Set([...(B.winCtx?.blocks?.values?.() || [])])].filter((b) => b && onBf(B.s, b));
-const isPumpTrick = (d) => !!d.trick && !d.play && !d.bloodrush && d.trick.kind !== 'mass'; // ブロッカー 1体を 強化する コンバットトリック（まとめて 強化・ゆうけつは こうげきの ときだけ）
+const isTrick = (d) => !!d.trick && !d.bloodrush && !d.trick.atk; // ブロックの あとに 使える コンバットトリック（1体を 強化・まとめて 強化）。ゆうけつと「こうげきしている クリーチャーだけ」の まとめて 強化（ラッパの 一吹き）は こうげきの ときだけ
+const winPhase = () => (B.mode === 'defend' ? 1 : 2); // まどの 中で 能力の play に わたす フェイズ（ブロックの あと＝たたかいの まえ、ターンの おわり＝たたかいの あと）
+const windowHasPlay = () => B.s.P.hand.some((c) => handMark(c)) || B.s.P.bf.some((p) => abilityMark(B.s, p)); // まどで 使える ものが ある？（手札の インスタント・クリーチャーの 能力）
 function instantWindow(mode, ctx) {
   const s = B.s;
   if (B.tut || s.over || silenced(s)) return Promise.resolve();
@@ -223,16 +225,17 @@ function instantWindow(mode, ctx) {
     B.mode = mode; B.winCtx = ctx;
     B.winDone = () => { B.winDone = null; B.winCtx = null; B.mode = 'enemy'; B.busy = true; if (!s.over) render(); resolve(); };
     B.busy = false; // まどの あいだは プレイヤーが えらぶ ばん。カードを 使っている あいだだけ busy（そのあいだ「つぎへ」は おせない）
-    if (!s.P.hand.some((c) => handMark(c))) return B.winDone();
+    if (!windowHasPlay()) return B.winDone();
     render();
   });
 }
 // まどの 中で カードを 使った あと：つづけて 使える ものが なければ まどを とじる
 async function windowCast(fn) {
+  B.busy = true; // 使っている あいだ（ねらいの アニメーション など）は「つぎへ」を おせない
   await fn();
   if (!inWindow()) return;
   B.busy = false;
-  if (B.s.over || !B.s.P.hand.some((c) => handMark(c))) return B.winDone?.();
+  if (B.s.over || !windowHasPlay()) return B.winDone?.();
   render();
 }
 
@@ -497,7 +500,7 @@ function castInfo(c, from = 'hand') {
   if (d.counter && !d.modes) return { why: 'てきが じゅもんを となえたときに 使う' };
   if (from === 'hand' && d.suspend && !plan(s, cost, req, o) && s.active === 'P' && B.mode === 'main') return { why: 'マナが たりない（たいきなら 使える かも）' };
   if (d.react && !d.play && B.mode !== 'defend') return { why: 'てきが こうげきしてきたときに 使う' };
-  if (!perm && !d.play && (d.trick || d.bloodrush)) return { why: B.mode === 'defend' ? 'ブロックしている クリーチャーに 使う' : 'こうげきの とちゅう（ブロックの あと）に 使う' };
+  if (!perm && !d.play && (d.trick || d.bloodrush)) return { why: B.mode === 'defend' ? 'こうげきしている クリーチャーにだけ（こうげきの ときに 使う）' : B.mode === 'eot' ? 'たたかいの とちゅう（ブロックの あと）に 使う' : 'こうげきの とちゅう（ブロックの あと）に 使う' };
   if (!win && (s.active !== 'P' || !(B.mode === 'main' || (B.mode === 'tricks' && d.flash && !isSpell(d))))) return { why: 'いまは 使えない' }; // 瞬速の パーマネント（炎の 宝剣）は 攻撃の とちゅうにも
   let x = 0;
   if (d.x) {
@@ -737,9 +740,9 @@ async function tapHand(c) {
   const s = B.s, d = c.def;
   const choices = [];
   if (inWindow()) { // てきの ターンの まど：インスタントを 使う（ブロックの あとは ブロッカーの 強化も）
-    if (B.mode === 'defend' && isPumpTrick(d)) {
+    if (B.mode === 'defend' && isTrick(d)) { // コンバットトリック：1体なら ブロッカーを えらぶ、まとめて 強化は そのまま
       const ok = blockersNow().length > 0, pl = ok && plan(s, d.cost, colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
-      choices.push({ label: 'ブロックしている クリーチャーに 使う', value: 'trick', kind: 'primary', disabled: !pl, note: !ok ? 'ブロックしている クリーチャーが いない' : !pl ? 'マナが たりない' : pl.life ? lifeNote(d, pl.life) : '' });
+      choices.push({ label: d.trick.kind === 'mass' ? '使う（じぶんの クリーチャー みんな）' : 'ブロックしている クリーチャーに 使う', value: 'trick', kind: 'primary', disabled: !pl, note: !ok ? 'ブロックしている クリーチャーが いない' : !pl ? 'マナが たりない' : pl.life ? lifeNote(d, pl.life) : '' });
     } else {
       const ci = castInfo(c);
       if (!ci.ok && ci.why) noteMiss(ci.why);
@@ -837,7 +840,7 @@ async function useTrick(c) {
   const tr = d.trick || { kind: 'single' };
   const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
   let target = null, mode = null;
-  if (d.modes) { if (!(mode = await chooseMode(d))) return; }
+  if (d.modes) { if (!(mode = await chooseMode(d, winCtx()))) return; }
   else if (tr.kind !== 'mass') {
     const live = B.mode === 'defend' ? blockersNow().map((p) => ({ p })) : B.atk.filter((a) => onBf(s, a.p)); // ブロックの あとは ブロッカーに
     target = await sheet('<p>どの クリーチャーに 使う？</p>', [...live.map((a) => ({ label: `${(nm(a.p))}（${power(s, a.p)}/${pt(s, a.p)[1]}）`, value: a.p })), { label: 'やめる', value: null }]);
@@ -884,7 +887,7 @@ function actCheck(s, p, a) {
   const o = { exclude: a.tap || a.sac ? p : null };
   let x = 0; if (a.x) while (plan(s, cost + x + 1, a.req || [], o)) x++;
   const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
-  const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, { phase: B.phase, xMax: x, human: true });
+  const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, inWindow() ? { phase: winPhase(), xMax: x, human: true, enemyTurn: true, ...winCtx() } : { phase: B.phase, xMax: x, human: true });
   return { cost, o, x, blocked, r };
 }
 // つよい 能力（宝具・戦技・エネルギー・PW の 忠誠度）は 金色、ふつうの 能力（タップ など）は 水色の わく
@@ -896,7 +899,7 @@ function handMark(c) {
   if (B.tut) return '';
   if (inWindow()) { // てきの ターンの まど
     if (B.busy) return '';
-    if (B.mode === 'defend' && isPumpTrick(d)) return blockersNow().length && plan(s, d.cost, colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 }) ? 'ok' : '';
+    if (B.mode === 'defend' && isTrick(d)) return blockersNow().length && plan(s, d.cost, colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 }) ? 'ok' : '';
     return castInfo(c).ok ? 'ok' : '';
   }
   if (B.busy || s.active !== 'P') return '';
@@ -929,9 +932,18 @@ function gyUsable() {
   return ids;
 }
 function abilityMark(s, p) {
+  if (inWindow()) { // てきの ターンの まど：ブロッカーの パワー ＋N と、クリーチャーの 能力（戦技 など）
+    if (B.busy || p.side !== 'P') return '';
+    if (B.mode === 'defend' && blockersNow().includes(p) && (p.def.acts || []).some((a) => a.pumpP && plan(s, a.cost, a.req || []))) return 'ab';
+    return actsMark(s, p);
+  }
   if (s.active !== 'P') return '';
   if (B.mode === 'tricks') return p.attacking && (p.def.acts || []).some((a) => a.pumpP && plan(s, a.cost, a.req || [])) ? 'ab' : '';
   if (B.mode !== 'main') return '';
+  return actsMark(s, p) || (p.def.equip && !p.attached && plan(s, equipCost(s, p), []) ? 'ab' : '');
+}
+// いま 使える 起動型能力が ある？（パワー ＋N は べつ）。つよい 能力なら 'ab-big'
+function actsMark(s, p) {
   let m = '';
   for (const a of p.def.acts || []) {
     if (a.pumpP) continue;
@@ -940,7 +952,7 @@ function abilityMark(s, p) {
     if (bigAct(a)) return 'ab-big';
     m = 'ab';
   }
-  return m || (p.def.equip && !p.attached && plan(s, equipCost(s, p), []) ? 'ab' : '');
+  return m;
 }
 async function tapPerm_(p) {
   const s = B.s;
@@ -971,19 +983,26 @@ async function tapPerm_(p) {
   }
   // 説明と、起動型能力
   const choices = [];
-  if (p.side === 'P' && B.mode === 'main' && s.active === 'P') {
+  const win = inWindow() && p.side === 'P'; // てきの ターンの まど：クリーチャーの 能力も 使える（そうびは 自分の ターンだけ）
+  if (p.side === 'P' && ((B.mode === 'main' && s.active === 'P') || win)) {
     for (const a of p.def.acts || []) {
       if (a.pumpP) continue;
       const { cost, o, x, blocked, r } = actCheck(s, p, a);
       const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
-    if (p.def.equip) { const ec = equipCost(s, p); choices.push({ label: `そうびする（${ec < p.def.equip ? `${p.def.equip} − ${p.def.equip - ec} ＝ ` : ''}${ec}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, ec, []) }); }
+    if (p.def.equip && !win) { const ec = equipCost(s, p); choices.push({ label: `そうびする（${ec < p.def.equip ? `${p.def.equip} − ${p.def.equip - ec} ＝ ` : ''}${ec}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, ec, []) }); }
   }
-  if (p.side === 'P' && B.mode === 'tricks') for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !p.attacking });
+  if (p.side === 'P' && (B.mode === 'tricks' || B.mode === 'defend')) for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !(B.mode === 'defend' ? blockersNow().includes(p) : p.attacking) }); // こうげき中 か ブロック中の クリーチャーだけ
   choices.push({ label: 'とじる', value: null });
   const v = await sheet(`${detail(p.def, { enemy: p.side === 'E' })}${p.def.npFx && p.def.np ? `<p class="what">${esc(npNote(p))}</p>` : ''}`, choices);
   if (!v) return;
+  if (win) return windowCast(() => runAct(p, v)); // まどの 中：使い終わったら つづきが あるか 見る
+  return runAct(p, v);
+}
+// 起動型能力・そうび・パワー ＋N を 使う（tapPerm_ の シートで えらんだ あと）
+async function runAct(p, v) {
+  const s = B.s;
   if (v === 'equip') {
     const t = await sheet('<p>どの クリーチャーに そうびする？</p>', [...s.P.bf.filter(isCreature).map((q) => ({ label: (nm(q)), value: q })), { label: 'やめる', value: null }]);
     if (!t) return;
@@ -1188,8 +1207,8 @@ function banner() {
     case 'attack': return 'こうげきする クリーチャーを てきへ ひっぱる（タップでも えらべる）';
     case 'tricks': return B.blocks.size ? 'ブロックされた！ 強化の じゅもんを 使うなら いま' : 'ブロックされなかった。強化の じゅもんを 使うなら いま';
     case 'block': return 'てきの こうげき！ 自分の クリーチャーを こうげきしてくる てきへ ひっぱって ブロック';
-    case 'defend': return 'ブロックの あと：光っている インスタントを タップして 使える';
-    case 'eot': return 'てきの ターンの おわり：のこった マナで 光っている インスタントを 使える';
+    case 'defend': return 'ブロックの あと：光っている インスタントや クリーチャーの 能力を 使える';
+    case 'eot': return 'てきの ターンの おわり：のこった マナで 光っている インスタントや 能力を 使える';
     case 'enemy': return B.s.floor.id === 'pvp' ? 'あいての ターン…' : 'てきの ターン…';
     default: return B.phase === 1 ? (B.combatDone ? 'カードを 使うか、マナゾーンに おこう' : 'カードを 使おう。クリーチャーを てきへ ひっぱると こうげき') : 'こうげきは おわり。カードを 使って、ターンを おわろう';
   }
@@ -1304,7 +1323,7 @@ function render() {
   if (B.mode === 'tricks') btns = '<button type="button" class="btn primary" data-act="damage">ダメージ！</button>';
   if (B.mode === 'block') btns = '<button type="button" class="btn" data-act="blockauto">おまかせ</button><button type="button" class="btn primary" data-act="blockdone">ブロック けってい</button>';
   if (B.mode === 'enemy') btns = `<span class="wait">${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ターン…</span>`;
-  if (inWindow()) btns = `<button type="button" class="btn primary" data-act="pass">つぎへ<small>インスタントを 使わない</small></button>`;
+  if (inWindow()) btns = `<button type="button" class="btn primary" data-act="pass">つぎへ<small>なにも 使わない</small></button>`;
   const snap = fx.capture(app());
   app().innerHTML = `<div class="battle">
     <header class="bt-head">

@@ -104,7 +104,13 @@ for (let i = 0; i < STEPS && !ended; i++) {
     const dr = page.locator('.zone.mine .perm.drag'), en = page.locator('.zone.enemy .perm');
     if (await dr.count() && await en.count() && Math.random() < 0.5) { await swipe(dr.first(), en.first()); continue; }
     // てきの ターンの インスタント（defend・eot の まど）：光っている カードが あれば ときどき 使う、なければ つぎへ
-    if (await page.locator('[data-act=pass]').count()) { if (Math.random() < 0.6 && await page.locator('.hand-slot.ok').count()) await tap('.hand-slot.ok'); else await tap('[data-act=pass]'); continue; }
+    if (await page.locator('[data-act=pass]').count()) { // てきの ターンの まど：光っている 手札か クリーチャーの 能力を 使う。なければ つぎへ
+      const r = Math.random();
+      if (r < 0.5 && await page.locator('.hand-slot.ok').count()) await tap('.hand-slot.ok');
+      else if (r < 0.75 && await page.locator('.zone.mine .perm.ab, .zone.mine .perm.ab-big').count()) await tap('.zone.mine .perm.ab, .zone.mine .perm.ab-big');
+      else await tap('[data-act=pass]');
+      continue;
+    }
     if (await page.locator('[data-act=damage]').count()) { await tap('[data-act=damage]'); continue; }
     // 手札を1まい ためす → 使えたら 使う、だめなら マナに
     const hand = page.locator('.hand-slot');

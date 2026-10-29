@@ -341,7 +341,7 @@ const R = [
   cr('R05', 'ときの声の ゴブリン', 'U', 'R', 2, 2, 2, ['goblin'], [], {
     onAttack: (s, p, E, atk, a) => { if (!packTactics(s, E, atk)) return; const [t] = E.token(s, 'P', T.goblin, 1, { tapped: true }); if (t) { t.attacking = true; atk.push({ p: t, t: a.t }); } },
   }),
-  sp('R06', 'ラッパの 一吹（ひとふ）き', 'U', 'R', 3, 'instant', mass(2, 0, (q) => q.attacking)),
+  sp('R06', 'ラッパの 一吹（ひとふ）き', 'U', 'R', 3, 'instant', mass(2, 0, (q) => q.attacking, true)),
   cr('R07', 'ゴブリンの 大将（たいしょう）', 'R', 'R', 3, 2, 2, ['goblin', 'warrior'], ['mentor'], {
     combatStart: (s, p, E) => E.token(s, 'P', T.goblinHaste),
     onAttack: (s, p, E, atk) => E.pump(p, atk.filter((a) => a.p !== p && isSub(a.p, 'goblin')).length, 0),
