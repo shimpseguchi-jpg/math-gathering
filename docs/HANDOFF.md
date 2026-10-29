@@ -71,5 +71,5 @@
 - ユーザーとの やりとりは 日本語（ふつうの 漢字で よい）。ゲームの 画面の 文字は ひらがな多め
 - カードを ふやす 手順：設計書（`docs/*.md` の 表）に 書く → `python3 tools/gen_texts.py`（文章・skel を 作る）→ うごきを `js/data/set*.js` に 書く → チェック
 - チェック（このリポジトリ で）：`node tools/kanji.mjs`・`node tools/kanji_drafts.mjs`（漢字）、`node tools/cardtest.mjs`（全カード 自動テスト）、`node tools/gen_cardlist.mjs`（一覧）。`node tools/build_gas.mjs`（GAS 版）、`node tools/gastest.mjs`（サーバー）
-- 決まった ことの まとめ：[`REQUIREMENTS.md`](REQUIREMENTS.md)、これから：[`ROADMAP.md`](ROADMAP.md)（6.5 に 保留中の こと）、GAS 版の 公開：[`../gas/README.md`](../gas/README.md)
+- 決まった ことの まとめ：[`REQUIREMENTS.md`](REQUIREMENTS.md)、これから：[`ROADMAP.md`](ROADMAP.md)（6.5 に 保留中の こと）、しくみの 総ざらい：[`ARCHETYPES.md`](ARCHETYPES.md)、GAS 版の 公開：[`../gas/README.md`](../gas/README.md)
 - コミットの おわりに：`Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`（リポジトリに モデル名を 書かない）
