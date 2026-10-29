@@ -124,7 +124,27 @@ function humanAI() {
     },
     dice: (rolls) => sheet(`<p class="big-result dice">サイコロ：${rolls.join(' ＋ ')}${rolls.length > 1 ? ` ＝ ${rolls.reduce((a, b) => a + b, 0)}` : ''}</p>${rolls.length > 1 ? '<p>6が 出たので もう1回 ふった！</p>' : ''}`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'サイコロ', dismiss: false }),
     // 占術：上から1まいずつ「上に のこす／いちばん下へ」
-    // 学習・呪文書：3まいから 1まいを えらぶ（色も 見える）。えらんだ あとで 手札に 入るので、すこし あとで 画面を かきなおす
+    // 学習：「本」か「次の ページ」を えらぶ。本は 出た 学習呪文を 見せる。次の ページは すてる カードを えらぶ（やめたら えらびなおし）
+    learn: async (s, { book, page }) => {
+      for (;;) {
+        if (B) render();
+        const v = await sheet(`<p><b>${ruby('本（ほん）')}</b>：${ruby('学習呪文（がくしゅうじゅもん）を ランダムに 1まい、てふだに 入れる。')}</p><p><b>次の ページ</b>：てふだを 1まい すてて、1まい 引く。</p>`, [
+          { label: '本から 1まい', value: 'book', kind: 'primary' },
+          { label: '次の ページ', value: 'page', disabled: !s.P.hand.length, note: s.P.hand.length ? '' : 'てふだが ない' },
+        ], { title: ruby('学習（がくしゅう）：どちらに する？'), dismiss: false });
+        if (v === 'page') {
+          const drop = await pickMany('すてる カードを 1まい えらぶ', s.P.hand.map((c) => ({ label: ruby(info(c.def).name), value: c })), { min: 1, max: 1, note: 'すてたら 1まい 引く' });
+          if (!drop?.length) continue;
+          page(drop[0]);
+        } else {
+          const c = book();
+          if (c) await sheet(detail(c.def), [{ label: 'てふだに 入れた', value: 1, kind: 'primary' }], { title: ruby('本から 出た 学習呪文（がくしゅうじゅもん）'), dismiss: false });
+        }
+        setTimeout(() => { if (B && !checkOver()) render(); }, 0);
+        return;
+      }
+    },
+    // 呪文書：3まいから 1まいを えらぶ（色も 見える）。えらんだ あとで 手札に 入るので、すこし あとで 画面を かきなおす
     pickCard: async (s, defs, title) => {
       if (B) render();
       const off = (d) => (fitsDeck(s, api, d) ? 0 : LIFE_PIP * (d.req2 ? 2 : 1));

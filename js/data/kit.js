@@ -297,10 +297,22 @@ function chooseOne(s, E, defs, title, then) {
   if (s.ai.pickCard && !s.swapped) return s.ai.pickCard(s, defs, title).then((d) => then(d || defs[0]));
   return then(aiChoice(s, E, defs));
 }
-// 学習：学習呪文の 3まいから 1まいを えらんで 手札に
+// 学習（2026-10-29）：どちらかを えらぶ
+//   本：デッキの 色で 唱えられる 学習呪文（色の ない ものも）から ランダムに 1まい 手札に
+//   次の ページ：手札を 1まい 捨てて、1まい 引く（MTG の 学習の もう1つの えらび方）
 export const LESSONS = [];
 export function learn(s, E) {
-  return chooseOne(s, E, threeOf(s, E, LESSONS), '学習（がくしゅう）：学習呪文（がくしゅうじゅもん）を 1まい えらぶ', (d) => { const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう：${d.name}`); });
+  const book = () => {
+    const ok = LESSONS.filter((d) => fitsDeck(s, E, d)), pool = ok.length ? ok : LESSONS;
+    const d = pool[Math.floor(s.rng() * pool.length)];
+    if (!d) return null;
+    const c = E.card(d); c.conj = true; s.P.hand.push(c); E.L(s, `がくしゅう（本）：${d.name}`);
+    return c;
+  };
+  const page = (c) => { E.discard(s, [c]); E.drawCard(s); E.L(s, 'がくしゅう（次の ページ）：1まい すてて 1まい 引いた'); };
+  if (s.ai.learn && !s.swapped) return s.ai.learn(s, { book, page });
+  // AI は いつも 本（手札は 毎ターン 5まいに もどる ので 本の 1まいが 得。次の ページも 使う AI は 第5弾の 冒険で クリア 41% → 32〜36% に 下がった）
+  return book();
 }
 // 再帰（さいき）を ふせぐ（パワーの 合計で 強く なる カードどうし）
 export function guard(s, k, f, dflt) {

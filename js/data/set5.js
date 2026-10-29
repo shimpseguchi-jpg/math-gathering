@@ -224,7 +224,7 @@ export const S5 = {
     etb: (s, p, E) => { if (p.side === 'P') learn(s, E); },
     onCast: (s, p, d, E) => { if (p.side === 'P' && isSub({ def: d }, 'lesson')) { const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 1); } },
   },
-  UK06: { etb: (s, p, E) => { if (p.side === 'P') { learn(s, E); learn(s, E); } } },
+  UK06: { etb: (s, p, E) => { if (p.side === 'P') return E.then(learn(s, E), () => learn(s, E)); } },
   KR06: magecraft((s, p, E) => drain(s, E, 1, p)),
   RG06: { kwFn: (s, p, E) => (powerSum(s, E, p.side, p) + 5 >= 10 ? ['double'] : []) },
   WG06: { upkeep: (s, p, E) => { if (p.side !== 'P') return; if (mine(s, E).length >= 10) E.drawCard(s, 2); else E.token(s, 'P', T.saproling); } },
