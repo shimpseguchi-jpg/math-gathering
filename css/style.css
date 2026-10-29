@@ -1405,3 +1405,39 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
   :root[data-theme="clear"] .battle .card-name { font-size: 14.5px; }
   :root[data-theme="clear"] .battle .zone { gap: 8px; padding: 8px; }
 }
+
+/* ---- 入学の 手紙（ストリクスヘイヴン）：羊皮紙（ようひし）の シート。#sheet を つけて みための テーマ（gba・clear）より つよく ---- */
+#sheet .sheet-body.parchment {
+  --ink-p: #3d2a16; --ink-p2: #6b4a2a; --edge: rgba(110, 70, 25, 0.38);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .29 0 0 0 0 .13 0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 60% 40% at 18% 12%, rgba(255, 252, 238, 0.55), transparent 70%),
+    radial-gradient(ellipse 50% 35% at 85% 70%, rgba(150, 100, 40, 0.16), transparent 70%),
+    radial-gradient(ellipse 30% 22% at 30% 85%, rgba(140, 90, 35, 0.12), transparent 70%),
+    linear-gradient(172deg, #f4e6c4, #ead6a8 55%, #e2c992);
+  color: var(--ink-p); border: 1px solid #c4a466; border-bottom: 0; border-radius: 14px 14px 0 0;
+  box-shadow: inset 0 0 0 6px rgba(244, 230, 196, 0.6), inset 0 0 0 7px var(--edge), inset 0 0 70px rgba(120, 75, 25, 0.38), 0 -6px 30px rgba(0, 0, 0, 0.45);
+  font-family: 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; padding-top: 22px;
+  animation: unroll 0.35s ease-out;
+}
+@keyframes unroll { from { transform: translateY(30px) scaleY(0.92); opacity: 0.4; } to { transform: none; opacity: 1; } }
+#sheet .parchment .letter { text-align: center; padding: 0 6px; }
+#sheet .parchment .letter p { margin: 0 0 8px; font-size: 16px; line-height: 1.85; color: var(--ink-p); }
+#sheet .parchment .letter rt { color: var(--ink-p2); }
+#sheet .parchment .letter-from { font-size: 13px !important; letter-spacing: 0.2em; color: var(--ink-p2) !important; margin-bottom: 2px !important; }
+#sheet .parchment .letter-head { font-size: 24px !important; font-weight: 700; letter-spacing: 0.12em; color: #5e1d14 !important; padding-bottom: 8px; margin-bottom: 12px !important;
+  background: linear-gradient(90deg, transparent, var(--edge) 20%, var(--edge) 80%, transparent) bottom / 100% 1px no-repeat; }
+#sheet .parchment .letter-sign { text-align: right; font-style: italic; color: var(--ink-p2) !important; margin-top: 12px !important; }
+/* 封蝋（ふうろう）：ふちが すこし ゆがんだ ろうの まる */
+#sheet .parchment .seal { --seal: #8e1b14; width: 62px; height: 62px; margin: 0 auto 10px; display: grid; place-items: center; transform: rotate(-8deg);
+  border-radius: 47% 53% 50% 50% / 53% 47% 53% 47%;
+  background: var(--seal); /* color-mix が つかえない ブラウザ */
+  background: radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--seal) 70%, #fff 30%), var(--seal) 55%, color-mix(in srgb, var(--seal) 70%, #000 30%));
+  box-shadow: 0 3px 0 rgba(60, 30, 10, 0.3), inset 0 0 0 5px rgba(255, 255, 255, 0.09), inset 0 -4px 7px rgba(0, 0, 0, 0.35); }
+#sheet .parchment .seal span { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: 2px solid rgba(255, 235, 215, 0.35);
+  font-size: 22px; font-weight: 700; color: rgba(255, 236, 218, 0.9); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.35); }
+/* 手紙の 上の ボタン：インクで かいた わく */
+#sheet .parchment .sheet-actions .btn { background: rgba(255, 251, 238, 0.5); color: var(--ink-p); border: 1.5px solid var(--edge); box-shadow: 0 2px 0 rgba(110, 70, 25, 0.25); font-family: inherit; }
+#sheet .parchment .sheet-actions .btn small { color: var(--ink-p2); opacity: 1; }
+#sheet .parchment .sheet-actions .btn:active { background: rgba(240, 220, 175, 0.75); }
+#sheet .parchment .sheet-actions .btn .pip { font-family: var(--body); }

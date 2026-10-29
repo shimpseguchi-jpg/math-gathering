@@ -161,7 +161,13 @@ export function title() {
     </footer>
   </main>`;
   // ひらいた しらせ（1回だけ）。ひらいた ものが 2つ あれば、まどを 2つ じゅんばんに
-  for (const k of unlockNews()) sheet(`<p class="goal">${ruby(NEWS_TEXT[k].text)}</p>`, [{ label: 'やった！', value: 1, kind: 'primary' }], { title: NEWS_TEXT[k].title });
+  for (const k of unlockNews()) {
+    // ストリクスヘイヴン：入学の あんないの 手紙が とどく
+    if (k === 'strixhaven') sheet(letter({ mark: '学', from: 'ストリクスヘイヴン 魔法（まほう）学院（がくいん）', head: '入学（にゅうがく）の あんない',
+      body: ['あなたを 魔法（まほう）学院（がくいん） ストリクスヘイヴンに まねきます。', '5つの 寮（りょう）から 1つ えらび、6階の 卒業（そつぎょう）試験（しけん）を めざしましょう。', 'タイトルの「せかい」で ストリクスヘイヴンを えらぶと、入学式（にゅうがくしき）が はじまります。'],
+      sign: '学院（がくいん）の 先生たち より' }), [{ label: 'てがみを とじる', value: 1, kind: 'primary' }], { cls: 'parchment' });
+    else sheet(`<p class="goal">${ruby(NEWS_TEXT[k].text)}</p>`, [{ label: 'やった！', value: 1, kind: 'primary' }], { title: NEWS_TEXT[k].title });
+  }
   app().onclick = (e) => {
     // まだ あそべない もの：わけと、つぎに いく ところ
     const lk = e.target.closest('[data-lock]');
@@ -241,20 +247,34 @@ function emblemPackNote(em) {
 }
 function resume() { if (strix() && !A.college) return enroll().then(resume); if (A.recess) return recess(); if (A.toOpen > 0) packs(); else if (!A.deck) deckBuilder(); else tower(); }
 
+// ---- ストリクスヘイヴン：入学の 手紙（羊皮紙（ようひし）の シート。cls: 'parchment'）----
+// mark：封蝋（ふうろう）の 字、color：封蝋の 色、from：だれから、head：見出し、body：文の ならび、sign：さいごの 名前
+const letter = ({ mark, color, from, head, body, sign }) => `<div class="letter">
+  <div class="seal" aria-hidden="true"${color ? ` style="--seal:${color}"` : ''}><span>${esc(mark)}</span></div>
+  <p class="letter-from">${ruby(from)}</p><p class="letter-head">${ruby(head)}</p>
+  ${body.map((t) => `<p>${ruby(t)}</p>`).join('')}
+  <p class="letter-sign">${ruby(sign)}</p></div>`;
+
 // ---- ストリクスヘイヴン：入学式（寮を えらぶ）----
 async function enroll() {
   const ks = Object.keys(COLLEGES);
   app().innerHTML = `<main class="tower"><p class="eyebrow">ストリクスヘイヴン</p><h2>${ruby('入学式（にゅうがくしき）')}</h2></main>`; // うしろの 画面
-  const v = await sheet(`<p>${ruby('魔法（まほう）学院（がくいん）ストリクスヘイヴンへ ようこそ！ 5つの 寮（りょう）から 1つ えらぼう。デッキは その 寮（りょう）の 2色に なり、パックからも その 2色の カードだけが 出る。')}</p>`,
+  const v = await sheet(letter({ mark: '学', from: 'ストリクスヘイヴン 魔法（まほう）学院（がくいん）', head: '入学（にゅうがく）の しらせ',
+    body: ['あなたの 入学（にゅうがく）を みとめます。', '下の 5つの 寮（りょう）から 1つ えらんで ください。デッキは その 寮（りょう）の 2色に なり、パックからも その 2色の カードだけが 出ます。'],
+    sign: '学院（がくいん）の 先生たち より' }),
     ks.map((k) => { const c = COLLEGES[k]; return { label: `<span>${c.cols.split('').map((x) => `<i class="pip m-${x}">${COLOR_NAME[x]}</i>`).join(' ')} ${ruby(c.name)}（${c.subject}）</span>`, value: k, kind: 'primary', note: ruby(`入学いわい：${[].concat(c.gift).map((id) => info(BY_ID[id]).name).join('・')}`) }; }),
-    { title: ruby('入学式（にゅうがくしき）'), dismiss: false });
+    { dismiss: false, cls: 'parchment' });
   const c = COLLEGES[v];
   const cap = byDiff(STRIX.life, A.diff) + (activeEffects()?.life || 0);
   Object.assign(A, { college: v, cap, life: cap, grow: {}, report: [] });
   A.pool.push(...[].concat(c.gift));
   save();
-  await sheet(`<p>${ruby(`${c.name}に 入学（にゅうがく）した！ 入学いわいに ${[].concat(c.gift).map((id) => info(BY_ID[id]).name).join('と ')}を もらった。`)}</p><p>${ruby(`ライフは ${cap}。かっても まけても、のこった ライフで つぎの 階へ すすむ（${cap}より ふえない）。階と 階の あいだの 休み時間に、保健室（ほけんしつ）・図書室・授業（じゅぎょう）から 1つ えらべるよ。`)}</p>`,
-    [{ label: 'パックを あける', value: 1, kind: 'primary' }], { title: ruby(`${c.name}の 寮（りょう）`), dismiss: false });
+  await sheet(letter({ mark: c.name[0], color: c.seal, from: `${c.name}の 寮（りょう）`, head: '入学（にゅうがく） おめでとう',
+    body: [`入学いわいに ${[].concat(c.gift).map((id) => info(BY_ID[id]).name).join('と ')}を おくります。`,
+      `ライフは ${cap}。かっても まけても、のこった ライフで つぎの 階へ すすみます（${cap}より ふえません）。`,
+      '階と 階の あいだの 休み時間には、保健室（ほけんしつ）・図書室・授業（じゅぎょう）から 1つ えらべます。'],
+    sign: `${c.name} 学長（がくちょう） ${c.dean}` }),
+    [{ label: 'パックを あける', value: 1, kind: 'primary' }], { dismiss: false, cls: 'parchment' });
 }
 
 // ---- パック開封（ガチャの 演出は gacha.js） ----

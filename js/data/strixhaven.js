@@ -17,13 +17,13 @@ export const STRIX = {
   goodStars: 15, okStars: 10, // 通知表
 };
 
-// ---- 5つの 寮（入学式で えらぶ）。入学いわい（gift）は 寮の 誓約魔道士と 寮の 命令 ----
+// ---- 5つの 寮（入学式で えらぶ）。入学いわい（gift）は 寮の 誓約魔道士と 寮の 命令。dean：学長（入学の 手紙の さいご）、seal：封蝋（ふうろう）の 色 ----
 export const COLLEGES = {
-  silverquill: { name: 'シルバークイル', cols: 'WK', subject: 'こくご', gift: ['WK08', 'WK07'], floor: 'sx_silverquill' },
-  prismari: { name: 'プリズマリ', cols: 'UR', subject: 'ずこう', gift: ['UR08', 'UR07'], floor: 'sx_prismari' },
-  witherbloom: { name: 'ウィザーブルーム', cols: 'KG', subject: 'りか', gift: ['KG08', 'KG07'], floor: 'sx_witherbloom' },
-  lorehold: { name: 'ロアホールド', cols: 'RW', subject: 'しゃかい', gift: ['RW08', 'RW07'], floor: 'sx_lorehold' },
-  quandrix: { name: 'クアンドリクス', cols: 'GU', subject: 'さんすう', gift: ['GU08', 'GU07'], floor: 'sx_quandrix' },
+  silverquill: { name: 'シルバークイル', cols: 'WK', subject: 'こくご', gift: ['WK08', 'WK07'], floor: 'sx_silverquill', dean: 'シャイル', seal: '#4b4b5c' },
+  prismari: { name: 'プリズマリ', cols: 'UR', subject: 'ずこう', gift: ['UR08', 'UR07'], floor: 'sx_prismari', dean: 'ウヴィルダ', seal: '#b2382c' },
+  witherbloom: { name: 'ウィザーブルーム', cols: 'KG', subject: 'りか', gift: ['KG08', 'KG07'], floor: 'sx_witherbloom', dean: 'リゼット', seal: '#3d6a39' },
+  lorehold: { name: 'ロアホールド', cols: 'RW', subject: 'しゃかい', gift: ['RW08', 'RW07'], floor: 'sx_lorehold', dean: 'アウグスタ', seal: '#a24a28' },
+  quandrix: { name: 'クアンドリクス', cols: 'GU', subject: 'さんすう', gift: ['GU08', 'GU07'], floor: 'sx_quandrix', dean: 'キアン', seal: '#2c6c84' },
 };
 // 階 → 教科（通知表）
 export const SUBJECT_OF = { ...Object.fromEntries(Object.values(COLLEGES).map((c) => [c.floor, c.subject])), sx_extus: 'そつぎょう しけん' };

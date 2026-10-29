@@ -370,7 +370,7 @@ export function divideSheet(title, n, items) {
 function openSheet(html, choices, o) {
   return new Promise((resolve) => {
     const el = root();
-    el.innerHTML = `<div class="sheet-back"></div><div class="sheet-body" role="dialog" aria-modal="true">
+    el.innerHTML = `<div class="sheet-back"></div><div class="sheet-body ${o.cls || ''}" role="dialog" aria-modal="true">
       ${o.title ? `<h3 class="sheet-title">${o.title}</h3>` : ''}
       <div class="sheet-content">${html}</div>
       <div class="sheet-actions">${choices.map((c, k) => `<button type="button" class="btn ${c.kind || ''}" data-k="${k}" ${c.disabled ? 'disabled' : ''}>${c.label}${c.note ? `<small>${c.note}</small>` : ''}</button>`).join('')}</div>
