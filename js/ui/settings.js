@@ -70,6 +70,12 @@ const UNLOCK_KEY = 'mtg-unlock-all';
 let unlockAllOn = (() => { try { return localStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; } })();
 export const unlockAll = () => DEV && unlockAllOn;
 const setUnlockAll = (v) => { unlockAllOn = v; try { localStorage.setItem(UNLOCK_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } };
+// はじめての 人として ためす（2026-10-30。デバッグモードだけ）：いまの セーブを よけて おいて、はじめて あそぶ ときの 状態に する。もとに もどせる
+// よけて おく ところは mtg- で はじまらない キー（ひきつぎの packSave・unpackSave の そと）
+const TRIAL_KEY = 'mtgx-trial-backup';
+export const trialOn = () => { try { return !!localStorage.getItem(TRIAL_KEY); } catch { return false; } };
+function startTrial() { localStorage.setItem(TRIAL_KEY, packSave()); unpackSave('{}'); location.reload(); }
+function endTrial() { unpackSave(localStorage.getItem(TRIAL_KEY) || '{}'); localStorage.removeItem(TRIAL_KEY); location.reload(); }
 // ぼうけんの まえと おわりの しゅぎょう（広告。docs/EMBLEMS.md 8章）。開発モードでは せっていで オフに できる
 const AD_KEY = 'mtg-ads-off';
 let adsOff = (() => { try { return localStorage.getItem(AD_KEY) === '1'; } catch { return false; } })();
@@ -124,6 +130,13 @@ export function settingsScreen(app, back, o = {}) {
         <p class="st-note">${ruby('ふつうは、チュートリアル → ストーリー 1章 → テーロスの とう、「ふつう」で のぼりきると「むずかしい」と ラヴニカ。オンに すると ぜんぶ あそべる。')}</p>
         <button type="button" class="btn" data-unlock="1" aria-pressed="${unlockAll()}">ぜんぶ あそべる ${unlockAll() ? 'オン' : 'オフ'}</button>
       </section>
+      <section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>はじめての 人として ためす</h3>
+        <p class="st-note">${ruby(trialOn()
+    ? 'いま ためしちゅう。「もとの セーブに もどす」で、ためす まえの セーブ（ずかん・トロフィー・こうちく・ストーリー など ぜんぶ）に もどる。ためして いる あいだの セーブは きえる。'
+    : 'いまの セーブ（ずかん・トロフィー・こうちく・ストーリー など ぜんぶ）を よけて おいて、はじめて あそぶ ときの 状態（じょうたい）に する（チュートリアルから）。「もとの セーブに もどす」で もどせる。')}</p>
+        <button type="button" class="btn" data-trial="1">${trialOn() ? 'もとの セーブに もどす' : 'はじめての 人として ためす'}</button>
+      </section>
       ${hasServer() ? '' : `<section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>レイド</h3>
         <p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
@@ -156,6 +169,12 @@ export function settingsScreen(app, back, o = {}) {
     if (e.target.closest('[data-unlock]')) { setUnlockAll(!unlockAll()); draw(); }
     if (e.target.closest('[data-raid]')) { setRaidHidden(!raidHidden()); draw(); }
     if (e.target.closest('[data-allcards]')) { setOpenAll(!openAllSaved()); draw(); }
+    if (e.target.closest('[data-trial]')) {
+      const on = trialOn();
+      sheet(`<p>${ruby(on ? 'ためす まえの セーブに もどす？ ためして いる あいだの セーブは きえる。' : 'いまの セーブを よけて おいて、はじめて あそぶ ときの 状態（じょうたい）に する？ あとで「もとの セーブに もどす」で もどせる。')}</p>`,
+        [{ label: on ? 'もどす' : 'ためす', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'はじめての 人として ためす' })
+        .then((v) => { if (v) (on ? endTrial : startTrial)(); });
+    }
     if (e.target.closest('[data-up]')) upload().then(draw);
     if (e.target.closest('[data-down]')) download();
   };
