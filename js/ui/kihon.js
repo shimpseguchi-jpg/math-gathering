@@ -1,6 +1,6 @@
 // みならいの しけん（2026-10-30。docs/ROADMAP.md 10章）：ゲームを はじめた ときの 限定ルール
 // テーロスと おなじ ように パックを 3つ あけて デッキを くみ、3階だての しけんの 塔を のぼる（階を クリアすると ごほうびパック）。
-// パックの カードは 1年生の カードプール（data/pool1.js）。はじめは 単色（と 無色）だけで、課題 ①② の あとで 2色が 出て、③（神で とどめ）が ひらく。
+// パックの カードは 1年生の カードプール（data/pool1.js）。はじめは 単色（と 無色）だけで、課題 ①② の あとで 2色が 出て、③（3階の テフェリーの しけんに かつ）が ひらく。
 // 課題 3つで マスマティックスウォーカーの 証 → テーロスの とうが ひらく（unlock.js）
 import { BY_ID } from '../data/cards.js';
 import { KIHON_NAME, KIHON_GUIDE, KIHON_FLOORS, KIHON_TASKS, GOD_THANKS, isGod2, kihonFloor, fillDeck } from '../data/kihon.js';
@@ -20,7 +20,8 @@ const START_PACKS = 3;
 // { run: { pool: [id…], deck: [id…] | null, floor: つぎの 階（0〜3。3 は のぼりきった） } | null,
 //   tasks: { 課題の id: 1 }, multi: 2色が 出る, badge: 証を もらった, thanks: { 神の id: 1 }, cleared: { 階の id: 1 }（いちどでも クリア） }
 const fresh = () => ({ run: null, tasks: {}, multi: 0, badge: false, thanks: {}, cleared: {} });
-const load = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v) return { ...fresh(), ...v }; } catch { /* はじめから */ } return fresh(); };
+// 課題 ③ は はじめ「2色の 神で とどめ」（god）だった。2026-10-30 に「3階に かつ」（top）に した。god を クリアして いた 子は top も クリア
+const load = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v) { const k = { ...fresh(), ...v }; if (k.tasks.god) k.tasks.top = 1; return k; } } catch { /* はじめから */ } return fresh(); };
 let K = load();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(K)); } catch { /* 保存できなくても あそべる */ } };
 const app = () => document.getElementById('app');
@@ -30,13 +31,13 @@ const guide = () => info(BY_ID[KIHON_GUIDE]).name;
 const talk = (who, lines) => `<div class="talk"><b class="talk-who">${ruby(who)}</b>${lines.map((l) => `<p>${ruby(l)}</p>`).join('')}</div>`;
 // 2色が 出る（課題 ①② の あと）。③は それまで ひらかない
 const MULTI_AFTER = ['deck', 'exact'];
-const taskOpen = (t) => t.id !== 'god' || !!K.multi;
+const taskOpen = (t) => t.id !== 'top' || !!K.multi;
 const runDone = () => !!K.run && K.run.floor >= KIHON_FLOORS.length;
 const deckCols = () => [...new Set((K.run?.deck || []).map((id) => BY_ID[id]).filter(Boolean).flatMap(colorsOf))];
 // パックに 入る カード：はじめは 単色だけ、課題 ①② の あとは 2色も
 const packIds = () => (K.multi ? POOL1 : POOL1_MONO);
 // ③が まだ なら、あたらしい しけんに 2色の パックが 1つ つく
-const extraPacks = () => (K.multi && !K.tasks.god ? 1 : 0);
+const extraPacks = () => (K.multi && !K.tasks.top ? 1 : 0);
 // 2色の パック：2色の 神 1まい（レアの わく）と 2色の アンコモン 1まい ＋ ふつうの 6まい
 const GOD_BONUS = `<div class="bonus"><p class="bonus-title">${ruby('2色（しょく）の パック')}</p><span>${ruby('2色の 神（かみ）が かならず 1まい 入って いる')}</span></div>`;
 function godPack() {
@@ -146,10 +147,11 @@ function fight(f) {
       if (r.win) {
         K.cleared[f.id] = 1;
         K.run.floor = Math.max(K.run.floor, KIHON_FLOORS.indexOf(f) + 1);
-        if (K.multi && isGod2(r.finisher)) mark('god');
+        // ③は ①② の あと（この たたかいで ② が できた ときも）
+        if ((K.multi || MULTI_AFTER.every((id) => K.tasks[id])) && f === KIHON_FLOORS[KIHON_FLOORS.length - 1]) mark('top');
       }
       save();
-      // とどめを さした 神からの ことば
+      // とどめを さした 神からの ことば（課題では ない おまけ）
       if (r.win && isGod2(r.finisher)) {
         const g = BY_ID[r.finisher];
         K.thanks[g.id] = 1; save();
@@ -177,7 +179,7 @@ async function doneSheet(ids) {
   if (!K.multi && MULTI_AFTER.every((id) => K.tasks[id])) {
     K.multi = 1; save();
     const now = !!K.run && !runDone();
-    await sheet(`${talk(guide(), ['よく できた！ ここからは パックから 2色の カードも 出るよ。', `2色の 神（かみ）も いる。神（かみ）で とどめを さす 課題（かだい）③が ひらいた。${now ? '2色の パックを 1つ あげよう。' : 'つぎの しけんで 2色の パックを あげよう。'}`])}<div class="mini-list">${POOL1_MULTI.map((id) => cardFace(BY_ID[id])).join('')}</div>`,
+    await sheet(`${talk(guide(), ['よく できた！ ここからは パックから 2色の カードも 出るよ。', `課題（かだい）③「テフェリーの しけん（3階（かい））に かつ」が ひらいた。2色の 神（かみ）も いるよ。${now ? '2色の パックを 1つ あげよう。' : 'つぎの しけんで 2色の パックを あげよう。'}`])}<div class="mini-list">${POOL1_MULTI.map((id) => cardFace(BY_ID[id])).join('')}</div>`,
       [{ label: now ? 'パックを あける' : 'わかった', value: 1, kind: 'primary' }], { title: ruby('2色の カードが 出る！'), dismiss: false });
     if (now) await openOne(godPack(), '2色の パック', GOD_BONUS);
   }
