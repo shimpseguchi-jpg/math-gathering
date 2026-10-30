@@ -2,6 +2,7 @@
 // パックけんは とうの 階の クリア・しゅぎょう・トロフィーで もらい、ショップで パックと ひきかえる
 import { SETS, BY_ID } from '../data/cards.js';
 import { POOL1, IN_POOL1 } from '../data/pool1.js';
+import { KIHON_NAME } from '../data/kihon.js';
 import { toast } from './view.js';
 import { hasServer, CONF } from './server.js';
 import { DEV } from './settings.js';
@@ -13,8 +14,8 @@ export const TROPHY_TICKETS = { B: 1, S: 2, G: 3, P: 5 };
 export const ENDLESS_PER = 5; // むげんの とうは 5階 のぼるごとに 1まい
 export const DECK_MAX = 10;
 // デッキの ルール（5つ）：ノーマル（30点・2色）／エターナル（点と 色の せいげん なし）と、それぞれの 統率者（統率者の 色だけ）、
-// 1年生（ノーマルと 同じ 30点・2色で、1年生の カードプール（data/pool1.js）だけ。もって いなくても つかえる）
-export const RULES = { normal: 'ノーマル', eternal: 'エターナル', normalCmd: 'ノーマル（統率者（とうそつしゃ））', eternalCmd: 'エターナル（統率者（とうそつしゃ））', first: '1年生' };
+// きほんセット（ノーマルと 同じ 30点・2色で、1年生の カードプール（data/pool1.js）だけ。もって いなくても つかえる。key は 'first'）
+export const RULES = { normal: 'ノーマル', eternal: 'エターナル', normalCmd: 'ノーマル（統率者（とうそつしゃ））', eternalCmd: 'エターナル（統率者（とうそつしゃ））', first: KIHON_NAME };
 export const isCmdRule = (rule) => rule === 'normalCmd' || rule === 'eternalCmd';
 export const isEternal = (rule) => rule === 'eternal' || rule === 'eternalCmd';
 export const isFirst = (rule) => rule === 'first';
