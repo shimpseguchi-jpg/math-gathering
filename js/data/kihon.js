@@ -1,13 +1,14 @@
-// きほんセット（2026-10-30。docs/ROADMAP.md 10章）：ゲームを はじめた ときの 限定ルール
-// カードプール（data/pool1.js）で デッキを くみ、3階だての 小さな 塔を のぼる。課題 3つで マスマティックスウォーカーの 証
+// みならいの しけん（2026-10-30。docs/ROADMAP.md 10章）：ゲームを はじめた ときの 限定ルール
+// パックを あけて（カードは data/pool1.js）デッキを くみ、3階だての 小さな 塔を のぼる。課題 3つで マスマティックスウォーカーの 証
 // はじめは 単色だけ。課題 ①② の あとで 2色の カードが 出て、③（神で とどめ）が ひらく
-// ひらく じゅんばん：チュートリアル → ストーリー 1章 → きほんセット → テーロス → ラヴニカ（ui/unlock.js）
+// ひらく じゅんばん：チュートリアル → ストーリー 1章 → みならいの しけん → テーロス → ラヴニカ（ui/unlock.js）
 import { pvp } from './enemies.js';
 import { BY_ID, BASICS } from './cards.js';
 import { colorsOf } from '../engine/game.js';
 
-// なまえ（かわるかも しれないので ここ だけに 書く）
-export const KIHON_NAME = 'きほんセット';
+// なまえ（ここ だけに 書く）。はじめは 仮に「きほんセット」、2026-10-30 に きまった。KIHON_RULE は こうちくモードの デッキの ルールの なまえ
+export const KIHON_NAME = 'みならいの しけん';
+export const KIHON_RULE = 'みならい';
 export const KIHON_GUIDE = 'PW06'; // 案内役：時を 見る テフェリー（ストーリー 1章と おなじ）
 
 // ---- 3階：てきも プールの カードを つかう（ストーリーと おなじ ゴースト。ライフは みじかめ）----
@@ -32,7 +33,7 @@ export const kihonFloor = (f) => pvp({ deck: fillDeck(f.ids), name: f.foe, life:
 
 // ---- 課題（3つ）----
 export const KIHON_TASKS = [
-  { id: 'deck', text: `${KIHON_NAME}の デッキを くむ` },
+  { id: 'deck', text: 'パックを あけて デッキを くむ' },
   { id: 'exact', text: 'てきの クリーチャーを ぴったりで たおす' },
   { id: 'god', text: '2色の 神（かみ）で とどめを さして かつ' },
 ];

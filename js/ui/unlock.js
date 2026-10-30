@@ -1,5 +1,5 @@
 // あそべる ものが ひらく じゅんばん（2026-10-29。REQUIREMENTS 8.7）
-//   はじめての 人：チュートリアル → ストーリー 1章「はじめの いっぽ」→ きほんセット（課題 3つで マスマティックスウォーカーの 証。2026-10-30）
+//   はじめての 人：チュートリアル → ストーリー 1章「はじめの いっぽ」→ みならいの しけん（課題 3つで マスマティックスウォーカーの 証。2026-10-30）
 //   → テーロスの とう（かんたん・ふつう）
 //   テーロスを「ふつう」で のぼりきる → 「むずかしい」と ラヴニカ → ラヴニカを「ふつう」で のぼりきる → ストリクスヘイヴン（第5弾が 出て いる とき）
 // まえから あそんで いる 人（ぼうけんの きろくが ある）は、とうは さいしょから あそべる
@@ -53,7 +53,7 @@ export function unlockNews() {
   const open = Object.keys(GATES).filter((k) => GATES[k]());
   let seen = null;
   try { seen = JSON.parse(localStorage.getItem(SEEN) || 'null'); } catch { /* なし */ }
-  // きほんセット（あとから 足した）：もう とうに のぼれる 子には 出さない
+  // みならいの しけん（あとから 足した）：もう とうに のぼれる 子には 出さない
   const news = Array.isArray(seen) ? open.filter((k) => !seen.includes(k) && !(k === 'kihon' && seen.includes('adventure'))) : [];
   if (!Array.isArray(seen) || news.length) { try { localStorage.setItem(SEEN, JSON.stringify(open)); } catch { /* この あいだだけ */ } }
   return news;

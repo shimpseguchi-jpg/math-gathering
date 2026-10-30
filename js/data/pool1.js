@@ -79,7 +79,7 @@ export const POOL1 = [
   'GU10', // エアロムンクルス 飛行・適応
 ];
 export const IN_POOL1 = new Set(POOL1);
-// きほんセットは 単色（と 無色）だけで はじまり、課題 ①② の あとで 2色が 出る（data/kihon.js・ui/kihon.js）
+// みならいの しけんは 単色（と 無色）だけで はじまり、課題 ①② の あとで 2色が 出る（data/kihon.js・ui/kihon.js）
 const MULTI = new Set(['WG02', 'WU02', 'RW02', 'UR02', 'RG02', 'GU02', 'WU01', 'WG01', 'RW10', 'UR01', 'RG01', 'GU10']);
 export const POOL1_MONO = POOL1.filter((id) => !MULTI.has(id));
 export const POOL1_MULTI = POOL1.filter((id) => MULTI.has(id));
