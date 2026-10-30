@@ -118,26 +118,35 @@ export function title() {
   const first = !tutorialDone() && !old;
   const pref = old || { diff: 'easy' }; // はじめては「かんたん」
   // ひらく じゅんばん：まだの ものは えらべない。えらんで いた ものが まだ なら、あそべる ほうに
-  const step = nextStep(); // 'tutorial' | 'story' | null（とうは あそべる）
+  const step = nextStep(); // 'tutorial' | 'story' | 'kihon' | null（とうは あそべる）
+  // はじめての 子（2026-10-30）：証を もらうまでは つぎに する ことだけ（チュートリアル → ストーリー 1章 → みならいの しけん）。
+  // 証を もらって はじめて タイトルを 見た とき、視界が ひらける ように いまの 画面に なる（reveal）
+  const narrow = !!step;
+  const news = unlockNews(); // ひらいた しらせ（1回だけ）
+  const reveal = news.includes('adventure');
+  const NARROW_SUB = {
+    tutorial: 'まずは チュートリアルで、カードの つかいかたを おぼえよう。',
+    story: 'つぎは ストーリー 1章。テフェリーが せかいの ことを 教えて くれる。',
+    kihon: `${KIHON_NAME}に ごうかくして、マスマティックスウォーカーの 証（あかし）を もらおう。`,
+  };
   const plane0 = planeOpen(pref.plane || 'theros') ? (pref.plane || 'theros') : 'theros';
   const diff0 = diffOpen(pref.diff) ? pref.diff : 'normal';
-  const lockBtn = (key) => `<button type="button" class="btn lock" data-lock="${key}">あたらしい ぼうけん<small>${key === 'tutorial' ? 'チュートリアルの あとで' : key === 'story' ? 'ストーリー 1章の あとで' : `${KIHON_NAME}の 課題（かだい）の あとで`}</small></button>`;
-  app().innerHTML = `<main class="title">
+  app().innerHTML = `<main class="title ${narrow ? 'narrow' : ''} ${reveal ? 'reveal' : ''}">
     <header class="t-head">
       <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
       <div class="t-logo">
         <h1>マスマティック・<br>ザ・ギャザリング</h1>
-        <p class="title-sub">算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。</p>
+        <p class="title-sub">${narrow ? ruby(NARROW_SUB[step]) : '算数の デッキこうちく ローグライク。パックを あけて デッキを くみ、5階だての とうを のぼろう。'}</p>
       </div>
     </header>
     <section class="t-main">
-      ${raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
+      ${!narrow && raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
       <div class="title-btns">
         ${first || step === 'tutorial' ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
         ${step === 'story' ? `<button type="button" class="btn primary" data-go="story">ストーリーを すすめる<small>1章を クリアすると ${KIHON_NAME}へ</small></button>` : ''}
         ${step === 'kihon' ? `<button type="button" class="btn primary" data-go="kihon">${KIHON_NAME}<small>${ruby('課題（かだい）を 3つ クリアすると とうへ')}</small></button>` : ''}
         ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから<small>${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階から`}</small></button>` : ''}
-        ${step ? lockBtn(step) : `<button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>`}
+        ${step ? '' : `<button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>`}
       </div>
       ${step ? '' : `<div class="t-opts">
         <p class="t-opts-h">ぼうけんの せってい</p>
@@ -148,6 +157,9 @@ export function title() {
       </div>`}
     </section>
     <nav class="t-menu" aria-label="メニュー">
+      ${narrow ? `${step !== 'tutorial' ? tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '') : ''}
+      ${GATES.kihon() ? tile('kihon', KIHON_NAME, ruby('課題（かだい）を 3つ クリアすると せかいが ひらける'), tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
+      ${step !== 'tutorial' ? tile('tut', 'チュートリアル', 'もう いちど') : ''}` : `
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
       ${tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
@@ -155,25 +167,29 @@ export function title() {
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
-      ${first ? '' : tile('tut', 'チュートリアル', 'はじめての 人へ')}
+      ${tile('tut', 'チュートリアル', 'はじめての 人へ')}`}
       ${tile('settings', 'せってい', 'みため・おと', tIcon('settings'), 'ghost')}
       ${hasServer() && CONF.admin ? tile('admin', '開発モード（先生）', 'かんり の がめん', tIcon('admin'), 'ghost') : ''}
     </nav>
     <footer class="t-foot">
       ${trialOn() ? `<p class="fine"><span class="dev-badge">ためしちゅう</span> ${ruby('はじめての 人として ためして いる。もとの セーブは「せってい」で もどせる')}</p>` : ''}
       ${DEV ? `<p class="fine"><span class="dev-badge">デバッグモード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
-      ${endlessBest() ? `<p class="fine">むげんの とうの きろく：${endlessBest().floor}階・${endlessBest().score}てん</p>` : ''}
+      ${!narrow && endlessBest() ? `<p class="fine">むげんの とうの きろく：${endlessBest().floor}階・${endlessBest().score}てん</p>` : ''}
       <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
     </footer>
   </main>`;
+  // 視界が ひらける：タイルが じゅんばんに あらわれる（css の .title.reveal）。しらせの まどは 光が おさまってから
+  if (reveal) app().querySelectorAll('.t-menu .tile').forEach((t, i) => t.style.setProperty('--i', i));
+  const calm = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return true; } })();
   // ひらいた しらせ（1回だけ）。ひらいた ものが 2つ あれば、まどを 2つ じゅんばんに
-  for (const k of unlockNews()) {
+  const showNews = () => { for (const k of news) {
     // ストリクスヘイヴン：入学の あんないの 手紙が とどく
     if (k === 'strixhaven') sheet(letter({ mark: '学', from: 'ストリクスヘイヴン 魔法（まほう）学院（がくいん）', head: '入学（にゅうがく）の あんない',
       body: ['あなたを 魔法（まほう）学院（がくいん） ストリクスヘイヴンに まねきます。', '5つの 寮（りょう）から 1つ えらび、6階の 卒業（そつぎょう）試験（しけん）を めざしましょう。', 'タイトルの「せかい」で ストリクスヘイヴンを えらぶと、入学式（にゅうがくしき）が はじまります。'],
       sign: '学院（がくいん）の 先生たち より' }), [{ label: 'てがみを とじる', value: 1, kind: 'primary' }], { cls: 'parchment' });
     else sheet(`<p class="goal">${ruby(NEWS_TEXT[k].text)}</p>`, [{ label: 'やった！', value: 1, kind: 'primary' }], { title: NEWS_TEXT[k].title });
-  }
+  } };
+  if (reveal && !calm) setTimeout(showNews, 1700); else showNews();
   app().onclick = (e) => {
     // まだ あそべない もの：わけと、つぎに いく ところ
     const lk = e.target.closest('[data-lock]');
