@@ -15,6 +15,8 @@ import { awardMat, matName, CHAPTER_MAT } from './mats.js';
 import { deckBuilder } from './app.js';
 import { sheet, ruby, info, cardFace } from './view.js';
 import { enabledSets } from './settings.js';
+import { kihonMenu, kihonBadge } from './kihon.js';
+import { KIHON_NAME } from '../data/kihon.js';
 
 const KEY = 'mtg-story';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { done: {} }; } catch { return { done: {} }; } };
@@ -251,9 +253,11 @@ function play(ep, back) {
     const pts = first ? REWARD + (last ? CHAPTER_REWARD : 0) : 0;
     if (pts) addEmblemPoints(pts);
     const mat = last && awardMat(CHAPTER_MAT[ep.ch.id]) ? CHAPTER_MAT[ep.ch.id] : null; // 章を クリア：プレイマット
-    await sheet(`${talk(guide, [last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。'])}${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}`,
-      [{ label: 'ストーリーへ', value: 1, kind: 'primary' }], { title: `${ep.id}　クリア！`, dismiss: false });
-    return again();
+    // 1章の さいご（1-3）：証が まだ なら、そのまま みならいの しけんへ（2026-10-30）
+    const toKihon = ep.id === '1-3' && !kihonBadge();
+    await sheet(`${talk(guide, [last ? `${ep.ch.id}章 クリア！ よく がんばったね。` : 'よく できた！ つぎの 話へ すすもう。', ...(toKihon ? [`つぎは ${KIHON_NAME}だ。パックを あけて、じぶんの デッキを くもう。`] : [])])}${pts ? `<p class="what">もんしょうポイント ＋${pts}</p>` : ''}${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}`,
+      [{ label: toKihon ? `${KIHON_NAME}へ` : 'ストーリーへ', value: 1, kind: 'primary' }], { title: `${ep.id}　クリア！`, dismiss: false });
+    return toKihon ? kihonMenu(back) : again();
   };
   if (ep.kind === 'tutorial') {
     return startBattle({ deck: tutorialDeck(), floorId: 'tutorial', diff: 'easy', floorName: 'メレティスの くんれんじょう', tutorial: true, setup: tutorialSetup, quit,
