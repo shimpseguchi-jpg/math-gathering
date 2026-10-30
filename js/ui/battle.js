@@ -29,7 +29,7 @@ export function startBattle(o) {
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0, lore: new Set() };
   B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
   // チュートリアル（o.tutorial：ボタンを しぼる）・ストーリーの コーチ（o.coach：ことばだけ。どの そうさも できる）
-  if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach });
+  if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach || !!o.coachLock }); // coachLock：ストーリーでも 光って いる ところ だけ（1-2）
   B.coachWho = o.coach?.[0]?.who || (o.tutorial ? 'コーチ' : '');
   o.setup?.(B.s, api);
   // せりふ：能力が うごいた とき（docs/LORE.md の「とき」）。1まいに つき 1ターンに 1回
@@ -296,7 +296,7 @@ function checkOver(lines) {
   fx.result(win ? 'win' : draw ? 'draw' : 'lose').then(() => sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
     .then(() => B.onEnd({
-      win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish,
+      win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish, finisher: s.finisher || null,
       // トロフィー用
       potions: s.P.hand.filter((c) => c.def.potion).map((c) => c.def.id), // 次元渡り：使わなかった ポーション
       life: s.P.life, floor: s.floor.id, exactTurnMax: s.stats.exactTurnMax || 0, bigHit: s.stats.bigHit || 0, maxPower: s.stats.maxPower || 0, maxCreatures: s.stats.maxCreatures || 0,

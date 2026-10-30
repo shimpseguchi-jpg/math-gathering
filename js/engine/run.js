@@ -76,7 +76,7 @@ const NEAR = { C: ['C', 'U', 'R', 'L'], U: ['U', 'C', 'R', 'L'], R: ['R', 'U', '
 export function openPack(rng, o = {}) {
   const em = o.em || {};
   const odds = o.rare ? RARE_ODDS : packOdds(o.cleared || 0, em);
-  const base = packPool(o.sets);
+  const base = o.ids ? poolOf(o.ids.map((id) => BY_ID[id]).filter(Boolean)) : packPool(o.sets); // o.ids：この カードだけの パック（みならいの しけん）
   // o.only：この 色だけで できた カードしか 出さない（塔の 統率者戦の さいしょの パック）
   const inOnly = (d) => { const cs = colorsOf(d); return cs.length && cs.every((c) => o.only.includes(c)); };
   const pool = o.only?.length ? Object.fromEntries(Object.entries(base).map(([r, l]) => [r, l.filter(inOnly)])) : base;

@@ -1,7 +1,8 @@
 // こうちくモード（docs/CONSTRUCTED.md）：パックけんで ショップの パックを あけて カードを あつめ、デッキを くむ
 // 冒険（ローグライク）とは べつ。ここの カード・デッキは 冒険には もちこまない
 // デッキの ルール：ノーマル（とうと 同じ 20まい・30点・2色）／エターナル（キャパシティと 色の 制限なし）と、
-// それぞれの 統率者（統率者の 色だけ。統率者は とうそつりょういき）。どれも 同じ カードは 4まいまで
+// それぞれの 統率者（統率者の 色だけ。統率者は とうそつりょういき）、みならい（1年生の カードプール だけ。もって いなくても つかえる）。
+// どれも 同じ カードは 4まいまで
 import { SETS, BY_ID, BASICS } from '../data/cards.js';
 import { SLOTS } from '../data/enemies.js';
 import { RAV_SLOTS } from '../data/ravnica.js';
@@ -18,9 +19,11 @@ import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, fil
 import { hasServer, CONF } from './server.js';
 import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME } from './view.js';
 import {
-  tickets, useTicket, studyLeft, STUDY_DAY_MAX, TROPHY_TICKETS, MAX_COPY, DECK_MAX, RULES, isCmdRule, isEternal,
-  realCount, realCards, ownCount, ownPool, addCards, openAll, decks, saveDeck, dropDeck, nextDeckNo, missing,
+  tickets, useTicket, studyLeft, STUDY_DAY_MAX, TROPHY_TICKETS, MAX_COPY, DECK_MAX, RULES, isCmdRule, isEternal, isFirst,
+  realCount, realCards, ownCount, ownPool, useCount, rulePool, addCards, openAll, decks, saveDeck, dropDeck, nextDeckNo, missing,
 } from './collection.js';
+import { POOL1 } from '../data/pool1.js';
+import { KIHON_RULE } from '../data/kihon.js';
 
 let APP = null, BACK = null; // タイトルの app() と もどり先
 const app = () => APP();
@@ -131,13 +134,14 @@ const RULE_NOTE = {
   eternal: '点と 色の せいげんが ない',
   normalCmd: '統率者（とうそつしゃ）の 色だけ・30点',
   eternalCmd: '統率者（とうそつしゃ）の 色だけ・点の せいげん なし',
+  first: `かんたんな ${POOL1.length}しゅるいから・30点・2色。もって いなくても つかえる`,
 };
 function deckList() {
   const list = decks();
   const full = list.length >= DECK_MAX;
   app().innerHTML = `<main class="zukan construct">
     <h2>デッキ</h2>
-    <p class="zk-note">${ruby(`ノーマル：とうと 同じ（20まい・30点・2色まで）。エターナル：点と 色の せいげんが ない。統率者（とうそつしゃ）：伝説（でんせつ）の クリーチャーを 統率者（とうそつしゃ）に して、その 色の カードだけ。どれも 同じ カードは ${MAX_COPY}まいまで（きほんカードは のぞく）。`)}</p>
+    <p class="zk-note">${ruby(`ノーマル：とうと 同じ（20まい・30点・2色まで）。エターナル：点と 色の せいげんが ない。統率者（とうそつしゃ）：伝説（でんせつ）の クリーチャーを 統率者（とうそつしゃ）に して、その 色の カードだけ。${KIHON_RULE}：みならいの しけんの カード（ルールと 漢字の かんたんな ${POOL1.length}しゅるい）から えらぶ（ノーマルと 同じ 30点・2色。もって いなくても ${MAX_COPY}まいずつ つかえる）。どれも 同じ カードは ${MAX_COPY}まいまで（きほんカードは のぞく）。`)}</p>
     ${list.length ? `<ul class="cs-decks">${list.map((d) => { const miss = missing(d); return `<li><button type="button" class="cs-deck" data-deck="${esc(d.id)}">
       <span class="cs-rule r-${d.rule}">${ruby(RULES[d.rule])}</span><b>${ruby(deckName(d))}</b>
       ${d.cmd && BY_ID[d.cmd] ? `<span class="cs-cmd">${ruby(`統率者（とうそつしゃ）：${info(BY_ID[d.cmd]).name}`)}</span>` : ''}
@@ -165,7 +169,7 @@ function deckList() {
   };
 }
 async function newDeck(rule) {
-  if (!ownPool().length) {
+  if (!isFirst(rule) && !ownPool().length) {
     const v = await sheet('<p>まだ カードが ない。ショップで パックを あけよう。</p>', [{ label: 'ショップへ', value: 1, kind: 'primary' }, { label: 'とじる', value: 0 }], { title: 'デッキ' });
     return v ? shop() : deckList();
   }
@@ -187,7 +191,7 @@ async function chooseCommander(cur) {
 // くむ。冒険と 同じ 画面（同じ カードは まとめて「●●○○」）。fresh：あたらしい デッキ（さいしょは おまかせ）
 // 統率者の ルールは、統率者に 1まい つかうので デッキに 入れられるのは のこりの まい数
 function build(deck, fresh = false) {
-  const pool = ownPool();
+  const pool = rulePool(deck.rule);
   if (deck.cmd) { const k = pool.indexOf(deck.cmd); if (k >= 0) pool.splice(k, 1); }
   const ident = identOf(deck);
   const idx = (ids) => { const used = new Set(); return ids.map((id) => pool.findIndex((x, k) => x === id && !used.has(k) && used.add(k))).filter((k) => k >= 0); };
@@ -236,7 +240,7 @@ function autoCards(pool, rule, ident) {
 function playDeck(deck) {
   const left = {}, ds = [];
   if (deck.cmd) left[deck.cmd] = ownCount(deck.cmd) - 1; // 統率者に 1まい
-  for (const id of deck.cards) { if (!(id in left)) left[id] = ownCount(id); if (left[id]-- > 0 && BY_ID[id]) ds.push(BY_ID[id]); }
+  for (const id of deck.cards) { if (!(id in left)) left[id] = useCount(deck.rule, id); if (left[id]-- > 0 && BY_ID[id]) ds.push(BY_ID[id]); }
   const cols = [...new Set(ds.flatMap(colorsOf))];
   const cnt = Object.fromEntries(cols.map((c) => [c, ds.filter((d) => colorsOf(d).includes(c)).length]));
   const order = cols.length ? [...cols].sort((a, b) => cnt[b] - cnt[a]) : identOf(deck)?.length ? identOf(deck) : ['C'];

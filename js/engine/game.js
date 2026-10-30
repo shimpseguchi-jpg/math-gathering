@@ -635,6 +635,8 @@ export function hitTarget(s, t, n, src, combat = false) {
     s.floor.face(s, n, api);
     // 統率者戦：統率者で とどめ（レイドの 点 ＋5）
     if (s.over === 'win' && !s.swapped && src && s.P.cmdId && src.card?.id === s.P.cmdId) s.cmdFinish = true;
+    // とどめを さした カード（みならいの しけん：神で とどめを さすと 神からの ことば）
+    if (s.over === 'win' && !s.swapped && src?.side === 'P' && !s.finisher) s.finisher = src.card?.id || src.def.id;
     if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
     // ゼンゼロ：ブレイク N（本体に ダメージを あたえるたび ブレイクカウンター）
     if (src?.side === 'P' && src.def.brk && !s.over) addBreak(s, src.def.brk);

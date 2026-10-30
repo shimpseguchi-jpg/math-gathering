@@ -23,6 +23,7 @@ const perm = (id) => `.perm[data-card="${id}"]`;
 // text：コーチの ことば。next：「つぎへ」で すすむ。hl：光らせる ところ
 // hand：タップして よい 手札と えらべる ボタン。acts：おして よい ボタン。drag/perms：ひっぱる・タップして よい クリーチャー
 // done(s, B)：つぎの ステップへ すすむ じょうけん
+// 2026-10-30：ぼうぎょ（ブロック）より さきに こうげきを する じゅんばんに した（わらの 兵士は 3回めの 敵の ターンから。enemies.js）
 const STEPS = [
   {
     text: 'ようこそ、メレティスの くんれんじょうへ！ あいては「訓練（くんれん）の まと」。タフネスは 10。10点の ダメージを あたえれば かち！',
@@ -49,20 +50,40 @@ const STEPS = [
     hl: hand('B01'), hand: { B01: ['charge'] }, done: (s) => s.P.mana.length >= 4,
   },
   {
-    text: '「森の 大（おお）ワーム」は コスト 7。でも マナは 4つ…。しょうしゅうが あれば、なかまの クリーチャーを タップして マナの かわりに できる。マナ 4 と なかまの 数で、7 に なるかな？',
+    text: 'さあ、はじめての こうげき！ へいし 2体と エルフを、まとへ ひっぱって えらぼう。えらんだら「攻撃（こうげき）！」。',
+    hl: perm('tut_dummy'), acts: ['attack', 'declare', 'cancel'], drag: true, perms: true, done: (s, B) => B.mode === 'tricks',
+  },
+  {
+    text: 'まとは ブロックしない。「ダメージ！」を おそう。',
+    hl: '[data-act=damage]', acts: ['damage'], done: (s, B) => B.mode === 'main' && B.combatDone,
+  },
+  {
+    text: 'パワーは 1 ＋ 1 ＋ 1 ＝ 3。まとに 3点！ でも まとの タフネスは 10。ダメージは ターンの おわりに もとに もどるよ。もっと 大きな パワーが いるね。',
+    next: true,
+  },
+  {
+    text: '「ターン おわり」を おそう。',
+    hl: '[data-act=end]', acts: ['end'], done: (s) => s.stats.playerTurns >= 3,
+  },
+  {
+    text: 'きほんカードを マナゾーンに おこう（マナ 5）。',
+    hl: hand('B03'), hand: { B03: ['charge'] }, done: (s) => s.P.mana.length >= 5,
+  },
+  {
+    text: '「森の 大（おお）ワーム」は コスト 7。でも マナは 5つ…。しょうしゅうが あれば、なかまの クリーチャーを タップして マナの かわりに できる。マナ 5 と なかまの 数で、7 に なるかな？',
     hl: hand('G05'), hand: { G05: ['cast'] }, done: (s) => mine(s, 'G05').length > 0,
   },
   {
     text: '大ワームが 出た！ 「わらの 兵士（へいし）」が「つぎに こうげき」して くるよ。「ターン おわり」を おそう。',
-    hl: '[data-act=end]', acts: ['end'], done: (s, B) => B.mode === 'block' || s.stats.playerTurns >= 3,
+    hl: '[data-act=end]', acts: ['end'], done: (s, B) => B.mode === 'block' || s.stats.playerTurns >= 4,
   },
   {
     text: 'わらの へいしの パワーは 3。大ワームの タフネスは 5。5 は 3 より 大きいから、ブロックしても 大ワームは たおれない！ 大ワームを わらの へいしへ ひっぱって、「ブロック けってい」。',
-    hl: perm('G05'), acts: ['blockdone'], drag: ['G05'], perms: ['G05'], done: (s) => s.stats.playerTurns >= 3,
+    hl: perm('G05'), acts: ['blockdone'], drag: ['G05'], perms: ['G05'], done: (s) => s.stats.playerTurns >= 4,
   },
   {
-    text: 'また てふだが 5まいに なった。きほんカードを マナゾーンに おこう（マナ 5）。',
-    hl: hand('B03'), hand: { B03: ['charge'] }, done: (s) => s.P.mana.length >= 5,
+    text: 'また てふだが 5まいに なった。きほんカードを マナゾーンに おこう（マナ 6）。',
+    hl: hand('B03'), hand: { B03: ['charge'] }, done: (s) => s.P.mana.length >= 6,
   },
   {
     text: '「生（い）きている トーテム」は、ほかの クリーチャーに ＋1/＋1カウンターを 1こ おく。でも あっとうなら 2こ！ あっとうは、みんなの パワーを たして 8 いじょうの とき。いまの パワーは 5・1・1・1。とどくかな？ トーテムを 出そう。',
@@ -114,6 +135,12 @@ export function makeTutorial(steps = STEPS, { lock = true } = {}) {
         <button type="button" class="btn primary" data-act="${st.next ? 'tutnext' : 'tutread'}">${st.next ? 'つぎへ' : 'わかった'}</button></div></div>` : '';
       return `<div class="coach ${lock ? '' : 'story'}" role="status">${who}<p>${ruby(st.text)}</p>${st.next ? '<button type="button" class="btn primary" data-act="tutnext">つぎへ</button>' : ''}</div>${big}`;
     },
-    highlight(root) { const st = step(); if (st?.hl) root.querySelectorAll(st.hl).forEach((el) => el.classList.add('tut-hl')); },
+    highlight(root) {
+      const st = step(); if (st?.hl) root.querySelectorAll(st.hl).forEach((el) => el.classList.add('tut-hl'));
+      // しぼって いる とき（lock）：いま つかえない ボタンと 手札は うすく（おせそうに 見えない ように。2026-10-30）
+      const g = gate(); if (!g) return;
+      root.querySelectorAll('.actions [data-act]').forEach((el) => { if (!ALWAYS.includes(el.dataset.act) && !(g.acts || []).includes(el.dataset.act)) el.classList.add('tut-off'); });
+      root.querySelectorAll('.hand-slot[data-card]').forEach((el) => { if (!g.hand?.[el.dataset.card]) el.classList.add('tut-off'); });
+    },
   };
 }
