@@ -161,7 +161,7 @@ if (mode === 'spire') {
   for (const kind of ['fight', 'elite', 'boss']) for (let a = 0; a < ACTS.length; a++) {
     const f = fights.filter((x) => x.kind === kind && x.act === a);
     if (!f.length) continue;
-    console.log(`${ACTS[a].name.padEnd(9)} ${kind.padEnd(6)} ${String(f.length).padStart(4)}戦  勝ち ${pct(f.filter((x) => x.win).length / f.length)}  へったライフ ${avg(f.filter((x) => x.win).map((x) => x.lost)).toFixed(1)}  はじめのライフ ${avg(f.map((x) => x.start)).toFixed(1)}  ターン ${avg(f.map((x) => x.turns)).toFixed(1)}${f.some((x) => x.timeout) ? `  時間切れ ${f.filter((x) => x.timeout).length}` : ''}`);
+    console.log(`${ACTS[a].name.padEnd(9)} ${kind.padEnd(6)} ${String(f.length).padStart(4)}戦  勝ち ${pct(f.filter((x) => x.win).length / f.length)}  へったライフ ${avg(f.filter((x) => x.win).map((x) => x.lost)).toFixed(1)}  はじめのライフ ${avg(f.map((x) => x.start)).toFixed(1)}  ターン ${avg(f.map((x) => x.turns)).toFixed(1)}${f.some((x) => !x.win) ? `（負けは ${avg(f.filter((x) => !x.win).map((x) => x.turns)).toFixed(1)}）` : ''}${f.some((x) => x.timeout) ? `  時間切れ ${f.filter((x) => x.timeout).length}` : ''}`);
   }
   if (process.env.DETAIL) {
     const keys = [...new Set(fights.map((x) => x.key))];

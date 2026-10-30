@@ -12,7 +12,7 @@ const { att, wall } = RAV_KIT;
 
 // ---- 冒険の数字（シミュレーションで合わせる。docs/SPIRE.md 10章）----
 export const SPIRE = {
-  maxLife: 50, gold: 99, rows: 9, lanes: 4, paths: 4,
+  maxLife: 45, gold: 99, rows: 9, lanes: 4, paths: 4,
   restHeal: 0.3, potionSlots: 3, potionChance: 0.4,
   goldOf: { fight: [10, 20], elite: [25, 35], boss: [95, 105] },
   // カード報酬のレア度（R・U の確率。のこりは C。R のうち 1/8 はレジェンド）
@@ -20,6 +20,8 @@ export const SPIRE = {
   price: { C: 50, U: 75, R: 150, L: 200 }, relicPrice: { C: 150, U: 250, R: 300 }, potionPrice: { C: 50, U: 75, R: 100 },
   removeBase: 75, removeStep: 25,
   maxAsc: 10,
+  eliteBuff: 1, // エリートの敵クリーチャーは ＋1/＋1（アセンション 3 でさらに ＋1）
+  stall: 15, // このターンから「次元のゆらぎ」：毎ターン 1・2・3…点（墓地をまぜてもライフは失わない）
   // マスの重み（2章）
   weights: { fight: 45, event: 22, elite: 16, rest: 12, shop: 7 },
 };
@@ -58,13 +60,13 @@ export const MONSTERS = {
   sp_harpies: { name: 'ハーピーの群れ', life: 10, deck: [[5, att('ハーピー', 1, 1, ['flying'])], [1, att('ハーピーの長', 2, 2, ['flying'])], [2, sorc('急降下', 'あなたに 2点', (s, E) => E.hurt(s, 2), 3)], [2, sorc('金切り声', 'いちばん大きいクリーチャーをタップ', tapBig(1))]] },
   sp_minotaur: { name: '迷宮のミノタウロス', life: 13, deck: [[3, att('ミノタウロスの戦士', 3, 2)], [2, att('ミノタウロスの斧使い', 2, 3)], [2, wall('迷宮の壁', 0, 4)], [2, sorc('突進', '敵のクリーチャーすべて ＋1/＋0・トランプル', pumpAll(1, 0, ['trample']), 3)], [1, sorc('角で突く', 'いちばん大きいクリーチャーに 3点', hitBig(3), 3)]] },
   sp_centaurs: { name: 'ケンタウロスの射手隊', life: 16, deck: [[3, att('ケンタウロスの射手', 2, 2, ['reach'])], [3, att('ケンタウロスの戦士', 3, 3)], [2, sorc('一斉射撃', 'あなたのクリーチャーすべてに 1点', sweep(1), 3)], [1, sorc('蹄の突撃', '敵のクリーチャーすべて ＋1/＋1', pumpAll(1, 1), 3)], [1, sorc('狩りの角笛', '1/1 の猟犬を 2体', (s, E) => E.token(s, 'E', att('猟犬', 1, 1), 2), 2)]] },
-  sp_cyclops: { name: 'サイクロプスの番人', life: 16, deck: [[1, att('サイクロプス', 5, 4)], [4, att('岩運び', 2, 2)], [2, wall('洞窟の番犬', 2, 3)], [2, sorc('岩投げ', 'いちばん大きいクリーチャーに 4点', hitBig(4), 4)], [1, sorc('地響き', 'クリーチャー 2体をタップ', tapBig(2), 3)]] },
-  sp_nyx: { name: 'ニクスの獣たち', life: 15, deck: [[3, att('ニクスの獣', 3, 3)], [2, att('星屑の狐', 2, 1, ['flying'])], [2, wall('星の守り手', 1, 4)], [1, sorc('星の加護', '敵のクリーチャーすべてに ＋1/＋1カウンター', ctrAll(1), 3)], [2, sorc('夜の帳', 'いちばん大きいクリーチャーに −1/−1カウンター 2個', (s, E) => { const t = biggest(s, E); if (t) E.addMinus(s, t, 2, 'E'); E.sba(s); }, 3)]] },
+  sp_cyclops: { name: 'サイクロプスの番人', life: 18, deck: [[2, att('サイクロプス', 5, 4)], [3, att('岩運び', 2, 2)], [2, wall('洞窟の番犬', 2, 3)], [2, sorc('岩投げ', 'いちばん大きいクリーチャーに 4点', hitBig(4), 4)], [1, sorc('地響き', 'クリーチャー 2体をタップ', tapBig(2), 3)]] },
+  sp_nyx: { name: 'ニクスの獣たち', life: 15, deck: [[3, att('ニクスの獣', 3, 3)], [2, att('星屑の狐', 2, 1, ['flying'])], [2, wall('星の守り手', 1, 4)], [2, sorc('星の加護', '敵のクリーチャーすべてに ＋1/＋1カウンター', ctrAll(1), 3)], [1, sorc('夜の帳', 'いちばん大きいクリーチャーに −1/−1カウンター 2個', (s, E) => { const t = biggest(s, E); if (t) E.addMinus(s, t, 2, 'E'); E.sba(s); }, 3)]] },
   // ===== 第2幕 ラヴニカ =====
   sp_jesters: { name: 'ラクドスの道化団', life: 15, deck: [[4, att('道化師', 2, 1, ['haste'])], [2, att('火吹き芸人', 3, 2)], [2, sorc('客いじり', 'あなたに 2点', (s, E) => E.hurt(s, 2), 3)], [2, sorc('炎の輪', 'いちばん小さいクリーチャーに 2点', hitWeak(2), 3)]] },
   sp_rotters: { name: 'ゴルガリの腐れ者', life: 16, intent: () => '敵のクリーチャーが死ぬと敵のライフ ＋1', hooks: lifeOnDeath(1), deck: [[4, att('ゴルガリのゾンビ', 2, 2)], [3, att('腐肉の蛆', 1, 1)], [1, att('苔の巨人', 4, 5)], [2, sorc('墓から這い出る', '墓地のクリーチャーを 1体もどす', raise(1), 3)]] },
   sp_weirds: { name: 'イゼットの奇魔', life: 14, deck: [[3, wall('奇魔', 0, 3)], [3, att('稲妻の奇魔', 3, 1)], [2, sorc('電撃', 'いちばん大きいクリーチャーに 3点', hitBig(3), 3)], [2, sorc('過負荷', 'あなたのクリーチャーすべてに 1点・あなたに 1点', (s, E) => { sweep(1)(s, E); E.hurt(s, 1); }, 3)]] },
-  sp_raiders: { name: 'グルールの略奪団', life: 22, deck: [[3, att('略奪者', 3, 2, ['haste'])], [2, att('グルールの猪', 4, 4, ['trample'])], [1, att('破壊者サイクロプス', 6, 5, ['trample'])], [2, sorc('血の渇き', '敵のクリーチャーすべて ＋2/＋0', pumpAll(2, 0), 4)], [2, sorc('踏み荒らし', 'いちばん小さいクリーチャーに 3点', hitWeak(3), 3)]] },
+  sp_raiders: { name: 'グルールの略奪団', life: 22, deck: [[3, att('略奪者', 3, 2, ['haste'])], [2, att('グルールの猪', 4, 4, ['trample'])], [1, att('破壊者サイクロプス', 6, 5, ['trample'])], [1, sorc('血の渇き', '敵のクリーチャーすべて ＋2/＋0', pumpAll(2, 0), 4)], [2, sorc('踏み荒らし', 'いちばん小さいクリーチャーに 3点', hitWeak(3), 3)], [1, sorc('鬨の声', '1/1 の略奪者見習いを 2体', (s, E) => E.token(s, 'E', att('略奪者見習い', 1, 1), 2), 2)]] },
   sp_tithe: { name: 'オルゾフの徴税人', life: 20, deck: [[3, att('スラル', 1, 1)], [2, wall('聖堂の衛兵', 2, 4)], [2, att('オルゾフの騎士', 3, 3, ['flying'])], [3, sorc('徴税', 'あなたに 2点・敵のライフ ＋2', drain(2), 3)]] },
   sp_krasis: { name: 'シミックの実験体', life: 21, deck: [[3, att('実験体', 2, 2)], [2, att('クラーケンの子', 3, 4)], [2, att('うみへびの子', 2, 2, ['flying'])], [2, sorc('適応', 'いちばん大きい敵に ＋1/＋1カウンター 2個', (s, E) => { const t = E.creatures(s, 'E').sort((a, b) => E.power(s, b) - E.power(s, a))[0]; if (t) E.addCounters(s, t, 2); }, 3)], [1, sorc('急成長', '敵のクリーチャーすべてに ＋1/＋1カウンター', ctrAll(1), 3)]] },
   // ===== 第3幕 ストリクスヘイヴン =====
@@ -126,11 +128,11 @@ for (const k of Object.keys(MONSTERS)) FLOORS[k] = () => monsterFloor(k);
 // bossDiff：ボスの難しさ（アセンション 4 で 1段上がる）
 export const ACTS = [
   { id: 'theros', name: 'テーロス', weak: ['sp_satyrs', 'sp_harpies', 'sp_minotaur'], strong: ['sp_centaurs', 'sp_cyclops', 'sp_nyx'],
-    elites: ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon'], boss: 'erebos', bossName: '死者の神エレボス', buff: 0, lifeMul: 1, bossDiff: 'easy' },
+    elites: ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon'], boss: 'erebos', bossName: '死者の神エレボス', buff: 0, lifeMul: 1.2 },
   { id: 'ravnica', name: 'ラヴニカ', weak: ['sp_jesters', 'sp_rotters', 'sp_weirds'], strong: ['sp_raiders', 'sp_tithe', 'sp_krasis'],
     elites: ['boros', 'selesnya', 'simic', 'izzet', 'golgari', 'azorius', 'rakdos', 'orzhov', 'gruul', 'dimir'], boss: 'jace', bossName: 'ギルドパクトのジェイス', buff: 1, lifeMul: 1.7 },
   { id: 'strixhaven', name: 'ストリクスヘイヴン', weak: ['sp_brooms', 'sp_pests', 'sp_inklings'], strong: ['sp_fractals', 'sp_elementals', 'sp_spirits'],
-    elites: ['sx_silverquill', 'sx_prismari', 'sx_witherbloom', 'sx_lorehold', 'sx_quandrix'], boss: 'sx_extus', bossName: '卒業試験（オリークのエクタス）', buff: 2, lifeMul: 2.4, bossBuff: 1 },
+    elites: ['sx_silverquill', 'sx_prismari', 'sx_witherbloom', 'sx_lorehold', 'sx_quandrix'], boss: 'sx_extus', bossName: '卒業試験（オリークのエクタス）', buff: 2, lifeMul: 2.4 },
 ];
 
 // ---- 予告：つぎにめくる山札のカード（すべての敵）----
@@ -149,6 +151,8 @@ export function withPeek(f) {
     const out = orig ? [...orig(s, E)] : [];
     const n = Math.max(1, f.revealN ? f.revealN(s) : 1);
     const next = s.E.lib.slice(0, n);
+    const st = s.P.emblem?.stall, k = s.stats.playerTurns + 2 - (st || 0);
+    if (st && k > 0) out.push(`次元のゆらぎ：つぎのターンのはじめにライフ −${k}`);
     if (next.length) out.push(`つぎにめくる：${next.map((c) => peekName(c.def)).join('、')}`);
     else if (f.spire && s.E.gy.length) out.push('つぎにめくる：（墓地をまぜて山札にもどす）');
     return out;

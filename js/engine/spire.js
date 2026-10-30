@@ -107,8 +107,13 @@ export function genMap(rng, R) {
     let x = rng() * okT.reduce((s, t) => s + w[t], 0);
     n.t = okT.find((t) => (x -= w[t]) < 0) || 'fight';
   }
-  // お店が 1つもなければ、2〜7段目の ? を 1つお店にする
-  if (!g.flat().some((n) => n?.t === 'shop')) { const ev = g.slice(2, H - 1).flat().filter((n) => n?.t === 'event'); if (ev.length) pick(rng, ev).t = 'shop'; }
+  // お店・エリートが 1つもなければ、まわりと かさならない 戦闘か ? を 1つかえる（お店は 3〜8段目、エリートは 6〜8段目）
+  const around = (n) => [...g[n.r - 1].filter((q) => q?.next.includes(n.c)), ...n.next.map((c) => g[n.r + 1]?.[c])].filter(Boolean).map((q) => q.t);
+  for (const [t, from] of [['shop', 2], ['elite', 5]]) {
+    if (g.flat().some((n) => n?.t === t)) continue;
+    const list = g.slice(from, H - 1).flat().filter((n) => n && (n.t === 'fight' || n.t === 'event') && !around(n).includes(t));
+    if (list.length) pick(rng, list).t = t;
+  }
   return g;
 }
 export const BOSS_ROW = SPIRE.rows;
@@ -134,7 +139,7 @@ function pickElite(R, rng) {
 }
 // レリック・ポーション → もんしょう（emblem）と祝福（bless）の値（game.js の newGame）
 export function relicFx(R) {
-  const em = { life: 0, handSize: 5, mulligan: 0, turnPing: 0, turnBolster: 0, turnTap: 0, swap: null, hand: [], basicCharge: false, startMana: 0, exactLife: 0, hooks: [] };
+  const em = { life: 0, handSize: 5, mulligan: 0, turnPing: 0, turnBolster: 0, turnTap: 0, swap: null, hand: [], basicCharge: false, startMana: 0, exactLife: 0, hooks: [], freeShuffle: true, stall: SPIRE.stall };
   const bl = { life: 0, ping: 0, exactPing: 0, bolster: 0, wither: 0, startMana: 0 };
   let basic = 0;
   for (const id of R.relics) {
@@ -166,7 +171,7 @@ export function battleSetup(R, kind, rng) {
     floor = scaleLife(FLOORS[key](), act.lifeMul || 1);
     const up = (d) => (d === 'easy' ? 'normal' : 'hard');
     diff = kind === 'boss' ? (asc(R, 4) ? up(act.bossDiff || 'normal') : act.bossDiff || 'normal') : asc(R, 8) ? 'hard' : 'normal';
-    if (kind === 'elite' && asc(R, 3)) buff++;
+    if (kind === 'elite') buff += SPIRE.eliteBuff + (asc(R, 3) ? 1 : 0);
     if (kind === 'boss') buff += act.bossBuff || 0;
   }
   withPeek(floor);

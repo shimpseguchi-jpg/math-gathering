@@ -33,7 +33,7 @@ export function spireMenu(appFn, back) {
         <p class="sp-lead">テーロス → ラヴニカ → ストリクスヘイヴン。分かれ道を選んで 3つの次元を渡り、それぞれのボスをたおす。ライフは引きつぎ、デッキは持っているカードすべて。敵がつぎにめくるカードは、いつも見えている。</p></header>
       ${old && !old.over ? `<button type="button" class="btn primary sp-cont" data-a="cont">つづきから<small>第${old.act + 1}幕 ${ACTS[old.act].name}・${old.floor}マス・ライフ ${old.life}/${old.maxLife}・アセンション ${old.asc}</small></button>` : ''}
       <section class="sp-box"><h3>色</h3>
-        <div class="sp-pairs">${PAIRS.map((p) => `<button type="button" class="sp-pair ${!random && p === cols ? 'on' : ''}" data-pair="${p}">${pips(p)}<span>${PAIR_NAME[p]}</span></button>`).join('')}
+        <div class="sp-pairs">${PAIRS.map((p) => `<button type="button" class="sp-pair ${!random && p === cols ? 'on' : ''}" data-pair="${p}"><span class="sp-pips">${pips(p)}</span><span>${PAIR_NAME[p]}</span></button>`).join('')}
           <button type="button" class="sp-pair ${random ? 'on' : ''}" data-pair="rand"><span>おまかせ</span><small>金貨 ＋50</small></button></div></section>
       <section class="sp-box"><h3>アセンション</h3>
         <div class="sp-asc">${Array.from({ length: SPIRE.maxAsc + 1 }, (_, k) => `<button type="button" class="sp-n ${k === asc ? 'on' : ''}" data-asc="${k}" ${k > r.maxAsc ? 'disabled' : ''}>${k}</button>`).join('')}</div>
@@ -244,7 +244,7 @@ async function end(R) {
       <div><dt>スコア</dt><dd>${score}</dd></div>
     </dl>
     ${best ? `<p class="what"><b>アセンション ${R.asc} のベスト更新</b></p>` : ''}
-    ${unlocked ? `<p class="what"><b>アセンション ${R.asc + 1} がひらいた</b><span>${esc(ASC[R.asc + 1])}</span></p>` : ''}
+    ${unlocked ? `<p class="what"><b>アセンション ${R.asc + 1} がひらいた</b>：${esc(ASC[R.asc + 1])}</p>` : ''}
     <p class="sp-note">レリック：${R.relics.map((id) => esc(RELIC_BY_ID[id].name)).join('・') || 'なし'}</p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="menu">次元渡りのメニューへ</button></div>
   </main>`;
