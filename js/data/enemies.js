@@ -800,7 +800,7 @@ export function gorgon() {
 }
 
 // ===== チュートリアル：メレティスの 訓練場 =====
-// 「訓練の まと」（タフネス 10）を たおせば かち。わらの 兵士は 2回めの 敵の ターンから 攻撃する
+// 「訓練の まと」（タフネス 10）を たおせば かち。わらの 兵士は 3回めの 敵の ターンから 攻撃する（さきに こうげきを おぼえる。2026-10-30）
 const DUMMY = ecr('訓練（くんれん）の まと', 0, 10, ['wall'], [], { id: 'tut_dummy', dummy: true, noBlock: true, noCopy: true });
 const STRAW = ecr('わらの 兵士（へいし）', 3, 3, ['scarecrow'], [], { id: 'tut_straw', straw: true, noBlock: true });
 
@@ -814,7 +814,7 @@ export function tutorial() {
     },
     async enemyTurn(s, E) {
       s.E.flags.n = (s.E.flags.n || 0) + 1;
-      if (s.E.flags.n < 2) return;
+      if (s.E.flags.n < 3) return;
       await E.enemyAttack(s, s.E.bf.filter((p) => p.def.straw && !p.tapped));
     },
     check(s) { if (!s.E.bf.some((p) => p.def.dummy)) s.over = 'win'; },

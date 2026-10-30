@@ -58,10 +58,15 @@ export const CHAPTERS = [
         intro: ['クリーチャーの ほかに「じゅもん」が ある。', '使うと こうかが 出て、ぼちへ いく カードだ。てきの ゴブリンたちを じゅもんで たおそう。'],
         ...fixed({ hand: ['R04', 'R10', 'R09', 'B04', 'B04'], mana: ['B04', 'B04'], lib: ['R02', 'B04', 'R11', 'R09', 'B04', 'R12', 'B04', 'R04', 'B04', 'R02', 'B04', 'R10', 'B04', 'R12', 'B04'] }),
         floor: () => foe('ゴブリンの むれ', ['R01', 'R09', 'W17', 'R01', 'R09', 'W17', 'R02'], 14),
+        // 2026-10-30：やれる ことを しぼる（lock：チュートリアルと おなじ。光って いる ところ だけ さわれる。さいごの ことばの あとは 自由）
+        lock: true,
         coach: [
           { text: 'じゅもんは 2しゅるい。インスタントは てきの ターンでも 使える。ソーサリーは じぶんの ターンだけ。', next: true },
-          { text: '「シヴの 炎（ほのお）」を タップして 使おう。てきの クリーチャーか てきを えらんで 2点！', done: inGy('R04') },
-          { text: '「火炎（かえん）」は X点。X は じぶんで きめる（X ＋ 1マナ）。のこりの タフネスと ちょうど 同じに すると ぴったり！', done: inGy('R10') },
+          { text: 'まず マナを ふやそう。「赤（あか）の きほんカード」を タップして「マナゾーンに おく」。', hl: '.hand-slot[data-card="B04"]', hand: { B04: ['charge'] }, done: (s) => s.P.mana.length >= 3 },
+          { text: '「シヴの 炎（ほのお）」を タップして 使おう。マナが 3つ あるから、キッカー（2マナ 多く はらう）で 2点が 4点に なる！ てきを えらんで ダメージ！', hl: '.hand-slot[data-card="R04"]', hand: { R04: ['cast'] }, done: inGy('R04') },
+          { text: 'マナを ぜんぶ 使ったね。「ターン おわり」を おそう。', hl: '[data-act=end]', acts: ['end'], done: turns(2) },
+          { text: 'もう いちど「赤の きほんカード」を マナゾーンに おこう（マナ 4）。', hl: '.hand-slot[data-card="B04"]', hand: { B04: ['charge'] }, done: (s) => s.P.mana.length >= 4 },
+          { text: '「火炎（かえん）」は X点。X は じぶんで きめる（X ＋ 1マナ）。てきの クリーチャーの のこりの タフネスと ちょうど 同じに すると ぴったり！', hl: '.hand-slot[data-card="R10"]', hand: { R10: ['cast'] }, done: inGy('R10') },
           { text: 'あとは じゆうに たたかおう。てきの ライフを 0に すれば かち！', next: true },
         ] },
       { id: '1-3', title: 'パックと デッキ', learn: 'パック・デッキ構築（こうちく）（キャパシティ 30点・2色まで）', kind: 'build',
@@ -258,7 +263,7 @@ function play(ep, back) {
   const deck = ep.deck ? (typeof ep.deck === 'function' ? ep.deck() : ep.deck) : null;
   const cmd = ep.cmd ? BY_ID[ep.cmd] : null;
   startBattle({
-    deck, floor: ep.floor?.(), floorId: ep.floorId, diff: 'easy', floorName: `${ep.id} ${ep.title}`, setup: ep.setup, coach, quit, onEnd,
+    deck, floor: ep.floor?.(), floorId: ep.floorId, diff: 'easy', floorName: `${ep.id} ${ep.title}`, setup: ep.setup, coach, coachLock: !!ep.lock, quit, onEnd,
     ...(cmd ? { cmd, ...cmdSetup(cmd) } : {}), ...(ep.life ? { life: ep.life } : {}),
   });
 }
