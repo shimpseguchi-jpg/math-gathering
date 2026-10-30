@@ -546,9 +546,11 @@ span.pile { cursor: default; }
 .coach { display: flex; flex-direction: column; gap: 8px; background: var(--paper); color: var(--paper-ink); border-radius: 14px; padding: 10px 12px; border-left: 6px solid var(--gold); font-size: 14px; line-height: 1.9; }
 .coach p { margin: 0; }
 .coach .btn { align-self: flex-end; min-height: 40px; }
-.tut-hl { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 12px; animation: tut-pulse 1.2s ease-in-out infinite; }
+/* つかう カード・おす ところ（チュートリアル・ストーリー）：赤。「いま つかえる」の 金色の わくと まざらない ように（2026-10-30） */
+.tut-hl { outline: 3px solid var(--bad); outline-offset: 3px; border-radius: 12px; animation: tut-pulse 1.2s ease-in-out infinite; }
 @keyframes tut-pulse { 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .tut-hl { animation: none; } }
+.tut-off { opacity: 0.4; filter: grayscale(0.7); }
 
 /* ---- オンライン バトル ---- */
 .online { min-height: 100%; display: flex; flex-direction: column; gap: 12px; padding-block: 20px; }
@@ -1317,7 +1319,7 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 :root[data-theme="clear"] :is(.goal-btn, .pile.low, .b-cmd, .bonus, .hint-pop) { border-color: var(--gold-line); }
 :root[data-theme="clear"] .ol-rank li.me { outline: 3px solid var(--gold-line); }
 :root[data-theme="clear"] .hint-pop::after { border-top-color: var(--gold-line); }
-:root[data-theme="clear"] .tut-hl { outline: 4px solid var(--gold-line); }
+:root[data-theme="clear"] .tut-hl { outline: 4px solid #c8281c; }
 :root[data-theme="clear"] .perm.can { outline: 4px dashed var(--gold-line); outline-offset: 1px; }
 :root[data-theme="clear"] .perm.sel { outline: 4px solid var(--gold-line); }
 :root[data-theme="clear"] .perm.attacking { outline: 4px solid var(--bad); }
