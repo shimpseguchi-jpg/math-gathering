@@ -298,6 +298,7 @@ function checkOver(lines) {
     .then(() => B.onEnd({
       win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish,
       // トロフィー用
+      potions: s.P.hand.filter((c) => c.def.potion).map((c) => c.def.id), // 次元渡り：使わなかった ポーション
       life: s.P.life, floor: s.floor.id, exactTurnMax: s.stats.exactTurnMax || 0, bigHit: s.stats.bigHit || 0, maxPower: s.stats.maxPower || 0, maxCreatures: s.stats.maxCreatures || 0,
     })));
   return true;
@@ -488,6 +489,7 @@ function lifeNeed(s, c) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, gc = from === 'gy' && gyCast(s, c.def);
+  if (c.def.curse) return { why: '使えない（呪（のろ）い）' }; // 次元渡り
   const d = gc?.kind === 'disturb' ? c.def.disturb.back : c.def; // 降霊：うらの すがた
   const cost = gc ? gc.cost : from === 'escape' ? escapeMin(s, d) : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);
   const req = gc ? gc.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
@@ -760,7 +762,7 @@ async function tapHand(c) {
     // 出来事（カードの 下の 呪文）・授与（オーラとして つける）
     if (d.adv && !c.advDone) { const ok = !!plan(s, d.adv.cost, d.adv.req); choices.push({ label: `できごと「${ruby(d.adv.name)}」を 使う（${d.adv.cost}マナ）`, value: 'adv', kind: 'primary', disabled: !ok, note: ok ? 'あとで クリーチャーとしても 出せる' : 'マナが たりない' }); }
     if (d.bestow) { const ok = !!plan(s, d.bestow.cost, d.bestow.req || colorsOf(d)); choices.push({ label: `じゅよで クリーチャーに つける（${d.bestow.cost}マナ）`, value: 'bestow', kind: 'primary', disabled: !ok, note: ok ? '' : 'マナが たりない' }); }
-    if (!s.P.flags.charged) choices.push({ label: 'マナゾーンに おく', value: 'charge', note: '1ターンに 1まいまで' });
+    if (!s.P.flags.charged && !d.potion && !d.noCharge) choices.push({ label: 'マナゾーンに おく', value: 'charge', note: '1ターンに 1まいまで' });
   }
   if (B.mode === 'tricks') {
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);

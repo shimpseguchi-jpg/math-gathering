@@ -110,6 +110,7 @@ export function castCard(s, c, pl, o = {}) {
     if (ex.length) L(s, `${s.swapped ? 'てき：' : ''}たんさ：ぼちの ${ex.length}まいを ついほう`);
   }
   P.flags.cast++;
+  for (const h of P.emblem?.hooks || []) h.cast?.(s, api, def); // 次元渡りの レリック
   L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}${from === 'escape' ? '（だっしゅつ）' : ''}`);
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
@@ -127,6 +128,7 @@ export function castCard(s, c, pl, o = {}) {
   const done = () => {
     if (from === 'escape' || from === 'madness') P.gy.push(c);
     else if (from === 'gy' || (o.free && from !== 'lib')) P.exile.push(c); // やまふだから タダで 唱えた ものは ふつうに 墓地へ
+    else if (def.potion) P.exile.push(c); // 次元渡りの ポーション：使ったら おわり
     else if (def.backToHand) { c.locked = true; P.hand.push(c); }
     else P.gy.push(c);
     sba(s);
@@ -404,6 +406,7 @@ function chargeMana(s) {
   const have = new Set(P.mana.flatMap((m) => colorsOf(m.def)));
   let best = null, bv = Infinity;
   for (const c of P.hand) {
+    if (c.def.potion || c.def.noCharge) continue; // ポーション・呪い（次元渡り）は マナに しない
     let v = keepValue(s, c);
     if (colorsOf(c.def).some((col) => !have.has(col) && P.hand.some((h) => h !== c && colorsOf(h.def).includes(col)))) v -= 6;
     if (v < bv) { bv = v; best = c; }
