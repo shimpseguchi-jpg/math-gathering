@@ -1,6 +1,8 @@
 // こうちくモードの もちもの（docs/CONSTRUCTED.md）：パックけん・もって いる カード・デッキ。ブラウザに のこる
 // パックけんは とうの 階の クリア・しゅぎょう・トロフィーで もらい、ショップで パックと ひきかえる
 import { SETS, BY_ID } from '../data/cards.js';
+import { POOL1, IN_POOL1 } from '../data/pool1.js';
+import { KIHON_RULE } from '../data/kihon.js';
 import { toast } from './view.js';
 import { hasServer, CONF } from './server.js';
 import { DEV } from './settings.js';
@@ -11,10 +13,12 @@ export const STUDY_DAY_MAX = 5; // しゅぎょうで もらえる パックけ�
 export const TROPHY_TICKETS = { B: 1, S: 2, G: 3, P: 5 };
 export const ENDLESS_PER = 5; // むげんの とうは 5階 のぼるごとに 1まい
 export const DECK_MAX = 10;
-// デッキの ルール（4つ）：ノーマル（30点・2色）／エターナル（点と 色の せいげん なし）と、それぞれの 統率者（統率者の 色だけ）
-export const RULES = { normal: 'ノーマル', eternal: 'エターナル', normalCmd: 'ノーマル（統率者（とうそつしゃ））', eternalCmd: 'エターナル（統率者（とうそつしゃ））' };
+// デッキの ルール（5つ）：ノーマル（30点・2色）／エターナル（点と 色の せいげん なし）と、それぞれの 統率者（統率者の 色だけ）、
+// みならい（ノーマルと 同じ 30点・2色で、1年生の カードプール（data/pool1.js）だけ。もって いなくても つかえる。key は 'first'）
+export const RULES = { normal: 'ノーマル', eternal: 'エターナル', normalCmd: 'ノーマル（統率者（とうそつしゃ））', eternalCmd: 'エターナル（統率者（とうそつしゃ））', first: KIHON_RULE };
 export const isCmdRule = (rule) => rule === 'normalCmd' || rule === 'eternalCmd';
 export const isEternal = (rule) => rule === 'eternal' || rule === 'eternalCmd';
+export const isFirst = (rule) => rule === 'first';
 
 // { tickets, cards: { id: まい数 }, decks: [{ id, rule, n, cmd: 統率者の id（統率者の ルール）, cards: [id…], t }], study: { day, n }, tro: { トロフィーid: 1 }, got: もらった パックけんの 合計 }
 function load() {
@@ -73,6 +77,9 @@ export function ownPool() {
   const ids = openAll() ? PACK_CARDS.map((d) => d.id) : Object.keys(C.cards).filter((id) => BY_ID[id]);
   return ids.flatMap((id) => Array(ownCount(id)).fill(id));
 }
+// ルールごとの つかえる まい数と ならび。1年生は カードプールの カードを 4まいずつ（もって いなくても）
+export const useCount = (rule, id) => (isFirst(rule) ? (IN_POOL1.has(id) && BY_ID[id] ? MAX_COPY : 0) : ownCount(id));
+export const rulePool = (rule) => (isFirst(rule) ? POOL1.filter((id) => BY_ID[id]).flatMap((id) => Array(MAX_COPY).fill(id)) : ownPool());
 export function addCards(cards) {
   for (const d of cards) C.cards[d.id] = (C.cards[d.id] || 0) + 1;
   save();
@@ -93,5 +100,5 @@ export function missing(deck) {
   const need = {};
   if (deck.cmd) need[deck.cmd] = 1;
   for (const id of deck.cards) need[id] = (need[id] || 0) + 1;
-  return Object.entries(need).reduce((t, [id, n]) => t + Math.max(0, n - ownCount(id)), 0);
+  return Object.entries(need).reduce((t, [id, n]) => t + Math.max(0, n - useCount(deck.rule, id)), 0);
 }

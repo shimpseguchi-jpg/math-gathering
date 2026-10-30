@@ -296,7 +296,7 @@ function checkOver(lines) {
   fx.result(win ? 'win' : draw ? 'draw' : 'lose').then(() => sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
     .then(() => B.onEnd({
-      win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish,
+      win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish, finisher: s.finisher || null,
       // トロフィー用
       life: s.P.life, floor: s.floor.id, exactTurnMax: s.stats.exactTurnMax || 0, bigHit: s.stats.bigHit || 0, maxPower: s.stats.maxPower || 0, maxCreatures: s.stats.maxCreatures || 0,
     })));

@@ -30,6 +30,8 @@ import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTer
 import { BANNERS } from '../data/emblems.js';
 import { gacha } from './gacha.js';
 import { constructMenu } from './construct.js';
+import { kihonMenu } from './kihon.js';
+import { KIHON_NAME } from '../data/kihon.js';
 import { addTickets, tickets, ENDLESS_PER } from './collection.js';
 
 const SAVE = 'mtg-adventure-v1';
@@ -96,6 +98,7 @@ const T_ICON = {
   emblem: '<path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.5 2.4-7.4L2 9.6h7.6z" fill="currentColor" stroke="none"/>',
   online: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
   tut: '<path d="M5 21V4h12l-2 4 2 4H5"/>',
+  kihon: '<path d="M12 21V11M12 11c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5"/>',
   story: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
   zukan: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
@@ -118,7 +121,7 @@ export function title() {
   const step = nextStep(); // 'tutorial' | 'story' | null（とうは あそべる）
   const plane0 = planeOpen(pref.plane || 'theros') ? (pref.plane || 'theros') : 'theros';
   const diff0 = diffOpen(pref.diff) ? pref.diff : 'normal';
-  const lockBtn = (key) => `<button type="button" class="btn lock" data-lock="${key}">あたらしい ぼうけん<small>${key === 'tutorial' ? 'チュートリアルの あとで' : 'ストーリー 1章の あとで'}</small></button>`;
+  const lockBtn = (key) => `<button type="button" class="btn lock" data-lock="${key}">あたらしい ぼうけん<small>${key === 'tutorial' ? 'チュートリアルの あとで' : key === 'story' ? 'ストーリー 1章の あとで' : `${KIHON_NAME}の 課題（かだい）の あとで`}</small></button>`;
   app().innerHTML = `<main class="title">
     <header class="t-head">
       <div class="title-mark" aria-hidden="true"><span>＋</span><span>−</span><span>×</span><span>÷</span></div>
@@ -131,7 +134,8 @@ export function title() {
       ${raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
       <div class="title-btns">
         ${first || step === 'tutorial' ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
-        ${step === 'story' ? '<button type="button" class="btn primary" data-go="story">ストーリーを すすめる<small>1章を クリアすると とうへ</small></button>' : ''}
+        ${step === 'story' ? `<button type="button" class="btn primary" data-go="story">ストーリーを すすめる<small>1章を クリアすると ${KIHON_NAME}へ</small></button>` : ''}
+        ${step === 'kihon' ? `<button type="button" class="btn primary" data-go="kihon">${KIHON_NAME}<small>${ruby('課題（かだい）を 3つ クリアすると とうへ')}</small></button>` : ''}
         ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから<small>${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階から`}</small></button>` : ''}
         ${step ? lockBtn(step) : `<button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>`}
       </div>
@@ -146,7 +150,8 @@ export function title() {
     <nav class="t-menu" aria-label="メニュー">
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
-      ${tile('story', 'ストーリー', step === 'story' ? '1章を クリアすると とうへ' : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
+      ${tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
+      ${GATES.kihon() ? tile('kihon', KIHON_NAME, step === 'kihon' ? ruby('課題（かだい）を 3つ クリアすると とうへ') : 'はじめての ぼうけん', tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
@@ -174,7 +179,7 @@ export function title() {
     if (lk) {
       const t = LOCK_TEXT[lk.dataset.lock]; if (!t) return;
       const choices = t.go ? [{ label: t.label, value: 'go', kind: 'primary' }, { label: 'とじる', value: 0 }] : [{ label: 'わかった', value: 1, kind: 'primary' }];
-      sheet(`<p class="goal">${ruby(t.text)}</p>`, choices, { title: t.title }).then((v) => { if (v === 'go') (t.go === 'tut' ? tutorial() : storyMenu(title)); });
+      sheet(`<p class="goal">${ruby(t.text)}</p>`, choices, { title: t.title }).then((v) => { if (v === 'go') (t.go === 'tut' ? tutorial() : t.go === 'kihon' ? kihonMenu(title) : storyMenu(title)); });
       return;
     }
     const b = e.target.closest('[data-go]'); if (!b) return;
@@ -183,6 +188,7 @@ export function title() {
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
+    if (b.dataset.go === 'kihon') return kihonMenu(title);
     if (b.dataset.go === 'admin') return adminScreen(app, title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title, { activeIds: activeIds() });
     if (b.dataset.go === 'trophy') return trophyScreen(app, title);
@@ -249,7 +255,7 @@ function resume() { if (strix() && !A.college) return enroll().then(resume); if 
 
 // ---- ストリクスヘイヴン：入学の 手紙（羊皮紙（ようひし）の シート。cls: 'parchment'）----
 // mark：封蝋（ふうろう）の 字、color：封蝋の 色、from：だれから、head：見出し、body：文の ならび、sign：さいごの 名前
-const letter = ({ mark, color, from, head, body, sign }) => `<div class="letter">
+export const letter = ({ mark, color, from, head, body, sign }) => `<div class="letter">
   <div class="seal" aria-hidden="true"${color ? ` style="--seal:${color}"` : ''}><span>${esc(mark)}</span></div>
   <p class="letter-from">${ruby(from)}</p><p class="letter-head">${ruby(head)}</p>
   ${body.map((t) => `<p>${ruby(t)}</p>`).join('')}

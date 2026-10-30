@@ -1148,6 +1148,8 @@ div.zk-card { cursor: default; }
 .st-ep.open em { color: var(--gold-text); font-weight: 700; }
 .st-ep.done em { color: var(--good); }
 .st-ep.lock { opacity: 0.45; cursor: default; }
+/* きほんセットの 課題：ボタンで ない 行（おせない） */
+div.st-ep { box-sizing: border-box; cursor: default; }
 .coach.story { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 2px; padding: 5px 10px; font-size: 13px; line-height: 1.6; border-radius: 10px; }
 .coach.story p { flex: 1 1 260px; }
 .coach.story .btn { align-self: center; min-height: 34px; padding: 4px 16px; }
