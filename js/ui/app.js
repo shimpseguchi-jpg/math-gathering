@@ -18,7 +18,7 @@ import { CONF, loadConf } from './server.js';
 import { loading } from './loading.js';
 import { adminScreen } from './admin.js';
 import { sfx, soundOn, setSound } from './sfx.js';
-import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme, applyConf } from './settings.js';
+import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme, applyConf, trialOn } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
 import { GATES, diffOpen, planeOpen, nextStep, LOCK_TEXT, NEWS_TEXT, unlockNews } from './unlock.js';
@@ -160,6 +160,7 @@ export function title() {
       ${hasServer() && CONF.admin ? tile('admin', '開発モード（先生）', 'かんり の がめん', tIcon('admin'), 'ghost') : ''}
     </nav>
     <footer class="t-foot">
+      ${trialOn() ? `<p class="fine"><span class="dev-badge">ためしちゅう</span> ${ruby('はじめての 人として ためして いる。もとの セーブは「せってい」で もどせる')}</p>` : ''}
       ${DEV ? `<p class="fine"><span class="dev-badge">デバッグモード</span>${setsNote() ? ` ${ruby(`パックに 入る 弾（だん）：${setsNote()}`)}` : ''}</p>` : ''}
       ${endlessBest() ? `<p class="fine">むげんの とうの きろく：${endlessBest().floor}階・${endlessBest().score}てん</p>` : ''}
       <p class="fine">しさくばん。てきを タフネスと ちょうど 同じ ダメージで たおすと「ぴったり！」。</p>
