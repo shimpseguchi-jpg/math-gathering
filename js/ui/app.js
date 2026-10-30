@@ -248,10 +248,7 @@ function tutorial() {
         award('tutorial');
         await sheet(`<p>${ruby(r.exact ? 'ぴったり 10点で まとを たおした！ マナの おきかた、しょうしゅう、ブロック、あっとう、ぴったり。これで とうに いどめるよ。' : 'まとを たおした！ つぎは ぴったりを ねらってみよう。これで とうに いどめるよ。')}</p>`,
           [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'チュートリアル クリア！', dismiss: false });
-        // かてなく なったら もんしょう（REQUIREMENTS 12章）
-        const v = await sheet(`<p>とうで かてなく なったら、タイトルの「✦ もんしょう」で しゅぎょうしよう！</p><p>${QUIZ_SECONDS}びょうで もんだいを といて、7わりより おおく せいかいすると もんしょうポイントが もらえる。ポイントで もんしょうを えらぶと、12じかん ぼうけんで つよく なれるよ（はじめの ライフが ふえる・たいようの ゆびわ など）。</p>`,
-          [{ label: 'もんしょうを 見る', value: 'em', kind: 'primary' }, { label: 'タイトルへ', value: 't' }], { title: 'かてなく なったら もんしょうを てに いれよう', dismiss: false });
-        if (v === 'em') return emblemScreen(app, title);
+        // もんしょうの せつめいは ここでは しない（2026-10-30：とうで はじめて まけた とき。emblemIntro）
       }
       title();
     },
@@ -702,6 +699,7 @@ function fight() {
         await sheet('<p>パックを 1つ あけて、デッキを くみなおせる。</p>', [{ label: 'パックを あける', value: 1, kind: 'primary' }], { title: 'ごほうび', dismiss: false });
         return packs();
       }
+      await emblemIntro();
       if (A.continues > 0) {
         const v = await sheet(`<p>コンティニューすると、${ruby(floorLabel(A.idx))}の はじめから やりなおせる（${strix() ? `ライフは ${Math.min(A.cap, STRIX.cont)}` : 'ライフは はじめの 数に もどる'}）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
           [{ label: 'コンティニュー（のこり1回）', value: 'c', kind: 'primary' }, { label: 'あきらめる', value: 'x' }], { title: 'まけてしまった', dismiss: false });
@@ -712,6 +710,15 @@ function fight() {
   });
 }
 
+// とうで はじめて まけた とき（1回だけ）：もんしょうの くわしい せつめい（REQUIREMENTS 12章）。
+// 2026-10-30 に チュートリアルの あとから うつした。せかいが ひらけた ときの しらせでは なまえだけ（unlock.js の NEWS_TEXT）
+const EMBLEM_INTRO = 'mtg-emblem-intro';
+async function emblemIntro() {
+  try { if (localStorage.getItem(EMBLEM_INTRO)) return; localStorage.setItem(EMBLEM_INTRO, '1'); } catch { return; }
+  if (activeIds().length || emblemPoints() > 0) return; // もう もんしょうを しって いる 子には 出さない
+  await sheet(`<p>とうで かてなく なったら、タイトルの「✦ もんしょう」で しゅぎょうしよう！</p><p>${QUIZ_SECONDS}びょうで もんだいを といて、7わりより おおく せいかいすると もんしょうポイントが もらえる。ポイントで もんしょうを えらぶと、12じかん ぼうけんで つよく なれるよ（はじめの ライフが ふえる・たいようの ゆびわ など）。</p>`,
+    [{ label: 'わかった', value: 1, kind: 'primary' }], { title: 'かてなく なったら もんしょうを てに いれよう', dismiss: false });
+}
 // まけた とき：もんしょうが ついて いなければ、しゅぎょうを すすめる
 const emblemHint = (over = false) => (activeIds().length ? '' : `<p class="em-line">かてない ときは、タイトルの「✦ もんしょう」で しゅぎょうして もんしょうを つけよう${over ? '。つぎの ぼうけんが らくに なる' : '（ぼうけんは「つづきから」で もどれる）'}。</p>`);
 
