@@ -34,7 +34,8 @@ export function canUp(e) {
 // 報酬・お店に出るカード（統率者の色と無色。旗・基本・トークン・統率者じしんはのぞく）
 // 弾は R.sets（統率者の弾 ＋ ランダムな 2つ）。むかしのセーブ（統率者なし）は R.pool の弾ぜんぶ
 const POOLS = new Map();
-export const POOL_SETS = { all: SETS.filter((x) => !x.extra && !x.raid).map((x) => x.id), released: SETS.filter((x) => x.released).map((x) => x.id) };
+// all：番外編（FGO・スターレイル・ゼンゼロ）も ふくむ（2026-10-31）。番外編の統率者なら、その番外編が 1つめの弾になる
+export const POOL_SETS = { all: SETS.filter((x) => !x.raid).map((x) => x.id), released: SETS.filter((x) => x.released).map((x) => x.id) };
 const okFor = (cols, not) => (d) => !d.token && !d.basic && !d.banner && !d.noPack && d.id !== not && colorsOf(d).every((c) => cols.includes(c));
 export function cardPool(R) {
   const sets = R.sets || POOL_SETS[R.pool] || POOL_SETS.all;
