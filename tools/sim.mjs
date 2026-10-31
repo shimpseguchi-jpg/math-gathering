@@ -136,16 +136,16 @@ if (mode === 'pvp') {
 
 // 次元渡り（docs/SPIRE.md）：AI が 3幕の冒険を N回。ASC（アセンション）・POOL（all / released）
 if (mode === 'spire') {
-  const { newRun, runLoop, aiIO, scoreOf } = await import('../js/engine/spire.js');
+  const { newRun, runLoop, aiIO, scoreOf, commanderOffers, cmdInZone } = await import('../js/engine/spire.js');
   const { ACTS } = await import('../js/data/spire.js');
   const ASCN = Number(process.env.ASC ?? 0);
-  const PAIRS = ['WU', 'UK', 'KR', 'RG', 'GW', 'WK', 'UR', 'KG', 'RW', 'GU'];
   const runs = [], fights = [];
   for (let i = 0; i < N; i++) {
     const rng = seeded(SEED * 100003 + i);
-    const R = newRun({ cols: PAIRS[i % PAIRS.length], asc: ASCN, pool: process.env.POOL || 'all', rng });
+    const offers = commanderOffers(rng, process.env.POOL || 'all');
+    const R = newRun({ cmd: offers[Math.floor(rng() * offers.length)], asc: ASCN, pool: process.env.POOL || 'all', rng });
     const io = aiIO(rng, async (R2, set) => {
-      const s = await fight(set.deck, null, { floor: set.floor, life: set.life, emblem: set.emblem, bless: set.bless, diff: set.diff, buff: set.buff, seed: Math.floor(rng() * 1e9) });
+      const s = await fight(set.deck, null, { floor: set.floor, life: set.life, emblem: set.emblem, bless: set.bless, diff: set.diff, buff: set.buff, cmd: set.cmd, seed: Math.floor(rng() * 1e9) });
       const res = { win: s.over === 'win', life: s.P.life, exact: s.stats.exact, turns: s.stats.playerTurns, potions: s.P.hand.filter((c) => c.def.potion).map((c) => c.def.id) };
       fights.push({ act: R2.act, kind: set.kind, key: set.key, win: res.win, lost: set.life - Math.max(0, res.life), start: set.life, turns: res.turns, deck: set.deck.length, timeout: s.over === 'timeout' });
       return res;
@@ -157,6 +157,7 @@ if (mode === 'spire') {
   const win = runs.filter((R) => R.over === 'win').length;
   console.log(`次元渡り：${N}回・アセンション ${ASCN}・カード ${process.env.POOL || 'all'}`);
   console.log(`クリア ${pct(win / N)}　とどいた幕：${ACTS.map((a, k) => `${a.name} ${pct(runs.filter((R) => R.act >= k).length / N)}`).join('・')}`);
+  console.log(`統率の冠をとった ${pct(runs.filter(cmdInZone).length / N)}・色の数 ${['1色', '2色', '3色'].map((t, k) => `${t} ${pct(runs.filter((R) => R.cols.length === k + 1).length / N)}`).join('・')}`);
   console.log(`平均：のぼったマス ${avg(runs.map((R) => R.floor)).toFixed(1)}・デッキ ${avg(runs.map((R) => R.deck.length)).toFixed(1)}枚・レリック ${avg(runs.map((R) => R.relics.length)).toFixed(1)}・スコア ${avg(runs.map(scoreOf)).toFixed(0)}`);
   for (const kind of ['fight', 'elite', 'boss']) for (let a = 0; a < ACTS.length; a++) {
     const f = fights.filter((x) => x.kind === kind && x.act === a);
