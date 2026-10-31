@@ -49,7 +49,7 @@ export function spireMenu(appFn, back) {
         <div class="sp-asc">${Array.from({ length: SPIRE.maxAsc + 1 }, (_, k) => `<button type="button" class="sp-n ${k === asc ? 'on' : ''}" data-asc="${k}" ${k > r.maxAsc ? 'disabled' : ''}>${k}</button>`).join('')}</div>
         <p class="sp-note">${asc ? ASC.slice(1, asc + 1).map((t, k) => `${k + 1}. ${esc(t)}`).join('<br>') : 'きまりの追加なし。クリアすると次の段がひらく。'}</p></section>
       <section class="sp-box"><h3>カード</h3>
-        <div class="sp-seg"><button type="button" class="${pool === 'all' ? 'on' : ''}" data-pool="all">すべての弾<small>開発中もふくむ</small></button><button type="button" class="${pool === 'released' ? 'on' : ''}" data-pool="released">公開中の弾<small>第1・2・5弾</small></button></div></section>
+        <div class="sp-seg"><button type="button" class="${pool === 'all' ? 'on' : ''}" data-pool="all">すべての弾<small>開発中・番外編もふくむ</small></button><button type="button" class="${pool === 'released' ? 'on' : ''}" data-pool="released">公開中の弾<small>第1・2・5弾</small></button></div></section>
       <div class="row-btns"><button type="button" class="btn primary" data-a="new">旅に出る</button><button type="button" class="btn" data-a="back">タイトルへ</button></div>
       <p class="sp-note">きろく：${r.runs}回・クリア ${r.wins}回${Object.keys(r.best).length ? '・ベスト ' + Object.entries(r.best).map(([a, s]) => `A${a} ${s}点`).join('　') : ''}</p>
     </main>`;
