@@ -5,7 +5,7 @@ import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOS
 import { SPIRE, ACTS, ASC, RELIC_BY_ID, POTION_BY_ID } from '../data/spire.js';
 import { grown } from '../data/strixhaven.js';
 import { startBattle } from './battle.js';
-import { cardFace, fullCard, detail, sheet, esc, info, COLOR_NAME, byColorCost } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, info, richText, COLOR_NAME, byColorCost } from './view.js';
 import { BY_ID, SETS } from '../data/cards.js';
 import { adultOn, adultOff, adultText } from './adult.js';
 import { sfx } from './sfx.js';
@@ -34,8 +34,16 @@ export function spireMenu(appFn, back) {
   const old = load(), r = rec();
   let asc = Math.min(r.maxAsc, r.lastAsc ?? 0), pool = r.pool || 'all';
   let offers = commanderOffers(Math.random, pool), cmd = offers[0];
-  const offerCard = (id) => `<button type="button" class="sp-cmd ${id === cmd ? 'on' : ''}" data-cmd="${id}">${cardFace(BY_ID[id])}
-    <span class="sp-cmd-info"><span class="sp-pips">${pips(colsOf(BY_ID[id]))}</span><small>${esc(setName(SETS.find((st) => st.cards.some((d) => d.id === id))?.id))}</small></span></button>`;
+  // 統率者の候補：カードの絵（小）と、名前・色・コスト・P/T・能力の文を ならべて 見せる（タップしなくても 読める）
+  const offerCard = (id) => {
+    const d = BY_ID[id], i = info(d), pt = typeof d.pow === 'number' ? `${d.pow}/${d.tou}` : '';
+    return `<button type="button" class="sp-cmd ${id === cmd ? 'on' : ''}" data-cmd="${id}">
+      <span class="sp-cmd-face">${cardFace(d)}</span>
+      <span class="sp-cmd-body"><b class="sp-cmd-name">${esc(adultText(i.name))}</b>
+        <span class="sp-cmd-meta"><span class="sp-pips">${pips(colsOf(d))}</span>コスト ${d.cost}${pt ? `・${pt}` : ''}</span>
+        <span class="sp-cmd-text">${richText(i.text) || '能力なし'}</span>
+        <small>${esc(setName(SETS.find((st) => st.cards.some((x) => x.id === id))?.id))}</small></span></button>`;
+  };
   const draw = () => {
     app().innerHTML = `<main class="spire sp-menu">
       <header class="sp-top"><p class="eyebrow">大人向けモード</p><h2>次元渡り</h2>
