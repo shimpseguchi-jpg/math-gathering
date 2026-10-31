@@ -1,19 +1,23 @@
 // 次元渡り（大人向けモード。docs/SPIRE.md）：画面
 // 冒険のすすめかたは engine/spire.js の runLoop。ここは io（マップ・報酬・お店・選択・戦闘）を画面で答える
 // 文字は大人向けのふつうの日本語（ふりがななし。tools/kanji.mjs の対象外）
-import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOSS_ROW } from '../engine/spire.js';
+import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOSS_ROW, commanderOffers, cmdInZone, colsOf } from '../engine/spire.js';
 import { SPIRE, ACTS, ASC, RELIC_BY_ID, POTION_BY_ID } from '../data/spire.js';
 import { grown } from '../data/strixhaven.js';
 import { startBattle } from './battle.js';
-import { cardFace, fullCard, detail, sheet, esc, COLOR_NAME, byColorCost } from './view.js';
+import { cardFace, fullCard, detail, sheet, esc, info, COLOR_NAME, byColorCost } from './view.js';
+import { BY_ID, SETS } from '../data/cards.js';
+import { adultOn, adultOff, adultText } from './adult.js';
 import { sfx } from './sfx.js';
 
 const KEY = 'mtg-spire-v1', REC = 'mtg-spire-rec';
 let APP = null, BACK = null;
 const app = () => APP();
-const PAIRS = ['WU', 'UK', 'KR', 'RG', 'GW', 'WK', 'UR', 'KG', 'RW', 'GU'];
-const PAIR_NAME = { WU: 'アゾリウス', UK: 'ディミーア', KR: 'ラクドス', RG: 'グルール', GW: 'セレズニア', WK: 'オルゾフ', UR: 'イゼット', KG: 'ゴルガリ', RW: 'ボロス', GU: 'シミック' };
 const pips = (cols) => [...cols].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('');
+// カードの名前・弾の名前（ふりがなを外す）
+const nameOf = (id) => adultText(info(BY_ID[id]).name);
+const setName = (id) => adultText(SETS.find((st) => st.id === id)?.name || '');
+const setsLine = (R) => (R.sets || []).map((id, k) => `${setName(id)}${k === 0 ? '（統率者）' : ''}`).join('・');
 
 // ---- 保存 ----
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } };
@@ -23,18 +27,24 @@ const rec = () => { try { return { maxAsc: 0, best: {}, wins: 0, runs: 0, ...JSO
 const saveRec = (r) => { try { localStorage.setItem(REC, JSON.stringify(r)); } catch { /* なにも しない */ } };
 
 // ---- メニュー ----
+// 統率者：ランダムな 3枚から 1枚（色は統率者の色、カードは統率者の弾 ＋ ランダムな弾 2つ）
 export function spireMenu(appFn, back) {
   APP = appFn; BACK = back;
+  adultOn(); // 次元渡りのあいだは、共通の画面（カード・バトル）も大人向けの表記に
   const old = load(), r = rec();
-  let cols = PAIRS[0], asc = Math.min(r.maxAsc, r.lastAsc ?? 0), pool = r.pool || 'all', random = false;
+  let asc = Math.min(r.maxAsc, r.lastAsc ?? 0), pool = r.pool || 'all';
+  let offers = commanderOffers(Math.random, pool), cmd = offers[0];
+  const offerCard = (id) => `<button type="button" class="sp-cmd ${id === cmd ? 'on' : ''}" data-cmd="${id}">${cardFace(BY_ID[id])}
+    <span class="sp-cmd-info"><span class="sp-pips">${pips(colsOf(BY_ID[id]))}</span><small>${esc(setName(SETS.find((st) => st.cards.some((d) => d.id === id))?.id))}</small></span></button>`;
   const draw = () => {
     app().innerHTML = `<main class="spire sp-menu">
       <header class="sp-top"><p class="eyebrow">大人向けモード</p><h2>次元渡り</h2>
         <p class="sp-lead">テーロス → ラヴニカ → ストリクスヘイヴン。分かれ道を選んで 3つの次元を渡り、それぞれのボスをたおす。ライフは引きつぎ、デッキは持っているカードすべて。敵がつぎにめくるカードは、いつも見えている。</p></header>
-      ${old && !old.over ? `<button type="button" class="btn primary sp-cont" data-a="cont">つづきから<small>第${old.act + 1}幕 ${ACTS[old.act].name}・${old.floor}マス・ライフ ${old.life}/${old.maxLife}・アセンション ${old.asc}</small></button>` : ''}
-      <section class="sp-box"><h3>色</h3>
-        <div class="sp-pairs">${PAIRS.map((p) => `<button type="button" class="sp-pair ${!random && p === cols ? 'on' : ''}" data-pair="${p}"><span class="sp-pips">${pips(p)}</span><span>${PAIR_NAME[p]}</span></button>`).join('')}
-          <button type="button" class="sp-pair ${random ? 'on' : ''}" data-pair="rand"><span>おまかせ</span><small>金貨 ＋50</small></button></div></section>
+      ${old && !old.over ? `<button type="button" class="btn primary sp-cont" data-a="cont">つづきから<small>${old.cmd ? `${esc(nameOf(old.cmd))}・` : ''}第${old.act + 1}幕 ${ACTS[old.act].name}・${old.floor}マス・ライフ ${old.life}/${old.maxLife}・A${old.asc}</small></button>` : ''}
+      <section class="sp-box"><h3>統率者</h3>
+        <p class="sp-note">選んだ統率者の色のカードだけが出る。カードの弾は、統率者の弾とランダムな弾 2つ。統率者ははじめデッキに入り、ボスのレリック「統率の冠」で統率領域に置ける。</p>
+        <div class="sp-cmds">${offers.map(offerCard).join('')}</div>
+        <div class="row-btns"><button type="button" class="btn small" data-a="reroll">ほかの 3枚</button><button type="button" class="btn small" data-a="look">くわしく見る</button></div></section>
       <section class="sp-box"><h3>アセンション</h3>
         <div class="sp-asc">${Array.from({ length: SPIRE.maxAsc + 1 }, (_, k) => `<button type="button" class="sp-n ${k === asc ? 'on' : ''}" data-asc="${k}" ${k > r.maxAsc ? 'disabled' : ''}>${k}</button>`).join('')}</div>
         <p class="sp-note">${asc ? ASC.slice(1, asc + 1).map((t, k) => `${k + 1}. ${esc(t)}`).join('<br>') : 'きまりの追加なし。クリアすると次の段がひらく。'}</p></section>
@@ -47,22 +57,24 @@ export function spireMenu(appFn, back) {
   draw();
   app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
-    if (b.dataset.pair) { random = b.dataset.pair === 'rand'; if (!random) cols = b.dataset.pair; return draw(); }
+    if (b.dataset.cmd) { cmd = b.dataset.cmd; return draw(); }
     if (b.dataset.asc) { asc = +b.dataset.asc; return draw(); }
-    if (b.dataset.pool) { pool = b.dataset.pool; return draw(); }
+    if (b.dataset.pool) { pool = b.dataset.pool; offers = commanderOffers(Math.random, pool); cmd = offers[0]; return draw(); }
     const a = b.dataset.a;
-    if (a === 'back') return BACK();
+    if (a === 'back') { adultOff(); return BACK(); }
     if (a === 'cont') return play(old);
+    if (a === 'reroll') { offers = commanderOffers(Math.random, pool); cmd = offers[0]; return draw(); }
+    if (a === 'look') return sheet(detail(BY_ID[cmd]), [{ label: '閉じる', value: 0 }]);
     if (a === 'new') {
       if (old && !old.over) {
         const v = await sheet('<p>つづきの旅は消える。新しく旅に出る？</p>', [{ label: '新しく旅に出る', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: '新しい旅' });
         if (!v) return;
       }
-      const c = random ? PAIRS[Math.floor(Math.random() * PAIRS.length)] : cols;
-      const R = newRun({ cols: c, asc, pool, rng: Math.random, random });
+      const R = newRun({ cmd, asc, pool, rng: Math.random });
       const rr = rec(); rr.runs++; rr.lastAsc = asc; rr.pool = pool; saveRec(rr);
       save(R);
       sfx.tap?.();
+      await sheet(`<p class="sp-body">統率者：${esc(nameOf(R.cmd))}<br>色：${[...R.cols].map((c) => COLOR_NAME[c]).join('・')}<br>カードの弾：${esc(setsLine(R))}</p>`, [{ label: '出発する', value: 1, kind: 'primary' }], { title: '旅のはじまり', dismiss: false });
       return play(R);
     }
   };
@@ -78,6 +90,7 @@ function hud(R) {
   return `<header class="sp-hud">
     <div class="sp-hud-row"><b class="sp-act">第${R.act + 1}幕 ${ACTS[R.act].name}</b><span class="sp-asc-chip">A${R.asc}</span>
       <span class="sp-life ${R.life <= R.maxLife * 0.3 ? 'low' : ''}">ライフ <b>${R.life}</b>/${R.maxLife}</span><span class="sp-gold">金貨 <b>${R.gold}</b></span></div>
+    ${R.cmd ? `<div class="sp-hud-row"><button type="button" class="sp-chip sp-cmdchip" data-hud="cmd">統率者：${esc(nameOf(R.cmd))}${cmdInZone(R) ? '（統率領域）' : '（デッキ）'}</button></div>` : ''}
     <div class="sp-hud-row">
       <button type="button" class="sp-chip" data-hud="deck">デッキ ${R.deck.length}</button>
       <button type="button" class="sp-chip" data-hud="relics">レリック ${R.relics.length}</button>
@@ -88,6 +101,7 @@ async function hudClick(e, R) {
   const h = e.target.closest('[data-hud],[data-pot]');
   if (!h) return false;
   if (h.dataset.hud === 'deck') await sheet(deckList(R), [{ label: '閉じる', value: 0 }], { title: `デッキ（${R.deck.length}枚）` });
+  if (h.dataset.hud === 'cmd') await sheet(`${detail(BY_ID[R.cmd])}<p class="sp-note">${cmdInZone(R) ? '統率領域にいる。戦闘中いつでも唱えられ、唱えるたびにコスト ＋2（統率者税）。' : 'いまはデッキの 1枚。ボスのレリック「統率の冠」で統率領域に置ける。'}<br>カードの弾：${esc(setsLine(R))}</p>`, [{ label: '閉じる', value: 0 }], { title: '統率者' });
   if (h.dataset.hud === 'relics') await sheet(relicList(R), [{ label: '閉じる', value: 0 }], { title: 'レリック' });
   if (h.dataset.pot) { const d = POTION_BY_ID[R.potions[+h.dataset.pot]]; await sheet(`<p>${esc(d.textOver)}</p><p class="sp-note">戦闘のはじめに手札に入る（コスト 0・手札の枚数に数えない）。</p>`, [{ label: '閉じる', value: 0 }], { title: esc(d.name) }); }
   return true;
@@ -95,7 +109,7 @@ async function hudClick(e, R) {
 const upMark = (e) => (e.up ? '<b class="sp-up">＋</b>' : '');
 function deckList(R, f = null) {
   const items = R.deck.map((e, i) => ({ e, i, d: cardDef(e) })).sort((a, b) => byColorCost(a.d, b.d));
-  return `<div class="sp-deck">${items.map(({ e, i, d }) => `<button type="button" class="sp-dcard ${f && !f(e) ? 'off' : ''}" data-card="${i}" ${f && !f(e) ? 'disabled' : ''}>${cardFace(d)}${upMark(e)}</button>`).join('')}</div>`;
+  return `<div class="sp-deck">${items.map(({ e, i, d }) => `<button type="button" class="sp-dcard ${f && !f(e) ? 'off' : ''}" data-card="${i}" ${f && !f(e) ? 'disabled' : ''}>${cardFace(d)}${upMark(e)}${e.id === R.cmd ? '<b class="sp-cmdmark">統率者</b>' : ''}</button>`).join('')}</div>`;
 }
 const relicList = (R) => (R.relics.length ? `<ul class="sp-relics">${R.relics.map((id) => `<li><b>${esc(RELIC_BY_ID[id].name)}</b><span>${esc(RELIC_BY_ID[id].text)}</span></li>`).join('')}</ul>` : '<p>まだない。</p>');
 
@@ -217,8 +231,8 @@ function shop(R, S) {
 const KIND = { fight: '戦闘', elite: 'エリート', boss: 'ボス' };
 function battle(R, set) {
   return new Promise((resolve) => startBattle({
-    deck: set.deck, floor: set.floor, diff: set.diff, floorName: `${KIND[set.kind]}：${set.floorName}`, emblem: set.emblem, bless: set.bless, buff: set.buff, life: set.life,
-    extraNote: `次元渡り：ライフ ${set.life} / ${R.maxLife} からはじまる。敵がつぎにめくるカードは「つぎの てき」に出る。${set.buff ? `この幕の敵クリーチャーは ＋${set.buff}/＋${set.buff}。` : ''}${R.potions.length ? 'ポーションは手札に入っている（コスト 0）。' : ''}`,
+    deck: set.deck, floor: set.floor, diff: set.diff, floorName: `${KIND[set.kind]}：${set.floorName}`, emblem: set.emblem, bless: set.bless, buff: set.buff, life: set.life, cmd: set.cmd,
+    extraNote: `次元渡り：ライフ ${set.life} / ${R.maxLife} からはじまる。敵がつぎにめくるカードは「次の敵」に出る。${set.cmd ? '統率者は統率領域にいる（いつでも唱えられる）。' : ''}${set.buff ? `この幕の敵クリーチャーは ＋${set.buff}/＋${set.buff}。` : ''}${R.potions.length ? 'ポーションは手札に入っている（コスト 0）。' : ''}`,
     quit: { label: '次元渡りのメニューへ', note: 'この戦闘ははじめからやりなおしになる（旅のつづきは残る）。', go: () => spireMenu(APP, BACK) },
     onEnd: (r) => resolve(r),
   }));
@@ -245,7 +259,7 @@ async function end(R) {
     </dl>
     ${best ? `<p class="what"><b>アセンション ${R.asc} のベスト更新</b></p>` : ''}
     ${unlocked ? `<p class="what"><b>アセンション ${R.asc + 1} がひらいた</b>：${esc(ASC[R.asc + 1])}</p>` : ''}
-    <p class="sp-note">レリック：${R.relics.map((id) => esc(RELIC_BY_ID[id].name)).join('・') || 'なし'}</p>
+    <p class="sp-note">${R.cmd ? `統率者：${esc(nameOf(R.cmd))}　` : ''}レリック：${R.relics.map((id) => esc(RELIC_BY_ID[id].name)).join('・') || 'なし'}</p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="menu">次元渡りのメニューへ</button></div>
   </main>`;
   await new Promise((resolve) => { app().onclick = (e) => { if (e.target.closest('[data-a="menu"]')) resolve(); }; });

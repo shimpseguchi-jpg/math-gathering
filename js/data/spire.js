@@ -12,7 +12,7 @@ const { att, wall } = RAV_KIT;
 
 // ---- 冒険の数字（シミュレーションで合わせる。docs/SPIRE.md 10章）----
 export const SPIRE = {
-  maxLife: 45, gold: 99, rows: 9, lanes: 4, paths: 4,
+  maxLife: 50, gold: 99, rows: 9, lanes: 4, paths: 4,
   restHeal: 0.3, potionSlots: 3, potionChance: 0.4,
   goldOf: { fight: [10, 20], elite: [25, 35], boss: [95, 105] },
   // カード報酬のレア度（R・U の確率。のこりは C。R のうち 1/8 はレジェンド）
@@ -223,6 +223,7 @@ export const RELICS = [
   relic('RL31', '次元の羅針盤', 'B', '戦闘のはじめに、山札から基本カードを 2枚マナゾーンに置く。', { em: { startMana: 2 } }),
   relic('RL32', '黒き契約', 'B', 'あなたのターンのはじめに、敵に 2点。休憩所で休めなくなる。', { em: { turnPing: 2 }, run: { noRest: 1 } }),
   relic('RL33', '星の王冠', 'B', 'あなたのターンのはじめに、＋1/＋1カウンターを 2個。最大ライフ −5。', { em: { turnBolster: 2 }, run: { maxLife: -5 } }),
+  relic('RL35', '統率の冠', 'B', '統率者を統率領域に置く（デッキからぬける）。統率者はいつでも唱えられ、唱えるたびにコスト ＋2（統率者税）。', { run: { cmdZone: 1 } }),
   relic('RL34', '賢者の砂時計', 'B', '戦闘のはじめにカードを 2枚引く。ポーションの枠 −1。', { hooks: { start: (s, E) => E.drawCard(s, 2) }, run: { potionSlot: -1 } }),
 ];
 export const RELIC_BY_ID = Object.fromEntries(RELICS.map((r) => [r.id, r]));

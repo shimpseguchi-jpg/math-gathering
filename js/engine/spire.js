@@ -8,7 +8,7 @@
 import { pick, shuffle } from './rng.js';
 import { colorsOf } from './game.js';
 import { packPool, cardValue } from './run.js';
-import { BY_ID, BASICS, SETS, boostBasic, SUN_RING } from '../data/cards.js';
+import { BY_ID, BASICS, SETS, SET_OF, boostBasic, SUN_RING } from '../data/cards.js';
 import { FLOORS } from '../data/enemies.js';
 import { grown } from '../data/strixhaven.js';
 import { SPIRE, ACTS, monsterFloor, withPeek, RELICS, RELIC_BY_ID, POTIONS, POTION_BY_ID, CURSE, EVENTS } from '../data/spire.js';
@@ -31,23 +31,45 @@ export function canUp(e) {
   if (!d || d.curse) return false;
   return d.types.includes('creature') ? typeof d.pow === 'number' : grown(d, 1).cost < d.cost;
 }
-// 報酬・お店に出るカード（2色と無色。旗・基本・トークンはのぞく）
+// 報酬・お店に出るカード（統率者の色と無色。旗・基本・トークン・統率者じしんはのぞく）
+// 弾は R.sets（統率者の弾 ＋ ランダムな 2つ）。むかしのセーブ（統率者なし）は R.pool の弾ぜんぶ
 const POOLS = new Map();
 export const POOL_SETS = { all: SETS.filter((x) => !x.extra && !x.raid).map((x) => x.id), released: SETS.filter((x) => x.released).map((x) => x.id) };
+const okFor = (cols, not) => (d) => !d.token && !d.basic && !d.banner && !d.noPack && d.id !== not && colorsOf(d).every((c) => cols.includes(c));
 export function cardPool(R) {
-  const key = `${R.cols}:${R.pool}`;
+  const sets = R.sets || POOL_SETS[R.pool] || POOL_SETS.all;
+  const key = `${R.cols}:${sets.join(',')}:${R.cmd || ''}`;
   if (!POOLS.has(key)) {
-    const P = packPool(POOL_SETS[R.pool] || POOL_SETS.all);
-    const ok = (d) => !d.token && !d.basic && !d.banner && colorsOf(d).every((c) => R.cols.includes(c));
+    const P = packPool(sets), ok = okFor(R.cols, R.cmd);
     POOLS.set(key, Object.fromEntries(['C', 'U', 'R', 'L'].map((r) => [r, (P[r] || []).filter(ok)])));
   }
   return POOLS.get(key);
 }
+// ---- 統率者（旅のはじめにランダムな 3枚から 1枚）----
+const WUKRG = 'WUKRG';
+export const colsOf = (d) => colorsOf(d).sort((a, b) => WUKRG.indexOf(a) - WUKRG.indexOf(b)).join('');
+// 統率者になれる：伝説のクリーチャーで色がある（無色はデッキが組めない）
+export const canCommand = (d) => d && d.rar === 'L' && (d.types || []).includes('creature') && !d.noPack && colorsOf(d).length > 0;
+export function commanderOffers(rng, pool = 'all', n = 3) {
+  const list = shuffle(rng, SETS.filter((st) => (POOL_SETS[pool] || POOL_SETS.all).includes(st.id)).flatMap((st) => st.cards).filter(canCommand));
+  const out = [];
+  for (const d of list) if (out.length < n && !out.some((o) => colsOf(o) === colsOf(d))) out.push(d); // 色がかさならないように
+  for (const d of list) if (out.length < n && !out.includes(d)) out.push(d);
+  return out.map((d) => d.id);
+}
+// 統率者の弾 ＋ ランダムな弾 2つ（統率者の色のカードが 12種いじょうある弾から）
+const SETS_PICK = 2, SET_MIN = 12;
+export function runSets(rng, cmd, pool = 'all') {
+  const d = BY_ID[cmd], own = SET_OF[cmd], ok = okFor(colsOf(d), cmd);
+  const cnt = (id) => SETS.find((st) => st.id === id).cards.filter(ok).length;
+  const rest = shuffle(rng, (POOL_SETS[pool] || POOL_SETS.all).filter((id) => id !== own && cnt(id) >= SET_MIN));
+  return [own, ...rest.slice(0, SETS_PICK)];
+}
 
 // ---- はじめ ----
-export function newRun({ cols, asc: a = 0, pool = 'all', rng, random = false }) {
+export function newRun({ cmd, asc: a = 0, pool = 'all', rng }) {
   const R = {
-    v: 1, asc: a, cols, pool, random, maxLife: SPIRE.maxLife, life: SPIRE.maxLife, gold: SPIRE.gold + (random ? 50 : 0),
+    v: 2, asc: a, cmd, cols: colsOf(BY_ID[cmd]), pool, sets: runSets(rng, cmd, pool), maxLife: SPIRE.maxLife, life: SPIRE.maxLife, gold: SPIRE.gold,
     deck: [], relics: [], potions: [], potionChance: SPIRE.potionChance,
     act: 0, map: null, pos: null, at: null, pending: null, shop: null, enc: null,
     actFights: 0, seenElites: [], lastMonster: null, lastEvent: null, removes: 0, floor: 0,
@@ -58,20 +80,22 @@ export function newRun({ cols, asc: a = 0, pool = 'all', rng, random = false }) 
   R.map = genMap(rng, R);
   return R;
 }
-// はじめのデッキ：2色の基本カード 4枚ずつ ＋ コモン 5枚（クリーチャー 3枚以上）＋ アンコモン 1枚（コスト 4 まで）
+// はじめのデッキ（11枚）：統率者 ＋ 基本カード 4枚（色でわける）＋ コモン 5枚（クリーチャー 3枚いじょう）＋ アンコモン 1枚（コスト 4 まで）
+export const STARTER = { basics: 4, commons: 5, creatures: 3, uncommons: 1 };
 function starterDeck(R, rng) {
   const P = cardPool(R), cheap = (d) => d.cost <= 4;
-  const out = [];
-  for (const c of R.cols) for (let i = 0; i < 4; i++) out.push({ id: BASICS[c].id, up: 0 });
+  const out = [{ id: R.cmd, up: 0 }];
+  for (let i = 0; i < STARTER.basics; i++) out.push({ id: BASICS[R.cols[i % R.cols.length]].id, up: 0 });
   const crs = shuffle(rng, P.C.filter((d) => cheap(d) && d.types.includes('creature')));
   const oth = P.C.filter((d) => cheap(d) && !d.types.includes('creature'));
-  const picks = [...crs.slice(0, 3), ...shuffle(rng, [...crs.slice(3), ...oth]).slice(0, 2)];
+  const picks = [...crs.slice(0, STARTER.creatures), ...shuffle(rng, [...crs.slice(STARTER.creatures), ...oth]).slice(0, STARTER.commons - STARTER.creatures)];
   for (const d of picks) out.push({ id: d.id, up: 0 });
-  const u = shuffle(rng, P.U.filter(cheap))[0];
-  if (u) out.push({ id: u.id, up: 0 });
+  for (const d of shuffle(rng, P.U.filter(cheap)).slice(0, STARTER.uncommons)) out.push({ id: d.id, up: 0 });
   if (asc(R, 10)) out.push({ id: CURSE.id, up: 0 });
   return out;
 }
+// 統率の冠をもっていれば、統率者は統率領域に（いつでも唱えられる。唱えるたびに ＋2）
+export const cmdInZone = (R) => !!(R.cmd && runVal(R, 'cmdZone'));
 
 // ---- マップ（2章）----
 const SPECIAL = new Set(['elite', 'rest', 'shop']);
@@ -176,7 +200,7 @@ export function battleSetup(R, kind, rng) {
   }
   withPeek(floor);
   const fx = relicFx(R);
-  return { kind, key, floor, floorName: kind === 'boss' ? ACTS[R.act].bossName : floorTitle(floor), diff, buff, life: R.life, deck: deckDefs(R), emblem: fx.emblem, bless: fx.bless };
+  return { kind, key, floor, floorName: kind === 'boss' ? ACTS[R.act].bossName : floorTitle(floor), diff, buff, life: R.life, deck: deckDefs(R), emblem: fx.emblem, bless: fx.bless, cmd: cmdInZone(R) ? BY_ID[R.cmd] : null };
 }
 function goldRoll(R, kind, rng) {
   const [a, b] = SPIRE.goldOf[kind] || [0, 0];
@@ -207,13 +231,20 @@ export function randomRelic(R, rng, rar = null, not = []) {
   const any = list.length ? list : RELICS.filter((r) => ['C', 'U', 'R'].includes(r.rar) && free(r));
   return any.length ? pick(rng, any).id : null;
 }
-export const bossRelics = (R, rng, n = 3) => shuffle(rng, RELICS.filter((r) => r.rar === 'B' && !R.relics.includes(r.id))).slice(0, n).map((r) => r.id);
+// ボスのレリック：統率の冠（統率者を統率領域へ）は もつまで いつも 1つめに出る
+export function bossRelics(R, rng, n = 3) {
+  const crown = R.cmd && !R.relics.includes(CROWN) ? [CROWN] : [];
+  return [...crown, ...shuffle(rng, RELICS.filter((r) => r.rar === 'B' && r.id !== CROWN && !R.relics.includes(r.id))).slice(0, n - crown.length).map((r) => r.id)];
+}
+export const CROWN = 'RL35';
 export function gainRelic(R, id) {
   if (!id || R.relics.includes(id)) return;
   R.relics.push(id);
   const ml = RELIC_BY_ID[id]?.run?.maxLife || 0;
   if (ml) { R.maxLife += ml; R.life = Math.max(1, Math.min(R.maxLife, R.life + Math.max(0, ml))); }
   R.potions = R.potions.slice(0, potionSlots(R));
+  // 統率の冠：デッキの統率者を統率領域へ（デッキからはぬく）
+  if (RELIC_BY_ID[id]?.run?.cmdZone && R.cmd) { const i = R.deck.findIndex((e) => e.id === R.cmd); if (i >= 0) R.deck.splice(i, 1); }
 }
 export function afterBattle(R, set, res, rng) {
   R.potions = (res.potions ?? R.potions).slice(0, potionSlots(R));
@@ -248,7 +279,7 @@ async function claimReward(R, io, rng) {
   }
   io.save(R);
   if (rw.boss?.length) {
-    const id = await io.choose({ id: 'bossRelic', title: 'ボスのレリック', body: '1つえらぶ。', options: rw.boss.map((x) => ({ label: RELIC_BY_ID[x].name, note: RELIC_BY_ID[x].text, value: x })) });
+    const id = await io.choose({ id: 'bossRelic', title: 'ボスのレリック', body: '1つ選ぶ。', options: rw.boss.map((x) => ({ label: RELIC_BY_ID[x].name, note: RELIC_BY_ID[x].text, value: x })) });
     gainRelic(R, id); rw.boss = null; io.save(R);
   }
   const got = rw.cards.length ? await io.pickReward(R, rw.cards, rw) : null;
