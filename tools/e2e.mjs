@@ -3,6 +3,7 @@
 // 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）、CHROME（つかう chromium の パス）
 //   PLANE（せかい。例 PLANE=strixhaven SETS=1,2,5）、DIFF（むずかしさ。例 DIFF=easy）：タイトルで えらんでから はじめる
 //   THEME（みため：classic・gba・clear。せっていの「みため」と おなじ）
+//   SPIRE=1：次元渡り（大人向けモード。docs/SPIRE.md）を あそぶ。SPIRE_GOD=1 で ライフと 金貨を ふやして 最後まで（SPIRE_FAST=1 で 敵の ライフを 1 に）
 import { chromium } from 'playwright';
 import { existsSync } from 'fs';
 const url = process.env.URL || 'http://localhost:8124/';
@@ -42,6 +43,22 @@ if (process.env.START) {
   }, [Number(process.env.START), process.env.FLOOR3 || 'factory', process.env.FLOORS || '', SETS]);
   await page.reload();
   await page.click('[data-go=cont]');
+} else if (process.env.SPIRE) {
+  await page.click('[data-go=spire]');
+  await shot('spire_menu');
+  await page.click('[data-a=new]');
+  // SPIRE_GOD=1：ライフと金貨を ふやした セーブで つづける（お店・休憩所・ボス・幕の かわりめまで 見る）
+  if (process.env.SPIRE_GOD) {
+    await page.evaluate(() => { const R = JSON.parse(localStorage.getItem('mtg-spire-v1')); R.maxLife = R.life = 999; R.gold = 999; localStorage.setItem('mtg-spire-v1', JSON.stringify(R)); });
+    await page.reload();
+    // SPIRE_FAST=1：敵を ぜんぶ ライフ 1 の ハーピーに して、幕の かわりめと クリアの 画面まで はやく 見る
+    if (process.env.SPIRE_FAST) await page.evaluate(async () => {
+      const m = await import('./js/data/spire.js'), e = await import('./js/data/enemies.js');
+      for (const k of Object.keys(m.MONSTERS)) m.MONSTERS[k].life = 1;
+      for (const a of m.ACTS) for (const id of [...a.elites, a.boss]) e.FLOORS[id] = () => m.monsterFloor('sp_harpies');
+    });
+    await page.click('[data-go=spire]'); await page.click('[data-a=cont]');
+  }
 } else {
   if (process.env.PLANE) await page.locator(`label:has(#plane-${process.env.PLANE})`).click();
   if (process.env.DIFF) await page.locator(`label:has(#diff-${process.env.DIFF})`).click();
@@ -81,6 +98,12 @@ for (let i = 0; i < STEPS && !ended; i++) {
     continue;
   }
   if (await page.locator('.ending').count()) { await shot('ending'); ended = true; break; }
+  // 次元渡り：マップ・報酬・お店・カードを えらぶ 画面
+  if (await page.locator('.sp-mapscreen').count()) { await shot(`spire_map${battles}`); battles++; const n = page.locator('.sp-node.can'); await n.nth(Math.floor(Math.random() * await n.count())).click(); continue; }
+  if (await page.locator('.sp-reward').count()) { await shot('spire_reward'); if (Math.random() < 0.7) await page.locator('.sp-reward [data-pick]').first().click(); else await page.click('[data-a=skip]'); continue; }
+  if (await page.locator('.sp-shop').count()) { await shot('spire_shop'); const b = page.locator('.sp-shop [data-buy]:not([disabled])'); if (await b.count() && Math.random() < 0.5) await b.nth(Math.floor(Math.random() * await b.count())).click(); else await page.click('[data-a=leave]'); continue; }
+  if (await page.locator('.sp-pick').count()) { await shot('spire_pick'); await page.locator('.sp-pick [data-card]:not([disabled])').first().click(); continue; }
+  if (await page.locator('.sp-menu').count() && shots.has('spire_menu') && battles > 0) { ended = true; break; }
   if (await page.locator('.gacha').count()) {
     for (const [sel, name, wait] of [['[data-open]', 'pack', 650], ['[data-flip]', 'back', 1100], ['.stage.shown', 'reveal', 400], ['[data-done]', 'summary', 100]]) {
       if (await page.locator(sel).count()) { await shot(`${name}${shots.size}`.replace(/\d+$/, (n) => (+n < 14 ? n : ''))); await page.click(sel, { force: true }); await page.waitForTimeout(wait); break; }

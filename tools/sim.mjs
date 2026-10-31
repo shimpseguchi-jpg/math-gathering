@@ -133,3 +133,38 @@ if (mode === 'pvp') {
   }
   console.log(`平均 ${avg(turns).toFixed(1)} ターン、ひきわけ ${draws}回、40ターンで決着なし ${timeouts}回`);
 }
+
+// 次元渡り（docs/SPIRE.md）：AI が 3幕の冒険を N回。ASC（アセンション）・POOL（all / released）
+if (mode === 'spire') {
+  const { newRun, runLoop, aiIO, scoreOf } = await import('../js/engine/spire.js');
+  const { ACTS } = await import('../js/data/spire.js');
+  const ASCN = Number(process.env.ASC ?? 0);
+  const PAIRS = ['WU', 'UK', 'KR', 'RG', 'GW', 'WK', 'UR', 'KG', 'RW', 'GU'];
+  const runs = [], fights = [];
+  for (let i = 0; i < N; i++) {
+    const rng = seeded(SEED * 100003 + i);
+    const R = newRun({ cols: PAIRS[i % PAIRS.length], asc: ASCN, pool: process.env.POOL || 'all', rng });
+    const io = aiIO(rng, async (R2, set) => {
+      const s = await fight(set.deck, null, { floor: set.floor, life: set.life, emblem: set.emblem, bless: set.bless, diff: set.diff, buff: set.buff, seed: Math.floor(rng() * 1e9) });
+      const res = { win: s.over === 'win', life: s.P.life, exact: s.stats.exact, turns: s.stats.playerTurns, potions: s.P.hand.filter((c) => c.def.potion).map((c) => c.def.id) };
+      fights.push({ act: R2.act, kind: set.kind, key: set.key, win: res.win, lost: set.life - Math.max(0, res.life), start: set.life, turns: res.turns, deck: set.deck.length, timeout: s.over === 'timeout' });
+      return res;
+    });
+    io.R = R;
+    await runLoop(R, io, rng);
+    runs.push(R);
+  }
+  const win = runs.filter((R) => R.over === 'win').length;
+  console.log(`次元渡り：${N}回・アセンション ${ASCN}・カード ${process.env.POOL || 'all'}`);
+  console.log(`クリア ${pct(win / N)}　とどいた幕：${ACTS.map((a, k) => `${a.name} ${pct(runs.filter((R) => R.act >= k).length / N)}`).join('・')}`);
+  console.log(`平均：のぼったマス ${avg(runs.map((R) => R.floor)).toFixed(1)}・デッキ ${avg(runs.map((R) => R.deck.length)).toFixed(1)}枚・レリック ${avg(runs.map((R) => R.relics.length)).toFixed(1)}・スコア ${avg(runs.map(scoreOf)).toFixed(0)}`);
+  for (const kind of ['fight', 'elite', 'boss']) for (let a = 0; a < ACTS.length; a++) {
+    const f = fights.filter((x) => x.kind === kind && x.act === a);
+    if (!f.length) continue;
+    console.log(`${ACTS[a].name.padEnd(9)} ${kind.padEnd(6)} ${String(f.length).padStart(4)}戦  勝ち ${pct(f.filter((x) => x.win).length / f.length)}  へったライフ ${avg(f.filter((x) => x.win).map((x) => x.lost)).toFixed(1)}  はじめのライフ ${avg(f.map((x) => x.start)).toFixed(1)}  ターン ${avg(f.map((x) => x.turns)).toFixed(1)}${f.some((x) => !x.win) ? `（負けは ${avg(f.filter((x) => !x.win).map((x) => x.turns)).toFixed(1)}）` : ''}${f.some((x) => x.timeout) ? `  時間切れ ${f.filter((x) => x.timeout).length}` : ''}`);
+  }
+  if (process.env.DETAIL) {
+    const keys = [...new Set(fights.map((x) => x.key))];
+    for (const k of keys) { const f = fights.filter((x) => x.key === k); console.log(`  ${k.padEnd(16)} ${String(f.length).padStart(4)}戦  勝ち ${pct(f.filter((x) => x.win).length / f.length)}  へったライフ ${avg(f.filter((x) => x.win).map((x) => x.lost)).toFixed(1)}`); }
+  }
+}

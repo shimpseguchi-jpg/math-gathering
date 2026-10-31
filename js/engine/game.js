@@ -42,6 +42,7 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   for (const d of em.hand || []) { const c = card(d); c.emblem = true; s.P.hand.push(c); L(s, `もんしょう：${d.name} を てふだに`); }
   if (em.startMana) rampBasic(s, em.startMana);
   if (bless?.startMana) { rampBasic(s, bless.startMana); L(s, `しゅくふく：マナゾーンに きほんカード ${bless.startMana}まい`); }
+  for (const h of em.hooks || []) h.start?.(s, api); // 次元渡りの レリック（docs/SPIRE.md 5章）
   CUR = s;
   return s;
 }
@@ -162,6 +163,9 @@ export function beginPlayerTurn(s) {
   if (bl?.bolster) { L(s, `しゅくふく：＋1/＋1カウンター ${bl.bolster}こ`); bolster(s, bl.bolster); }
   if (bl?.wither) { const t = s.E.bf.filter(isCreature).sort((a, b) => power(s, b) - power(s, a))[0]; if (t) { L(s, `しゅくふく：${t.def.name} に −1/−1カウンター ${bl.wither}こ`); addMinus(s, t, bl.wither); sba(s); } }
   if (P.emblem?.turnTap) for (const t of s.E.bf.filter((p) => isCreature(p) && !p.tapped).sort((a, b) => power(s, b) - power(s, a)).slice(0, P.emblem.turnTap)) { t.tapped = true; L(s, `ヴァンガード：${t.def.name} を タップ`); }
+  for (const h of P.emblem?.hooks || []) h.turn?.(s, api); // 次元渡りの レリック
+  // 次元渡り：長い 戦闘を おわらせる（stall ターンめ から 1・2・3…点）
+  if (P.emblem?.stall && s.stats.playerTurns >= P.emblem.stall) { const k = s.stats.playerTurns - P.emblem.stall + 1; L(s, `次元のゆらぎ：ライフ −${k}`); hurt(s, k); if (s.over) return; }
   s.floor.playerUpkeep?.(s, api);
   const waits = [];
   for (const p of [...P.bf]) if (onBf(s, p) && p.def.upkeep) { const r = p.def.upkeep(s, p, api); if (r && r.then) waits.push(r); }
@@ -220,7 +224,7 @@ export function drawCard(s, n = 1) {
         // 山札が なくなったら ぼちを まぜて もどす。そのたびに ライフを 2・4・6…（2の だん）失う
         P.lib = shuffle(s.rng, P.gy.splice(0)); P.reshuffles = (P.reshuffles || 0) + 1; s.stats.reshuffled++;
         const n = reshuffleCost(P);
-        L(s, `${foe(s, 'P')}ぼちを まぜて やまふだに もどした（ライフ −${n}）`);
+        L(s, `${foe(s, 'P')}ぼちを まぜて やまふだに もどした${n ? `（ライフ −${n}）` : ''}`);
         hurt(s, n);
         if (s.over) return;
       } else if (!s.reshuffle) { s.over = 'lose'; s.stats.deckout = true; return; }
@@ -236,10 +240,10 @@ export function drawCard(s, n = 1) {
 export const HAND_SIZE = 5;
 export const LOW_LIBRARY = 5; // 山札が これより 少ないと、画面で「もうすぐ なくなる」
 // ぼちを まぜて もどす ときに 失う ライフ（1回め 2、2回め 4、3回め 6…）。next は つぎに まぜたときの 数
-export const reshuffleCost = (P, next = false) => 2 * ((P.reshuffles || 0) + (next ? 1 : 0));
+export const reshuffleCost = (P, next = false) => (P.emblem?.freeShuffle ? 0 : 2 * ((P.reshuffles || 0) + (next ? 1 : 0))); // 次元渡りは 0（docs/SPIRE.md 3章）
 export function refill(s) {
   const size = s.P.flags.refill7 === s.stats.playerTurns ? 7 : (s.P.handSize || HAND_SIZE); // ヴァンガードで 4〜6まい
-  const n = size - s.P.hand.filter((c) => !c.advDone).length; // 出来事を つかった カードは かぞえない
+  const n = size - s.P.hand.filter((c) => !c.advDone && !c.def.potion).length; // 出来事を つかった カード・次元渡りの ポーションは かぞえない
   if (n <= 0) return;
   drawCard(s, n);
   L(s, `${foe(s, 'P')}てふだを ${size}まいに した（${n}まい 引いた）`);
@@ -714,6 +718,7 @@ export function leave(s, p, to = 'gy', o = {}) {
     const em = s.P.emblem;
     if (em?.exactLife) { gainLife(s, em.exactLife); L(s, `もんしょう：ぴったりで ライフ ＋${em.exactLife}`); }
     if (s.P.bless?.exactPing) { L(s, `しゅくふく：ぴったりで てきに ${s.P.bless.exactPing}点`); hitEnemy(s, s.P.bless.exactPing, null); }
+    for (const h of em?.hooks || []) h.exact?.(s, api, p); // 次元渡りの レリック
   }
   for (const l of p.links) returnLinked(s, l);
   const twice = o.died && s[p.side].bf.some((q) => q.def.doubleDeath) ? 2 : 1; // テイサ：死亡したときの 能力が 2回

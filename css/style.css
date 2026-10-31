@@ -1462,3 +1462,84 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 #sheet .parchment .sheet-actions .btn small { color: var(--ink-p2); opacity: 1; }
 #sheet .parchment .sheet-actions .btn:active { background: rgba(240, 220, 175, 0.75); }
 #sheet .parchment .sheet-actions .btn .pip { font-family: var(--body); }
+
+/* ---- 次元渡り（大人向けモード。docs/SPIRE.md）---- */
+.spire { padding-block: 16px 28px; display: flex; flex-direction: column; gap: 14px; }
+.spire h2 { font-family: var(--display); font-weight: 400; font-size: 26px; }
+.sp-h { font-size: 22px !important; text-align: center; }
+.sp-top { display: flex; flex-direction: column; gap: 6px; }
+.sp-lead, .sp-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.6; }
+.sp-cont { width: 100%; }
+.sp-box { background: var(--table-2); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.sp-box h3 { font-size: 12px; letter-spacing: 0.08em; color: var(--gold-text); }
+.sp-pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.sp-pair, .sp-n, .sp-seg button { border: 2px solid var(--line); background: var(--table-3); border-radius: 10px; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; font-weight: 700; }
+.sp-pair small, .sp-seg small { font-size: 10.5px; font-weight: 500; color: var(--ink-dim); }
+.sp-pips { display: flex; gap: 2px; }
+.sp-pair.on, .sp-n.on, .sp-seg button.on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.sp-asc { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-n { min-width: 40px; min-height: 40px; justify-content: center; font-family: var(--display); font-weight: 400; }
+.sp-n:disabled { opacity: 0.35; cursor: not-allowed; }
+.sp-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+.sp-hud { position: sticky; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--table-2); border: 1px solid var(--line); }
+.sp-hud-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+.sp-act { font-size: 14px; }
+.sp-asc-chip { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--table-3); color: var(--gold-text); }
+.sp-life b, .sp-gold b { font-family: var(--display); font-weight: 400; font-size: 17px; }
+.sp-life { color: var(--good); }
+.sp-life.low { color: var(--bad); }
+.sp-gold { color: var(--gold-text); }
+.sp-chip, .sp-pot { border: 1px solid var(--line); background: var(--table-3); border-radius: 8px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
+.sp-pots { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.sp-pot.empty { opacity: 0.45; cursor: default; border-style: dashed; }
+
+.sp-boss { margin: 0; text-align: center; font-size: 13px; color: var(--bad); }
+.sp-map { position: relative; height: calc(var(--rows) * 62px); border-radius: 16px; background: radial-gradient(ellipse at 50% 0%, var(--table-3), var(--table-2) 70%); border: 1px solid var(--line); }
+.sp-map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sp-map line { stroke: var(--line); stroke-width: 2.5; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+.sp-map line.used { stroke: var(--gold); stroke-dasharray: none; }
+.sp-node { position: absolute; transform: translate(-50%, -50%); width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--line); background: var(--table); color: var(--ink-dim); display: grid; place-items: center; font-weight: 700; font-size: 15px; padding: 0; cursor: default; }
+.sp-node.t-boss { width: 64px; height: 64px; font-family: var(--display); font-weight: 400; font-size: 16px; }
+.sp-node.t-elite { color: var(--bad); }
+.sp-node.t-rest { color: var(--good); }
+.sp-node.t-shop, .sp-node.t-treasure { color: var(--gold-text); }
+.sp-node.t-event { color: var(--U); }
+.sp-node.done { background: var(--table-3); opacity: 0.7; }
+.sp-node.here { border-color: var(--gold); opacity: 1; }
+.sp-node.can { cursor: pointer; border-color: var(--gold); background: var(--table-3); box-shadow: 0 0 0 4px rgba(242, 192, 79, 0.25); animation: sp-pulse 1.4s ease-in-out infinite; }
+.sp-node:disabled { cursor: default; }
+@keyframes sp-pulse { 50% { box-shadow: 0 0 0 8px rgba(242, 192, 79, 0.08); } }
+@media (prefers-reduced-motion: reduce) { .sp-node.can { animation: none; } }
+.sp-legend { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: center; font-size: 11.5px; color: var(--ink-dim); }
+.sp-legend i { font-style: normal; font-weight: 700; margin-right: 3px; }
+.sp-legend .t-elite i { color: var(--bad); } .sp-legend .t-rest i { color: var(--good); } .sp-legend .t-shop i, .sp-legend .t-treasure i { color: var(--gold-text); } .sp-legend .t-event i { color: var(--U); }
+
+.sp-body { margin: 0; line-height: 1.7; }
+.sp-deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.sp-dcard { position: relative; border: 0; background: none; padding: 0; cursor: pointer; }
+.sp-dcard .card { width: 100%; }
+.sp-dcard.off { opacity: 0.35; cursor: not-allowed; }
+.sp-up { position: absolute; top: -4px; right: -4px; width: 20px; height: 20px; border-radius: 50%; background: var(--good); color: var(--table); display: grid; place-items: center; font-size: 13px; }
+.sp-after { display: flex; justify-content: center; }
+.sp-after .card { width: 90px; }
+.sp-relics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sp-relics li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--table-2); }
+.sp-relics span { font-size: 13px; color: var(--ink-dim); }
+
+.sp-reward .bonus { max-width: none; }
+.sp-shop section { display: flex; flex-direction: column; gap: 8px; }
+.sp-shop h3 { font-size: 12px; letter-spacing: 0.08em; color: var(--gold-text); }
+.sp-shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.sp-item { position: relative; border: 0; background: none; padding: 0 0 22px; cursor: pointer; }
+.sp-item .card { width: 100%; }
+.sp-item:disabled { cursor: not-allowed; }
+.sp-item:disabled .card { opacity: 0.45; }
+.sp-price { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-style: normal; font-size: 12px; font-weight: 700; color: var(--gold-text); white-space: nowrap; }
+.sp-price.sale { color: var(--good); }
+.sp-list { display: flex; flex-direction: column; gap: 6px; }
+.sp-row { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 2px solid var(--line); background: var(--table-2); border-radius: 10px; padding: 8px 64px 8px 10px; cursor: pointer; }
+.sp-row span { font-size: 12.5px; color: var(--ink-dim); }
+.sp-row .sp-price { left: auto; right: 10px; top: 50%; bottom: auto; transform: translateY(-50%); font-size: 14px; }
+.sp-row:disabled { opacity: 0.45; cursor: not-allowed; }
+.sold { opacity: 0.4; }

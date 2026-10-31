@@ -33,6 +33,7 @@ import { constructMenu } from './construct.js';
 import { kihonMenu } from './kihon.js';
 import { KIHON_NAME } from '../data/kihon.js';
 import { addTickets, tickets, ENDLESS_PER } from './collection.js';
+import { spireMenu, spireTile } from './spire.js';
 
 const SAVE = 'mtg-adventure-v1';
 const ENDLESS_BEST = 'mtg-endless-best'; // むげんの とうの いちばんの きろく { floor, exact, score }
@@ -94,6 +95,7 @@ const tutorialDone = () => { try { return !!localStorage.getItem(TUTORIAL_DONE);
 
 // メニュー（タイトル）の 絵：線だけの 小さい マーク（24×24。スマホの ゲームの ホーム画面の ように、ボタンを タイルで ならべる）
 const T_ICON = {
+  spire: '<path d="M12 2l3 5v14H9V7z"/><path d="M9 12h6M11 21v-4h2v4"/><path d="M5 21h14"/>',
   build: '<rect x="3" y="6" width="11" height="15" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/>',
   emblem: '<path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.5 2.4-7.4L2 9.6h7.6z" fill="currentColor" stroke="none"/>',
   online: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
@@ -159,7 +161,8 @@ export function title() {
     <nav class="t-menu" aria-label="メニュー">
       ${narrow ? `${step !== 'tutorial' ? tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '') : ''}
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, ruby('課題（かだい）を 3つ クリアすると せかいが ひらける'), tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
-      ${step !== 'tutorial' ? tile('tut', 'チュートリアル', 'もう いちど') : ''}` : `
+      ${step !== 'tutorial' ? tile('tut', 'チュートリアル', 'もう いちど') : ''}
+      ${DEV ? tile('spire', ...spireTile()) : ''}` : `
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
       ${tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
@@ -167,7 +170,8 @@ export function title() {
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
-      ${tile('tut', 'チュートリアル', 'はじめての 人へ')}`}
+      ${tile('tut', 'チュートリアル', 'はじめての 人へ')}
+      ${DEV ? tile('spire', ...spireTile()) : ''}`}
       ${tile('settings', 'せってい', 'みため・おと', tIcon('settings'), 'ghost')}
       ${hasServer() && CONF.admin ? tile('admin', '開発モード（先生）', 'かんり の がめん', tIcon('admin'), 'ghost') : ''}
     </nav>
@@ -212,6 +216,7 @@ export function title() {
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     if (b.dataset.go === 'build') return constructMenu(app, title);
+    if (b.dataset.go === 'spire') return spireMenu(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
     const rule = app().querySelector('input[name=rule]:checked')?.value;

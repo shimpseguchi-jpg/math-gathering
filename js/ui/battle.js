@@ -298,6 +298,7 @@ function checkOver(lines) {
     .then(() => B.onEnd({
       win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish, finisher: s.finisher || null,
       // トロフィー用
+      potions: s.P.hand.filter((c) => c.def.potion).map((c) => c.def.id), // 次元渡り：使わなかった ポーション
       life: s.P.life, floor: s.floor.id, exactTurnMax: s.stats.exactTurnMax || 0, bigHit: s.stats.bigHit || 0, maxPower: s.stats.maxPower || 0, maxCreatures: s.stats.maxCreatures || 0,
     })));
   return true;
@@ -488,6 +489,7 @@ function lifeNeed(s, c) {
 // ---- 呪文を唱えられるか ----
 function castInfo(c, from = 'hand') {
   const s = B.s, gc = from === 'gy' && gyCast(s, c.def);
+  if (c.def.curse) return { why: '使えない（呪（のろ）い）' }; // 次元渡り
   const d = gc?.kind === 'disturb' ? c.def.disturb.back : c.def; // 降霊：うらの すがた
   const cost = gc ? gc.cost : from === 'escape' ? escapeMin(s, d) : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);
   const req = gc ? gc.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
@@ -677,7 +679,7 @@ async function action(a) {
   if (a === 'cmd') return showCmd();
   if (a === 'brk') return showBreak();
   if (a === 'ecmd') return sheet(cmdNote(s.E, true), [{ label: 'とじる', value: 0 }], { title: 'あいての 統率者（とうそつしゃ）' });
-  if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどし、ライフ −${reshuffleCost(s.P, true)}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
+  if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどす${reshuffleCost(s.P, true) ? `（ライフ −${reshuffleCost(s.P, true)}）` : ''}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
   if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
   if (a === 'egy') return sheet(pileList(s.E.gy, s.floor.id !== 'pvp'), [{ label: 'とじる', value: 0 }], { title: `${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ぼち（${s.E.gy.length}まい）` });
   if (a === 'mana') return sheet(`<div class="mana-list">${s.P.mana.map((m) => `<span class="mchip ${colorsOf(m.def)[0] ? `m-${colorsOf(m.def).join('')}` : 'm-C'} ${m.tapped ? 'used' : ''}">${ruby(info(m.def).name)}</span>`).join('')}</div>`, [{ label: 'とじる', value: 0 }], { title: `マナゾーン（${s.P.mana.filter((m) => !m.tapped).length}/${s.P.mana.length} 使える）` });
@@ -760,7 +762,7 @@ async function tapHand(c) {
     // 出来事（カードの 下の 呪文）・授与（オーラとして つける）
     if (d.adv && !c.advDone) { const ok = !!plan(s, d.adv.cost, d.adv.req); choices.push({ label: `できごと「${ruby(d.adv.name)}」を 使う（${d.adv.cost}マナ）`, value: 'adv', kind: 'primary', disabled: !ok, note: ok ? 'あとで クリーチャーとしても 出せる' : 'マナが たりない' }); }
     if (d.bestow) { const ok = !!plan(s, d.bestow.cost, d.bestow.req || colorsOf(d)); choices.push({ label: `じゅよで クリーチャーに つける（${d.bestow.cost}マナ）`, value: 'bestow', kind: 'primary', disabled: !ok, note: ok ? '' : 'マナが たりない' }); }
-    if (!s.P.flags.charged) choices.push({ label: 'マナゾーンに おく', value: 'charge', note: '1ターンに 1まいまで' });
+    if (!s.P.flags.charged && !d.potion && !d.noCharge) choices.push({ label: 'マナゾーンに おく', value: 'charge', note: '1ターンに 1まいまで' });
   }
   if (B.mode === 'tricks') {
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
@@ -1245,7 +1247,7 @@ function deckPile(side) {
   const low = side === 'P' && n < LOW_LIBRARY;
   return `<button type="button" class="pile2 deck ${side === 'E' ? 'foe' : ''} ${low ? 'low' : ''}" data-act="${side === 'P' ? 'lib' : 'elib'}" aria-label="${side === 'P' ? '' : 'てきの '}やまふだ ${n}まい">
     <span class="cb th${th} ${n ? '' : 'none'}"><b>${n}</b></span>
-    <small>${low ? `まぜると −${reshuffleCost(s.P, true)}` : 'やまふだ'}</small></button>`;
+    <small>${low && reshuffleCost(s.P, true) ? `まぜると −${reshuffleCost(s.P, true)}` : 'やまふだ'}</small></button>`;
 }
 // ぼち：いちばん 上の カードが 見える 山
 function gravePile(side) {
