@@ -1,32 +1,51 @@
 // 番外編「Fate/Grand Order」のうごき（名前・コスト・P/T は skel.js、文は docs/EXTRA.md 2章）
 // 宝具：攻撃するたび NP が ふえる（さいだい 300）。100 いじょうなら メインフェイズに NP を 100 へらして 宝具の こうか（あいては 自動で えらぶ）
+// オーバーチャージ（第2弾 set14.js の サーヴァント。def.oc）：NP を 100・200・300 の どれだけ つかうか えらぶ → 〔 〕の 数が 1倍・2倍・3倍（1ターンに 1回）。docs/EXTRA2_FG.md 2章
 import { cr, hit, mine, theirs, isSub, isCr, chosen1, foeBest, shrink, killIt, single, dig, foe1 } from './kit.js';
 
-const isServant = (p) => isSub(p, 'servant');
-const servants = (s, E) => mine(s, E).filter(isServant);
+export const isServant = (p) => isSub(p, 'servant');
+export const servants = (s, E) => mine(s, E).filter(isServant);
 // NP を ふやす（さいだい 300）。宝具は じぶんの メインフェイズに ボタンで つかう（NP −100）。
-// てきがわの サーヴァントは 100 で じどう
+// てきがわの サーヴァントは 100 で じどう（オーバーチャージの サーヴァントは 1ターンに 1回、つかえる いちばん 大きい 倍で）
 export const NP_MAX = 300;
 export function addNP(s, E, p, n) {
   if (!p || !E.onBf(s, p) || !p.def.npFx) return;
   const was = p.np || 0;
   p.np = Math.min(NP_MAX, was + n);
   E.L(s, `${p.def.name}：NP ${was} ＋ ${n} ＝ ${p.np}${was + n > NP_MAX ? `（さいだい ${NP_MAX}）` : ''}`);
-  if (p.side !== 'P') while (p.np >= 100 && E.onBf(s, p) && !s.over) fireNP(s, E, p);
+  if (p.side !== 'P') while (p.np >= 100 && E.onBf(s, p) && !s.over && !ocUsed(s, p)) fireNP(s, E, p, undefined, p.def.oc ? Math.min(3, Math.floor(p.np / 100)) : 1);
 }
-export function fireNP(s, E, p, t) {
-  const was = p.np;
-  p.np -= 100;
-  E.L(s, `ほうぐ！ ${p.def.name}（NP ${was} − 100 ＝ ${p.np}）`);
-  p.def.npFx(s, E, p, t); // t：レアの 宝具で 人が えらんだ あいて（npTgt）
+// オーバーチャージの サーヴァントが この ターン もう 宝具を つかったか（てきがわの ターンでも 見られる ように ターンの 番号で おぼえる）
+export const ocUsed = (s, p) => !!p.def.oc && p.ocT === s.turn;
+// 〔 〕の 数：n に 黒の聖杯（FG166）の ＋1 を 足して、オーバーチャージの 倍（1・2・3）を かける。npFx の 中で つかう
+export const oc = (p, n) => (n + (p.grailPlus || 0)) * (p.ocK || 1);
+// 宝具を つかう。k は つかう NP の 100 の 数（オーバーチャージ。第1弾の サーヴァントは いつも 1）
+export function fireNP(s, E, p, t, k = 1) {
+  const use = 100 * k, was = p.np || 0;
+  if (was < use || ocUsed(s, p)) return;
+  p.np = was - use;
+  let lv = k;
+  if (p.def.oc) {
+    p.ocT = s.turn; // 1ターンに 1回
+    const F = s[p.side].flags;
+    if (F.ocUp) { lv = Math.min(3, k + F.ocUp); F.ocUp = 0; } // モルガン（FG164）：つぎの オーバーチャージが 1つ 上がる
+    p.grailPlus = [...s.P.bf, ...s.E.bf].filter((q) => q.attached === p.uid && q.def.grail).length; // 黒の聖杯（FG166）
+  }
+  p.ocK = lv;
+  E.L(s, `ほうぐ！ ${p.def.name}（NP ${was} − ${use} ＝ ${p.np}）${p.def.oc ? `オーバーチャージ ×${lv}${lv > k ? `（${k} ＋ ${lv - k}）` : ''}` : ''}`);
+  p.def.npFx(s, E, p, t, lv); // t：レアの 宝具で 人が えらんだ あいて（npTgt）。lv：〔 〕の 倍
+  p.ocK = 1;
+  for (const q of [...s[p.side].bf]) if (q.def.onHogu && E.onBf(s, q)) q.def.onHogu(s, q, p, E, k); // クリプター（第2弾の マスター）：つかった NP 100 に つき
   E.sba(s);
 }
 // 宝具まで あと なん回 攻撃するか（NP 40・1回 ＋40 → 40 ＋ 40 ＋ 40 ＝ 120 で あと 2回）。100 いじょうは 0
 export const npLeft = (p) => { const g = p.def.np || 0, n = p.np || 0; return n >= 100 ? 0 : g ? Math.ceil((100 - n) / g) : null; };
 export function npNote(p) {
   const g = p.def.np, n = p.np || 0, k = npLeft(p);
-  const how = `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう（NP − 100）。NP は ${NP_MAX} まで ためられる`;
-  if (!k) return `NP ${n} ／ 100。ほうぐ を ${Math.floor(n / 100)}回 つかえる。${how}`;
+  const how = p.def.oc
+    ? `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう。オーバーチャージ：NP を 100・200・300 の どれだけ つかうか えらぶと、〔 〕の 数が 1ばい・2ばい・3ばい（1ターンに 1回）。NP は ${NP_MAX} まで ためられる`
+    : `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう（NP − 100）。NP は ${NP_MAX} まで ためられる`;
+  if (!k) return `NP ${n} ／ 100。ほうぐ を ${p.def.oc ? `いま ×${Math.min(3, Math.floor(n / 100))} まで` : `${Math.floor(n / 100)}回`} つかえる。${how}`;
   return `NP ${n} ／ 100。こうげき 1回で ＋${g}。あと ${k}回 こうげき すると ほうぐ（${[n, ...Array(k).fill(g)].filter((x, i) => i || x).join(' ＋ ')} ＝ ${n + g * k}）。${how}`;
 }
 // 宝具の ボタン（ソーサリーと 同じ：じぶんの メインフェイズ）。AI は たまったら すぐ つかう
@@ -34,13 +53,22 @@ const hogu = {
   cost: 0, npUse: true, when: [1, 2], label: 'ほうぐ（NP − 100）', can: (s, p) => (p.np || 0) >= 100, cantWhy: 'NP が 100 に たりない',
   play: (s, p, E) => ((p.np || 0) >= 100 ? { score: 8, run: () => fireNP(s, E, p) } : null),
 };
-// 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP（40 いじょう。30 だと 4回 攻撃が いって ほぼ 出ない）。npFx(s, E, p)
-const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, acts: [x.npTgt ? { ...hogu, tgt: [x.npTgt], apply: (s, E, [[t]], _x, p) => fireNP(s, E, p, t) } : hogu, ...(x.acts || [])], onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
-// NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）
-const bestServant = (s, E) => servants(s, E).filter((p) => p.def.npFx).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
-const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
-const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
-const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, null); E.sba(s); };
+// オーバーチャージの 宝具の ボタン：×1（NP − 100）・×2（NP − 200）・×3（NP − 300）。AI は つかえる いちばん 大きい 倍（点が 8・12・16）
+// x.npAI(s, p, E, ctx, k)：AI が いま つかって よいか（戦闘の まえに つかう ものは メイン1 だけ など）。人は いつでも
+const hoguK = (k, x) => ({
+  cost: 0, npUse: 100 * k, ocK: k, when: [1, 2], label: `ほうぐ ×${k}（NP − ${100 * k}）`,
+  can: (s, p) => (p.np || 0) >= 100 * k && !ocUsed(s, p), cantWhy: `NP が ${100 * k} に たりない か、この ターンは もう ほうぐを つかった`,
+  play: (s, p, E, ctx = {}) => ((p.np || 0) >= 100 * k && !ocUsed(s, p) && (ctx.human || !x.npAI || x.npAI(s, p, E, ctx, k)) ? { score: 8 + 4 * (k - 1), run: () => fireNP(s, E, p, undefined, k) } : null),
+});
+// 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP（40 いじょう。30 だと 4回 攻撃が いって ほぼ 出ない）。npFx(s, E, p, t, k)
+// x.oc：オーバーチャージ（×1・×2・×3 の ボタン）。x.npTgt：レアの 宝具で 人が あいてを えらぶ
+const withTgt = (a, x) => (x.npTgt ? { ...a, tgt: [x.npTgt], apply: (s, E, [[t]], _x, p) => fireNP(s, E, p, t, a.ocK || 1) } : a);
+export const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, acts: [...(x.oc ? [1, 2, 3].map((k) => withTgt(hoguK(k, x), x)) : [withTgt(hogu, x)]), ...(x.acts || [])], onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
+// NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）。except は のぞく
+export const bestServant = (s, E, except) => servants(s, E).filter((p) => p.def.npFx && p !== except).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
+export const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
+export const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+export const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, null); E.sba(s); };
 
 // トークン（FG47 海魔・FG53 アサシン・FG64 王の軍勢）
 const TK = {
@@ -55,8 +83,8 @@ const npSpell = (n, more) => ({
   apply: (s, E, [[t]]) => { E.target(s, t); addNP(s, E, t, n); more?.(s, E); },
 });
 // マスター（2026-10-27：エンチャントに）：サーヴァントを 唱える コストと 装備の コストが 1 少なく なる。場に いる さいしょの マスターだけ（かさならない）
-const isMaster = (p) => isSub(p, 'マスター');
-const master = { equipLess: true, costCut: (s, q, d) => (isServant({ def: d }) && s.P.bf.find(isMaster) === q ? 1 : 0) };
+export const isMaster = (p) => isSub(p, 'マスター');
+export const master = { equipLess: true, costCut: (s, q, d) => (isServant({ def: d }) && s.P.bf.find(isMaster) === q ? 1 : 0) };
 const forServants = (a, b) => (s, q, p, E) => (p.side === q.side && E.isCreature(p) && isServant(p) ? [a, b] : null);
 
 // ---- 宝具（ほうぐ・装備品。FG76〜FG90）：シャドウ召喚（1マナ 多く はらうと 1/1 の シャドウ・サーヴァント）。場に 出る だけで、つけるには 装備の コスト ----
@@ -70,7 +98,7 @@ const hostOf = (s, q) => (q.attached ? [...s.P.bf, ...s.E.bf].find((p) => p.uid 
 const allWhile = (a, b) => (s, q, p, E) => (q.attached && p.side === q.side && E.isCreature(p) ? [a, b] : null);
 const gives = (...kws) => (s, q, p) => (p.uid === q.attached ? kws : null);
 // ランダムな 敵（クリーチャー・プレインズウォーカー・本体）
-function randomFoe(s, E) {
+export function randomFoe(s, E) {
   const list = [...(s.floor.face ? ['face'] : []), ...s.E.bf.filter((p) => (E.isCreature(p) || E.isPW(p)) && !s.floor.untargetable?.(s, p, E))];
   return list.length ? list[Math.floor(s.rng() * list.length)] : null;
 }
