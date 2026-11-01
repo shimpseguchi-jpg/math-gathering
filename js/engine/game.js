@@ -937,6 +937,7 @@ function pwTargets(s, attackers, blocks) {
 export function resolveCombat(s, atk, blocks) {
   s.combat = { atk, blocks, factory: 0, key: s.E.key, events: [] };
   for (const step of ['first', 'normal']) {
+    const ev0 = s.combat.events.length;
     const strikes = (x) => {
       const fs = hasKw(s, x, 'first') || hasKw(s, x, 'double');
       return step === 'first' ? fs : (!fs || hasKw(s, x, 'double'));
@@ -961,6 +962,9 @@ export function resolveCombat(s, atk, blocks) {
       if (!b || !onBf(s, b) || !onBf(s, a.p) || !strikes(b)) continue;
       s.combatHit = true; damage(s, a.p, power(s, b), b); s.combatHit = false;
     }
+    // 追加攻撃（スターレイル 第2弾）：この ステップで みかたが あたえた ダメージ（追加攻撃の ぶんは ふくめない）で のこった 敵に。ぴったり・撃破は つぎの sba で
+    const evs = s.combat.events.slice(ev0);
+    if (s.active === 'P') for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.followUp) q.def.followUp(s, q, evs, api);
     sba(s);
     if (s.over) break;
   }
