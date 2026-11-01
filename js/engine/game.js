@@ -463,6 +463,8 @@ export function useBreak(s, mode, t) {
   if (mode === 'all') { L(s, `ブレイク！ てきの クリーチャー ぜんぶに ${BREAK_ALL}点`); for (const p of s.E.bf.filter(isCreature)) damage(s, p, BREAK_ALL, null); }
   else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${breakDmg(t)}点`); hitTarget(s, t, breakDmg(t), null); }
   else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
+  // 連携スキル（ゼンゼロ 第2弾。def.chain は data/set16.js）：ブレイクの あと。inBreak の あいだ なので ブレイクは たまらない
+  for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.chain && !s.over) q.def.chain(s, q, api);
   s.inBreak = false;
   sba(s);
   return true;
@@ -561,12 +563,23 @@ export function boostDmg(s, n, src, enemy) {
   return n;
 }
 
+// 異常（いじょう）を つける（ゼンゼロ 第2弾）：敵の クリーチャーに 色 c（1体に 1つ。あたらしい 色で 上書き。場に いる あいだ のこる）
+export const COLOR_JA = { W: '白', U: '青', K: '黒', R: '赤', G: '緑' };
+export function setAnom(s, t, c) {
+  if (!c || !t || t === 'face' || t.side !== 'E' || !onBf(s, t) || !isCreature(t) || t.anom === c) return;
+  t.anom = c; L(s, `${t.def.name}に ${COLOR_JA[c]}の 異常（いじょう）`);
+  zzBreak(s, c, `${COLOR_JA[c]}：異常（いじょう）を つけた`); // 異常も その 色の 属性ブレイクの きっかけ（第2弾。ゼンゼロの クリーチャーが その 色なら 2こ）
+}
+
 export function damage(s, p, n, src, o = {}) {
   if (n <= 0 || !onBf(s, p)) return 0;
   n = boostDmg(s, n, src, p.side === 'E');
   if (s.floor.preventDamage?.(s, p, n, src, api)) return 0;
   if (p.shieldT === s.turn) return 0; // ダメージは 0 に なる（ニンフの 犬）
   if (!isPW(p) && isCreature(p) && useShield(s, p)) return 0;
+  // 紊乱（びんらん）（ゼンゼロ 第2弾）：異常（p.anom）の ついた 敵の クリーチャーに、ちがう 色を もつ あなたの クリーチャーが ダメージ → 2倍。異常は きえる
+  const dis = !!(src?.side === 'P' && p.side === 'E' && p.anom && isCreature(p) && colorsOf(src.def).some((c) => c !== p.anom));
+  if (dis) { L(s, `紊乱（びんらん）！ ${n} × 2 ＝ ${n * 2}`); n *= 2; p.anom = null; s.stats.dis = (s.stats.dis || 0) + 1; }
   // 妄想心音（FGO）：ダメージの かわりに −1/−1カウンター（破壊不能でも タフネスが へる）
   if (src && isCreature(p) && hasKw(s, src, 'wither')) { L(s, `${src.def.name} → ${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`); addMinus(s, p, n, src.side); return n; }
   if (p.attacking && s[p.side].bf.some((q) => q.def.protectAttackers)) return 0;
@@ -588,7 +601,10 @@ export function damage(s, p, n, src, o = {}) {
   // 赤の 属性ブレイク：戦闘 いがいの ダメージ（呪文・能力。攻撃したときの 能力も）
   if (p.side === 'E' && !s.combatHit && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文（じゅもん）・能力（のうりょく）で ダメージ');
   // ゼンゼロ：ブレイク N は 敵の クリーチャー・PW に ダメージを あたえても たまる（2026-10-26。本体だけ では ほとんど たまらなかった）
-  if (src?.side === 'P' && p.side === 'E' && src.def.brk && !s.over) addBreak(s, src.def.brk);
+  if (src?.side === 'P' && p.side === 'E' && src.def.brk && !s.over && !s.inBreak) addBreak(s, src.def.brk);
+  // 属性異常（ゼンゼロ 第2弾）：もつ クリーチャーが 敵の クリーチャーに ダメージ → じぶんの 色の 異常。紊乱の とき（def.onDisorder）
+  if (src?.side === 'P' && p.side === 'E' && isCreature(p) && hasKw(s, src, 'anomaly')) setAnom(s, p, colorsOf(src.def)[0]);
+  if (dis) for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onDisorder) q.def.onDisorder(s, q, api, src, p);
   return n;
 }
 
@@ -986,5 +1002,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, addBreak, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, setAnom, COLOR_JA, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
 });
