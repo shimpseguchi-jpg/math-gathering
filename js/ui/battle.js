@@ -904,6 +904,11 @@ function actCheck(s, p, a) {
   const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, inWindow() ? { phase: winPhase(), xMax: x, human: true, enemyTurn: true, ...winCtx() } : { phase: B.phase, xMax: x, human: true });
   return { cost, o, x, blocked, r };
 }
+// 宝具の ボタンの 文字：第1弾は「ほうぐ（NP 120 − 100 ＝ 20）」、オーバーチャージ（第2弾）は 倍も 出す「ほうぐ ×2（NP 260 − 200 ＝ 60）」
+function hoguLabel(p, a) {
+  const u = a.npUse === true ? 100 : a.npUse, n = p.np || 0, k = a.npUse === true ? '' : ` ×${u / 100}`;
+  return n >= u ? `ほうぐ${k}（NP ${n} − ${u} ＝ ${n - u}）` : `ほうぐ${k}（NP ${n}。${u} から つかえる）`;
+}
 // つよい 能力（宝具・戦技・エネルギー・PW の 忠誠度）は 金色、ふつうの 能力（タップ など）は 水色の わく
 const bigAct = (a) => !!(a.npUse || a.spUse || a.bonUse || a.loyalty != null);
 // 手札で いま 使える カード（2026-10-29）：金色の わくと「つかえる」で しらせる。tapHand で えらべる ものと おなじ 判定（castInfo は 見るだけで なにも かえない）
@@ -1002,7 +1007,7 @@ async function tapPerm_(p) {
     for (const a of p.def.acts || []) {
       if (a.pumpP) continue;
       const { cost, o, x, blocked, r } = actCheck(s, p, a);
-      const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
+      const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? hoguLabel(p, a) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip && !win) { const ec = equipCost(s, p); choices.push({ label: `そうびする（${ec < p.def.equip ? `${p.def.equip} − ${p.def.equip - ec} ＝ ` : ''}${ec}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, ec, []) }); }
