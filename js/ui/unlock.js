@@ -1,13 +1,13 @@
 // あそべる ものが ひらく じゅんばん（2026-10-29。REQUIREMENTS 8.7）
 //   はじめての 人：チュートリアル → ストーリー 1章「はじめの いっぽ」→ みならいの しけん（課題 3つで マスマティックスウォーカーの 証。2026-10-30）
 //   → テーロスの とう（かんたん・ふつう）
-//   テーロスを「ふつう」で のぼりきる → 「むずかしい」と ラヴニカ → ラヴニカを「ふつう」で のぼりきる → ストリクスヘイヴン（第5弾が 出て いる とき）
+//   テーロスを「ふつう」で のぼりきる → 「むずかしい」と ラヴニカ → ラヴニカを「ふつう」（か「むずかしい」）で のぼりきる → ストリクスヘイヴン
 // まえから あそんで いる 人（ぼうけんの きろくが ある）は、とうは さいしょから あそべる
 // デバッグモードの せってい「ぜんぶ あそべる」で ぜんぶ ひらく（先生の たしかめ用・e2e）
 import { TUTORIAL_DONE } from './tutorial.js';
 import { storyDone, CHAPTERS } from './story.js';
 import { clearedCount, adventuresCount } from './zukan.js';
-import { unlockAll, enabledSets } from './settings.js';
+import { unlockAll } from './settings.js';
 import { kihonBadge } from './kihon.js';
 import { KIHON_NAME } from '../data/kihon.js';
 
@@ -20,8 +20,9 @@ export const GATES = {
   adventure: () => unlockAll() || adventuresCount() > 0 || kihonBadge(),
   hard: () => unlockAll() || normalCleared(),
   ravnica: () => unlockAll() || normalCleared(),
-  // ストリクスヘイヴン：第5弾と いっしょに ひらく（第5弾が パックに 入る とき）＋ ラヴニカを「ふつう」で のぼりきる（2026-10-29。docs/STRIXHAVEN.md）
-  strixhaven: () => enabledSets().includes(5) && (unlockAll() || clearedCount('ravnica', 'normal') > 0),
+  // ストリクスヘイヴン：ラヴニカを「ふつう」（か「むずかしい」）で のぼりきると ひらく（2026-11-02。docs/STRIXHAVEN.md）
+  // まえは 第5弾が パックに 入る ことも 条件だった。塔の パックは いつも ファウンデーションズ ＋ 第5弾（STRIX.sets）なので、はずした
+  strixhaven: () => unlockAll() || clearedCount('ravnica', 'normal') + clearedCount('ravnica', 'hard') > 0,
 };
 export const diffOpen = (d) => (d === 'hard' ? GATES.hard() : GATES.adventure());
 export const planeOpen = (p) => (GATES[p] ? GATES[p]() : true);
@@ -35,7 +36,7 @@ export const LOCK_TEXT = {
   kihon: { title: 'とうの 門（もん）は まだ とじて いる', text: `テーロスの とうに のぼれるのは、マスマティックスウォーカーの 証（あかし）を もつ 者だけ。${KIHON_NAME}で 課題（かだい）を 3つ クリアしよう。`, go: 'kihon', label: `${KIHON_NAME}へ` },
   hard: { title: '「むずかしい」は まだ', text: 'エレボスは まだ 本気（ほんき）を 出して いない。テーロスの とうを「ふつう」で のぼりきった とき、ほんとうの たたかいが はじまる。' },
   ravnica: { title: 'ラヴニカへの 門（もん）', text: '10の ギルドが ひしめく 大きな まち、ラヴニカ。ギルドパクトの ジェイスは、テーロスの とうを「ふつう」で のぼりきった ものだけを まねく。――まずは テーロスの 神々（かみがみ）に いどもう。' },
-  strixhaven: { title: 'ストリクスヘイヴンへの 門（もん）', text: '魔法（まほう）学院（がくいん）ストリクスヘイヴンは、第5弾（だん）「大きな 数の 塔（とう）」と いっしょに ひらく。ラヴニカの とうを「ふつう」で のぼりきると、入学（にゅうがく）の てがみが とどくよ。' },
+  strixhaven: { title: 'ストリクスヘイヴンへの 門（もん）', text: '魔法（まほう）学院（がくいん）ストリクスヘイヴンは、ラヴニカの とうを「ふつう」で のぼりきった ものを まって いる。のぼりきると、入学（にゅうがく）の てがみが とどくよ。' },
 };
 // ひらいた ときの しらせ
 export const NEWS_TEXT = {
