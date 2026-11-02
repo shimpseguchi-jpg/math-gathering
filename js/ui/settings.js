@@ -7,7 +7,7 @@ import { ruby, sheet } from './view.js';
 import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 import { hasServer, call, CONF, setSaved, packSave, unpackSave } from './server.js';
 import { openAllSaved, setOpenAll } from './collection.js';
-import { raidHidden, setRaidHidden } from './raidstore.js';
+import { raidHidden, setRaidHidden, RAID_SLEEP } from './raidstore.js';
 
 // デバッグモード（開発用の 項目：弾・こうこく・プレイマットを 自由に かえる）
 // WEB版（サーバーなし）は いつも オン。GAS 版は 先生（かんりしゃ）が 開発モードの 画面で オンに した 端末だけ。子どもには 出ない
@@ -139,8 +139,9 @@ export function settingsScreen(app, back, o = {}) {
       </section>
       ${hasServer() ? '' : `<section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>レイド</h3>
-        <p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
-        <button type="button" class="btn" data-raid="1" aria-pressed="${!raidHidden()}">レイド ${raidHidden() ? 'なし' : 'あり'}</button>
+        ${RAID_SLEEP ? `<p class="st-note">いまは レイドを おやすみ中（プログラムで とめて いる）。点は のこって いる。</p>
+        <button type="button" class="btn" disabled>レイド おやすみ中</button>` : `<p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
+        <button type="button" class="btn" data-raid="1" aria-pressed="${!raidHidden()}">レイド ${raidHidden() ? 'なし' : 'あり'}</button>`}
       </section>`}
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('こうちくモード：カードを ぜんぶ 開放（かいほう）')}</h3>

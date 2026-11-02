@@ -9,7 +9,7 @@ import { esc, ruby, sheet, info } from './view.js';
 import { call, loadConf } from './server.js';
 import { loading } from './loading.js';
 import { applyConf, setDebug, debugOn } from './settings.js';
-import { applyRaid } from './raidstore.js';
+import { applyRaid, RAID_SLEEP } from './raidstore.js';
 import { NAME_A, NAME_B } from './online.js';
 import { openAllSaved, setOpenAll } from './collection.js';
 
@@ -69,6 +69,7 @@ export async function adminScreen(app, back) {
       </section>
       <section class="st-sec">
         <h3>レイド</h3>
+        ${RAID_SLEEP ? '<p class="st-note"><b>いまはレイドをおやすみ中です（プログラムでとめています）。</b>ここを「出す」にしてもタイトルには出ません。点とゴーストはのこっています。</p>' : ''}
         <label class="ad-row">タイトルに <select data-conf="レイドを出す">${['出す', '出さない'].map((w) => `<option value="${w}" ${(c['レイドを出す'] === '出さない' ? '出さない' : '出す') === w ? 'selected' : ''}>${w}</option>`).join('')}</select></label>
         <label class="ad-row">レイドID <input type="text" data-conf="レイドID" value="${esc(c['レイドID'])}" placeholder="tarkir-1"></label>
         <label class="ad-row">おわる日時 <input type="datetime-local" data-conf="レイドのおわり" value="${toLocal(c['レイドのおわり'])}"></label>

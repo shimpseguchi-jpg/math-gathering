@@ -3,6 +3,9 @@ import { hasServer, send, CONF } from './server.js';
 
 // いまの レイド。ends は おわる 時刻（ミリ秒）。null は 期間なし（開発中）
 export const RAID = { id: 'tarkir-1', name: 'タルキール大戦（たいせん）', ends: Date.parse('2026-11-01T20:00:00+09:00') }; // 2026年11月1日（日）20時（日本時間）まで
+// レイドは おやすみ中（2026-11-02 から）：true の あいだは WEB版も GAS版も タイトルに 出さない（点と ゴーストは のこる）。
+// また ひらく ときは false に して、RAID.ends（GAS版は せってい シートの「レイドのおわり」）を 新しい 日時に する
+export const RAID_SLEEP = true;
 export const WIN_PTS = 10, FINISH_PTS = 5, DEF_PTS = 3; // DEF：じぶんの ゴーストが かつと（ぼうえい点）
 const KEY = 'mtg-raid-v1';
 const fresh = () => ({ id: RAID.id, f: null, c: null, w: 0, l: 0, d: 0, q: 0, fin: 0, g: null, def: 0, defSeen: 0 });
@@ -21,6 +24,7 @@ export const setRaidHidden = (v) => { hide = v; try { localStorage.setItem(HIDE_
 // GAS 版：レイドの ID と おわる 時刻は 先生の せってい シート（server.js の CONF.raid）。ない ときは レイドなし
 // （開発モードの 画面で「出さない」に した ときも サーバーが レイドなしに する）
 export function applyRaid() {
+  if (RAID_SLEEP) { RAID.off = true; return; }
   if (!hasServer()) { RAID.off = hide; return; }
   RAID.off = !CONF.raid;
   if (CONF.raid) { RAID.id = CONF.raid.id; RAID.ends = CONF.raid.ends; }
