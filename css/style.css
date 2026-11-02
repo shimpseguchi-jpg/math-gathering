@@ -698,6 +698,7 @@ div.zk-card { cursor: default; }
 .em-node.lock { opacity: 0.55; }
 .em-branch.one .em-nodes { grid-template-columns: repeat(2, 1fr); } .em-branch.one .em-nodes li + li::before { content: none; } .em-branch h3 small { font-size: 11px; color: var(--ink-dim); font-weight: 500; margin-left: 6px; }
 .em-pts small { display: block; font-size: 12px; color: var(--ink-dim); }
+.em-free { display: flex; gap: 8px; } .em-free .btn { flex: 1; } /* もんしょう ぜんぶ 開放（デバッグ）の ボタン */
 .em-big { font-family: var(--display); font-size: 18px; margin: 0 0 4px; }
 .em-line { margin: 0; font-size: 13px; color: var(--gold-text); }
 .sheet-content .em-line { color: var(--gold-text); font-weight: 700; margin-top: 8px; }

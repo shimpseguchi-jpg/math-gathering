@@ -70,6 +70,12 @@ const UNLOCK_KEY = 'mtg-unlock-all';
 let unlockAllOn = (() => { try { return localStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; } })();
 export const unlockAll = () => DEV && unlockAllOn;
 const setUnlockAll = (v) => { unlockAllOn = v; try { localStorage.setItem(UNLOCK_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } };
+// もんしょう ぜんぶ 開放（2026-11-02。WEB版の デバッグモードだけ）：ポイント・レベルの じゅんばん・じかんの せいげん なしで、
+// どの もんしょうも つけはずし できる。ほんとうの もんしょう（ポイント・ついて いる もの）は のこる（emblem.js）
+const EMBLEM_ALL_KEY = 'mtg-emblem-all';
+let emblemAllOn = (() => { try { return localStorage.getItem(EMBLEM_ALL_KEY) === '1'; } catch { return false; } })();
+export const emblemAll = () => !hasServer() && emblemAllOn;
+const setEmblemAll = (v) => { emblemAllOn = v; try { localStorage.setItem(EMBLEM_ALL_KEY, v ? '1' : '0'); } catch { /* この あいだだけ */ } };
 // はじめての 人として ためす（2026-10-30。デバッグモードだけ）：いまの セーブを よけて おいて、はじめて あそぶ ときの 状態に する。もとに もどせる
 // よけて おく ところは mtg- で はじまらない キー（ひきつぎの packSave・unpackSave の そと）
 const TRIAL_KEY = 'mtgx-trial-backup';
@@ -143,6 +149,11 @@ export function settingsScreen(app, back, o = {}) {
         <button type="button" class="btn" disabled>レイド おやすみ中</button>` : `<p class="st-note">タイトルに「レイド：タルキール」を 出すか どうか。なしに しても 点は のこる。</p>
         <button type="button" class="btn" data-raid="1" aria-pressed="${!raidHidden()}">レイド ${raidHidden() ? 'なし' : 'あり'}</button>`}
       </section>`}
+      ${hasServer() ? '' : `<section class="st-sec">
+        <h3><span class="dev-badge">デバッグモード</span>${ruby('もんしょう：ぜんぶ 開放（かいほう）')}</h3>
+        <p class="st-note">${ruby('ポイントが なくても、レベルの じゅんばんを とばして、どの もんしょうも つけたり はずしたり できる（じかんの せいげん なし）。ほんとうの もんしょうと ポイントは のこり、なしに すると もどる。WEBばん だけ。')}</p>
+        <button type="button" class="btn" data-allemblem="1" aria-pressed="${emblemAll()}"><span>${ruby('ぜんぶ 開放（かいほう）')} ${emblemAll() ? 'あり' : 'なし'}</span></button>
+      </section>`}
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('こうちくモード：カードを ぜんぶ 開放（かいほう）')}</h3>
         <p class="st-note">${ruby('こうちくモードで、ぜんぶの カードを 4まいずつ もって いる ことに する。ほんとうの もちものと パックけんは のこり、なしに すると もどる。')}</p>
@@ -170,6 +181,7 @@ export function settingsScreen(app, back, o = {}) {
     if (e.target.closest('[data-unlock]')) { setUnlockAll(!unlockAll()); draw(); }
     if (e.target.closest('[data-raid]')) { setRaidHidden(!raidHidden()); draw(); }
     if (e.target.closest('[data-allcards]')) { setOpenAll(!openAllSaved()); draw(); }
+    if (e.target.closest('[data-allemblem]')) { setEmblemAll(!emblemAll()); draw(); }
     if (e.target.closest('[data-trial]')) {
       const on = trialOn();
       sheet(`<p>${ruby(on ? 'ためす まえの セーブに もどす？ ためして いる あいだの セーブは きえる。' : 'いまの セーブを よけて おいて、はじめて あそぶ ときの 状態（じょうたい）に する？ あとで「もとの セーブに もどす」で もどせる。')}</p>`,
