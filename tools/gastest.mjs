@@ -2,6 +2,7 @@
 // つかいかた：node tools/build_gas.mjs && node tools/gastest.mjs
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import vm from 'vm';
 import { makeGas, OWNER } from './gasmock.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,6 +42,9 @@ const rk = G.mtgRanking();
 ok(rk.l.length === 1 && rk.l[0][0] === 1 && rk.l[0][4] === g1.i && rows('ランキング').length === 1, 'ランキング');
 
 // ---- レイド ----
+// せってい シートの はじめの「レイドのおわり」（2026/11/01 20:00）より まえの 時計で しらべる（きょうの 日付に よらない）
+const GDate = vm.runInContext('Date', G), realNow = GDate.now;
+GDate.now = () => Date.UTC(2026, 9, 31, 3);
 const cmd = 'RG07';
 const raidDeck = Array(20).fill(Object.values(BY_ID).find((d) => d.basic && d.color === 'R').id);
 const rs = G.mtgRaidSubmit({ id: 'tarkir-1', f: 'dragon', c: cmd, d: raidDeck, n: [3, 4] });
@@ -54,6 +58,9 @@ ok(st.f.human === 18 && st.f.dragon === 3 && st.c.RG07 === 3 && st.mine.w === 1 
 G.mtgRaidSubmit({ id: 'tarkir-1', f: 'dragon', c: cmd, i: rs.i, d: raidDeck, n: [3, 4] });
 ok(G.mtgRaidState({ id: 'tarkir-1', me: rs.i, f: 'dragon' }).mine.w === 1, '出しなおしても まもった 回数は のこる');
 throws(() => G.mtgRaidAdd({ id: 'tarkir-9', f: 'human', c: 'AB02', w: 1 }), 'ちがう レイドIDは だめ');
+GDate.now = () => Date.UTC(2026, 10, 1, 12); // おわって 1時間（30分の まちじかんも すぎた）
+throws(() => G.mtgRaidAdd({ id: 'tarkir-1', f: 'human', c: 'AB02', w: 1 }), 'おわった レイドには 点を たせない');
+GDate.now = realNow;
 
 // ---- ひきつぎ ----
 const big = JSON.stringify({ 'mtg-adventure-v1': 'x'.repeat(120000), 'mtg-emblem-v1': '{"a":1}' });
