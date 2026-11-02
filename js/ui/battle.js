@@ -874,13 +874,25 @@ async function showBreak() {
   if (v === 'one') {
     const t = await sheet(`<p>どれに あてる？（クリーチャーに ${BREAK_ONE}点・本体に ${BREAK_FACE}点）</p>`, [...(s.floor.face ? [{ label: `${faceName()}（${BREAK_FACE}点）`, value: 'face' }] : []), ...cr.map((p) => ({ label: `${nm(p)}（のこり ${pt(s, p)[1] - p.dmg}）`, value: p })), { label: 'やめる', value: null }]);
     if (!t) return;
+    await chainPicks(s);
     useBreak(s, 'one', t);
   } else if (v === 'mana') {
     const c = await sheet('<p>どの カードを てふだに もどす？</p>', [...s.P.mana.map((m) => ({ label: `${ruby(info(m.def).name)}${m.tapped ? '（タップずみ）' : ''}`, value: m })), { label: 'やめる', value: null }]);
     if (!c) return;
+    await chainPicks(s);
     useBreak(s, 'mana', c);
-  } else useBreak(s, 'all');
+  } else { await chainPicks(s); useBreak(s, 'all'); }
   if (!checkOver()) render();
+}
+// 連携スキル（ゼンゼロ 第2弾）：ブレイクの まえに、だれと 連携するか（2人 いじょう いる とき）と、レア・レジェンドは ねらう 相手を えらんで おく（data/set16.js の chain が q.chainMate・q.trigPick を つかう）
+async function chainPicks(s) {
+  for (const q of s.P.bf.filter((p) => p.def.chain)) {
+    const ms = s.P.bf.filter((x) => x !== q && isCreature(x) && x.def.legend), a = Math.max(0, power(s, q)), b = (m) => Math.max(0, power(s, m));
+    q.chainMate = ms.length > 1 ? await sheet(`<p>${ruby(`${nmText(q)}の 連携（れんけい）スキル：だれと 連携（れんけい）する？ 2人の パワーを たした 数で こうかが おきる。`)}</p>`,
+      ms.map((m) => ({ label: `${nm(q)} ${a} ＋ ${nm(m)} ${b(m)} ＝ ${a + b(m)}`, value: m, kind: 'primary' })), { title: ruby('連携（れんけい）スキル'), dismiss: false }) : ms[0] || null;
+    const spec = !pickOf(q.def) && q.def.chainTgt?.(a + (q.chainMate ? b(q.chainMate) : 0));
+    if (spec && needsTargets([spec], {})) { const picks = await pickAll([spec], { card: q.def, note: '連携（れんけい）スキル' }); q.trigPick = picks?.[0]?.[0] || null; }
+  }
 }
 
 // 起動型能力が いま 使えるか（能力の シートと、場の カードの わくの しるしで おなじ 判定を 使う）
@@ -891,6 +903,11 @@ function actCheck(s, p, a) {
   const blocked = (a.tap && (p.tapped || (isCreature(p) && p.sick))) ? 'タップできない' : (a.monstrosity && p.monstrous) ? 'もう かいぶつ' : (a.discard && s.P.hand.length < a.discard) ? `てふだが たりない（${a.discard}まい いる）` : (a.levelUp && p.level >= p.def.levelMax) ? 'もう いちばん上の レベル' : (a.can && !a.can(s, p, api)) ? ruby(a.cantWhy || 'いまは 使えない') : (!plan(s, cost + x, a.req || [], o) || (a.x && x < 1)) ? 'マナが たりない' : '';
   const r = blocked ? null : a.levelUp ? { run: () => {} } : a.tgt ? (needsTargets(a.tgt, { src: p }) ? { tgt: true } : null) : a.play(s, p, api, inWindow() ? { phase: winPhase(), xMax: x, human: true, enemyTurn: true, ...winCtx() } : { phase: B.phase, xMax: x, human: true });
   return { cost, o, x, blocked, r };
+}
+// 宝具の ボタンの 文字：第1弾は「ほうぐ（NP 120 − 100 ＝ 20）」、オーバーチャージ（第2弾）は 倍も 出す「ほうぐ ×2（NP 260 − 200 ＝ 60）」
+function hoguLabel(p, a) {
+  const u = a.npUse === true ? 100 : a.npUse, n = p.np || 0, k = a.npUse === true ? '' : ` ×${u / 100}`;
+  return n >= u ? `ほうぐ${k}（NP ${n} − ${u} ＝ ${n - u}）` : `ほうぐ${k}（NP ${n}。${u} から つかえる）`;
 }
 // つよい 能力（宝具・戦技・エネルギー・PW の 忠誠度）は 金色、ふつうの 能力（タップ など）は 水色の わく
 const bigAct = (a) => !!(a.npUse || a.spUse || a.bonUse || a.loyalty != null);
@@ -990,7 +1007,7 @@ async function tapPerm_(p) {
     for (const a of p.def.acts || []) {
       if (a.pumpP) continue;
       const { cost, o, x, blocked, r } = actCheck(s, p, a);
-      const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? ((p.np || 0) >= 100 ? `ほうぐ（NP ${p.np} − 100 ＝ ${p.np - 100}）` : `ほうぐ（NP ${p.np || 0}。100 から つかえる）`) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
+      const label = a.bonUse ? `${ruby(a.label)}（エネルギー ${s.P.bon || 0} − ${a.bonUse} ＝ ${(s.P.bon || 0) - a.bonUse}）` : a.spUse ? `${ruby(a.label)}（せんぎポイント ${spOf(s)} − 1 ＝ ${spOf(s) - 1}）` : a.npUse ? hoguLabel(p, a) : a.loyalty != null ? ((ln) => `${ruby(a.label)}（ちゅうせい ${p.loy} ${ln >= 0 ? '＋' : '−'} ${Math.abs(ln)} ＝ ${p.loy + ln}）`)(a.loyalty - (p.flags.turn.pw ? 1 : 0)) : a.levelUp ? `Lvアップ（${cost}マナ）いま レベル ${p.level}` : `${a.label ? ruby(a.label) : (a.adapt ? `てきおう ${a.adapt}` : 'のうりょくを 使う')}（${a.x ? `X+${cost}` : cost}マナ${a.discard ? `・てふだを ${a.discard}まい すてる` : ''}${a.tap ? '・タップ' : ''}）`;
       choices.push({ label, value: { a, cost, o, x: a.x ? (a.tgt ? x : Math.min(r?.x ?? x, x)) : 0, r }, kind: 'primary', disabled: !!blocked || !r, note: blocked || (r ? '' : 'いまは こうかが ない') });
     }
     if (p.def.equip && !win) { const ec = equipCost(s, p); choices.push({ label: `そうびする（${ec < p.def.equip ? `${p.def.equip} − ${p.def.equip - ec} ＝ ` : ''}${ec}マナ）`, value: 'equip', kind: 'primary', disabled: !plan(s, ec, []) }); }

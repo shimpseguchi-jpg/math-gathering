@@ -12,23 +12,23 @@ export function addSP(s, E, n) {
   s.P.sp = now;
   if (now !== was) E.L(s, `せんぎポイント ${was} ${n > 0 ? '＋' : '−'} ${Math.abs(n)} ＝ ${now}`);
 }
-const canSwing = (s, E, p) => !p.tapped && (!p.sick || E.hasKw(s, p, 'haste'));
-const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
-const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, null); E.sba(s); };
-const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
-const foeTurn = (s) => (s.active === 'E' ? s.turn : s.turn + 1); // 「つぎの てきの ターン」：てきの ターンの あいだ（ブロックの あとの まど）に 使ったら この ターン
-const foeThreat = (s, E) => theirs(s, E).some((t) => t.def.attacks !== false && E.power(s, t) >= 2);
+export const canSwing = (s, E, p) => !p.tapped && (!p.sick || E.hasKw(s, p, 'haste'));
+export const biggest = (s, E, f = () => true) => theirs(s, E).filter(f).sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+export const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, null); E.sba(s); };
+export const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
+export const foeTurn = (s) => (s.active === 'E' ? s.turn : s.turn + 1); // 「つぎの てきの ターン」：てきの ターンの あいだ（ブロックの あとの まど）に 使ったら この ターン
+export const foeThreat = (s, E) => theirs(s, E).some((t) => t.def.attacks !== false && E.power(s, t) >= 2);
 
 // 戦技：ポイント 1つ、メインフェイズ、1ターンに max 回。sk = { label, play(s, p, E, ctx) → { score, run } , tgt?, apply?(s, E, picks, p) }
-function spend(s, E, p) { addSP(s, E, -1); p.flags.turn.skill = (p.flags.turn.skill || 0) + 1; }
-const skillAct = (sk, max = 1) => ({
+export function spend(s, E, p) { addSP(s, E, -1); p.flags.turn.skill = (p.flags.turn.skill || 0) + 1; }
+export const skillAct = (sk, max = 1) => ({
   cost: 0, spUse: true, when: [1, 2], label: `せんぎ：${sk.label}`,
   can: (s, p) => spOf(s) >= 1 && (p.flags.turn.skill || 0) < max, cantWhy: 'せんぎポイントが ない か、この ターンは もう つかった',
   play: (s, p, E, ctx) => { const r = sk.play(s, p, E, ctx); return r && { score: r.score, run: (x) => { spend(s, E, p); r.run(x); } }; },
   ...(sk.tgt ? { tgt: sk.tgt, apply: (s, E, picks, x, p) => { spend(s, E, p); sk.apply(s, E, picks, p); } } : {}),
 });
 // この 弾の クリーチャー：攻撃で せんぎポイント ＋1
-const trail = (x = {}) => {
+export const trail = (x = {}) => {
   const { skill, skillMax, ...rest } = x;
   return {
     ...rest,
@@ -37,17 +37,17 @@ const trail = (x = {}) => {
   };
 };
 // よく 使う 戦技
-const foeSkill = (label, n, f, o = {}) => ({
+export const foeSkill = (label, n, f, o = {}) => ({
   label,
   play: (s, p, E) => { const b = (o.pick ? o.pick(s, E) : foeBest(s, E, n)); return b ? { score: 3 + Math.min(4, E.power(s, b.t || b)), run: () => f(s, E, b.t || b) } : null; },
   tgt: [{ side: 'E', label }], apply: (s, E, [[t]]) => { E.target(s, t); f(s, E, t); },
 });
-const pumpOther = (label, a, b) => ({
+export const pumpOther = (label, a, b) => ({
   label,
   play: (s, p, E, ctx) => { if (ctx.phase !== 1) return null; const t = E.bestBuffTarget(s, p, { ready: true }); return t && canSwing(s, E, t) ? { score: 3 + a, run: () => E.pump(t, a, b) } : null; },
   tgt: [{ side: 'P', label: `${label}する クリーチャー` }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, a, b); },
 });
-const selfPump = (label, a, kws = []) => ({
+export const selfPump = (label, a, kws = []) => ({
   label, play: (s, p, E, ctx) => (ctx.phase === 1 && canSwing(s, E, p) ? { score: 3 + a, run: () => E.pump(p, a, 0, kws) } : null),
 });
 const shieldOne = {
@@ -55,7 +55,7 @@ const shieldOne = {
   play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== foeTurn(s) ? { score: 2, run: () => { t.shieldT = foeTurn(s); } } : null; },
   tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = foeTurn(s); E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
 };
-const spPit = (s, p, E) => addSP(s, E, 1);
+export const spPit = (s, p, E) => addSP(s, E, 1);
 const draw1 = (s, p, E) => E.drawCard(s);
 // 戦場に 出たとき、敵の クリーチャー1体に（えらぶ。えらばなければ いちばん よい もの）
 const etbFoe = (label, f, pick) => ({
@@ -64,7 +64,7 @@ const etbFoe = (label, f, pick) => ({
 });
 
 // レア・レジェンドの クリーチャー：せんぎポイントが 2 いじょう あれば、2 つかって 2マナ やすく 唱える（じどう）
-const spCut = { spCut: 2, costLess: (s) => (spOf(s) >= 2 ? 2 : 0), onPay: (s, E) => { if (spOf(s) >= 2) { E.L(s, 'せんぎポイントで 2マナ やすく した'); addSP(s, E, -2); } } };
+export const spCut = { spCut: 2, costLess: (s) => (spOf(s) >= 2 ? 2 : 0), onPay: (s, E) => { if (spOf(s) >= 2) { E.L(s, 'せんぎポイントで 2マナ やすく した'); addSP(s, E, -2); } } };
 export const S11 = {
   SR01: trail({ skill: selfPump('＋2/＋0 と トランプル', 2, ['trample']) }),
   SR02: trail({ skill: shieldOne, pittari: spPit }),
@@ -192,9 +192,9 @@ for (const id of ['SR04', 'SR05', 'SR06', 'SR07', 'SR09', 'SR11', 'SR13', 'SR14'
 function blueMana(s, E) { return s.P.mana.filter((m) => E.colorsOf(m.def).includes('U')).length; }
 function E_isCr(p) { return (p.def.types || []).includes('creature'); }
 // 必殺技：その キャラ（who）が あなたの 戦場に いれば コスト − n（色の 1つぶんは のこる）
-function ult(who, n, beh) { return { ...beh, ultOf: who, costMin: 1, costLess: (s) => (s.P.bf.some((q) => q.def.id === who) ? n : 0) }; }
+export function ult(who, n, beh) { return { ...beh, ultOf: who, costMin: 1, costLess: (s) => (s.P.bf.some((q) => q.def.id === who) ? n : 0) }; }
 // n点を わりふる（クリーチャーか 敵）。more は あとの こうか
-function split(n, more) {
+export function split(n, more) {
   return {
     play: (s, E) => ({ score: 6, run: () => { const pl = E.divide(s, n, theirs(s, E)); let left = n; for (const d of pl) { hit(s, E, d.t, d.n); left -= d.n; } if (left > 0) E.hitEnemy(s, left, null); more?.(s, E); } }),
     tgt: [{ side: 'E', face: true, max: n, divide: n, label: `${n}点を わりふる 相手` }],
