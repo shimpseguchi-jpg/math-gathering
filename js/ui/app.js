@@ -266,7 +266,7 @@ function emblemPackNote(em) {
   if (em.ident) out.push(`<span>${ruby(`統率者（とうそつしゃ）${info(cmdDef()).name}の 色`)}（${em.ident.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ') || 'むしょく'}）の カード${A.opened === 0 && em.ident.length ? 'だけが 出る（さいしょの パック）' : 'が 出やすい'}</span>`);
   if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
   if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
-  for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`${SETS.find((z) => z.id === x)?.name || ''} の カードも 出る（もんしょう）`)}</span>`);
+  for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`${SETS.find((z) => z.id === x)?.name || ''} の カードも 出る（もんしょう${college() ? `。${college().name}の 2色の カードだけ` : ''}）`)}</span>`);
   if (em.leg) out.push(`<span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(A.idx, em) * 100)}%</b>（もんしょう）</span>`);
   return out.join('');
 }
@@ -292,6 +292,7 @@ async function enroll() {
   const c = COLLEGES[v];
   const cap = byDiff(STRIX.life, A.diff) + (activeEffects()?.life || 0);
   Object.assign(A, { college: v, cap, life: cap, grow: {}, report: [] });
+  if (A.luck) A.luck = c.cols[Math.floor(Math.random() * c.cols.length)]; // きまぐれな いろ：寮の 2色から きめなおす
   A.pool.push(...[].concat(c.gift));
   save();
   await sheet(letter({ mark: c.name[0], color: c.seal, from: `${c.name}の 寮（りょう）`, head: '入学（にゅうがく） おめでとう',
@@ -309,11 +310,14 @@ function packs() {
   const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
   // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
   const pk = activeEffects()?.pack;
-  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])], unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
+  // ストリクスヘイヴン：寮の 2色だけ 出るので、いろの もんしょう・きまぐれな いろも 寮の 色の ものだけ
+  const inCollege = (c) => !college() || college().cols.includes(c);
+  const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])].filter(inCollege), unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
   if (A.draft && !draftCols()) return chooseDraftColors().then(() => packs()); // ドラフト：さいしょに 色を えらぶ
   const only = A.draft || college() ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ。ストリクスヘイヴンは 寮の 2色だけ
-  const sets = college() ? STRIX.sets : withExtra(enabledSets(), pk?.extra); // ストリクスヘイヴン：ファウンデーションズ ＋ 第5弾
+  // ストリクスヘイヴン：ファウンデーションズ ＋ 第5弾。パックの もんしょうの サブセット・番外編も まざる（寮の 2色の カードだけ。2026-11-03）
+  const sets = withExtra(college() ? STRIX.sets : enabledSets(), pk?.extra);
   const roll = () => openPack(Math.random, { cleared, favor, sets, em, rare, only });
   if (A.draft) return draftPick(roll);
   const cards = roll();

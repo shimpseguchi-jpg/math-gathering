@@ -194,9 +194,10 @@ export async function runStrix(o = {}) {
   const rng = seeded(o.seed || 1);
   const keys = Object.keys(COLLEGES);
   const college = o.college || keys[Math.floor(rng() * keys.length)];
-  const C = COLLEGES[college], only = [...C.cols], sets = o.strixSets || STRIX.sets;
+  const C = COLLEGES[college], only = [...C.cols];
   const pk = o.emblem?.pack;
-  const em = pk ? { ...pk, colors: (pk.colors || []).filter((c) => only.includes(c)), extra: [] } : undefined;
+  const sets = withExtra(o.strixSets || STRIX.sets, pk?.extra); // パックの もんしょうの サブセット・番外編も まざる（寮の 2色だけ）
+  const em = pk ? { ...pk, colors: (pk.colors || []).filter((c) => only.includes(c)), extra: pk.extra || [] } : undefined;
   const pool = [].concat(C.gift).map((id) => BY_ID[id]);
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets, em, only }));
   const bo = { ...o, pair: only };
