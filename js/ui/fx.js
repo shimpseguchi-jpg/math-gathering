@@ -142,6 +142,18 @@ export function banner(text, foe) {
   gone(put(`fx-banner ${foe ? 'foe' : ''}`, null, `<b>${text}</b>`), 1300);
 }
 
+// ---- あいてが つかった カード（2026-11-04）：まんなかに 大きく 出して、ms たつと つぎへ（タップで すぐ）----
+// しらせ なので、うごきを へらす せっていでも 出す（うごきだけ なし）
+export function foeCard(html, ms) {
+  const e = put('fx-foe', null, `<div class="ff-box" role="status">${html}<i class="ff-bar" style="--ms:${ms}ms"></i></div>`);
+  e.style.pointerEvents = 'auto';
+  return new Promise((res) => {
+    const done = () => { if (!e.isConnected) return; clearTimeout(h); e.classList.add('out'); setTimeout(() => { e.remove(); res(); }, reduced() ? 0 : 180); };
+    const h = setTimeout(done, ms);
+    e.onclick = done;
+  });
+}
+
 // ---- かち／まけ：画面いっぱいの 演出（タップで とばせる） ----
 export function result(kind) {
   if (reduced()) return Promise.resolve();
