@@ -45,6 +45,8 @@ const css = esbuild(['css/style.css', '--minify', '--target=safari14', '--charse
 const b64 = (str) => Buffer.from(str, 'utf8').toString('base64').replace(/.{1,100}/g, '$&\n');
 let html = readFileSync(join(ROOT, 'index.html'), 'utf8')
   .replace(/<meta name="viewport"[^>]*>\n?/, '') // GAS では Code.gs の addMetaTag で つける
+  .replace(/ *<link rel="(?:apple-touch-icon|manifest)"[^>]*>\n?/g, '') // GAS の iframe では ファイルが ない（ホーム画面の アイコン・manifest は WEB版 だけ）
+  .replace(/ *<meta name="apple-mobile-web-app-status-bar-style"[^>]*>\n?/, '') // GAS は iframe なので 上の よけが きかない。ふつうの 時計の バーの まま
   .replace(/<link rel="stylesheet" href="css\/style\.css">\n?/, '')
   .replace(/<script type="module" src="js\/ui\/app\.js"><\/script>/, () => `<div id="pack-css" hidden>\n${b64(css)}</div>\n<div id="pack-js" hidden>\n${b64(js)}</div>\n<script>\n${LOADER}</script>`)
   .replace('<head>', '<head>\n<base target="_top">')
