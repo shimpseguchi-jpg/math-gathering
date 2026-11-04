@@ -81,6 +81,20 @@ function humanAI() {
       else { s.P.gy.push(c); s.logs.push(`[${s.turn}P] たいき：${d.name} は こうかが なかった`); }
       render();
     },
+    // あいての デッキの たたかい（オンライン・統率者戦・レイド・ストーリー）：あいてが メインで つかった カードを 1まいずつ 大きく 見せる（2026-11-04）。
+    // カードの せつめいと、その あと おきた こと（ログ）を 4行まで。すこし たつと つぎへ（タップで すぐ）
+    foeShow: async (s, from, to) => {
+      const plays = (s.foeCards || []).filter((x) => x.at > from && x.at <= to);
+      if (!plays.length) return;
+      render();
+      for (let i = 0; i < plays.length; i++) {
+        const { def, at } = plays[i];
+        const end = Math.min(to, plays[i + 1] ? plays[i + 1].at - 1 : to); // つぎの「となえた」の 行の まえまで
+        const what = s.logs.slice(at, end).map(logText).filter((l) => l !== `てき：${def.name} が せんじょうに 出た`).slice(0, 4);
+        await fx.foeCard(`<p class="ff-who">${s.floor.id === 'pvp' ? 'あいて' : 'てき'}が つかった${plays.length > 1 ? `（${i + 1}/${plays.length}）` : ''}</p>${detail(def, { enemy: true })}
+          ${what.length ? `<ul class="ff-what">${what.map((l) => `<li>${ruby(l)}</li>`).join('')}</ul>` : ''}<p class="ff-tap">タップで つぎへ</p>`, 2600 + what.length * 500);
+      }
+    },
     // 敵が めくった カードを 見せる（打ち消せるときは counter が 見せる）
     revealed: async (s, c) => {
       if (!silenced(s) && !uncounterable(s, c.def, 'E') && s.P.hand.some((h) => h.def.counter && (h.def.counter === 'any' || c.def.types.includes('creature')) && plan(s, h.def.cost, colorsOf(h.def), { req2: h.def.req2 }))) return;
@@ -277,12 +291,26 @@ async function enemyPhase() {
   B.busy = true;
   B.mode = 'enemy'; render();
   fx.banner(s.floor.id === 'pvp' ? 'あいての ターン' : 'てきの ターン', true);
-  const from = s.logs.length;
+  const from = s.logs.length, used0 = (s.foeCards || []).length;
   await enemyTurn(s);
-  const lines = s.logs.slice(from).map((l) => l.replace(/^\[\d+[PE]\] /, ''));
-  if (!checkOver(lines)) await sheet(`<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('') || '<li>なにも 起きなかった</li>'}</ol>`, [{ label: 'わたしの ターン', value: 1, kind: 'primary' }], { title: s.floor.id === 'pvp' ? 'あいての ターン' : 'てきの ターン' });
+  const lines = s.logs.slice(from).map(logText);
+  if (!checkOver(lines)) await foeSummary(lines, (s.foeCards || []).slice(used0).map((x) => x.def));
   B.busy = false;
   if (!B.s.over) startTurn();
+}
+
+const logText = (l) => l.replace(/^\[\d+[PE]\] /, '');
+// てきの ターンの まとめ：おきた こと（ログ）と、つかった カード（タップで せつめい。2026-11-04）
+async function foeSummary(lines, used) {
+  const s = B.s, who = s.floor.id === 'pvp' ? 'あいて' : 'てき', title = `${who}の ターン`;
+  const defs = [...new Map(used.map((d) => [d.id ?? d.name, d])).values()];
+  const cards = defs.length ? `<p class="ff-used-h">${who}が つかった カード（タップで せつめい）</p>
+    <div class="mini-list ff-used">${defs.map((d, i) => `<button type="button" class="ml-item" data-sv="${i}" aria-label="${esc(noRuby(info(d).name))}">${cardFace(d, { enemy: true })}</button>`).join('')}</div>` : '';
+  for (;;) {
+    const v = await sheet(`${cards}<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('') || '<li>なにも 起きなかった</li>'}</ol>`, [{ label: 'わたしの ターン', value: 'next', kind: 'primary' }], { title, values: defs });
+    if (!v || v === 'next') return;
+    await sheet(detail(v, { enemy: true }), [{ label: 'もどる', value: 1, kind: 'primary' }], { title: `${who}の カード` });
+  }
 }
 
 // ラヴニカの 塔：リーダーの セリフ（ふきだし）

@@ -1,5 +1,5 @@
 // 冒険の流れ：タイトル → パック開封 → デッキ構築 → 塔 → たたかい → …
-import { openPack, buildDeck, DECK_SIZE, CAPACITY, favorColor, legendChance, packColors, withExtra, rareLegendChance } from '../engine/run.js';
+import { openPack, buildDeck, DECK_SIZE, CAPACITY, CAP_STEP, capAt, favorColor, legendChance, packColors, withExtra, rareLegendChance } from '../engine/run.js';
 import { BY_ID, BASICS, SETS } from '../data/cards.js';
 import { pickFloors } from '../data/enemies.js';
 import { RAV_NAMES, pickRavnica } from '../data/ravnica.js';
@@ -326,6 +326,7 @@ function packs() {
       <span>コモンの はんぶんが アンコモンに、アンコモンの はんぶんが レアに かわる</span></div>` : cleared > 0 ? `<div class="bonus"><p class="bonus-title">${A.endless ? A.endless.floor - 1 : cleared}階 クリアの ごほうびパック</p>
       <span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(cleared, em) * 100)}%</b><small>（さいしょは ${Math.round(legendChance(0) * 100)}%）</small></span>
       <span>上の 階ほど、レアや アンコモンに かわりやすい</span>
+      ${A.endless ? '' : `<span>キャパシティが <b>${advCap()}</b>点に ふえた（1階 のぼる ごとに ＋${CAP_STEP}点）</span>`}
       ${favor ? `<span><i class="pip m-${favor}">${COLOR_NAME[favor]}</i> の カードが 出やすい（デッキで いちばん 使っている色）</span>` : ''}${emblemPackNote(em)}</div>` : emblemPackNote(em) ? `<div class="bonus"><p class="bonus-title">${em.ident && !em.colors.length && !em.unc && !em.leg && !em.extra.length ? ruby('統率者（とうそつしゃ）の パック') : 'もんしょうの パック'}</p>${emblemPackNote(em)}</div>` : '';
   gacha(app, cards, {
     eyebrow: rare ? 'レアパック' : `パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}`, rare, bonus, owned: new Set(A.pool),
@@ -372,8 +373,10 @@ function draftPick(roll) {
 }
 
 // ---- デッキ構築 ----
+// とうの キャパシティ：1階 のぼる ごとに ＋2（1階 30点 → 5階 38点。ストリクスヘイヴンの 6階は 40点。むげんの とうは 5階の まま。run.js の capAt）
+const advCap = () => capAt(A.idx, A.floors.length);
 function autoDeck() {
-  const b = buildDeck(defs(A.pool), A.cmd ? { pair: cmdIdent() } : college() ? { pair: [...college().cols] } : {});
+  const b = buildDeck(defs(A.pool), { ...(A.cmd ? { pair: cmdIdent() } : college() ? { pair: [...college().cols] } : {}), capacity: advCap() });
   const used = new Set(), sel = [];
   for (const d of b.deck) {
     if (d.basic) continue;
@@ -401,18 +404,18 @@ export function finalDeck() {
   return deck;
 }
 
-function whyNot(sel, i, pool = A.pool, free = false) {
+function whyNot(sel, i, pool = A.pool, free = false, cap = CAPACITY) {
   const st = deckStats(sel, pool);
   const d = BY_ID[pool[i]];
-  if (free) return whyNotPts(sel, i, pool); // 統率者戦：プールが 統率者の 色だけ なので 色は 見ない
+  if (free) return whyNotPts(sel, i, pool, cap); // 統率者戦：プールが 統率者の 色だけ なので 色は 見ない
   const id = pool === A?.pool && cmdIdent();
-  if (id) return colorsOf(d).every((c) => id.includes(c)) ? whyNotPts(sel, i, pool) : `統率者（とうそつしゃ）の 色（${id.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`;
+  if (id) return colorsOf(d).every((c) => id.includes(c)) ? whyNotPts(sel, i, pool, cap) : `統率者（とうそつしゃ）の 色（${id.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`;
   const nc = [...new Set([...st.colors, ...colorsOf(d)])];
   // 旗（第6弾）が あれば、その 3色まで
   const flag = d.banner || st.banner;
   const okFlag = flag && nc.length <= 3 && nc.every((c) => flag.includes(c)) && (!d.banner || !st.banner || d.banner === st.banner);
   if (nc.length > 2 && !okFlag) return `色は 2色まで${flag ? '（はたが あれば その 3色まで）' : ''}（いまは ${st.colors.map((c) => COLOR_NAME[c]).join('・')}）`;
-  return whyNotPts(sel, i, pool);
+  return whyNotPts(sel, i, pool, cap);
 }
 // はたを はずすと 3色の デッキに なれない
 function whyNotOut(sel, i, pool = A.pool, free = false) {
@@ -421,20 +424,20 @@ function whyNotOut(sel, i, pool = A.pool, free = false) {
   const rest = deckStats(sel.filter((k) => k !== i), pool);
   return rest.colors.length > 2 && !rest.banner ? '3色めの カードを さきに はずそう（はたが ないと 2色まで）' : '';
 }
-function whyNotPts(sel, i, pool = A.pool) {
+function whyNotPts(sel, i, pool = A.pool, cap = CAPACITY) {
   const st = deckStats(sel, pool);
   const d = BY_ID[pool[i]];
-  if (st.points + ptsOf(d) > CAPACITY) return `キャパシティを こえる（のこり ${CAPACITY - st.points}点、このカードは ${ptsOf(d)}点）`;
+  if (st.points + ptsOf(d) > cap) return `キャパシティを こえる（のこり ${cap - st.points}点、このカードは ${ptsOf(d)}点）`;
   if (st.count >= DECK_SIZE) return `デッキは ${DECK_SIZE}まいまで`;
   return '';
 }
 
 // 冒険の デッキ構築。ctx を わたすと ほかの プールでも つかえる（レイドの 統率者デッキ：raid.js、こうちくモード：construct.js）
 // ctx = { pool: カードIDの ならび, deck: えらんだ 番号, save(), auto() → 番号, ok(), title, free: 色の きまりを 見ない, colorNote,
-//         noCap: キャパシティと 色を 見ない（エターナル）, ident: 統率者の 色（この 色の カードだけ。noCap でも 見る）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる,
+//         cap: キャパシティ（なければ 30点。冒険は 階で ふえる）, noCap: キャパシティと 色を 見ない（エターナル）, ident: 統率者の 色（この 色の カードだけ。noCap でも 見る）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる,
 //         back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない）, filterKey：こまかくの せっていを のこす key }
 const advCtx = () => ({
-  get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false,
+  get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false, get cap() { return advCap(); },
   colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
   // 統率者戦：デッキを なおす ときに 統率者も かえられる。色が あわない カードは デッキから はずす
   cmd: A.cmd ? { label: `統率者（とうそつしゃ）：${info(cmdDef()).name}`, change: async () => {
@@ -449,7 +452,8 @@ export function deckBuilder(C = advCtx()) {
   // 入れられない わけ。エターナル（noCap）は まい数だけ。統率者（ident）は その 色だけ
   const sizeNo = () => (C.deck.length >= DECK_SIZE ? `デッキは ${DECK_SIZE}まいまで` : '');
   const identNo = (i) => (colorsOf(BY_ID[C.pool[i]]).every((c) => C.ident.includes(c)) ? '' : `統率者（とうそつしゃ）の 色（${C.ident.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`);
-  const ruleNo = (i) => (C.ident && identNo(i)) || (C.noCap ? sizeNo() : C.ident ? whyNotPts(C.deck, i, C.pool) : whyNot(C.deck, i, C.pool, C.free));
+  const cap = C.cap ?? CAPACITY;
+  const ruleNo = (i) => (C.ident && identNo(i)) || (C.noCap ? sizeNo() : C.ident ? whyNotPts(C.deck, i, C.pool, cap) : whyNot(C.deck, i, C.pool, C.free, cap));
   const outNo = (i) => (C.noCap || C.ident ? '' : whyNotOut(C.deck, i, C.pool, C.free));
   // 同じ カードの 番号を まとめる（G：id → 番号の ならび）。stack では 見せるのは さいしょの 番号。デッキの カードの −／＋ でも つかう
   const G = new Map();
@@ -496,13 +500,13 @@ export function deckBuilder(C = advCtx()) {
   };
   const draw = () => {
     const st = deckStats(C.deck, C.pool);
-    const left = CAPACITY - st.points;
+    const left = cap - st.points;
     const list = shownIdx();
     app().innerHTML = `<main class="builder ${F.open && view === 'pool' ? 'has-filter' : ''}">
       <header class="b-head">
         <h2>${ruby(C.title)}</h2>
         <div class="meters">
-          ${C.noCap ? `<div class="meter"><span>てんすう</span><b>${st.points}<small>点</small></b><em>せいげん なし</em></div>` : `<div class="meter"><span>キャパシティ</span><b>${st.points}<small>/${CAPACITY}点</small></b><i style="--v:${st.points / CAPACITY}"></i><em>のこり ${left}点</em></div>`}
+          ${C.noCap ? `<div class="meter"><span>てんすう</span><b>${st.points}<small>点</small></b><em>せいげん なし</em></div>` : `<div class="meter"><span>キャパシティ</span><b>${st.points}<small>/${cap}点</small></b><i style="--v:${st.points / cap}"></i><em>のこり ${left}点</em></div>`}
           <div class="meter"><span>カード</span><b>${st.count}<small>まい</small></b><i style="--v:${st.count / DECK_SIZE}"></i><em>きほんカード ${DECK_SIZE - st.count}まい</em></div>
           <div class="meter"><span>${C.colorNote ? ruby(C.colorNote) : C.noCap ? '色（なんしょくでも）' : C.free ? '色' : st.banner ? '色（はたで 3色まで）' : '色（2色まで）'}</span><b class="cols">${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}</b></div>
         </div>
@@ -669,7 +673,7 @@ function tower() {
     <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${ruby(floorLabel(i))}</span><em>${i < A.idx ? done(i) : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
     ${strix() ? `<p class="deckline">${ruby(`${college().name}の 寮（りょう）`)}　ライフ <b>${A.life}</b> / ${A.cap}</p>${grownLine()}` : ''}
     ${A.cmd ? `<p class="deckline">${ruby(`統率者（とうそつしゃ）：${info(cmdDef()).name}`)}（${cmdColorText(cmdDef()) || 'むしょく'}）</p>` : ''}
-    <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
+    <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点 / ${advCap()}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     ${emblemLine() ? `<p class="em-line">もんしょう：${esc(emblemLine())}</p>` : ''}
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(floorLabel(A.idx))}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
@@ -813,7 +817,7 @@ function endlessTower() {
     <p class="em-line">${ruby('祝福（しゅくふく）')}：${E.have && Object.keys(E.have).length ? ruby(blessLine(E.have)) : 'まだ ない'}</p>
     <p class="em-line">つぎの ${ruby('祝福（しゅくふく）')}まで ぴったり あと ${ENDLESS.exactPer - E.bank}回</p>
     ${A.cmd ? `<p class="deckline">${ruby(`統率者（とうそつしゃ）：${info(cmdDef()).name}`)}（${cmdColorText(cmdDef()) || 'むしょく'}）</p>` : ''}
-    <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
+    <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点 / ${advCap()}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(floorTitle(E.floors[E.idx], E.floor))}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
   </main>`;

@@ -845,19 +845,26 @@ export function pvp(g) {
       mine();
       ghostBegin(s, E);
       let atk = [];
+      // あいてが つかった カードは、メインの あとで 画面に 1まいずつ 見せる（human.foeShow。AI どうしの シミュレーションでは なし）
+      let from = s.logs.length;
       if (!s.over) AI.main(s, 1);
+      let to = s.logs.length;
       if (!s.over) E.combatStart(s);
       if (!s.over) {
         atk = AI.attack(s).filter((a) => a.t);
         if (atk.length) { E.L(s, `てきの こうげき：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
       }
       back();
+      await human.foeShow?.(s, from, to);
       if (!s.over && atk.length) await E.enemyAttack(s, atk.map((a) => a.p));
       if (s.over) return;
       mine();
+      from = s.logs.length;
       AI.main(s, 2);
+      to = s.logs.length;
       for (const p of [...s.P.bf]) if (E.onBf(s, p) && p.def.endStep) p.def.endStep(s, p, E);
       back();
+      await human.foeShow?.(s, from, to);
     },
     // ニクスの 嵐：じぶんの 10ターンめから、ターンの はじめに ライフを 1・2・3…と 失う（長びかない ように）
     playerUpkeep(s, E) { nyxStorm(s, E); },

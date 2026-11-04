@@ -811,6 +811,7 @@ export async function reveal(s, n) {
 
 export async function enemyCast(s, c) {
   L(s, `てき：${c.def.name} を 公開した`);
+  (s.foeCards ||= []).push({ def: c.def, at: s.logs.length }); // てきの ターンの まとめに 出す（battle.js）
   for (const q of [...s.P.bf]) if (q.def.onAnyCast) q.def.onAnyCast(s, q, c.def, 'E', api);
   await s.ai.revealed?.(s, c);
   if (await s.ai.counter(s, c)) { s.E.gy.push(c); L(s, '打ち消した'); return; }
