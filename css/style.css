@@ -25,7 +25,7 @@
 [hidden] { display: none !important; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--table); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
-#app { height: 100%; box-sizing: border-box; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 760px; margin: 0 auto; }
+#app { height: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 760px; margin: 0 auto; }
 button { font: inherit; color: inherit; }
 button:focus-visible, input:focus-visible + span { outline: 3px solid var(--gold); outline-offset: 2px; }
 rt { font-size: 0.55em; }
@@ -1151,6 +1151,7 @@ div.zk-card { cursor: default; }
 .story { min-height: 100%; display: flex; flex-direction: column; gap: 14px; padding-block: 20px; max-width: 640px; }
 .story h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 7vw, 36px); color: var(--gold-text); }
 .st-note { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
+.st-steps { margin: 0; padding-left: 1.6em; font-size: 14px; line-height: 1.9; } /* ホーム画面に 追加する やりかた（iPhone の ぜんがめんの かわり） */
 .st-ch { background: var(--table-2); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .st-ch h3 { margin: 0; font-size: 15px; display: flex; flex-direction: column; gap: 2px; }
 .st-guide { font-size: 11px; font-weight: 500; color: var(--gold-text); }
