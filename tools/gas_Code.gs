@@ -32,7 +32,7 @@ var BUILT = /*BUILT*/0;          // この Code.gs と index.html を つくっ�
 var SERVER_VER = /*SERVER*/'';   // サーバーの しくみの 版（tools/gas_Code.gs の ハッシュ）。ゲーム本体と あって いないと 最新に できない
 var NAME_A = 20, NAME_B = 20; // なまえの 定型語の 数（js/ui/online.js の NAME_A・NAME_B）
 var CODE_C = 10;              // あいことばの 3つめの ことば（かず）の 数
-var DECK_SIZE = 20, CAPACITY = 30;
+var DECK_SIZE = 20, CAPACITY = 30, CAP_MAX = 40; // とうの キャパシティは 1階ごとに ＋2（5階 38点・ストリクスヘイヴンの 6階 40点）。ゴーストは CAP_MAX まで
 var POINTS = { w: 2, d: 1, l: -1 };  // デッキの 点：かち・ひきわけ・まけ
 var RANK_SIZE = 20;                 // ランキングに のせる 数
 var JST = 9 * 3600 * 1000;
@@ -195,7 +195,7 @@ function checkDeck_(d) {
     count[d[i]] = (count[d[i]] || 0) + 1;
     if (c[0] > 0 && count[d[i]] > 8) throw new Error('おなじ カードが おおすぎる');
   }
-  if (pts > CAPACITY) throw new Error('点数が おおすぎる');
+  if (pts > CAP_MAX) throw new Error('点数が おおすぎる'); // ゴーストの デッキ（とうの 上の 階ほど 点が ふえる）
   var cs = Object.keys(colors);
   if (cs.length > 2 && !(banner && cs.length <= 3 && cs.every(function (k) { return banner.indexOf(k) >= 0; }))) throw new Error('色が おおすぎる');
   return d.map(String);

@@ -1,6 +1,6 @@
 // こうちくモード（docs/CONSTRUCTED.md）：パックけんで ショップの パックを あけて カードを あつめ、デッキを くむ
 // 冒険（ローグライク）とは べつ。ここの カード・デッキは 冒険には もちこまない
-// デッキの ルール：ノーマル（とうと 同じ 20まい・30点・2色）／エターナル（キャパシティと 色の 制限なし）と、
+// デッキの ルール：ノーマル（とうの 1階と 同じ 20まい・30点・2色）／エターナル（キャパシティと 色の 制限なし）と、
 // それぞれの 統率者（統率者の 色だけ。統率者は とうそつりょういき）、みならい（1年生の カードプール だけ。もって いなくても つかえる）。
 // どれも 同じ カードは 4まいまで。統率者の ルールと、まだ ひらいて いない せかい・むずかしさ（れんしゅう）は、ひらくまで 出さない（unlock.js）
 import { SETS, BY_ID, BASICS } from '../data/cards.js';
@@ -131,7 +131,7 @@ async function buy(x) {
 
 // ---- デッキ ----
 const RULE_NOTE = {
-  normal: 'とうと 同じ（20まい・30点・2色まで）',
+  normal: 'とうの 1階と 同じ（20まい・30点・2色まで）',
   eternal: '点と 色の せいげんが ない',
   normalCmd: '統率者（とうそつしゃ）の 色だけ・30点',
   eternalCmd: '統率者（とうそつしゃ）の 色だけ・点の せいげん なし',
@@ -142,7 +142,7 @@ function deckList() {
   const full = list.length >= DECK_MAX;
   app().innerHTML = `<main class="zukan construct">
     <h2>デッキ</h2>
-    <p class="zk-note">${ruby(`ノーマル：とうと 同じ（20まい・30点・2色まで）。エターナル：点と 色の せいげんが ない。${cmdOpen() ? '統率者（とうそつしゃ）：伝説（でんせつ）の クリーチャーを 統率者（とうそつしゃ）に して、その 色の カードだけ。' : ''}${KIHON_RULE}：みならいの しけんの カード（ルールと 漢字の かんたんな ${POOL1.length}しゅるい）から えらぶ（ノーマルと 同じ 30点・2色。もって いなくても ${MAX_COPY}まいずつ つかえる）。どれも 同じ カードは ${MAX_COPY}まいまで（きほんカードは のぞく）。`)}</p>
+    <p class="zk-note">${ruby(`ノーマル：とうの 1階と 同じ（20まい・30点・2色まで）。エターナル：点と 色の せいげんが ない。${cmdOpen() ? '統率者（とうそつしゃ）：伝説（でんせつ）の クリーチャーを 統率者（とうそつしゃ）に して、その 色の カードだけ。' : ''}${KIHON_RULE}：みならいの しけんの カード（ルールと 漢字の かんたんな ${POOL1.length}しゅるい）から えらぶ（ノーマルと 同じ 30点・2色。もって いなくても ${MAX_COPY}まいずつ つかえる）。どれも 同じ カードは ${MAX_COPY}まいまで（きほんカードは のぞく）。`)}</p>
     ${list.length ? `<ul class="cs-decks">${list.map((d) => { const miss = missing(d); return `<li><button type="button" class="cs-deck" data-deck="${esc(d.id)}">
       <span class="cs-rule r-${d.rule}">${ruby(RULES[d.rule])}</span><b>${ruby(deckName(d))}</b>
       ${d.cmd && BY_ID[d.cmd] ? `<span class="cs-cmd">${ruby(`統率者（とうそつしゃ）：${info(BY_ID[d.cmd]).name}`)}</span>` : ''}

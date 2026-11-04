@@ -13,6 +13,10 @@ bindEngine(api);
 
 export const DECK_SIZE = 20;
 export const CAPACITY = 30;
+// とうの キャパシティ（2026-11-04。ユーザーが きめた）：1階 のぼる ごとに ＋2（1階 30点 → 5階 38点。ストリクスヘイヴンの 6階は 40点）。
+// i：いまの 階（0から）、n：とうの 階の 数（むげんの とうは さいごの 階の まま）。シミュレーション（AI 200回）：クリア 57% → 60%（ずっと 30点と くらべて）
+export const CAP_STEP = 2;
+export const capAt = (i, n = 5) => CAPACITY + CAP_STEP * Math.max(0, Math.min(i, n - 1));
 export const PACK = { C: 4, U: 3, R: 1, legendFromRare: 1 / 8, legendFromCommon: 1 / 20 };
 
 const poolOf = (list) => Object.fromEntries(['C', 'U', 'R', 'L'].map((r) => [r, list.filter((d) => d.rar === r)]));
@@ -167,8 +171,9 @@ export async function runAdventure(o = {}) {
   const em = pk ? { ...pk, colors: [...pk.colors, ...(pk.rand ? [pick(rng, packColors(o.sets))] : [])] } : undefined;
   if (pk?.banner) pool.push(BY_ID[pk.banner]);
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets, em }));
-  let b = buildDeck(pool, o);
   const floors = o.floors || (o.plane === 'ravnica' ? pickRavnica : pickFloors)(rng);
+  const capOf = (i) => o.capacity ?? capAt(i, floors.length); // o.capacity：ずっと その 点数（しらべ用）
+  let b = buildDeck(pool, { ...o, capacity: capOf(0) });
   let continues = o.continues ?? 1;
   const log = { floors: [], cleared: false, decks: [] };
   for (let i = 0; i < floors.length; i++) {
@@ -182,7 +187,7 @@ export async function runAdventure(o = {}) {
       log.lostAt = i + 1;
       return log;
     }
-    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? { sets: o.sets, em } : { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, o); }
+    if (i < 4) { pool.push(...openPack(rng, o.flatPacks ? { sets: o.sets, em } : { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, { ...o, capacity: capOf(i + 1) }); }
   }
   log.cleared = true;
   return log;
@@ -201,8 +206,9 @@ export async function runStrix(o = {}) {
   const pool = [].concat(C.gift).map((id) => BY_ID[id]);
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets, em, only }));
   const bo = { ...o, pair: only };
-  let b = buildDeck(pool, bo);
   const floors = o.floors || pickStrix(rng);
+  const capOf = (i) => o.capacity ?? capAt(i, floors.length);
+  let b = buildDeck(pool, { ...bo, capacity: capOf(0) });
   const grow = {}, healAt = o.healAt ?? 18, packMax = o.packs ?? 2;
   const diff = o.diff || 'normal';
   const cap = byDiff(STRIX.life, diff) + (o.emblem?.life || 0); // ライフは はじめの 数より ふえない
@@ -223,11 +229,12 @@ export async function runStrix(o = {}) {
     if (i === floors.length - 1) break;
     // 休み時間
     if (life <= healAt) { life = Math.min(cap, life + byDiff(STRIX.heal, diff)); log.rests.heal++; }
-    else if (log.rests.pack < packMax) { pool.push(...openPack(rng, { cleared: i + 1, sets, em, only })); b = buildDeck(pool, bo); log.rests.pack++; }
+    else if (log.rests.pack < packMax) { pool.push(...openPack(rng, { cleared: i + 1, sets, em, only })); log.rests.pack++; }
     else {
       const t = b.deck.filter((d) => !d.basic).sort((x, y) => (y.types.includes('creature') - x.types.includes('creature')) || cardValue(y) - cardValue(x))[0];
       if (t) { grow[t.id] = (grow[t.id] || 0) + 1; log.rests.grow++; }
     }
+    b = buildDeck(pool, { ...bo, capacity: capOf(i + 1) }); // つぎの 階の キャパシティで くみなおす
   }
   log.cleared = true;
   return log;
@@ -242,7 +249,8 @@ export async function runEndless(o = {}) {
   const em = pk ? { ...pk, colors: [...pk.colors, ...(pk.rand ? [pick(rng, packColors(o.sets))] : [])] } : undefined;
   const pool = pk?.banner ? [BY_ID[pk.banner]] : [];
   for (let i = 0; i < 3; i++) pool.push(...openPack(rng, { sets: o.sets, em }));
-  let b = buildDeck(pool, o);
+  const capOf = (i) => o.capacity ?? capAt(i); // むげんの とうは 5階の まま
+  let b = buildDeck(pool, { ...o, capacity: capOf(0) });
   const pickF = o.plane === 'ravnica' ? pickRavnica : pickFloors;
   let continues = o.continues ?? 1, floor = 1, lap = 0, exactBank = 0;
   const have = {};
@@ -257,12 +265,12 @@ export async function runEndless(o = {}) {
         if (continues > 0) { continues--; continue; }
         return { floor, lap, have, cleared: lap > 0 };
       }
-      if (!lap && i < 4) { pool.push(...openPack(rng, { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, o); }
+      if (!lap && i < 4) { pool.push(...openPack(rng, { cleared: i + 1, favor: favorColor(b.deck), sets: o.sets, em })); b = buildDeck(pool, { ...o, capacity: capOf(i + 1) }); }
       else if (lap) {
         // ごほうびパック 1つ（5階ごとの 休けい所は 祝福か もう 1パック）
         pool.push(...openPack(rng, { cleared: 5, favor: favorColor(b.deck), sets: o.sets, em }));
         if (floor % ENDLESS.rest === 0) { if (rng() < 0.5) bless(); else pool.push(...openPack(rng, { cleared: 5, sets: o.sets, em })); }
-        b = buildDeck(pool, o);
+        b = buildDeck(pool, { ...o, capacity: capOf(99) });
       }
     }
   }
