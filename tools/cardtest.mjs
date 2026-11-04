@@ -29,6 +29,7 @@ const HOOKS = [
   [/(?<!次の ?)ターンの ?はじめに(?! ?アンタップしない)|アップキープ/, ['upkeep', 'onUpkeep', 'onTurn', 'growUp']],
   [/ターンの おわりに|終了ステップ/, ['endStep', 'onEnd', 'endTurn']],
   [/唱えるたび/, ['onCast', 'onAnyCast', 'magecraft', 'onSpell', 'copyAll', 'extort']],
+  [/連携スキル/, ['chain']], // ゼンゼロ：ブレイクの あと（game.js の useBreak → def.chain）
 ];
 const out = { err: [], kw: [], hook: [], noCast: [], pt: [], num: [], lore: [] };
 const fill = (ids) => ids.map((id) => BY_ID[id]);

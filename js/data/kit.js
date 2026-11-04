@@ -84,7 +84,7 @@ export const saga = (chs) => ({
   saga: chs, tgt: chs[0].tgt,
   etb: (s, p, E, o) => sagaStep(s, p, E, o.chosen),
   upkeep: (s, p, E) => sagaStep(s, p, E, undefined, true),
-  onProliferate: (s, p, E) => { if (p.lore > 0) sagaStep(s, p, E); }, // 増殖：伝承カウンターが ふえて つぎの 章
+  onProliferate: (s, p, E) => { if (p.lore > 0 && p.lore < p.def.saga.length) sagaStep(s, p, E); }, // 増殖：伝承カウンターが ふえて つぎの 章（さいごの 章が おわって 墓地へ いく まえ（AI の 章が まち）は ふやさない）
 });
 export function sagaStep(s, p, E, chosen, upkeep = false) {
   p.lore = (p.lore || 0) + 1;

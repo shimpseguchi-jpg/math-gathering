@@ -714,7 +714,7 @@ async function action(a) {
   if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどす${reshuffleCost(s.P, true) ? `（ライフ −${reshuffleCost(s.P, true)}）` : ''}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
   if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
   if (a === 'egy') return sheet(pileList(s.E.gy, s.floor.id !== 'pvp'), [{ label: 'とじる', value: 0 }], { title: `${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ぼち（${s.E.gy.length}まい）` });
-  if (a === 'mana') return sheet(`<div class="mana-list">${s.P.mana.map((m) => `<span class="mchip ${colorsOf(m.def)[0] ? `m-${colorsOf(m.def).join('')}` : 'm-C'} ${m.tapped ? 'used' : ''}">${ruby(info(m.def).name)}</span>`).join('')}</div>`, [{ label: 'とじる', value: 0 }], { title: `マナゾーン（${s.P.mana.filter((m) => !m.tapped).length}/${s.P.mana.length} 使える）` });
+  if (a === 'mana') return sheet(`<p class="pile-note">${ruby('カードを タップすると くわしい せつめいが 見られる')}</p><div class="mana-list">${s.P.mana.map((m) => `<button type="button" class="mchip ${colorsOf(m.def)[0] ? `m-${colorsOf(m.def).join('')}` : 'm-C'} ${m.tapped ? 'used' : ''}" ${peekAttr(m.def)}>${ruby(info(m.def).name)}</button>`).join('')}</div>`, [{ label: 'とじる', value: 0 }], { title: `マナゾーン（${s.P.mana.filter((m) => !m.tapped).length}/${s.P.mana.length} 使える）` });
   if (a === 'log') return sheet(`<ol class="elog">${s.logs.slice(-40).map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>`, [{ label: 'とじる', value: 0 }], { title: 'これまでの できごと' });
 }
 
@@ -916,10 +916,10 @@ async function showBreak() {
   } else { await chainPicks(s); useBreak(s, 'all'); }
   if (!checkOver()) render();
 }
-// 連携スキル（ゼンゼロ 第2弾）：ブレイクの まえに、だれと 連携するか（2人 いじょう いる とき）と、レア・レジェンドは ねらう 相手を えらんで おく（data/set16.js の chain が q.chainMate・q.trigPick を つかう）
+// 連携スキル（ゼンゼロ）：ブレイクの まえに、だれと 連携するか（2人 いじょう いる とき）と、レア・レジェンドは ねらう 相手を えらんで おく（data/set12.js の chain が q.chainMate・q.trigPick を つかう。あいてと おきるかは def.chainMates・def.chainOn ＝ AI と おなじ）
 async function chainPicks(s) {
-  for (const q of s.P.bf.filter((p) => p.def.chain)) {
-    const ms = s.P.bf.filter((x) => x !== q && isCreature(x) && x.def.legend), a = Math.max(0, power(s, q)), b = (m) => Math.max(0, power(s, m));
+  for (const q of s.P.bf.filter((p) => p.def.chain && p.def.chainOn(s, p, api))) {
+    const ms = q.def.chainMates(s, q, api), a = Math.max(0, power(s, q)), b = (m) => Math.max(0, power(s, m));
     q.chainMate = ms.length > 1 ? await sheet(`<p>${ruby(`${nmText(q)}の 連携（れんけい）スキル：だれと 連携（れんけい）する？ 2人の パワーを たした 数で こうかが おきる。`)}</p>`,
       ms.map((m) => ({ label: `${nm(q)} ${a} ＋ ${nm(m)} ${b(m)} ＝ ${a + b(m)}`, value: m, kind: 'primary' })), { title: ruby('連携（れんけい）スキル'), dismiss: false }) : ms[0] || null;
     const spec = !pickOf(q.def) && q.def.chainTgt?.(a + (q.chainMate ? b(q.chainMate) : 0));
@@ -1338,8 +1338,22 @@ function pileList(cards, enemy = false, ok = new Set()) { // ok：いま とな�
   for (const c of cards) { const g = groups.get(c.def.id ?? c.def.name); if (g) g.n++; else groups.set(c.def.id ?? c.def.name, { def: c.def, n: 1 }); }
   const list = [...groups.values()].sort((a, b) => byColorCost(a.def, b.def));
   if (!list.length) return '<p>からっぽ</p>';
-  return `<div class="mini-list">${list.map(({ def, n }) => `<div class="ml-item ${ok.has(def.id) ? 'ok' : ''}">${cardFace(def, { enemy })}${n > 1 ? `<b class="ml-n">×${n}</b>` : ''}</div>`).join('')}</div>`;
+  return `<p class="pile-note">${ruby('カードを タップすると くわしい せつめいが 見られる')}</p><div class="mini-list">${list.map(({ def, n }) => `<button type="button" class="ml-item ${ok.has(def.id) ? 'ok' : ''}" ${peekAttr(def, enemy)}>${cardFace(def, { enemy })}${n > 1 ? `<b class="ml-n">×${n}</b>` : ''}</button>`).join('')}</div>`;
 }
+// マナゾーン・ぼち・やまふだの カード：タップで くわしい せつめい（2026-11-04）。シートの 中みを いれかえて、「もどる」で リストに もどす
+let PEEK = [];
+const peekAttr = (def, enemy = false) => { if (PEEK.length > 400) PEEK = []; return `data-peek="${PEEK.push({ def, enemy }) - 1}" aria-label="${esc(info(def).name)}の せつめいを 見る"`; };
+document.addEventListener('click', (e) => {
+  const sh = document.getElementById('sheet'), box = sh?.querySelector('.sheet-content');
+  if (!box || sh.hidden) return;
+  const back = e.target.closest('[data-peek-back]'), pk = !back && e.target.closest('[data-peek]');
+  if (!back && !pk) return;
+  e.stopPropagation();
+  if (back) { if (box.peekPrev != null) { box.innerHTML = box.peekPrev; box.peekPrev = null; box.scrollIntoView?.({ block: 'nearest' }); } return; }
+  const it = PEEK[+pk.dataset.peek]; if (!it) return;
+  box.peekPrev = box.innerHTML;
+  box.innerHTML = `<button type="button" class="btn peek-back" data-peek-back="1">← リストに もどる</button>${detail(it.def, { enemy: it.enemy })}`;
+}, true);
 
 function render() {
   if (B.left) return; // メニューへ もどった あと

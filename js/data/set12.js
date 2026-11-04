@@ -1,5 +1,6 @@
 // 番外編「ゼンレスゾーンゼロ」のうごき（名前・コスト・P/T は skel.js、文は docs/EXTRA.md 4章）
-// しくみは MTG の もの：ブレイク N（毒性。game.js の addBreak）・エネルギー（0〜10。s.P.bon）・交代（忍術）・終結スキル（召集）・増殖
+// しくみは MTG の もの：ブレイク N（毒性。game.js の addBreak。2026-11-04 に みんな ＋1 → 2〜4）・エネルギー（0〜10。s.P.bon）・交代（忍術）・終結スキル（召集）・増殖
+// 第2弾の 連携（れんけい）スキルも ここ（2026-11-04 から 第1弾・第2弾の エージェント みんなが もつ。set16.js も つかう）
 // 音動機・終結スキルの こうかは MTG に あって この ゲームに まだ ない カード
 import { mine, theirs, hit, foeBest, shrink, cr, foe1, bolt, killIt, exileIt, T } from './kit.js';
 
@@ -53,61 +54,165 @@ const TK = {
   knight: cr('t_knight22', '騎士（きし）', null, 'W', 0, 2, 2, ['knight'], ['vigilance']),
 };
 
+// ---- ねらう 道具（第2弾 set16.js でも つかう） ----
+const ok = (s, E, t) => t && t !== 'face' && E.onBf(s, t) && !s.floor.untargetable?.(s, t, E);
+// 敵の 本体に n 点（本体の ない 階では いちばん よい 相手）
+const faceHit = (s, E, n) => { if (s.floor.face) E.hitTarget(s, 'face', n, null); else E.hitEnemy(s, n, null); E.sba(s); };
+// クリーチャー src が t に n 点（src の 色で 紊乱が おきる。src が ない ときは 呪文と おなじ）。t が もう いなければ ねらいなおす
+function zap(s, E, src, t, n) {
+  if (t === 'face') { faceHit(s, E, n); return t; }
+  if (!t || !E.onBf(s, t)) { t = foeBest(s, E, n)?.t || biggest(s, E); if (!t) return null; }
+  E.target(s, t); E.damage(s, t, n, src || null); E.sba(s);
+  return t;
+}
+// レアリティで ねらう（コモン：ランダム、アンコモン：パワーが いちばん 大きい、レア・レジェンド：AI の えらび。人は さきに えらんで おく p.trigPick）
+function foeBy(s, E, q, f, best) {
+  const pk = E.takePick(s, q);
+  if (pk && pk !== 'face' && f(pk)) return pk;
+  const list = theirs(s, E).filter((t) => ok(s, E, t) && f(t));
+  if (!list.length) return null;
+  if (q.def.rar === 'C') return list[Math.floor(s.rng() * list.length)];
+  if (q.def.rar === 'U') return list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+  return best(list);
+}
+const byPow = (s, E) => (list) => list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+
+// ---- 連携（れんけい）スキル（第2弾で できた しくみ。2026-11-04 から 第1弾・第2弾の エージェント みんなが もつ。docs/EXTRA2_ZZ.md 2章） ----
+// ブレイクを つかった あと（game.js の useBreak → def.chain）。この クリーチャー ＋ ほかの エージェント 1体の パワー ＝ 連携の 数
+// あいて：ほかの エージェント（伝説の クリーチャー）。人は 画面で えらぶ（battle.js の chainPicks → q.chainMate）、AI は パワーが いちばん 大きい エージェント
+// CHAIN_SAME_COLOR.on：あいては おなじ 色を もつ エージェント だけ。いなければ 連携しない
+//                 off：あいては だれでも。いなければ この クリーチャーの パワーだけで おきる
+export const CHAIN_SAME_COLOR = { on: false };
+// 連携の あいてに えらべる エージェント（画面の chainPicks も def.chainMates で これを つかう）
+export const chainMates = (s, q, E) => s.P.bf.filter((x) => x !== q && isCre(x) && x.def.legend && (!CHAIN_SAME_COLOR.on || E.colorsOf(x.def).some((c) => E.colorsOf(q.def).includes(c))));
+// この クリーチャーの 連携スキルが おきるか
+export const chainOn = (s, q, E) => !CHAIN_SAME_COLOR.on || chainMates(s, q, E).length > 0;
+// f(s, q, E, 連携の 数, あいて)。tgt(n)：人が さきに えらぶ 対象（battle.js の chainPicks。null なら えらばない）
+const chainSkill = (f, tgt) => ({
+  chainTgt: tgt, chainMates, chainOn,
+  chain: (s, q, E) => {
+    if (!chainOn(s, q, E)) { s.stats.chainNo = (s.stats.chainNo || 0) + 1; E.L(s, `${q.def.name}：おなじ 色の エージェントが いないので 連携（れんけい）スキルは おきない`); return; }
+    const ms = chainMates(s, q, E);
+    const m = q.chainMate && ms.includes(q.chainMate) ? q.chainMate : ms.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+    q.chainMate = null;
+    const a = Math.max(0, E.power(s, q)), b = m ? Math.max(0, E.power(s, m)) : 0;
+    s.stats.chain = (s.stats.chain || 0) + 1;
+    E.L(s, `連携（れんけい）スキル：${q.def.name} ${a}${m ? ` ＋ ${m.def.name} ${b}` : ''} ＝ ${a + b}`);
+    f(s, q, E, a + b, m);
+    E.sba(s);
+  },
+});
+const powLE = (s, E, n) => (t) => E.power(s, t) <= n;
+const half = (n) => Math.floor(n / 2);
+// 連携の 数の 半分（あまりは すてる）。ログに わり算
+const halfLog = (s, E, n) => { const h = half(n); E.L(s, `連携（れんけい）の 数の 半分（はんぶん）：${n} ÷ 2 ＝ ${h}${n % 2 ? ' あまり 1' : ''}`); return h; };
+// 敵の クリーチャー1体に 連携の 数の ダメージ（over：たおすのに いる 数より 多い ぶんは 本体へ。葉瞬光）
+const dmgChain = (over = false) => chainSkill((s, q, E, n) => {
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, n, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  if (!t) return;
+  if (!over) { zap(s, E, q, t, n); return; }
+  const need = E.need(s, t), k = Math.min(n, need);
+  zap(s, E, q, t, k);
+  if (n > k) { E.L(s, `あまり ${n} − ${k} ＝ ${n - k}点は 本体へ`); faceHit(s, E, n - k); }
+}, () => ({ side: 'E', label: 'れんけいの 数の ダメージを あたえる てきの クリーチャー' }));
+const lifeChain = chainSkill((s, q, E, n) => { E.L(s, `ライフ ＋${n}`); E.gain(s, n); });
+const tapChain = chainSkill((s, q, E, n) => detain(s, E, foeBy(s, E, q, (t) => powLE(s, E, n)(t) && !t.frozen, byPow(s, E))),
+  (n) => ({ side: 'E', label: `タップする パワー ${n} いかの てきの クリーチャー`, filter: (s, E, p) => E.power(s, p) <= n }));
+const killChain = chainSkill((s, q, E, n) => killIt(s, E, foeBy(s, E, q, powLE(s, E, n), byPow(s, E))),
+  (n) => ({ side: 'E', label: `はかいする パワー ${n} いかの てきの クリーチャー`, filter: (s, E, p) => E.power(s, p) <= n }));
+// 2026-11-04 に みんなに たした 連携（色ごとの かた）。もとから ある 9まいより 小さく、みんな 連携の 数の 半分（あまりは すてる。わり算）
+// 白：あなたの クリーチャー1体は ターン終了時まで ＋半分/＋0（ブレイクは メインフェイズに つかう ので こうげきの まえ）。
+//   ライフに しなかった わけ：ライフは ボスの エレボス（ライフの けずりあい。1戦 7回 くらい 連携が おきる）で とても きく。
+//   第1弾だけの 冒険（`SETS=12`）が 連携の 数の ライフで 87%、半分の ライフで 83%、1回 1点 でも 77%（＋/＋0 なら 69%。2026-11-04）
+const pumpHalfChain = chainSkill((s, q, E, n) => {
+  const h = halfLog(s, E, n); if (!h) return;
+  const pk = E.takePick(s, q);
+  const t = pk && pk !== 'face' && pk.side === 'P' && E.onBf(s, pk) ? pk : E.bestBuffTarget(s, null, { ready: true }) || q;
+  if (!t || !E.onBf(s, t)) return;
+  E.target(s, t); E.L(s, `${t.def.name} は ＋${h}/＋0`); E.pump(t, h, 0);
+}, (n) => (half(n) ? { side: 'P', label: `＋${half(n)}/＋0 する あなたの クリーチャー（れんけいの 数の 半分）` } : null));
+// 青：パワーが 半分 いかの 敵の クリーチャー1体を タップ（つぎも おきない）
+const tapHalfChain = chainSkill((s, q, E, n) => { const h = halfLog(s, E, n); detain(s, E, foeBy(s, E, q, (t) => powLE(s, E, h)(t) && !t.frozen, byPow(s, E))); },
+  (n) => ({ side: 'E', label: `タップする パワー ${half(n)} いかの てきの クリーチャー（れんけいの 数の 半分）`, filter: (s, E, p) => E.power(s, p) <= half(n) }));
+// 黒：敵の クリーチャー1体に −半分/−半分（ターン終了時まで）
+const minusChain = chainSkill((s, q, E, n) => {
+  const h = halfLog(s, E, n); if (!h) return;
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  if (!t) return;
+  E.target(s, t); E.L(s, `${t.def.name} は −${h}/−${h}`); shrink(s, E, t, h);
+}, (n) => (half(n) ? { side: 'E', label: `−${half(n)}/−${half(n)} する てきの クリーチャー（れんけいの 数の 半分）` } : null));
+// 赤：敵の クリーチャー1体に 半分の ダメージ（この クリーチャーが あたえる ので 紊乱も おきる）
+const halfDmgChain = chainSkill((s, q, E, n) => {
+  const h = halfLog(s, E, n); if (!h) return;
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  if (t) zap(s, E, q, t, h);
+}, (n) => (half(n) ? { side: 'E', label: `${half(n)}点を あたえる てきの クリーチャー（れんけいの 数の 半分）` } : null));
+// 緑：あなたの クリーチャー1体に ＋1/＋1カウンターを 半分の 数（人は レア・レジェンドで えらぶ。ほかは AI と おなじ）
+const ctrChain = chainSkill((s, q, E, n) => {
+  const h = halfLog(s, E, n); if (!h) return;
+  const pk = E.takePick(s, q);
+  const t = pk && pk !== 'face' && pk.side === 'P' && E.onBf(s, pk) ? pk : E.bestBuffTarget(s, null) || q;
+  if (!t || !E.onBf(s, t)) return;
+  E.target(s, t); E.L(s, `${t.def.name} に ＋1/＋1カウンター ${h}こ`); E.addCounters(s, t, h);
+}, (n) => (half(n) ? { side: 'P', label: `＋1/＋1カウンターを ${half(n)}こ おく あなたの クリーチャー（れんけいの 数の 半分）` } : null));
+// 色 → 2026-11-04 の 連携（どれも 連携の 数の 半分。白：＋/＋0、青：パワー いかを タップ、黒：−/−、赤：ダメージ、緑：＋1/＋1カウンター）
+const CHAIN = { W: pumpHalfChain, U: tapHalfChain, K: minusChain, R: halfDmgChain, G: ctrChain };
+
 export const S12 = {
   // ---- エージェント ----
-  ZZ01: { brk: 2, onAttack: atkBon(1) },
-  ZZ02: { brk: 1, etb: etbBon(2), acts: [bonAct(3, {
+  ZZ01: { brk: 3, onAttack: atkBon(1) },
+  ZZ02: { brk: 2, etb: etbBon(2), acts: [bonAct(3, {
     label: 'エネルギー 3：てきの クリーチャーに −1/−1カウンター 2こ',
     play: (s, p, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); return b ? { score: 4 + Math.min(3, E.power(s, b.t)), run: () => E.addMinus(s, b.t, 2) } : null; },
     tgt: [{ side: 'E', label: '−1/−1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addMinus(s, t, 2); },
   })] },
-  ZZ03: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 3) E.pump(p, 2, 0); } },
-  ZZ04: { brk: 1, ...ninjutsu(1, ['G']) },
-  ZZ05: { brk: 2, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => biggest(s, E, (t) => !t.frozen)), ...ninjutsu(2, ['U']) },
-  ZZ06: { brk: 2, trigTgt: { on: 'attack', label: 'タップする てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, E.takePick(s, p) || biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
-  ZZ07: { brk: 1, etb: etbBon(2), acts: [bonAct(2, {
+  ZZ03: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 3) E.pump(p, 2, 0); } },
+  ZZ04: { brk: 2, ...ninjutsu(1, ['G']) },
+  ZZ05: { brk: 3, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => biggest(s, E, (t) => !t.frozen)), ...ninjutsu(2, ['U']) },
+  ZZ06: { brk: 3, trigTgt: { on: 'attack', label: 'タップする てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, E.takePick(s, p) || biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
+  ZZ07: { brk: 2, etb: etbBon(2), acts: [bonAct(2, {
     label: 'エネルギー 2：クリーチャー1体 ＋1/＋1',
     play: (s, p, E, ctx) => { if (ctx.phase !== 1) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && canSwing(s, E, t) ? { score: 3, run: () => E.pump(t, 1, 1) } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1 する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 1, 1); },
   })] },
-  ZZ08: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P') E.addCounters(s, p, 1); } },
-  ZZ09: { brk: 2, etb: etbBon(1), anthem: lord('白祇重工', 1, 0) },
-  ZZ10: { brk: 1, etb: prolif },
-  ZZ11: { brk: 1, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
-  ZZ12: { brk: 1, allyDmgLess: 1 },
-  ZZ13: { brk: 3, trigTgt: { on: 'attack', label: '2点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
-  ZZ14: { brk: 1, ...ninjutsu(1, ['W']) },
-  ZZ15: { brk: 2, etb: prolif },
-  ZZ16: { brk: 1, anthem: lord(null, 1, 0) },
-  ZZ17: { brk: 2, trigTgt: { on: 'attack', label: '1点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
-  ZZ18: { brk: 2, onAttack: atkBon(1) },
-  ZZ19: { brk: 2, ...ninjutsu(1, ['G']) },
-  ZZ20: { brk: 1, etb: etbBon(2), onBlock: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); }, acts: [bonAct(2, {
+  ZZ08: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P') E.addCounters(s, p, 1); } },
+  ZZ09: { brk: 3, etb: etbBon(1), anthem: lord('白祇重工', 1, 0) },
+  ZZ10: { brk: 2, etb: prolif },
+  ZZ11: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
+  ZZ12: { brk: 2, allyDmgLess: 1 },
+  ZZ13: { brk: 4, trigTgt: { on: 'attack', label: '2点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  ZZ14: { brk: 2, ...ninjutsu(1, ['W']) },
+  ZZ15: { brk: 3, etb: prolif },
+  ZZ16: { brk: 2, anthem: lord(null, 1, 0) },
+  ZZ17: { brk: 3, trigTgt: { on: 'attack', label: '1点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
+  ZZ18: { brk: 3, onAttack: atkBon(1) },
+  ZZ19: { brk: 3, ...ninjutsu(1, ['G']) },
+  ZZ20: { brk: 2, etb: etbBon(2), onBlock: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); }, acts: [bonAct(2, {
     label: 'エネルギー 2：つぎの てきの ターン、1体は ダメージを うけない',
     play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== s.turn + 1 ? { score: 2, run: () => { t.shieldT = s.turn + 1; } } : null; },
     tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = s.turn + 1; E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
   })] },
-  ZZ21: { brk: 1, anthem: lord('カリュドーンの子', 1, 1) },
-  ZZ22: { brk: 2, onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const t of [...theirs(s, E)]) E.damage(s, t, 1, p); E.sba(s); } },
-  ZZ23: { brk: 1, onAttack: atkBon(1) },
-  ZZ24: { brk: 1, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
-  ZZ25: { brk: 2 },
-  ZZ26: { brk: 2, ...ninjutsu(2, ['R']), trigTgt: { on: 'hit', label: '2点を あたえる てきの クリーチャー' }, onFaceHit: (s, p, E) => { const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
-  ZZ27: { brk: 1, etb: etbBon(2), acts: [bonAct(3, {
+  ZZ21: { brk: 2, anthem: lord('カリュドーンの子', 1, 1) },
+  ZZ22: { brk: 3, onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const t of [...theirs(s, E)]) E.damage(s, t, 1, p); E.sba(s); } },
+  ZZ23: { brk: 2, onAttack: atkBon(1) },
+  ZZ24: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
+  ZZ25: { brk: 3 },
+  ZZ26: { brk: 3, ...ninjutsu(2, ['R']), trigTgt: { on: 'hit', label: '2点を あたえる てきの クリーチャー' }, onFaceHit: (s, p, E) => { const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  ZZ27: { brk: 2, etb: etbBon(2), acts: [bonAct(3, {
     label: 'エネルギー 3：みんな ＋1/＋1',
     play: (s, p, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 5, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 1); } } : null),
   })] },
-  ZZ28: { brk: 1 },
+  ZZ28: { brk: 2 },
   // ---- モブ ----
   ZZ30: { etb: etbBon(1) },
   ZZ29: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } },
   ZZ31: etbFoe('−2/−2 する てきの クリーチャー', (s, E, t) => { E.pump(t, -2, -2); E.L(s, `${t.def.name} は −2/−2`); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)),
-  ZZ33: { brk: 1, onDie: (s, p, E) => { if (p.side !== 'P') return; const t = biggest(s, E); if (t) E.addMinus(s, t, 1); } },
+  ZZ33: { brk: 2, onDie: (s, p, E) => { if (p.side !== 'P') return; const t = biggest(s, E); if (t) E.addMinus(s, t, 1); } },
   ZZ34: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 1); } },
   ZZ35: { onDie: (s, p, E) => { if (p.side === 'P') E.addBreak(s, 1); } },
-  ZZ36: { brk: 2, ...etbFoe('−1/−1カウンターを 2こ 置（お）く てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 2); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)) },
+  ZZ36: { brk: 3, ...etbFoe('−1/−1カウンターを 2こ 置（お）く てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 2); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)) },
   ZZ37: { etb: etbBon(1) },
-  ZZ39: { brk: 1 },
+  ZZ39: { brk: 2 },
   ZZ41: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } },
   ZZ42: { tgt: [{ side: 'P', min: 0, label: '＋1/＋1カウンターを 置（お）く クリーチャー' }], etb: (s, p, E, o) => { if (p.side !== 'P') return; const c = o?.chosen ? o.chosen[0]?.[0] : (E.bestBuffTarget(s, null) || p); if (c && E.onBf(s, c)) E.addCounters(s, c, 1); } },
   ZZ43: { acts: [bonAct(2, {
@@ -217,5 +322,15 @@ export const S12 = {
 // レア・レジェンドの エージェントは みんな 交代を もつ（コスト − 2。2より 下には ならない）。統率者なら 統率領域からも 交代できる
 const SWAP = { ZZ01: [2, 'W'], ZZ02: [2, 'K'], ZZ03: [2, 'G'], ZZ06: [2, 'U'], ZZ09: [2, 'R'], ZZ13: [3, 'U'], ZZ15: [2, 'W'], ZZ17: [2, 'K'], ZZ18: [2, 'W'], ZZ20: [2, 'W'], ZZ21: [2, 'G'], ZZ22: [2, 'R'], ZZ28: [2, 'R'] };
 for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, [k]); S12[id] = { ...nj, ...S12[id] }; } // AI は ふつうに 出せる なら ふつうに 出す（マナが たりない ときに 交代）
+// エージェントは みんな 連携スキルを もつ（2026-11-04。色の かた CHAIN。第2弾の set16.js も おなじ）
+export const chainAll = (S, byColor) => { for (const [c, ids] of Object.entries(byColor)) for (const id of ids) S[id] = { ...S[id], ...CHAIN[c] }; };
+chainAll(S12, {
+  W: ['ZZ01', 'ZZ07', 'ZZ10', 'ZZ11', 'ZZ14', 'ZZ15', 'ZZ18', 'ZZ20'],
+  U: ['ZZ05', 'ZZ06', 'ZZ13', 'ZZ16'],
+  K: ['ZZ02', 'ZZ17', 'ZZ27'],
+  R: ['ZZ09', 'ZZ12', 'ZZ22', 'ZZ24', 'ZZ25', 'ZZ26', 'ZZ28'],
+  G: ['ZZ03', 'ZZ04', 'ZZ08', 'ZZ19', 'ZZ21', 'ZZ23'],
+});
 // 第2弾（set16.js）でも つかう 道具
 export { ninjutsu, canSwing, biggest, detain, foeThreat, isCre, hasSub, bonAct, etbBon, atkBon, selfPump, etbFoe, lord, wipeValue, left, pair, ULT, TK };
+export { ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain };
