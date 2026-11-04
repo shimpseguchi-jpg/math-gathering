@@ -1,11 +1,12 @@
 // 番外編「ゼンレスゾーンゼロ 第2弾」のうごき（名前・コスト・P/T は skel.js、文は docs/EXTRA2_ZZ.md）
 // 第1弾（set12.js）の しくみ（ブレイク・エネルギー・交代・終結スキル）に、新しい しくみ 2つ：
-//   連携（れんけい）スキル：ブレイクを つかった あと（game.js の useBreak → def.chain）。この クリーチャー ＋ ほかの エージェント 1体の パワー ＝ 連携の 数
+//   連携（れんけい）スキル：ブレイクを つかった あと（game.js の useBreak → def.chain）。この クリーチャー ＋ ほかの エージェント 1体の パワー ＝ 連携の 数（道具は set12.js）
 //   属性異常 → 紊乱（びんらん）：敵の クリーチャーに 色の 異常（p.anom）。ちがう 色の あなたの クリーチャーが ダメージ → 2倍（game.js の damage）
 import { mine, theirs, hit, foeBest, cr, foe1, killIt, exileIt, dig, food, aura, isCr, T } from './kit.js';
 import { PICK_FREE } from '../engine/game.js';
 import {
   bonOf, addBon, ninjutsu, canSwing, biggest, detain, isCre, hasSub, bonAct, etbBon, selfPump, etbFoe, left, pair, ULT, TK,
+  ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain, chainAll,
 } from './set12.js';
 
 PICK_FREE.add('ZZ149'); // 格闘（狸の 七変化）：コモンでも あいては じぶんで えらぶ（ランダムだと つよい てきに あたって そんする）
@@ -16,61 +17,9 @@ const TK2 = {
   tiger: cr('t_tiger', '虎（とら）', null, 'R', 0, 2, 2, ['tiger']),
   bird: cr('t_birdU', '鳥（とり）', null, 'U', 0, 1, 1, ['bird'], ['flying'], { attacks: true }),
 };
-const ok = (s, E, t) => t && t !== 'face' && E.onBf(s, t) && !s.floor.untargetable?.(s, t, E);
-// クリーチャー src が t に n 点（src の 色で 紊乱が おきる。src が ない ときは 呪文と おなじ）。t が もう いなければ ねらいなおす
-function zap(s, E, src, t, n) {
-  if (t === 'face') { faceHit(s, E, n); return t; }
-  if (!t || !E.onBf(s, t)) { t = foeBest(s, E, n)?.t || biggest(s, E); if (!t) return null; }
-  E.target(s, t); E.damage(s, t, n, src || null); E.sba(s);
-  return t;
-}
 // 敵の クリーチャーを ライブラリーの 一番下へ（てふだの ない 敵。手札の ある あいて（オンライン）は 手札へ）
 const tuck = (s, E, t) => { if (t && E.onBf(s, t)) E.leave(s, t, s[t.side].hand ? 'hand' : 'bottom'); };
-// 敵の 本体に n 点（本体の ない 階では いちばん よい 相手）
-const faceHit = (s, E, n) => { if (s.floor.face) E.hitTarget(s, 'face', n, null); else E.hitEnemy(s, n, null); E.sba(s); };
-// レアリティで ねらう（コモン：ランダム、アンコモン：パワーが いちばん 大きい、レア・レジェンド：AI の えらび。人は さきに えらんで おく p.trigPick）
-function foeBy(s, E, q, f, best) {
-  const pk = E.takePick(s, q);
-  if (pk && pk !== 'face' && f(pk)) return pk;
-  const list = theirs(s, E).filter((t) => ok(s, E, t) && f(t));
-  if (!list.length) return null;
-  if (q.def.rar === 'C') return list[Math.floor(s.rng() * list.length)];
-  if (q.def.rar === 'U') return list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
-  return best(list);
-}
-const byPow = (s, E) => (list) => list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
-
-// ---- 連携スキル ----
-// あいて：ほかの エージェント（伝説の クリーチャー）。人は 画面で えらぶ（q.chainMate）、AI は パワーが いちばん 大きい エージェント
-const chainMates = (s, q) => s.P.bf.filter((x) => x !== q && isCre(x) && x.def.legend);
-const chainSkill = (f, tgt) => ({
-  chainTgt: tgt, // 人が さきに えらぶ 対象（n ＝ 連携の 数）。battle.js の showBreak
-  chain: (s, q, E) => {
-    const ms = chainMates(s, q);
-    const m = q.chainMate && ms.includes(q.chainMate) ? q.chainMate : ms.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
-    q.chainMate = null;
-    const a = Math.max(0, E.power(s, q)), b = m ? Math.max(0, E.power(s, m)) : 0;
-    s.stats.chain = (s.stats.chain || 0) + 1;
-    E.L(s, `連携（れんけい）スキル：${q.def.name} ${a}${m ? ` ＋ ${m.def.name} ${b}` : ''} ＝ ${a + b}`);
-    f(s, q, E, a + b, m);
-    E.sba(s);
-  },
-});
-// 敵の クリーチャー1体に 連携の 数の ダメージ（over：たおすのに いる 数より 多い ぶんは 本体へ。葉瞬光）
-const dmgChain = (over = false) => chainSkill((s, q, E, n) => {
-  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, n, (p) => list.includes(p))?.t || byPow(s, E)(list));
-  if (!t) return;
-  if (!over) { zap(s, E, q, t, n); return; }
-  const need = E.need(s, t), k = Math.min(n, need);
-  zap(s, E, q, t, k);
-  if (n > k) { E.L(s, `あまり ${n} − ${k} ＝ ${n - k}点は 本体へ`); faceHit(s, E, n - k); }
-}, () => ({ side: 'E', label: 'れんけいの 数の ダメージを あたえる てきの クリーチャー' }));
-const lifeChain = chainSkill((s, q, E, n) => { E.L(s, `ライフ ＋${n}`); E.gain(s, n); });
-const powLE = (s, E, n) => (t) => E.power(s, t) <= n;
-const tapChain = chainSkill((s, q, E, n) => detain(s, E, foeBy(s, E, q, (t) => powLE(s, E, n)(t) && !t.frozen, byPow(s, E))),
-  (n) => ({ side: 'E', label: `タップする パワー ${n} いかの てきの クリーチャー`, filter: (s, E, p) => E.power(s, p) <= n }));
-const killChain = chainSkill((s, q, E, n) => killIt(s, E, foeBy(s, E, q, powLE(s, E, n), byPow(s, E))),
-  (n) => ({ side: 'E', label: `はかいする パワー ${n} いかの てきの クリーチャー`, filter: (s, E, p) => E.power(s, p) <= n }));
+// ねらう 道具（zap・foeBy など）と 連携スキル（chainSkill・dmgChain など。2026-11-04 から 第1弾の エージェントも もつ）は set12.js
 
 // ---- 異常 ----
 // 異常 c を つけると 紊乱（びんらん）を おこせる じぶんの クリーチャーが いるか（ちがう 色を もつ）
@@ -132,47 +81,47 @@ const spread = (s, E, x, list) => { // x 点：たおせる ものから じゅ�
 
 export const S16 = {
   // ---- エージェント（白） ----
-  ZZ82: { brk: 2, ...atkZap(1, '1点を あたえる てきの クリーチャー'), ...dmgChain() }, // 0号・アンビー
-  ZZ83: { brk: 3, ...tapChain }, // トリガー
-  ZZ84: { brk: 1, onAttack: (s, p, E, atk) => { if (p.side === 'P' && atk.some((a) => a.p !== p && isCre(a.p) && a.p.def.legend)) { E.pump(p, 2, 0); E.L(s, `${p.def.name}：なかまの エージェントと こうげき ＋2/＋0`); } } }, // シード
-  ZZ85: { brk: 1, minBlockPow: 3, onFaceHit: (s, p, E) => { if (p.side === 'P') addBon(s, E, 1); } }, // シーシィア
+  ZZ82: { brk: 3, ...atkZap(1, '1点を あたえる てきの クリーチャー'), ...dmgChain() }, // 0号・アンビー
+  ZZ83: { brk: 4, ...tapChain }, // トリガー
+  ZZ84: { brk: 2, onAttack: (s, p, E, atk) => { if (p.side === 'P' && atk.some((a) => a.p !== p && isCre(a.p) && a.p.def.legend)) { E.pump(p, 2, 0); E.L(s, `${p.def.name}：なかまの エージェントと こうげき ＋2/＋0`); } } }, // シード
+  ZZ85: { brk: 2, minBlockPow: 3, onFaceHit: (s, p, E) => { if (p.side === 'P') addBon(s, E, 1); } }, // シーシィア
   // ---- 青 ----
   ZZ86: { // ヒューゴ：攻撃するたび 2点（タップ状態なら かわりに 4点）
-    brk: 2, trigTgt: { on: 'attack', label: '2点（タップ状態（じょうたい）なら 4点）を あたえる てきの クリーチャー' },
+    brk: 3, trigTgt: { on: 'attack', label: '2点（タップ状態（じょうたい）なら 4点）を あたえる てきの クリーチャー' },
     onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = foeBy(s, E, p, () => true, (list) => foeBest(s, E, 4, (q) => q.tapped && list.includes(q))?.t || foeBest(s, E, 2, (q) => list.includes(q))?.t || byPow(s, E)(list)); if (t) zap(s, E, p, t, t.tapped ? 4 : 2); },
   },
-  ZZ87: { brk: 1, anthem: agentLord(1, 0), ...lifeChain }, // 照
-  ZZ88: { brk: 2, acts: [lifeAct(2, 3, 0)] }, // イドリー
-  ZZ89: { brk: 1, ...ANOM, ...markFoe('U') }, // プロメイア
+  ZZ87: { brk: 2, anthem: agentLord(1, 0), ...lifeChain }, // 照
+  ZZ88: { brk: 3, acts: [lifeAct(2, 3, 0)] }, // イドリー
+  ZZ89: { brk: 2, ...ANOM, ...markFoe('U') }, // プロメイア
   // ---- 黒 ----
-  ZZ90: { brk: 2, ...killChain }, // 儀玄
+  ZZ90: { brk: 3, ...killChain }, // 儀玄
   ZZ91: { // ビビアン
-    brk: 2, trigTgt: { on: 'attack', label: '黒の 異常（いじょう）を つける てきの クリーチャー' },
+    brk: 3, trigTgt: { on: 'attack', label: '黒の 異常（いじょう）を つける てきの クリーチャー' },
     onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = foeBy(s, E, p, (q) => q.anom !== 'K', byPow(s, E)); if (t) { E.target(s, t); E.setAnom(s, t, 'K'); } },
     onDisorder: (s, p, E) => { E.L(s, `${p.def.name}：紊乱（びんらん）で てき ぜんぶに 1点`); for (const t of [...theirs(s, E)]) E.damage(s, t, 1, null); },
   },
-  ZZ92: { brk: 1, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 2); }, anthem: (s, q, p) => (p !== q && p.side === q.side && isCre(p) && (hasSub(p, 'ethereal') || hasSub(p, 'エーテリアス')) ? [1, 0] : null) }, // リュシア
-  ZZ93: { brk: 1, ...ANOM, etb: etbBon(2), acts: [anomAct(2, 'K', 'エネルギー 2：てきに 黒の 異常（いじょう）')] }, // アリア
-  ZZ94: { brk: 3 }, // 南宮羽
+  ZZ92: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 2); }, anthem: (s, q, p) => (p !== q && p.side === q.side && isCre(p) && (hasSub(p, 'ethereal') || hasSub(p, 'エーテリアス')) ? [1, 0] : null) }, // リュシア
+  ZZ93: { brk: 2, ...ANOM, etb: etbBon(2), acts: [anomAct(2, 'K', 'エネルギー 2：てきに 黒の 異常（いじょう）')] }, // アリア
+  ZZ94: { brk: 4 }, // 南宮羽
   // ---- 赤 ----
-  ZZ95: { brk: 3, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK2.tiger, 1); }, ...dmgChain() }, // 橘福福
-  ZZ96: { brk: 2, etb: etbBon(2), ...atkZap(3, '3点を あたえる てきの クリーチャー（エネルギー 2 を つかう）', () => true, { can: (s) => bonOf(s) >= 2, run: (s, E) => addBon(s, E, -2) }) }, // オルペウス＆「鬼火」
-  ZZ97: { brk: 1, acts: [lifeAct(1, 1, 0, 3)] }, // 狛野真斗
-  ZZ98: { brk: 2, onBlock: (s, p, E) => { if (p.side !== 'P') return; const t = foeBest(s, E, 2, (q) => q.attacking)?.t || foeBest(s, E, 2)?.t || biggest(s, E, (q) => q.attacking) || biggest(s, E); if (t) zap(s, E, p, t, 2); } }, // 盤岳
+  ZZ95: { brk: 4, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK2.tiger, 1); }, ...dmgChain() }, // 橘福福
+  ZZ96: { brk: 3, etb: etbBon(2), ...atkZap(3, '3点を あたえる てきの クリーチャー（エネルギー 2 を つかう）', () => true, { can: (s) => bonOf(s) >= 2, run: (s, E) => addBon(s, E, -2) }) }, // オルペウス＆「鬼火」
+  ZZ97: { brk: 2, acts: [lifeAct(1, 1, 0, 3)] }, // 狛野真斗
+  ZZ98: { brk: 3, onBlock: (s, p, E) => { if (p.side !== 'P') return; const t = foeBest(s, E, 2, (q) => q.attacking)?.t || foeBest(s, E, 2)?.t || biggest(s, E, (q) => q.attacking) || biggest(s, E); if (t) zap(s, E, p, t, 2); } }, // 盤岳
   // ---- 緑 ----
   // 葉瞬光（目玉の レジェンド。4マナ 6/5 速攻・トランプル）：出たとき ブレイクカウンター 5こ（交代で 出れば 5 ＋ 5 ＝ 10 で すぐ ブレイク）。連携の あまりは 本体へ
-  ZZ99: { brk: 3, etb: (s, p, E) => { if (p.side !== 'P') return; E.L(s, `${p.def.name}：てきに ブレイクカウンター 5こ`); E.addBreak(s, 5); }, ...dmgChain(true) },
-  ZZ100: { brk: 1, ...markFoe('G'), onDisorder: (s, p, E, src) => { if (src && E.onBf(s, src) && E.isCreature(src)) { E.L(s, `${p.def.name}：紊乱（びんらん）した ${src.def.name} に ＋1/＋1カウンター`); E.addCounters(s, src, 1); } } }, // 浮波柚葉
-  ZZ101: { brk: 1, ...ANOM, ...atkZap(1, '1点を あたえる 異常（いじょう）の ついた てきの クリーチャー', (s, E, q) => !!q.anom) }, // アリス
-  ZZ102: { brk: 3, costCut: (s, q, d) => (d.tapLess ? 1 : 0) }, // ダイアリン：終結スキルが 1 安い
-  ZZ103: { brk: 2, ...dmgChain() }, // プルクラ
-  ZZ104: { brk: 1, etb: (s, p, E) => { if (p.side === 'P') food(s, E, 2); } }, // 潘引壺
-  ZZ105: { brk: 1, etb: etbBon(1), acts: [bonAct(2, { // 千夏
+  ZZ99: { brk: 4, etb: (s, p, E) => { if (p.side !== 'P') return; E.L(s, `${p.def.name}：てきに ブレイクカウンター 5こ`); E.addBreak(s, 5); }, ...dmgChain(true) },
+  ZZ100: { brk: 2, ...markFoe('G'), onDisorder: (s, p, E, src) => { if (src && E.onBf(s, src) && E.isCreature(src)) { E.L(s, `${p.def.name}：紊乱（びんらん）した ${src.def.name} に ＋1/＋1カウンター`); E.addCounters(s, src, 1); } } }, // 浮波柚葉
+  ZZ101: { brk: 2, ...ANOM, ...atkZap(1, '1点を あたえる 異常（いじょう）の ついた てきの クリーチャー', (s, E, q) => !!q.anom) }, // アリス
+  ZZ102: { brk: 4, costCut: (s, q, d) => (d.tapLess ? 1 : 0) }, // ダイアリン：終結スキルが 1 安い
+  ZZ103: { brk: 3, ...dmgChain() }, // プルクラ
+  ZZ104: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') food(s, E, 2); } }, // 潘引壺
+  ZZ105: { brk: 2, etb: etbBon(1), acts: [bonAct(2, { // 千夏
     label: 'エネルギー 2：クリーチャー1体に ＋1/＋1カウンター',
     play: (s, p, E) => { const t = E.bestBuffTarget(s, null); return t ? { score: 3, run: () => { E.target(s, t); E.addCounters(s, t, 1); } } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1カウンターを おく クリーチャー' }], apply: (s, E, [[t]]) => { if (t) { E.target(s, t); E.addCounters(s, t, 1); } },
   })] },
-  ZZ106: { brk: 1, acts: [lifeAct(2, 2, 2)] }, // スターライト・ビリー
+  ZZ106: { brk: 2, acts: [lifeAct(2, 2, 2)] }, // スターライト・ビリー
   // パエトーン：出たとき エネルギー ＋2・エージェントが 出るたび ＋1（2まいめは かさならない）。エネルギー 5：ブレイクカウンター 5こ（2回で 10）
   ZZ107: {
     etb: etbBon(2),
@@ -183,19 +132,19 @@ export const S16 = {
   ZZ108: { ...lifeChain }, // 防衛軍の 兵士
   ZZ109: etbFoe('タップする てきの クリーチャー', (s, E, t) => { E.tapPerm(s, t); E.L(s, `${t.def.name} を タップ`); }, (s, E) => foeBest(s, E, 99, (t) => !t.tapped)?.t), // 都市秩序部の 捜査官
   ZZ110: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } }, // 澄輝坪の 住民
-  ZZ111: { ...ANOM, brk: 1 }, // 氷の エーテリアス（エーテリアスの モブは ブレイク 1）
+  ZZ111: { ...ANOM, brk: 2 }, // 氷の エーテリアス（エーテリアスの モブは ブレイク 2）
   ZZ112: { onDisorder: (s, p, E) => addBon(s, E, 2) }, // 怪啖屋の 読者
   ZZ113: markFoe('U'), // ラマニアンホロウの 調査員
-  ZZ114: { brk: 1, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => foeBest(s, E, 99, (t) => !t.frozen)?.t) }, // ミアズマの 霧の 獣
+  ZZ114: { brk: 2, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => foeBest(s, E, 99, (t) => !t.frozen)?.t) }, // ミアズマの 霧の 獣
   ZZ115: etbFoe('−1/−1カウンターを おく てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 1); E.sba(s); }, (s, E) => foeBest(s, E, 1)?.t || biggest(s, E), { etb: (s, p, E) => E.hurt(s, 1) }), // 讃頌会の 信者
   ZZ116: { ...ANOM, ...markFoe('K') }, // 夢縋り
-  ZZ117: { ...ANOM, brk: 1, etb: (s, p, E) => { if (p.side !== 'P') return; for (const t of theirs(s, E)) E.setAnom(s, t, 'K'); } }, // サクリファイス
+  ZZ117: { ...ANOM, brk: 2, etb: (s, p, E) => { if (p.side !== 'P') return; for (const t of theirs(s, E)) E.setAnom(s, t, 'K'); } }, // サクリファイス
   ZZ118: { acts: [bonAct(2, selfPump('エネルギー 2：＋2/＋0', 2, 0))] }, // 輝磁工場の 作業員
-  ZZ119: { ...ANOM, brk: 1 }, // 炎の ミアズマ獣
+  ZZ119: { ...ANOM, brk: 2 }, // 炎の ミアズマ獣
   ZZ120: etbFoeP('1点を あたえる てきの クリーチャー', (s, E, t, p) => zap(s, E, p, t, 1), (s, E) => foeBest(s, E, 1)?.t || biggest(s, E)), // 飲茶仙の 料理人
   ZZ121: { onBlock: (s, p, E) => E.pump(p, 2, 0) }, // ポーセルメックスの 警備ロボ
   ZZ122: { ...dmgChain() }, // 雲嶽山の 門下生
-  ZZ123: { ...ANOM, brk: 1 }, // ラマニアンホロウの 大エーテリアス
+  ZZ123: { ...ANOM, brk: 2 }, // ラマニアンホロウの 大エーテリアス
   // ---- ボンプ ----
   ZZ124: { etb: etbBon(1), acts: [bonAct(3, { // オシシ
     label: 'エネルギー 3：てきの クリーチャー 2体までに 1点ずつ',
@@ -368,3 +317,11 @@ export const S16 = {
 // レア・レジェンドの エージェントは みんな 交代を もつ（コスト − 2。2 より 下には しない。柚葉だけ 1）
 const SWAP = { ZZ82: [2, 'W'], ZZ83: [2, 'W'], ZZ84: [2, 'W'], ZZ86: [2, 'U'], ZZ87: [2, 'U'], ZZ88: [2, 'U'], ZZ90: [3, 'K'], ZZ91: [2, 'K'], ZZ92: [2, 'K'], ZZ95: [2, 'R'], ZZ96: [2, 'R'], ZZ98: [3, 'R'], ZZ99: [2, 'G'], ZZ100: [1, 'G'], ZZ101: [2, 'G'], ZZ102: [2, 'G'] };
 for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, [k]); S16[id] = { ...nj, ...S16[id] }; }
+// エージェントは みんな 連携スキルを もつ（2026-11-04。もとから ある 9まい（アンビー・トリガー・照・儀玄・橘福福・葉瞬光・プルクラ・防衛軍・門下生）いがいは 色の かた。set12.js の CHAIN）
+chainAll(S16, {
+  W: ['ZZ84', 'ZZ85'],
+  U: ['ZZ86', 'ZZ88', 'ZZ89'],
+  K: ['ZZ91', 'ZZ92', 'ZZ93', 'ZZ94'],
+  R: ['ZZ96', 'ZZ97', 'ZZ98'],
+  G: ['ZZ100', 'ZZ101', 'ZZ102', 'ZZ104', 'ZZ105', 'ZZ106'],
+});

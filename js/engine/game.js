@@ -461,10 +461,11 @@ export const canBreak = (s) => s.P.bf.some((q) => isCreature(q) && q.def.legend 
 export function useBreak(s, mode, t) {
   if (!s.P.brkReady || s.over || !canBreak(s)) return false;
   s.P.brkReady--; s.inBreak = true;
+  s.stats.brkUse = (s.stats.brkUse || 0) + 1;
   if (mode === 'all') { L(s, `ブレイク！ てきの クリーチャー ぜんぶに ${BREAK_ALL}点`); for (const p of s.E.bf.filter(isCreature)) damage(s, p, BREAK_ALL, null); }
   else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${breakDmg(t)}点`); hitTarget(s, t, breakDmg(t), null); }
   else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
-  // 連携スキル（ゼンゼロ 第2弾。def.chain は data/set16.js）：ブレイクの あと。inBreak の あいだ なので ブレイクは たまらない
+  // 連携スキル（ゼンゼロ。def.chain は data/set12.js の chainSkill。2026-11-04 から エージェント みんな）：ブレイクの あと。inBreak の あいだ なので ブレイクは たまらない
   for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.chain && !s.over) q.def.chain(s, q, api);
   s.inBreak = false;
   sba(s);

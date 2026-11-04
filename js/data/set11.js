@@ -152,7 +152,13 @@ export const S11 = {
   SR37: { play: (s, E, ctx) => { const n = mine(s, E).filter((q) => canSwing(s, E, q)).length; return ctx.phase === 1 && n >= 2 ? { score: 3 * n, run: () => { for (const q of mine(s, E)) E.pump(q, 3, 3, ['trample']); } } : null; } }, // 踏み荒らし
   SR38: { ...split(2, (s, E) => E.drawCard(s)) }, // 電解
   SR56: single(2, 2, { kw: ['lifelink'] }), // 英雄の 瞬間
-  SR57: foe1('ついほうする クリーチャー', exileIt), // 剣を鍬に
+  // 剣を鍬に：追放して、敵は その パワーぶんの ライフを 得る（2026-11-04：1マナで 何でも 消せて 強すぎたので もとに もどした）
+  SR57: foe1('ついほうする クリーチャー', (s, E, t) => {
+    if (!t || !E.onBf(s, t)) return;
+    const n = Math.max(0, E.power(s, t));
+    exileIt(s, E, t);
+    if (n && typeof s.E.life === 'number') { s.E.life += n; E.L(s, `${t.def.name} の パワー ${n} → 敵の ライフ ＋${n}（${s.E.life}）`); }
+  }),
   SR58: aura('E', 'こうげきも ブロックも できなく する てきの クリーチャー', { pacify: true }), // 平和な心
   SR59: { equip: 2, eqP: 2, eqT: 2 }, // ヴァルショクの明けの星
   SR60: foe1('てふだに もどす（てきは やまふだの 上へ）クリーチャー', (s, E, t) => { E.bounce(s, t); E.sba(s); }, { score: 1 }), // 送還

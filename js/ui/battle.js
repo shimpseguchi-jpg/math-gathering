@@ -888,10 +888,10 @@ async function showBreak() {
   } else { await chainPicks(s); useBreak(s, 'all'); }
   if (!checkOver()) render();
 }
-// 連携スキル（ゼンゼロ 第2弾）：ブレイクの まえに、だれと 連携するか（2人 いじょう いる とき）と、レア・レジェンドは ねらう 相手を えらんで おく（data/set16.js の chain が q.chainMate・q.trigPick を つかう）
+// 連携スキル（ゼンゼロ）：ブレイクの まえに、だれと 連携するか（2人 いじょう いる とき）と、レア・レジェンドは ねらう 相手を えらんで おく（data/set12.js の chain が q.chainMate・q.trigPick を つかう。あいてと おきるかは def.chainMates・def.chainOn ＝ AI と おなじ）
 async function chainPicks(s) {
-  for (const q of s.P.bf.filter((p) => p.def.chain)) {
-    const ms = s.P.bf.filter((x) => x !== q && isCreature(x) && x.def.legend), a = Math.max(0, power(s, q)), b = (m) => Math.max(0, power(s, m));
+  for (const q of s.P.bf.filter((p) => p.def.chain && p.def.chainOn(s, p, api))) {
+    const ms = q.def.chainMates(s, q, api), a = Math.max(0, power(s, q)), b = (m) => Math.max(0, power(s, m));
     q.chainMate = ms.length > 1 ? await sheet(`<p>${ruby(`${nmText(q)}の 連携（れんけい）スキル：だれと 連携（れんけい）する？ 2人の パワーを たした 数で こうかが おきる。`)}</p>`,
       ms.map((m) => ({ label: `${nm(q)} ${a} ＋ ${nm(m)} ${b(m)} ＝ ${a + b(m)}`, value: m, kind: 'primary' })), { title: ruby('連携（れんけい）スキル'), dismiss: false }) : ms[0] || null;
     const spec = !pickOf(q.def) && q.def.chainTgt?.(a + (q.chainMate ? b(q.chainMate) : 0));
