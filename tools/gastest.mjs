@@ -27,6 +27,18 @@ const deckOk = [...Array(4).fill('W01'), ...Array(16).fill(Object.values(BY_ID).
 const g1 = G.mtgSubmitGhost({ d: deckOk, t: 3, n: [1, 2] });
 ok(/^3-[0-9a-f]{8}$/.test(g1.i), 'ゴーストを あずける');
 throws(() => G.mtgSubmitGhost({ d: deck.slice(0, 5), t: 3, n: [0, 0] }), '5まいの デッキは うけとらない');
+// キャパシティ：とうは 1階ごとに ＋2（5階 38点・ストリクスヘイヴンの 6階 40点）。ゴーストは 40点まで（2026-11-04）
+{
+  const { ptsOf } = await import(join(ROOT, 'js/engine/ai.js'));
+  const basicW = Object.values(BY_ID).find((d) => d.basic && d.color === 'W').id;
+  const pts = (d) => d.reduce((t, id) => t + ptsOf(BY_ID[id]), 0);
+  const d38 = [...Array(8).fill('W06'), ...Array(8).fill('W07'), ...Array(3).fill('W14'), basicW];
+  const d41 = [...Array(8).fill('W08'), ...Array(5).fill('W16'), 'W06', ...Array(6).fill(basicW)];
+  ok(pts(d38) === 38 && pts(d41) === 41, `しらべる デッキの 点（${pts(d38)}点・${pts(d41)}点）`);
+  const m = makeGas(); // べつの にせもの（ほかの しらべの ゴーストを ふやさない）
+  ok(/^6-[0-9a-f]{8}$/.test(m.G.mtgSubmitGhost({ d: d38, t: 6, n: [0, 0] }).i), '5階の 38点の デッキは うけとる');
+  throws(() => m.G.mtgSubmitGhost({ d: d41, t: 6, n: [0, 0] }), '41点の デッキは うけとらない');
+}
 ok(rows('ゴースト').length === 1 && rows('デッキの点').length === 1, 'ゴースト・デッキの点 シートに 1行');
 ok(G.mtgRandomGhost({ x: [g1.i] }) === null, 'じぶんの ゴーストは あいてに ならない');
 const r = G.mtgRandomGhost({ x: [] });
