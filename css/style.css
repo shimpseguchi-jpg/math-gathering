@@ -311,7 +311,7 @@ span.pile { cursor: default; }
 .mana-list, .mini-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .mini-list { padding-top: 6px; }
 .mini-list .card { width: 70px; }
-.mchip { font-size: 12px; padding: 3px 8px; border-radius: 8px; color: var(--paper-ink); font-weight: 700; }
+.mchip { font-size: 12px; padding: 3px 8px; border-radius: 8px; color: var(--paper-ink); font-weight: 700; border: 0; cursor: pointer; }
 .mchip.used { opacity: 0.4; }
 .big-result { font-family: var(--display); font-size: 34px; margin: 8px 0; }
 .big-result.win { color: var(--gold-text); } .big-result.lose { color: var(--bad); } .big-result.draw { color: var(--ink); }
@@ -386,7 +386,8 @@ span.pile { cursor: default; }
 .me-mana { min-width: 0; align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
 /* やまふだ・ぼちの 中身 */
 .pile-note { margin: 0; font-size: 12.5px; color: var(--ink-dim); }
-.ml-item { position: relative; }
+.ml-item { position: relative; background: none; border: 0; padding: 0; margin: 0; color: inherit; text-align: inherit; cursor: pointer; display: block; } /* タップで くわしく（battle.js の peek） */
+.peek-back { align-self: flex-start; margin-bottom: 4px; }
 .ml-n { position: absolute; right: 2px; top: -5px; font-family: var(--display); font-weight: 400; font-size: 13px; line-height: 1; padding: 3px 5px; border-radius: 8px; background: var(--gold); color: var(--paper-ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
 /* うごき：出た カード・引いた カード・ライフの へんか */
 @media (prefers-reduced-motion: no-preference) {

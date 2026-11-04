@@ -51,8 +51,9 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 // o = { step: 統率者税の 段（ふつう 2）, less: 安く なる マナ（レイドの 人間の 長は 1） }
 // ねらいかた（2026-10-27）：てきを ねらう こうかは レアリティで きまる。低学年なので 自分で えらぶ ところを しぼる
 // コモン＝ランダム（'rand'）、アンコモン・きほん＝パワーが いちばん 大きい てき（'most'）、レア・レジェンド＝自分で えらぶ（null）
-// ただし 自分で えらぶ ままの もの（PICK_FREE）：格闘・かみつき（ランダムだと つよい てきに あたって 自分が そんする）と、もともと よわい もの（1点・−1/−1 1こ・留置・1体を タップ）
-export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'FG67', 'ZZ79', 'RV27', 'U14', 'B04', 'B06', 'ZZ60', 'ZZ62', 'ZZ33', 'FG54', 'SR27', 'U03', 'FG31', 'FG41']);
+// ただし 自分で えらぶ ままの もの（PICK_FREE）：格闘・かみつき（ランダムだと つよい てきに あたって 自分が そんする）と、もともと よわい もの（1点・−1/−1 1こ・留置・1体を タップ）、
+// 名前で えらぶ もの（ZZ157 ナイトメア・パラソル：おなじ 名前の てきも まとめて −2/−2 なので、どの 名前を ねらうかが だいじ。2026-11-04）
+export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'FG67', 'ZZ79', 'RV27', 'U14', 'B04', 'B06', 'ZZ60', 'ZZ62', 'ZZ33', 'FG54', 'SR27', 'U03', 'FG31', 'FG41', 'ZZ157']);
 export const pickOf = (d) => (!d || d.token || !d.rar || PICK_FREE.has(d.id) ? null : d.rar === 'C' ? 'rand' : d.rar === 'U' || d.rar === 'B' ? 'most' : null);
 const PICK_KEYS = ['play', 'apply', 'etb', 'onAttack', 'onAttacks', 'onDie', 'onCombatHit', 'onFaceHit', 'onKill', 'upkeep', 'onTapped', 'onExact', 'onDamageCreature', 'onMinus', 'onCounters', 'onDraw', 'onOtherEnter', 'onAllyHit', 'onAnyCast', 'onPWAttacked', 'onLeaveSelf', 'onOtherLeave', 'onHurt'];
 // カードの こうかを 動かす あいだだけ s.pickMode を つける（ai.js の burnTarget が 見る）。play が かえす run も おなじ
