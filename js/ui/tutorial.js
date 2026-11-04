@@ -24,6 +24,8 @@ const perm = (id) => `.perm[data-card="${id}"]`;
 // hand：タップして よい 手札と えらべる ボタン。acts：おして よい ボタン。drag/perms：ひっぱる・タップして よい クリーチャー
 // done(s, B)：つぎの ステップへ すすむ じょうけん
 // 2026-10-30：ぼうぎょ（ブロック）より さきに こうげきを する じゅんばんに した（わらの 兵士は 3回めの 敵の ターンから。enemies.js）
+// 2026-11-04：こうげきの ステップでは「こうげきしない」を おせない（おすと こうげきが おわって すすめなく なる）。
+//   だれも えらばずに「こうげき！」を おすと「こうげきクリーチャーを まだ きめて ないよ！」（battle.js）
 const STEPS = [
   {
     text: 'ようこそ、メレティスの くんれんじょうへ！ あいては「訓練（くんれん）の まと」。タフネスは 10。10点の ダメージを あたえれば かち！',
@@ -51,7 +53,7 @@ const STEPS = [
   },
   {
     text: 'さあ、はじめての こうげき！ へいし 2体と エルフを、まとへ ひっぱって えらぼう。えらんだら「攻撃（こうげき）！」。',
-    hl: perm('tut_dummy'), acts: ['attack', 'declare', 'cancel'], drag: true, perms: true, done: (s, B) => B.mode === 'tricks',
+    hl: perm('tut_dummy'), acts: ['attack', 'declare'], drag: true, perms: true, done: (s, B) => B.mode === 'tricks',
   },
   {
     text: 'まとは ブロックしない。「ダメージ！」を おそう。',
@@ -91,7 +93,7 @@ const STEPS = [
   },
   {
     text: 'さあ こうげき！ まとの タフネスは 10。クリーチャーを まとへ ひっぱって えらぼう。パワーを たして ちょうど 10 に なると「ぴったり！」。えらんだら「攻撃（こうげき）！」。',
-    hl: perm('tut_dummy'), acts: ['attack', 'declare', 'cancel'], drag: true, perms: true, done: (s, B) => B.mode === 'tricks',
+    hl: perm('tut_dummy'), acts: ['attack', 'declare'], drag: true, perms: true, done: (s, B) => B.mode === 'tricks',
   },
   {
     text: 'ブロックは されなかった。「ダメージ！」を おそう。',
