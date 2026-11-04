@@ -872,6 +872,20 @@ div.zk-card { cursor: default; }
 .battle.fx-shake.hard { animation: fx-shake-h 0.5s ease-out; }
 @keyframes fx-shake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-3px, 2px); } 80% { transform: translate(2px, -1px); } }
 @keyframes fx-shake-h { 0%, 100% { transform: none; } 15% { transform: translate(-12px, 6px) rotate(-0.6deg); } 35% { transform: translate(10px, -6px) rotate(0.5deg); } 55% { transform: translate(-6px, 4px); } 75% { transform: translate(4px, -2px); } }
+/* あいてが つかった カード（2026-11-04。fx.foeCard）：まんなかに 大きく。下の 金の 線が のびきると つぎへ（タップで すぐ） */
+.fx-foe { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; padding: 16px; background: rgba(5, 8, 18, 0.55); animation: fx-res-in 0.2s ease-out; cursor: pointer; }
+.fx-foe.out { animation: fx-res-out 0.18s ease-in forwards; }
+.ff-box { position: relative; width: min(100%, 420px); max-height: 86vh; overflow-y: auto; box-sizing: border-box; padding: 14px 14px 18px; border-radius: 16px; background: var(--table-2); border: 2px solid var(--bad); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 8px; animation: ff-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.ff-who { margin: 0; font-weight: 700; font-size: 14px; color: var(--bad); }
+.ff-what { margin: 0; padding-left: 1.3em; font-size: 14px; line-height: 1.6; }
+.ff-tap { margin: 0; text-align: right; font-size: 11.5px; color: var(--ink-dim); }
+.ff-box .detail-hint { display: none; } /* タップで つぎへ すすむので、ことばの せつめいは まとめの ほうで */
+.ff-bar { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--gold); transform-origin: left; animation: ff-bar var(--ms) linear forwards; }
+@keyframes ff-in { from { transform: translateY(-24px) scale(0.92); opacity: 0; } }
+@keyframes ff-bar { from { transform: scaleX(0); } }
+.ff-used-h { margin: 0 0 2px; font-size: 13px; font-weight: 700; color: var(--ink-dim); }
+.ff-used { padding: 0 0 8px; }
+.ff-used .ml-item { padding: 0; border: 0; background: none; cursor: pointer; }
 .fx-result { position: fixed; inset: 0; z-index: 3; display: grid; place-items: center; background: radial-gradient(circle, rgba(10, 14, 28, 0.55), rgba(5, 8, 18, 0.88)); animation: fx-res-in 0.3s ease-out; cursor: pointer; }
 .fx-result.out { animation: fx-res-out 0.25s ease-in forwards; }
 .fx-result b { position: relative; font-family: var(--display); font-weight: 400; font-size: clamp(56px, 13vw, 112px); color: var(--gold-text); -webkit-text-stroke: 2px #5a3a00; text-shadow: 0 6px 0 #5a3a00, 0 0 40px rgba(242, 192, 79, 0.9); animation: fx-res-t 0.7s cubic-bezier(.2, 1.5, .4, 1); }

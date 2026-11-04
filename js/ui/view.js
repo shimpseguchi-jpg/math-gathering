@@ -380,6 +380,8 @@ function openSheet(html, choices, o) {
     o.onOpen?.(); // ひらいた とき（じゅんばん待ちの あとで おとを 出す など）
     const done = (v) => { el.hidden = true; el.innerHTML = ''; resolve(v); };
     el.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); done(choices[+b.dataset.k].value); }));
+    // 中身の ボタン（data-sv）：o.values の その 番号を かえす（てきの ターンの まとめの カード など）
+    el.querySelectorAll('[data-sv]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); done(o.values?.[+b.dataset.sv]); }));
     if (o.dismiss !== false) el.querySelector('.sheet-back').addEventListener('click', () => done(o.dismissValue ?? null));
   });
 }
