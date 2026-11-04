@@ -377,6 +377,7 @@ function openSheet(html, choices, o) {
     </div>`;
     el.hidden = false;
     el.onclick = null;
+    o.onOpen?.(); // ひらいた とき（じゅんばん待ちの あとで おとを 出す など）
     const done = (v) => { el.hidden = true; el.innerHTML = ''; resolve(v); };
     el.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); done(choices[+b.dataset.k].value); }));
     if (o.dismiss !== false) el.querySelector('.sheet-back').addEventListener('click', () => done(o.dismissValue ?? null));

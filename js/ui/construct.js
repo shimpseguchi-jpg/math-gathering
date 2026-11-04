@@ -2,7 +2,7 @@
 // 冒険（ローグライク）とは べつ。ここの カード・デッキは 冒険には もちこまない
 // デッキの ルール：ノーマル（とうと 同じ 20まい・30点・2色）／エターナル（キャパシティと 色の 制限なし）と、
 // それぞれの 統率者（統率者の 色だけ。統率者は とうそつりょういき）、みならい（1年生の カードプール だけ。もって いなくても つかえる）。
-// どれも 同じ カードは 4まいまで
+// どれも 同じ カードは 4まいまで。統率者の ルールと、まだ ひらいて いない せかい・むずかしさ（れんしゅう）は、ひらくまで 出さない（unlock.js）
 import { SETS, BY_ID, BASICS } from '../data/cards.js';
 import { SLOTS } from '../data/enemies.js';
 import { RAV_SLOTS } from '../data/ravnica.js';
@@ -17,6 +17,7 @@ import { onPack, syncTrophyTickets } from './trophies.js';
 import { zukanPack } from './zukan.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
 import { hasServer, CONF } from './server.js';
+import { cmdOpen, planeOpen, diffOpen } from './unlock.js';
 import { cardFace, detail, sheet, esc, ruby, info, COLOR_NAME } from './view.js';
 import {
   tickets, useTicket, studyLeft, STUDY_DAY_MAX, TROPHY_TICKETS, MAX_COPY, DECK_MAX, RULES, isCmdRule, isEternal, isFirst,
@@ -60,7 +61,7 @@ function menu() {
     ${openAll() ? '<p class="fine"><span class="dev-badge">開発</span> カードを ぜんぶ 4まい もって いる ことに して いる（ほんとうの もちものは のこる）</p>' : ''}
     <div class="title-btns">
       <button type="button" class="btn primary" data-go="shop">ショップ<small>パックけん 1まいで パックを 1つ</small></button>
-      <button type="button" class="btn" data-go="decks">デッキ<small>${ruby('ノーマル・エターナル・統率者（とうそつしゃ）')}（${decks().length} / ${DECK_MAX}）</small></button>
+      <button type="button" class="btn" data-go="decks">デッキ<small>${ruby(cmdOpen() ? 'ノーマル・エターナル・統率者（とうそつしゃ）' : 'ノーマル・エターナル')}（${decks().length} / ${DECK_MAX}）</small></button>
       <button type="button" class="btn" data-go="practice">れんしゅう<small>くんだ デッキで とうの てきと たたかう</small></button>
       <button type="button" class="btn" data-go="cards">もって いる カード<small>${kinds}しゅるい・${total}まい</small></button>
     </div>
@@ -141,14 +142,14 @@ function deckList() {
   const full = list.length >= DECK_MAX;
   app().innerHTML = `<main class="zukan construct">
     <h2>デッキ</h2>
-    <p class="zk-note">${ruby(`ノーマル：とうと 同じ（20まい・30点・2色まで）。エターナル：点と 色の せいげんが ない。統率者（とうそつしゃ）：伝説（でんせつ）の クリーチャーを 統率者（とうそつしゃ）に して、その 色の カードだけ。${KIHON_RULE}：みならいの しけんの カード（ルールと 漢字の かんたんな ${POOL1.length}しゅるい）から えらぶ（ノーマルと 同じ 30点・2色。もって いなくても ${MAX_COPY}まいずつ つかえる）。どれも 同じ カードは ${MAX_COPY}まいまで（きほんカードは のぞく）。`)}</p>
+    <p class="zk-note">${ruby(`ノーマル：とうと 同じ（20まい・30点・2色まで）。エターナル：点と 色の せいげんが ない。${cmdOpen() ? '統率者（とうそつしゃ）：伝説（でんせつ）の クリーチャーを 統率者（とうそつしゃ）に して、その 色の カードだけ。' : ''}${KIHON_RULE}：みならいの しけんの カード（ルールと 漢字の かんたんな ${POOL1.length}しゅるい）から えらぶ（ノーマルと 同じ 30点・2色。もって いなくても ${MAX_COPY}まいずつ つかえる）。どれも 同じ カードは ${MAX_COPY}まいまで（きほんカードは のぞく）。`)}</p>
     ${list.length ? `<ul class="cs-decks">${list.map((d) => { const miss = missing(d); return `<li><button type="button" class="cs-deck" data-deck="${esc(d.id)}">
       <span class="cs-rule r-${d.rule}">${ruby(RULES[d.rule])}</span><b>${ruby(deckName(d))}</b>
       ${d.cmd && BY_ID[d.cmd] ? `<span class="cs-cmd">${ruby(`統率者（とうそつしゃ）：${info(BY_ID[d.cmd]).name}`)}</span>` : ''}
       <span class="cs-meta">${pips(deckCols(d))}<small>${d.cards.length}まい ＋ きほん ${DECK_SIZE - d.cards.length}まい・${deckPts(d)}点</small>${miss ? `<em>もって いない カード ${miss}まい</em>` : ''}</span>
     </button></li>`; }).join('')}</ul>` : '<p class="zk-note">まだ デッキが ない。</p>'}
     <h3 class="zk-h">あたらしく つくる</h3>
-    <div class="cs-new">${Object.entries(RULES).map(([k, l]) => `<button type="button" class="btn ${k === 'normal' ? 'primary' : ''}" data-new="${k}" ${full ? 'disabled' : ''}><span>${ruby(l)}</span><small>${ruby(RULE_NOTE[k])}</small></button>`).join('')}</div>
+    <div class="cs-new">${Object.entries(RULES).filter(([k]) => !isCmdRule(k) || cmdOpen()).map(([k, l]) => `<button type="button" class="btn ${k === 'normal' ? 'primary' : ''}" data-new="${k}" ${full ? 'disabled' : ''}><span>${ruby(l)}</span><small>${ruby(RULE_NOTE[k])}</small></button>`).join('')}</div>
     ${full ? `<p class="zk-note">デッキは ${DECK_MAX}こまで。いらない デッキを けそう。</p>` : ''}
     <button type="button" class="btn ghost" data-back="1">もどる</button>
   </main>`;
@@ -252,16 +253,19 @@ function playDeck(deck) {
 function practice() {
   const list = decks().filter((d) => d.cards.length || d.cmd);
   if (!list.find((d) => d.id === P.deck)) P.deck = list[0]?.id || null;
+  const planes = PLANES.filter(([k]) => planeOpen(k)), diffs = DIFFS.filter(([k]) => diffOpen(k)); // まだの せかい・むずかしさは 出さない
+  if (!planes.some(([k]) => k === P.plane)) P.plane = 'theros';
+  if (!diffs.some(([k]) => k === P.diff)) P.diff = 'normal';
   const slots = PLANES.find(([k]) => k === P.plane)[2];
   app().innerHTML = `<main class="zukan construct">
     <h2>れんしゅう</h2>
-    <p class="zk-note">${ruby('くんだ デッキで とうの てきと 1回 たたかう。パックけん・トロフィー・ずかんの きろくは ふえない。統率者（とうそつしゃ）の デッキは、3階から 上の てきが ＋1/＋1（ぼうけんと 同じ）。')}</p>
+    <p class="zk-note">${ruby(`くんだ デッキで とうの てきと 1回 たたかう。パックけん・トロフィー・ずかんの きろくは ふえない。${cmdOpen() ? '統率者（とうそつしゃ）の デッキは、3階から 上の てきが ＋1/＋1（ぼうけんと 同じ）。' : ''}`)}</p>
     ${list.length ? `<h3 class="zk-h">デッキ</h3>
     <div class="zk-sets">${list.map((d) => `<button type="button" class="chip ${d.id === P.deck ? 'on' : ''}" data-pdeck="${esc(d.id)}">${ruby(deckName(d))}</button>`).join('')}</div>
-    <h3 class="zk-h">せかい</h3>
-    <div class="zk-sets">${PLANES.map(([k, l]) => `<button type="button" class="chip ${k === P.plane ? 'on' : ''}" data-plane="${k}">${l}</button>`).join('')}</div>
+    ${planes.length > 1 ? `<h3 class="zk-h">せかい</h3>
+    <div class="zk-sets">${planes.map(([k, l]) => `<button type="button" class="chip ${k === P.plane ? 'on' : ''}" data-plane="${k}">${l}</button>`).join('')}</div>` : ''}
     <h3 class="zk-h">むずかしさ</h3>
-    <div class="zk-sets">${DIFFS.map(([k, l]) => `<button type="button" class="chip ${k === P.diff ? 'on' : ''}" data-diff="${k}">${l}</button>`).join('')}</div>
+    <div class="zk-sets">${diffs.map(([k, l]) => `<button type="button" class="chip ${k === P.diff ? 'on' : ''}" data-diff="${k}">${l}</button>`).join('')}</div>
     <h3 class="zk-h">てき</h3>
     <ul class="cs-floors">${slots.map((ids) => ids.map((f) => `<li><button type="button" class="btn" data-floor="${f}"><span>${ruby(FLOOR_NAMES[f] || f)}</span></button></li>`).join('')).join('')}</ul>`
     : '<p class="zk-note">さきに デッキを くもう（カードを 1まい いじょう 入れた デッキ）。</p>'}
