@@ -3,6 +3,7 @@ import { SETS } from '../data/cards.js';
 import { EMBLEMS } from '../data/emblems.js';
 import { packPool } from '../engine/run.js';
 import { soundOn, setSound } from './sfx.js';
+import { fullCan, fullOn, setFull } from './fullscreen.js';
 import { ruby, sheet } from './view.js';
 import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 import { hasServer, call, CONF, setSaved, packSave, unpackSave } from './server.js';
@@ -126,6 +127,11 @@ export function settingsScreen(app, back, o = {}) {
         <h3>おと</h3>
         <button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button>
       </section>
+      ${fullCan() ? `<section class="st-sec">
+        <h3>${ruby('ぜんがめん')}</h3>
+        <p class="st-note">${ruby('「いつも」に すると、タップした とき URL の バーや タブを かくして 画面（がめん） いっぱいに する。上から 下へ スワイプするか、左上の ×で もどる（つぎに タップすると また ぜんがめん）。')}</p>
+        <button type="button" class="btn" data-full="1" aria-pressed="${fullOn()}">ぜんがめん ${fullOn() ? 'いつも' : 'しない'}</button>
+      </section>` : ''}
       ${DEV ? `<section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>こうこく（しゅぎょう）</h3>
         <p class="st-note">ぼうけんの まえと おわりに 出る 60びょうの しゅぎょう。オフに すると すぐ パックに すすむ。</p>
@@ -175,6 +181,7 @@ export function settingsScreen(app, back, o = {}) {
   app().onclick = (e) => {
     if (e.target.closest('[data-back]')) { app().onchange = null; return back(); }
     if (e.target.closest('[data-snd]')) { setSound(!soundOn()); draw(); }
+    if (e.target.closest('[data-full]')) { setFull(!fullOn()); draw(); }
     const th = e.target.closest('[data-look]'); if (th) { setTheme(th.dataset.look); draw(); }
     const mt = e.target.closest('button[data-mat]'); if (mt && !mt.disabled) { useMat(mt.dataset.mat); draw(); }
     if (e.target.closest('[data-ads]')) { setAdsOff(adsOn()); draw(); }

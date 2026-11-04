@@ -34,6 +34,7 @@ import { kihonMenu } from './kihon.js';
 import { KIHON_NAME } from '../data/kihon.js';
 import { addTickets, tickets, ENDLESS_PER } from './collection.js';
 import { spireMenu, spireTile } from './spire.js';
+import './fullscreen.js'; // iPad の Safari：タップで ぜんがめん（せっていで かえられる）
 
 const SAVE = 'mtg-adventure-v1';
 const ENDLESS_BEST = 'mtg-endless-best'; // むげんの とうの いちばんの きろく { floor, exact, score }

@@ -645,6 +645,10 @@ async function action(a) {
   if (a === 'cancel') { B.mode = 'main'; B.phase = 2; return render(); }
   if (a === 'declare') {
     const atk = [...B.sel].map(([uid, t]) => ({ p: s.P.bf.find((q) => q.uid === uid), t })).filter((x) => x.p);
+    // チュートリアル：まだ だれも えらんで いないのに おすと、こうげきが おわって すすめなく なる（「ターン おわり」も おせない）。
+    // まどで おしえて、えらぶ ところに もどる（2026-11-04。はじめての こうげきで とまる 子が おおかった）
+    if (!atk.length && B.tut && !B.tut.allowAct('end')) return sheet(`<p class="goal">${ruby('クリーチャーを まとへ ひっぱって えらぼう（タップでも えらべる）。えらぶと「こうげき！」の 体（たい）の 数が ふえるよ。')}</p>`,
+      [{ label: 'わかった', value: 1, kind: 'primary' }], { title: 'こうげきクリーチャーを まだ きめて ないよ！' });
     if (!atk.length) { B.mode = 'main'; B.phase = 2; return render(); }
     B.atk = atk;
     await preTrig('attack', atk.map((x) => x.p));
