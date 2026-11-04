@@ -3,7 +3,7 @@ import { SETS } from '../data/cards.js';
 import { EMBLEMS } from '../data/emblems.js';
 import { packPool } from '../engine/run.js';
 import { soundOn, setSound } from './sfx.js';
-import { fullCan, fullOn, setFull } from './fullscreen.js';
+import { fullCan, fullOn, setFull, homeTip, isIPhone } from './fullscreen.js';
 import { ruby, sheet } from './view.js';
 import { MATS, hasMat, usingMat, useMat, setMatFree } from './mats.js';
 import { hasServer, call, CONF, setSaved, packSave, unpackSave } from './server.js';
@@ -131,6 +131,17 @@ export function settingsScreen(app, back, o = {}) {
         <h3>${ruby('ぜんがめん')}</h3>
         <p class="st-note">${ruby('「いつも」に すると、タップした とき URL の バーや タブを かくして 画面（がめん） いっぱいに する。上から 下へ スワイプするか、左上の ×で もどる（つぎに タップすると また ぜんがめん）。')}</p>
         <button type="button" class="btn" data-full="1" aria-pressed="${fullOn()}">ぜんがめん ${fullOn() ? 'いつも' : 'しない'}</button>
+      </section>` : ''}
+      ${homeTip() ? `<section class="st-sec">
+        <h3>${ruby('ぜんがめん')}</h3>
+        <p class="st-note">${ruby(`${isIPhone() ? 'iPhone は' : 'この 画面（がめん）は'} ブラウザの きまりで、ぜんがめんに できない。かわりに ホーム画面（がめん）に 追加（ついか）して、アイコンから ひらくと、URL の バーなしで あそべる。`)}</p>
+        <ol class="st-steps">
+          <li>${ruby('Safari の 共有（きょうゆう）ボタン（□に ↑）を おす')}</li>
+          <li>${ruby('「ホーム画面（がめん）に 追加（ついか）」を えらぶ')}</li>
+          <li>${ruby('「Webアプリとして 開（ひら）く」を オンに して「追加（ついか）」')}</li>
+          <li>${ruby('ホーム画面（がめん）の アイコンから ひらく')}</li>
+        </ol>
+        <p class="st-note">${ruby(hasServer() ? 'ホーム画面（がめん）の アプリと Safari では、セーブが べつべつに なる。さきに 上の「ひきつぎ」で あずけて、アプリで「もどす」と つづきから あそべる。' : 'ホーム画面（がめん）の アプリと Safari では、セーブが べつべつに なる（アプリは はじめから）。')}</p>
       </section>` : ''}
       ${DEV ? `<section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>こうこく（しゅぎょう）</h3>

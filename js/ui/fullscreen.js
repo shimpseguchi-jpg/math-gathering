@@ -11,6 +11,11 @@ const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenE
 const iPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 let mode = (() => { try { return localStorage.getItem(KEY); } catch { return null; } })();
 
+// iPhone（と ぜんがめんが ゆるされない iPad）：ページは ぜんがめんに できない（ブラウザの きまり。ビデオだけ）。
+// かわりに「ホーム画面に 追加」で ひらくと URL の バーが ない ので、せっていに やりかたを 出す（2026-11-04）
+const appleMobile = () => /iPhone|iPod/.test(navigator.userAgent) || iPad();
+export const isIPhone = () => /iPhone|iPod/.test(navigator.userAgent);
+export const homeTip = () => !standalone() && !fullCan() && appleMobile();
 export const fullCan = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) && !standalone();
 export const fullOn = () => fullCan() && (mode ? mode === 'on' : iPad());
 function enter() {
