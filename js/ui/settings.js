@@ -133,7 +133,7 @@ export function settingsScreen(app, back, o = {}) {
       </section>
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>ひらく じゅんばん</h3>
-        <p class="st-note">${ruby('ふつうは、チュートリアル → ストーリー 1章 → テーロスの とう、「ふつう」で のぼりきると「むずかしい」と ラヴニカ。オンに すると ぜんぶ あそべる。')}</p>
+        <p class="st-note">${ruby('ふつうは、チュートリアル → ストーリー 1章 → みならいの しけん → テーロスの とう、「ふつう」で のぼりきると「むずかしい」と ラヴニカ、テーロスと ラヴニカの「むずかしい」を のぼりきると 統率者（とうそつしゃ）ルール。まだの ものは 出さない。オンに すると ぜんぶ あそべる。')}</p>
         <button type="button" class="btn" data-unlock="1" aria-pressed="${unlockAll()}">ぜんぶ あそべる ${unlockAll() ? 'オン' : 'オフ'}</button>
       </section>
       <section class="st-sec">

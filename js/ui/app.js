@@ -21,7 +21,7 @@ import { sfx, soundOn, setSound } from './sfx.js';
 import { DEV, enabledSets, setsNote, settingsScreen, adsOn, applyTheme, applyConf, trialOn } from './settings.js';
 import { TROPHIES, award, onBattle, onClear, onPack, trophyCount, trophyScreen, cup } from './trophies.js';
 import { zukanPack, zukanBattle, zukanRun, zukanScreen, zukanCount } from './zukan.js';
-import { GATES, diffOpen, planeOpen, nextStep, LOCK_TEXT, NEWS_TEXT, unlockNews } from './unlock.js';
+import { GATES, diffOpen, planeOpen, cmdOpen, nextStep, unlockNews, unlockSheet } from './unlock.js';
 import { emblemScreen, activeEffects, activeIds, emblemLine, emblemPoints, gateStudy, moreStudy, blessStudy } from './emblem.js';
 import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endlessScore, ENDLESS, BLESS_MAX } from '../data/blessings.js';
 import { QUIZ_SECONDS } from '../data/quiz.js';
@@ -109,11 +109,15 @@ const T_ICON = {
 const tIcon = (k) => `<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${T_ICON[k]}</svg>`;
 // メニューの タイル：絵・名前・みじかい しらせ（data-go は これまでと おなじ）
 const tile = (go, label, sub, ic = tIcon(go), cls = '') => `<button type="button" class="tile ${cls}" data-go="${go}"><span class="ti-wrap">${ic}</span><span class="ti-text"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
-// ぼうけんの せってい：1行に 名前と えらぶ つまみ（input の name・id は これまでと おなじ）。まだ あそべない ものは うすく、タップで わけ（unlock.js）
-const LOCK_SVG = '<svg class="lk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
-const segRow = (name, label, items, cur, rb = false, locked = () => false) => `<div class="seg" role="radiogroup" aria-label="${label}"><b class="seg-l">${label}</b>${items.map(([k, l]) => locked(k)
-  ? `<label class="lock" data-lock="${k}" role="button" tabindex="0" aria-label="${l}（まだ あそべない）"><span>${rb ? ruby(l) : l}${LOCK_SVG}</span></label>`
-  : `<label><input type="radio" name="${name}" id="${name}-${k}" value="${k}" ${cur === k ? 'checked' : ''}><span>${rb ? ruby(l) : l}</span></label>`).join('')}</div>`;
+// ぼうけんの せってい：1行に 名前と えらぶ つまみ（input の name・id は これまでと おなじ）。items は ひらいて いる ものだけ（まだの ものは 出さない。unlock.js）
+// えらべる ものが 1つ だけの ときは 行ごと 出さない（その 1つを えらんだ ことに して かくして おく）
+const segRow = (name, label, items, cur, rb = false) => {
+  const sel = items.some(([k]) => k === cur) ? cur : items[0][0];
+  if (items.length < 2) return `<input type="radio" name="${name}" value="${sel}" checked hidden>`;
+  return `<div class="seg" role="radiogroup" aria-label="${label}"><b class="seg-l">${label}</b>${items.map(([k, l]) => `<label><input type="radio" name="${name}" id="${name}-${k}" value="${k}" ${sel === k ? 'checked' : ''}><span>${rb ? ruby(l) : l}</span></label>`).join('')}</div>`;
+};
+// ひらいた もの（unlock.js の GATES の キー）が タイトルの どこに 出るか。しらせの まどを とじると 光る
+const FRESH = { kihon: '[data-go=kihon]', hard: '#diff-hard', ravnica: '#plane-ravnica', strixhaven: '#plane-strixhaven', cmd: '#rule-cmd' };
 
 export function title() {
   const old = load();
@@ -152,9 +156,9 @@ export function title() {
       </div>
       ${step ? '' : `<div class="t-opts">
         <p class="t-opts-h">ぼうけんの せってい</p>
-        ${segRow('plane', 'せかい', PLANES, plane0, false, (k) => !planeOpen(k))}
-        ${segRow('diff', 'むずかしさ', DIFFS, diff0, false, (k) => !diffOpen(k))}
-        ${segRow('rule', 'ルール', RULES, pref.cmd ? 'cmd' : 'normal', true)}
+        ${segRow('plane', 'せかい', PLANES.filter(([k]) => planeOpen(k)), plane0)}
+        ${segRow('diff', 'むずかしさ', DIFFS.filter(([k]) => diffOpen(k)), diff0)}
+        ${segRow('rule', 'ルール', RULES.filter(([k]) => k !== 'cmd' || cmdOpen()), pref.cmd ? 'cmd' : 'normal', true)}
         ${segRow('get', 'あつめかた', GETS, pref.draft ? 'draft' : 'pack')}
       </div>`}
     </section>
@@ -185,24 +189,19 @@ export function title() {
   // 視界が ひらける：タイルが じゅんばんに あらわれる（css の .title.reveal）。しらせの まどは 光が おさまってから
   if (reveal) app().querySelectorAll('.t-menu .tile').forEach((t, i) => t.style.setProperty('--i', i));
   const calm = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return true; } })();
-  // ひらいた しらせ（1回だけ）。ひらいた ものが 2つ あれば、まどを 2つ じゅんばんに
-  const showNews = () => { for (const k of news) {
+  // ひらいた しらせ（1回だけ）：「あたらしく 〇〇が かいほう された！」の まど（unlock.js）→ とじると ひらいた ものが 光る。
+  // ひらいた ものが 2つ あれば、まどを 2つ じゅんばんに
+  const showNews = async () => { for (const k of news) {
+    await unlockSheet(k);
     // ストリクスヘイヴン：入学の あんないの 手紙が とどく
-    if (k === 'strixhaven') sheet(letter({ mark: '学', from: 'ストリクスヘイヴン 魔法（まほう）学院（がくいん）', head: '入学（にゅうがく）の あんない',
+    if (k === 'strixhaven') await sheet(letter({ mark: '学', from: 'ストリクスヘイヴン 魔法（まほう）学院（がくいん）', head: '入学（にゅうがく）の あんない',
       body: ['あなたを 魔法（まほう）学院（がくいん） ストリクスヘイヴンに まねきます。', '5つの 寮（りょう）から 1つ えらび、6階の 卒業（そつぎょう）試験（しけん）を めざしましょう。', 'タイトルの「せかい」で ストリクスヘイヴンを えらぶと、入学式（にゅうがくしき）が はじまります。'],
       sign: '学院（がくいん）の 先生たち より' }), [{ label: 'てがみを とじる', value: 1, kind: 'primary' }], { cls: 'parchment' });
-    else sheet(`<p class="goal">${ruby(NEWS_TEXT[k].text)}</p>`, [{ label: 'やった！', value: 1, kind: 'primary' }], { title: NEWS_TEXT[k].title });
+    const el = FRESH[k] && app().querySelector(FRESH[k]);
+    (el?.closest('label') || el)?.classList.add('fresh');
   } };
   if (reveal && !calm) setTimeout(showNews, 1700); else showNews();
   app().onclick = (e) => {
-    // まだ あそべない もの：わけと、つぎに いく ところ
-    const lk = e.target.closest('[data-lock]');
-    if (lk) {
-      const t = LOCK_TEXT[lk.dataset.lock]; if (!t) return;
-      const choices = t.go ? [{ label: t.label, value: 'go', kind: 'primary' }, { label: 'とじる', value: 0 }] : [{ label: 'わかった', value: 1, kind: 'primary' }];
-      sheet(`<p class="goal">${ruby(t.text)}</p>`, choices, { title: t.title }).then((v) => { if (v === 'go') (t.go === 'tut' ? tutorial() : t.go === 'kihon' ? kihonMenu(title) : storyMenu(title)); });
-      return;
-    }
     const b = e.target.closest('[data-go]'); if (!b) return;
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     if (b.dataset.go === 'tut') return tutorial();
