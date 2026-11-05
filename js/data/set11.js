@@ -118,7 +118,8 @@ export const S11 = {
     const has = s.P.gy.some((c) => c.def.ultOf);
     return has || s.P.life < 15 ? { score: has ? 5 : 2, run: () => { E.gain(s, 2); regrow(s, E, (d) => !!d.ultOf); } } : null;
   } } }),
-  SR32: trail({ skill: foeSkill('−1/−1カウンターを おく クリーチャー', 1, (s, E, t) => { E.addMinus(s, t, 1); E.sba(s); }) }),
+  // ブラックスワン（2026-11-05）：−1/−1カウンター 1こ の あと 増殖（ぞうしょく）。−1/−1カウンターの ある 敵 みんなに もう 1こ（カフカの 2こ → 3こ）。増殖は game.js の proliferate
+  SR32: trail({ skill: foeSkill('−1/−1カウンターを おいて 増殖（ぞうしょく）する クリーチャー', 1, (s, E, t) => { E.addMinus(s, t, 1); E.proliferate(s); }) }),
   SR33: trail({
     skill: foeSkill('1点（タップして いれば 3点）を あたえる クリーチャー', 1, (s, E, t) => hit(s, E, t, t.tapped ? 3 : 1), { pick: (s, E) => foeBest(s, E, 3, (t) => t.tapped) || foeBest(s, E, 1) }),
     pittari: draw1,

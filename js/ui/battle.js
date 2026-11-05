@@ -1,12 +1,12 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_ALL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
 import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
-import { npNote } from '../data/set10.js';
+import { npNote, reijuWhy, useReiju, isServant } from '../data/set10.js';
 import { spOf, spMax } from '../data/set11.js';
 // せんぎポイント ●●●○○（花火が いると 7こ）
 const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</b> ${'●'.repeat(n)}${'○'.repeat(spMax(s) - n)}`; };
@@ -717,6 +717,7 @@ async function action(a) {
   if (a === 'gy') return showGy();
   if (a === 'cmd') return showCmd();
   if (a === 'brk') return showBreak();
+  if (a === 'reiju') return showReiju();
   if (a === 'ecmd') return sheet(cmdNote(s.E, true), [{ label: 'とじる', value: 0 }], { title: 'あいての 統率者（とうそつしゃ）' });
   if (a === 'lib') return sheet(`<p class="pile-note">じゅんばんは ひみつ（色・コストの じゅんに ならべて いる）。なくなったら ぼちを まぜて もどす${reshuffleCost(s.P, true) ? `（ライフ −${reshuffleCost(s.P, true)}）` : ''}。</p>${pileList(s.P.lib)}`, [{ label: 'とじる', value: 0 }], { title: `やまふだ（のこり ${s.P.lib.length}まい）` });
   if (a === 'elib') return sheet(`<p>${esc(s.floor.id === 'pvp' ? 'あいて' : 'てき')}の やまふだは のこり <b>${s.E.lib.length}まい</b>。${s.floor.id === 'horde' ? 'たいぐんは やまふだが ライフの かわり。0まいに して、クリーチャーも いなくなれば かち。' : ''}</p>`, [{ label: 'とじる', value: 0 }], { title: 'てきの やまふだ' });
@@ -904,7 +905,7 @@ async function showBreak() {
   const v = await sheet(`<p>${ruby('ブレイクカウンターが 10こ たまると ブレイクが 1回 つかえる。じぶんの ターンに 3つから えらぶ。')}</p>
     <p class="what">${ruby(leg ? 'ブレイクを もつ 伝説（でんせつ）の クリーチャーが いるので つかえる。' : 'つかうには、ブレイクを もつ 伝説（でんせつ）の クリーチャーが じぶんの 場に いる ひつようが ある（たまるのは いつでも）。')}</p>
     <p class="pile-note">${ruby('たまる とき：ブレイク N の クリーチャーが てきに ダメージ（N こ）・交代（5こ）・場に いる ゼンゼロの クリーチャーの 色の きっかけ（2こ。白 ライフを えた（1ターンに 1回）・青 てきに マイナスの 修整（しゅうせい）・黒 てきに −1/−1カウンター・赤 呪文（じゅもん）や 能力（のうりょく）で ダメージ・緑 ＋1/＋1カウンター）')}</p>`, [
-    { label: `ぜんたい：てきの クリーチャー ぜんぶに ${BREAK_ALL}点`, value: 'all', kind: 'primary', disabled: !ok || !cr.length },
+    { label: s.P.noLifeGain ? 'かいふく：いまは ライフを えられない' : `かいふく：ライフ ＋${BREAK_HEAL}（${s.P.life} ＋ ${BREAK_HEAL} ＝ ${s.P.life + BREAK_HEAL}）`, value: 'heal', kind: 'primary', disabled: !ok || s.P.noLifeGain },
     { label: `たんたい：てきの クリーチャー 1体に ${BREAK_ONE}点（本体なら ${BREAK_FACE}点）`, value: 'one', kind: 'primary', disabled: !ok || (!s.floor.face && !cr.length) },
     { label: 'かいしゅう：マナゾーンの カード 1まいを てふだに', value: 'mana', kind: 'primary', disabled: !ok || !s.P.mana.length },
     { label: 'とじる', value: null },
@@ -920,7 +921,24 @@ async function showBreak() {
     if (!c) return;
     await chainPicks(s);
     useBreak(s, 'mana', c);
-  } else { await chainPicks(s); useBreak(s, 'all'); }
+  } else { await chainPicks(s); useBreak(s, 'heal'); }
+  if (!checkOver()) render();
+}
+// FGO の 令呪（デッキ）（2026-11-05）：ボタンを タップ → せつめい。つかえる ときは サーヴァントを えらぶ（data/set10.js の useReiju。FG16 の 令呪とは べつ）
+async function showReiju() {
+  const s = B.s, main = B.mode === 'main' && s.active === 'P';
+  const why = main ? reijuWhy(s, api) : 'じぶんの メインフェイズに つかえる';
+  const v = await sheet(`<p>${ruby('FGO の カードが ある デッキは、たたかいの はじめに 令呪（れいじゅ）が 3画（かく） ある。')}</p>
+    <p>${ruby('マスターが じぶんの 場に いる とき、じぶんの メインフェイズに 1ターンに 1回、1画 つかって サーヴァント1体の NP を ＋100（すぐ 宝具（ほうぐ）が つかえる）。')}</p>
+    ${why ? `<p class="what">${ruby(`いまは つかえない：${why}`)}</p>` : ''}`, [
+    { label: `1画 つかう（${s.P.reiju || 0} − 1 ＝ ${Math.max(0, (s.P.reiju || 0) - 1)}）`, value: 1, kind: 'primary', disabled: !!why },
+    { label: 'とじる', value: null },
+  ], { title: `れいじゅ（のこり ${s.P.reiju || 0}画）` });
+  if (!v || reijuWhy(s, api)) return;
+  const picks = await pickAll([{ side: 'P', label: 'NP ＋100 する サーヴァント', filter: (s2, E, q) => isServant(q) && !!q.def.npFx }], {});
+  const t = picks?.[0]?.[0];
+  if (!t) return;
+  useReiju(s, api, t);
   if (!checkOver()) render();
 }
 // 連携スキル（ゼンゼロ）：ブレイクの まえに、だれと 連携するか（2人 いじょう いる とき）と、レア・レジェンドは ねらう 相手を えらんで おく（data/set12.js の chain が q.chainMate・q.trigPick を つかう。あいてと おきるかは def.chainMates・def.chainOn ＝ AI と おなじ）
@@ -1418,6 +1436,7 @@ function render() {
         <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
         ${s.P.srDeck ? `<span class="pile sp" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
         ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><button type="button" class="pile sp brk ${s.P.brkReady && canBreak(s) ? 'ready' : ''}" data-act="brk">${s.P.brkReady ? `ブレイク${canBreak(s) ? ' OK！' : ' まち'}${s.P.brkReady > 1 ? `×${s.P.brkReady}` : ''}` : 'ブレイク'} <b>${s.E.brk || 0}</b>/10</button>` : ''}
+        ${s.P.fgDeck ? `<button type="button" class="pile sp brk ${B.mode === 'main' && s.active === 'P' && !reijuWhy(s, api) ? 'ready' : ''}" data-act="reiju" title="れいじゅ（マスターが いる とき 1ターンに 1回 つかえる）">れいじゅ <b>${s.P.reiju || 0}</b></button>` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>
