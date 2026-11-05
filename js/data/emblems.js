@@ -1,6 +1,6 @@
 // もんしょう（REQUIREMENTS 12章・docs/EMBLEMS.md）：しゅぎょうで ためた ポイントで えらぶ。どれも えらんでから 12じかん
 // こうかは ぼうけん（とうの たたかい）だけ。オンライン バトルと チュートリアルには つかない
-import { BASICS, boostBasic, SUN_RING, ALL_DEV } from './cards.js';
+import { BASICS, boostBasic, SUN_RING, ALL_DEV, SETS } from './cards.js';
 
 export const EMBLEM_HOURS = 12;
 export const BRANCHES = [
@@ -47,7 +47,7 @@ export const EMBLEMS = [
   { id: 'pFGO', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） Fate/Grand Order', text: 'パックに FGO の カード（72しゅるい）が まざる', detail: 'いつもの パックに サーヴァント・令呪（れいじゅ）・概念礼装（がいねんれいそう）などが 出る。宝具（ほうぐ）は NP 100 で おきる', fx: { packExtra: 10 } },
   { id: 'pHSR', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） 崩壊（ほうかい）：スターレイル', text: 'パックに スターレイルの カード（70しゅるい）が まざる', detail: 'キャラ（ピノコニーまで）・モブ・光円錐（こうえんすい）が 出る。せんぎポイントは みんなで 1つ（5まで）', fx: { packExtra: 11 } },
   { id: 'pZZZ', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） ゼンレスゾーンゼロ', text: 'パックに ゼンゼロの カード（80しゅるい）が まざる', detail: 'エージェント（Ver.1まで）・モブ・ボンプ・音動機（おんどうき）・終結（しゅうけつ）スキルが 出る。ブレイクを 10 ためると てきの 本体に 10点。エネルギーは みんなで 1つ（10まで）', fx: { packExtra: 12 } },
-  { id: 'pFGO2', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） FGO 第2弾（だん）', text: 'パックに FGO 第2弾（だん）「異聞帯（いぶんたい）」の カード（80しゅるい）が まざる', detail: '異聞帯（いぶんたい）の サーヴァント・クリプター（マスター）が 出る。オーバーチャージ：NP 200・300 で 宝具（ほうぐ）が 2ばい・3ばい（1ターンに 1回）', fx: { packExtra: 14 } },
+  { id: 'pFGO2', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） FGO 第2弾（だん）', text: 'パックに FGO 第2弾（だん）「異聞帯（いぶんたい）」の カード（95しゅるい）が まざる', detail: '異聞帯（いぶんたい）の サーヴァント・クリプター（マスター）・宝具（ほうぐ）の 装備品（そうびひん）が 出る。オーバーチャージ：NP 200・300 で 宝具（ほうぐ）が 2ばい・3ばい（1ターンに 1回）', fx: { packExtra: 14 } },
   { id: 'pHSR2', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） スターレイル 第2弾（だん）', text: 'パックに スターレイル 第2弾（だん）「火を 追（お）う 旅（たび）」の カード（80しゅるい）が まざる', detail: 'オンパロスの キャラが 出る。記憶（きおく）の 精霊（せいれい）・追加（ついか）攻撃（こうげき）', fx: { packExtra: 15 } },
   { id: 'pZZZ2', branch: 'pack', lv: 1, cost: 1, name: '番外編（ばんがいへん） ゼンゼロ 第2弾（だん）', text: 'パックに ゼンゼロ 第2弾（だん）の カード（80しゅるい）が まざる', detail: 'シーズン2の エージェントが 出る。連携（れんけい）スキル・属性（ぞくせい）異常（いじょう）', fx: { packExtra: 16 } },
   // いろ：えらんだ 色の カードが 出やすい（2つまで。2色とも ある カードは 5ばい）
@@ -56,6 +56,12 @@ export const EMBLEMS = [
     text: `${ja}の カードが 3ばい 出やすい`, detail: 'いろの もんしょうは 2つまで。2つ えらぶと、その 2色の カード（ギルドの カードなど）は 5ばい 出やすい', fx: { packColor: c },
   })),
 ];
+// パックの もんしょうの「（Nしゅるい）」は 弾の じっさいの まい数に あわせる（2026-11-05。カードを 足しても ずれない ように。
+// プレインズウォーカーは プレインズウォーカーの 数なので そのまま）
+for (const e of EMBLEMS) {
+  const set = e.fx.packExtra && e.id !== 'pPW' && SETS.find((x) => x.id === e.fx.packExtra);
+  if (set) e.text = e.text.replace(/（\d+しゅるい）/, `（${set.cards.filter((d) => !d.noPack).length}しゅるい）`);
+}
 export const EMBLEM_BY_ID = Object.fromEntries(EMBLEMS.map((e) => [e.id, e]));
 
 // えらんで いる もんしょうの こうか → game.js の newGame（emblem）

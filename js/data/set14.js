@@ -1,11 +1,11 @@
-// 番外編「Fate/Grand Order」第2弾「異聞帯（いぶんたい）」のうごき（FG91〜FG170。名前・コスト・P/T は skel.js、文は docs/EXTRA2_FG.md 3章）
+// 番外編「Fate/Grand Order」第2弾「異聞帯（いぶんたい）」のうごき（FG91〜FG185。名前・コスト・P/T は skel.js、文は docs/EXTRA2_FG.md 3章）
 // しくみは 第1弾（set10.js）と 同じ：攻撃で NP が たまり、100 で 宝具（ほうぐ）。
 // オーバーチャージ（oc: true）：NP を 100・200・300 の どれだけ つかうか えらぶ → 〔 〕の 数が 1倍・2倍・3倍（1ターンに 1回）。〔 〕の 数は oc(p, n)
 // クリプター（第2弾の マスター）：宝具を つかうたび、つかった NP 100 に つき（onHogu の k 回）
 // ねらいかた：コモンは ランダム、アンコモンは パワーが いちばん 大きい（game.js の pickOf。foeBest が したがう）。レアの 1体は 人が えらぶ（npTgt）
 // クラス相性（あいしょう）は 入れない（2026-11-01 ユーザーが きめた）。クラスは サブタイプとして のこす
 import { cr, mine, theirs, isCr, hit, foeBest, shrink, killIt, chosen1, dig, regrow, T, foe1, bestIn } from './kit.js';
-import { S10, np, oc, addNP, servants, isServant, bestServant, detain, biggest, allFoes, master, randomFoe, NP_MAX } from './set10.js';
+import { S10, np, oc, addNP, servants, isServant, bestServant, detain, biggest, allFoes, master, randomFoe, NP_MAX, phantasm, hostOf, allWhile, gives } from './set10.js';
 
 // ---- 道具 ----
 const ocNP = (g, fx, x = {}) => np(g, fx, { oc: true, ...x });
@@ -84,6 +84,20 @@ function doubleNP(s, E, t) {
 }
 // 100 の まとまりが いくつ ふえるか（NP 150 → 300 は 1 → 3 で 2）
 const ocUpBy = (n) => Math.floor(Math.min(NP_MAX, 2 * n) / 100) - Math.floor(n / 100);
+
+// 宝具の 装備品（FG171〜FG185。2026-11-05）：第1弾の FG76〜FG90 と 同じ phantasm（シャドウ召喚 1）
+// 「その サーヴァント」の こうかは NP の ある サーヴァントに ついて いる ときだけ（FG167 虚数魔術と 同じ）
+const npHost = (h) => !!h && isServant(h) && !!h.def.npFx;
+// 装備している サーヴァントが 宝具を つかうたび（set10.js の fireNP が 同じ 側の パーマネントの onHogu を よぶ。k ＝ つかった NP の 100 の 数）
+const hostHogu = (f) => ({
+  onHogu: (s, q, p, E, k) => {
+    if (q.side !== 'P' || q.attached !== p.uid || !E.onBf(s, q)) return;
+    f(s, q, p, E, k);
+    E.sba(s);
+  },
+});
+// 装備品の 名前（ログ用。ふりがなと ★を とる）
+const eqName = (q) => q.def.name.replace(/（[ぁ-ゖー]+）/g, '').replace(/^★/, '');
 
 export const S14 = {
   // ---- 白 ----
@@ -323,4 +337,94 @@ export const S14 = {
       apply: (s, E, [[t]], x, p) => { E.leave(s, p, 'gy'); if (t && E.onBf(s, t)) { t.tapped = false; E.L(s, `${t.def.name} を アンタップ`); } },
     }],
   },
+
+  // ---- 宝具（ほうぐ・装備品。FG171〜FG185。2026-11-05）：第1弾の FG76〜FG90 と 同じ 形 ＋ NP・オーバーチャージ ----
+  // 白：ぜんたい・まもる
+  FG171: phantasm({
+    equip: 2, anthem: allWhile(1, 1),
+    onEquip: (s, q, host, E) => {
+      const list = servants(s, E).filter((x) => x.def.npFx);
+      if (!list.length) return;
+      E.L(s, `${eqName(q)}：サーヴァント ${list.length}体の NP ＋20（20 × ${list.length} ＝ ${20 * list.length}）`);
+      for (const x of list) addNP(s, E, x, 20);
+    },
+  }),
+  FG172: phantasm({ equip: 1, eqP: 1, grant: gives('first'), ...hostHogu((s, q, p, E, k) => { E.L(s, `${eqName(q)}：NP 100 が ${k}つ → ＋2 × ${k} ＝ ＋${2 * k}`); pumpOne(s, E, p, 2 * k, 0); }) }),
+  FG173: phantasm({
+    equip: 1, anthem: allWhile(0, 1),
+    ...hostHogu((s, q, p, E) => { for (const x of mine(s, E)) E.pump(x, 0, 0, ['indestructible']); E.L(s, `${eqName(q)}：この ターン みんな 破壊不能（はかいふのう）`); }),
+  }),
+  // 青：飛行・タップ・パワーを うばう
+  FG174: phantasm({
+    equip: 1, eqP: 1, eqT: 1, grant: gives('flying'),
+    upkeep: (s, q, E) => { if (q.side !== 'P') return; const h = hostOf(s, q); if (npHost(h) && E.onBf(s, h)) addNP(s, E, h, 30); },
+  }),
+  FG175: phantasm({
+    equip: 1, eqP: 1, eqT: 1,
+    onHostAttack: (s, q, host, E) => {
+      if (q.side !== 'P') return;
+      const t = topFoe(s, E, (x) => !x.tapped);
+      if (t) { t.tapped = true; E.L(s, `${eqName(q)}：${t.def.name} を タップ`); }
+    },
+  }),
+  FG176: phantasm({
+    equip: 1, eqP: 1,
+    onHostAttack: (s, q, host, E) => {
+      if (q.side !== 'P') return;
+      const t = topFoe(s, E);
+      if (t) pumpOne(s, E, t, -1, 0);
+      pumpOne(s, E, host, 1, 0);
+    },
+  }),
+  // 黒：−1/−1カウンター・NP・墓地
+  FG177: phantasm({
+    equip: 1, eqP: 2, grant: gives('lifelink'), // 絆魂は 2026-11-05 の シミュレーションで 足した（第1弾の 死告天使より 弱かった。バーヴァン・シーは 血を すう 妖精）
+    hostTrig: { spec: { side: 'E', label: '−1/−1カウンターを おく 敵（てき）の クリーチャー' } }, // 人は 攻撃の ときに えらぶ（battle.js の preTrig）。AI は パワーが いちばん 大きい もの
+    onHostAttack: (s, q, host, E) => {
+      const tp = q.trigPick; q.trigPick = null;
+      if (q.side !== 'P') return;
+      const t = tp?.t && tp.t !== 'face' && E.onBf(s, tp.t) ? tp.t : topFoe(s, E);
+      if (!t) return;
+      E.target(s, t); E.addMinus(s, t, 1); E.sba(s);
+    },
+  }),
+  FG178: phantasm({ equip: 1, eqP: 1, eqT: 1, grant: gives('haste'), onHostAttack: (s, q, host, E) => { if (q.side === 'P' && npHost(host)) addNP(s, E, host, 20); } }),
+  FG179: phantasm({ equip: 1, eqP: 1, eqT: 1, ...hostHogu((s, q, p, E) => { if (!regrow(s, E, isCr)) E.L(s, `${eqName(q)}：ぼちに クリーチャーが ない`); }) }),
+  // 赤：パワー・ダメージ
+  FG180: phantasm({
+    equip: 2, eqP: 3,
+    ...hostHogu((s, q, p, E, k) => { E.L(s, `${eqName(q)}：NP 100 が ${k}つ → てきの クリーチャー みんなに 1点 × ${k}回`); for (let i = 0; i < k && !s.over; i++) allFoes(s, E, 1); }),
+  }),
+  FG181: phantasm({
+    equip: 1, eqP: 2,
+    ...hostHogu((s, q, p, E) => {
+      const n = E.onBf(s, p) ? E.power(s, p) : 0, t = topFoe(s, E);
+      if (!t || n <= 0) return;
+      E.L(s, `${eqName(q)}：${p.def.name} の パワー ${n} → ${n}点`);
+      hit(s, E, t, n);
+    }),
+  }),
+  FG182: phantasm({ equip: 1, grant: gives('trample'), eqPT: (s, q, p, E) => [s[q.side].bf.filter((x) => isServant(x) && E.isCreature(x)).length, 0] }),
+  // 緑：大きな からだ・＋1/＋1カウンター・NP
+  FG183: phantasm({
+    equip: 2, eqP: 2, eqT: 2, grant: gives('trample'),
+    ...hostHogu((s, q, p, E, k) => {
+      for (let i = 0; i < k; i++) {
+        const t = topFoe(s, E, (x) => E.pt(s, x)[1] <= 2 && canKill(s, E)(x));
+        if (!t) break;
+        E.L(s, `${eqName(q)}：${t.def.name}（タフネス ${E.pt(s, t)[1]} ≦ 2）を はかい`);
+        E.target(s, t); killIt(s, E, t);
+      }
+    }),
+  }),
+  FG184: phantasm({ equip: 1, eqP: 1, eqT: 1, onHostAttack: (s, q, host, E) => { if (q.side === 'P') counters(s, E, host, 1); } }),
+  FG185: phantasm({
+    equip: 2, eqP: 1, eqT: 1,
+    onEquip: (s, q, host, E) => {
+      if (!npHost(host) || !E.onBf(s, host)) return;
+      addNP(s, E, host, 100);
+      host.frozen = true;
+      E.L(s, `夢（ゆめ）の おわり：${host.def.name} は つぎの ターン アンタップしない`);
+    },
+  }),
 };
