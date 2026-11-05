@@ -1,7 +1,7 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
   api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, gyCast, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
-  zzBreak, useBreak, BREAK_ALL, BREAK_ONE, BREAK_FACE, ZZ_BLUE,
+  zzBreak, useBreak, BREAK_ALL, BREAK_ONE, BREAK_FACE, ZZ_BLUE, legendDupe,
 } from './game.js';
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
@@ -288,6 +288,7 @@ function castSuspended(s, c) {
 
 function permScore(s, def, phase) {
   if (def.need && !def.need(s, api)) return null;
+  if (legendDupe(s, 'P', def)) return null; // 伝説の ルール：おなじ 伝説を 2まい目は 出さない（まえの ほうが ぼちに いく）
   if (def.flash && phase === 1 && s.P.hand.some((c) => c.def === def) && s.floor.threat(s, api).attackers > 0) return 1; // 瞬速はなるべく相手のターンに
   // 装備品（FGO の 宝具 など）：つける クリーチャーが いない ときは あとまわし（シャドウ召喚で 出せるなら まだ よい）。クリーチャーより 先には 出さない
   if (def.equip) {

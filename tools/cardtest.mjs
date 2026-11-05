@@ -158,6 +158,7 @@ for (const [id, l] of Object.entries(LORE)) {
   await run('lore', id, async () => {
     for (const seed of [7, 8, 9]) {
       const s = board(d); s.say = (p, w) => { if (p.def.id === id) heard.add(w); };
+      s.noLegendRule = true; // 伝説の ルールは とめる（この しらべは、手札の 2まい目が 出て「なかま」の きっかけに なる ことが ある）
       const p = api.enter(s, 'P', d); if (p) { p.sick = false; p.np = 200; } s.P.sp = 5; s.P.bon = 10; s.rng = (() => { let x = seed; return () => ((x = (x * 9301 + 49297) % 233280) / 233280); })();
       if (l.when === 'targeted') { const e = api.enter(s, 'E', d); BY_ID.R11?.play?.(s, api, { phase: 1 })?.run?.(); }
       if (l.when === 'act' && p) for (const a of d.acts || []) { if (!onBf(s, p)) break; if (a.tgt && a.apply) { const pk = picksFor(s, a.tgt, p); if (pk) a.apply(s, api, pk, 2, p); } else a.play?.(s, p, api, { phase: 1, human: true })?.run?.(2); }
