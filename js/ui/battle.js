@@ -321,7 +321,8 @@ function checkOver(lines) {
   if (!s.over) return false;
   render();
   const win = s.over === 'win', draw = s.over === 'draw';
-  fx.result(win ? 'win' : draw ? 'draw' : 'lose').then(() => sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? 'かった！' : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
+  const winText = s.floor.winText || 'かった！'; // 次元渡りの 侵略者の ボスは「勝利……？」（いつか レイドの ボスで もどって くる かも。2026-11-05）
+  fx.result(win ? 'win' : draw ? 'draw' : 'lose', win ? winText : undefined).then(() => sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? winText : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
     .then(() => B.onEnd({
       win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish, finisher: s.finisher || null,

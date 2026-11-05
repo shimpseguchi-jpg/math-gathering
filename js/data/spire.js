@@ -169,7 +169,9 @@ export const bossBlurb = (key) => MONSTERS[key]?.blurb || '';
 
 // ふつうの敵の階（o.lifeMul・o.reveal はアセンション）
 // 侵略者の ボス（c.boss）：ライフは むずかしさで かわる（アセンション 4 で「むずかしい」）。c.lines：セリフ。c.phases：ライフ 2/3・1/3 で 3段階
+// 勝っても カットインは「勝利……？」（エルドラージ・ボーラス・法務官は、いつか レイドの ボスで もどって くる かも。ユーザーが きめた 2026-11-05）
 const BOSS_DIFF = { easy: 0.85, normal: 1, hard: 1.2 };
+const INVADER_WIN = '勝利……？';
 export function monsterFloor(key, o = {}) {
   const c = MONSTERS[key];
   const lifeOf = (s) => Math.round(c.life * (o.lifeMul || 1) * (c.boss ? BOSS_DIFF[s?.diff] ?? 1 : 1)), rv = (o.reveal || 1) * (c.reveal || 1);
@@ -184,7 +186,7 @@ export function monsterFloor(key, o = {}) {
   };
   const check = (s, E) => { if (s.E.life <= 0) s.over = 'win'; else if (E) talk(s, E); };
   return {
-    id: key, name: c.name, rav: true, spire: true, faceUnit: 1, faceLabel: c.name, speaker: c.speaker, lines: c.lines,
+    id: key, name: c.name, rav: true, spire: true, faceUnit: 1, faceLabel: c.name, speaker: c.speaker, lines: c.lines, winText: c.boss ? INVADER_WIN : undefined,
     goal: (s) => `${c.lines ? `${c.speaker}「${c.lines.start}」\n` : ''}${c.name}のライフ（${s?.E?.lifeMax || lifeOf(s)}）を 0 にする。${c.blurb ? `${c.blurb}。` : c.intent ? `${c.intent(s)}。` : ''}`,
     setup(s, E) {
       const life = lifeOf(s);
