@@ -55,7 +55,7 @@ if (process.env.START) {
     if (process.env.SPIRE_FAST) await page.evaluate(async () => {
       const m = await import('./js/data/spire.js'), e = await import('./js/data/enemies.js');
       for (const k of Object.keys(m.MONSTERS)) m.MONSTERS[k].life = 1;
-      for (const a of m.ACTS) for (const id of [...a.elites, a.boss]) e.FLOORS[id] = () => m.monsterFloor('sp_harpies');
+      for (const a of m.ACTS) for (const id of [...a.elites, a.boss, ...(a.invaders || [])]) e.FLOORS[id] = () => m.monsterFloor('sp_harpies');
     });
     await page.click('[data-go=spire]'); await page.click('[data-a=cont]');
   }

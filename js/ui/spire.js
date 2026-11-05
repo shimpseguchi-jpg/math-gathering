@@ -1,8 +1,8 @@
 // 次元渡り（大人向けモード。docs/SPIRE.md）：画面
 // 冒険のすすめかたは engine/spire.js の runLoop。ここは io（マップ・報酬・お店・選択・戦闘）を画面で答える
 // 文字は大人向けのふつうの日本語（ふりがななし。tools/kanji.mjs の対象外）
-import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOSS_ROW, commanderOffers, cmdInZone, colsOf } from '../engine/spire.js';
-import { SPIRE, ACTS, ASC, RELIC_BY_ID, POTION_BY_ID } from '../data/spire.js';
+import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOSS_ROW, commanderOffers, cmdInZone, colsOf, actBoss, actBossName } from '../engine/spire.js';
+import { SPIRE, ACTS, ASC, RELIC_BY_ID, POTION_BY_ID, bossBlurb } from '../data/spire.js';
 import { grown } from '../data/strixhaven.js';
 import { startBattle } from './battle.js';
 import { cardFace, fullCard, detail, sheet, esc, info, richText, COLOR_NAME, byColorCost } from './view.js';
@@ -145,7 +145,7 @@ function mapHtml(R, can) {
 function pickNode(R, nodes) {
   return new Promise((resolve) => {
     app().innerHTML = `<main class="spire sp-mapscreen">${hud(R)}
-      <p class="sp-boss">ボス：${esc(ACTS[R.act].bossName)}</p>
+      <p class="sp-boss">ボス：${esc(actBossName(R))}${bossBlurb(actBoss(R)) ? `<small>${esc(bossBlurb(actBoss(R)))}</small>` : ''}</p>
       ${mapHtml(R, nodes)}
       <p class="sp-legend">${Object.entries(NODE).map(([t, [k, n]]) => `<span class="t-${t}"><i>${k}</i>${n}</span>`).join('')}</p>
       <div class="row-btns"><button type="button" class="btn ghost" data-a="quit">メニューへ（つづきは残る）</button></div>
