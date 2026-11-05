@@ -141,6 +141,13 @@ const minusChain = chainSkill((s, q, E, n) => {
   if (!t) return;
   E.target(s, t); E.L(s, `${t.def.name} は −${h}/−${h}`); shrink(s, E, t, h);
 }, (n) => (half(n) ? { side: 'E', label: `−${half(n)}/−${half(n)} する てきの クリーチャー（れんけいの 数の 半分）` } : null));
+// 黒（ゼンゼロ 第2弾。2026-11-05）：−1/−1カウンターを 半分の 数だけ（のこる・増殖で ふえる）
+const minusCtrChain = chainSkill((s, q, E, n) => {
+  const h = halfLog(s, E, n); if (!h) return;
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  if (!t) return;
+  E.target(s, t); E.addMinus(s, t, h); E.sba(s);
+}, (n) => (half(n) ? { side: 'E', label: `−1/−1カウンターを ${half(n)}こ おく てきの クリーチャー（れんけいの 数の 半分）` } : null));
 // 赤：敵の クリーチャー1体に 半分の ダメージ（この クリーチャーが あたえる ので 紊乱も おきる）
 const halfDmgChain = chainSkill((s, q, E, n) => {
   const h = halfLog(s, E, n); if (!h) return;
@@ -156,7 +163,7 @@ const ctrChain = chainSkill((s, q, E, n) => {
   E.target(s, t); E.L(s, `${t.def.name} に ＋1/＋1カウンター ${h}こ`); E.addCounters(s, t, h);
 }, (n) => (half(n) ? { side: 'P', label: `＋1/＋1カウンターを ${half(n)}こ おく あなたの クリーチャー（れんけいの 数の 半分）` } : null));
 // 色 → 2026-11-04 の 連携（どれも 連携の 数の 半分。白：＋/＋0、青：パワー いかを タップ、黒：−/−、赤：ダメージ、緑：＋1/＋1カウンター）
-const CHAIN = { W: pumpHalfChain, U: tapHalfChain, K: minusChain, R: halfDmgChain, G: ctrChain };
+const CHAIN = { W: pumpHalfChain, U: tapHalfChain, K: minusChain, Kc: minusCtrChain, R: halfDmgChain, G: ctrChain }; // Kc：黒の −1/−1カウンター（第2弾）
 
 export const S12 = {
   // ---- エージェント ----
