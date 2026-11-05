@@ -2,7 +2,7 @@
 // しくみは MTG の もの：ブレイク N（毒性。game.js の addBreak。2026-11-04 に みんな ＋1 → 2〜4）・エネルギー（0〜10。s.P.bon）・交代（忍術）・終結スキル（召集）・増殖
 // 第2弾の 連携（れんけい）スキルも ここ（2026-11-04 から 第1弾・第2弾の エージェント みんなが もつ。set16.js も つかう）
 // 音動機・終結スキルの こうかは MTG に あって この ゲームに まだ ない カード
-import { mine, theirs, hit, foeBest, shrink, cr, foe1, bolt, killIt, exileIt, T } from './kit.js';
+import { mine, theirs, hit, foeBest, cr, foe1, bolt, killIt, exileIt, T } from './kit.js';
 
 export const BON_MAX = 10;
 export const bonOf = (s) => s.P.bon || 0;
@@ -134,14 +134,8 @@ const pumpHalfChain = chainSkill((s, q, E, n) => {
 // 青：パワーが 半分 いかの 敵の クリーチャー1体を タップ（つぎも おきない）
 const tapHalfChain = chainSkill((s, q, E, n) => { const h = halfLog(s, E, n); detain(s, E, foeBy(s, E, q, (t) => powLE(s, E, h)(t) && !t.frozen, byPow(s, E))); },
   (n) => ({ side: 'E', label: `タップする パワー ${half(n)} いかの てきの クリーチャー（れんけいの 数の 半分）`, filter: (s, E, p) => E.power(s, p) <= half(n) }));
-// 黒：敵の クリーチャー1体に −半分/−半分（ターン終了時まで）
-const minusChain = chainSkill((s, q, E, n) => {
-  const h = halfLog(s, E, n); if (!h) return;
-  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
-  if (!t) return;
-  E.target(s, t); E.L(s, `${t.def.name} は −${h}/−${h}`); shrink(s, E, t, h);
-}, (n) => (half(n) ? { side: 'E', label: `−${half(n)}/−${half(n)} する てきの クリーチャー（れんけいの 数の 半分）` } : null));
-// 黒（ゼンゼロ 第2弾。2026-11-05）：−1/−1カウンターを 半分の 数だけ（のこる・増殖で ふえる）
+// 黒：敵の クリーチャー1体に −1/−1カウンターを 半分の 数だけ（のこる・増殖で ふえる）。
+//   2026-11-05：はじめは −半分/−半分（ターン終了時まで）だった。第2弾（Kc）に あわせて 第1弾も カウンターに した（docs/EXTRA.md 6章）
 const minusCtrChain = chainSkill((s, q, E, n) => {
   const h = halfLog(s, E, n); if (!h) return;
   const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
@@ -162,8 +156,8 @@ const ctrChain = chainSkill((s, q, E, n) => {
   if (!t || !E.onBf(s, t)) return;
   E.target(s, t); E.L(s, `${t.def.name} に ＋1/＋1カウンター ${h}こ`); E.addCounters(s, t, h);
 }, (n) => (half(n) ? { side: 'P', label: `＋1/＋1カウンターを ${half(n)}こ おく あなたの クリーチャー（れんけいの 数の 半分）` } : null));
-// 色 → 2026-11-04 の 連携（どれも 連携の 数の 半分。白：＋/＋0、青：パワー いかを タップ、黒：−/−、赤：ダメージ、緑：＋1/＋1カウンター）
-const CHAIN = { W: pumpHalfChain, U: tapHalfChain, K: minusChain, Kc: minusCtrChain, R: halfDmgChain, G: ctrChain }; // Kc：黒の −1/−1カウンター（第2弾）
+// 色 → 2026-11-04 の 連携（どれも 連携の 数の 半分。白：＋/＋0、青：パワー いかを タップ、黒（Kc）：−1/−1カウンター、赤：ダメージ、緑：＋1/＋1カウンター）
+const CHAIN = { W: pumpHalfChain, U: tapHalfChain, Kc: minusCtrChain, R: halfDmgChain, G: ctrChain }; // Kc：黒の −1/−1カウンター（2026-11-05。もとの K は −半分/−半分）
 
 export const S12 = {
   // ---- エージェント ----
@@ -213,7 +207,7 @@ export const S12 = {
   // ---- モブ ----
   ZZ30: { etb: etbBon(1) },
   ZZ29: { etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } },
-  ZZ31: etbFoe('−2/−2 する てきの クリーチャー', (s, E, t) => { E.pump(t, -2, -2); E.L(s, `${t.def.name} は −2/−2`); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)),
+  ZZ31: etbFoe('−1/−1カウンターを 2こ おく てきの クリーチャー', (s, E, t) => { E.addMinus(s, t, 2); E.zzBreak(s, 'U', '青：てきを よわく した'); E.sba(s); }, (s, E) => biggest(s, E, (t) => left(s, E, t) <= 2) || biggest(s, E)), // 2026-11-05：−2/−2 → −1/−1カウンター。2/3 → 1/3。青の きっかけ（ブレイク）も のこす
   ZZ33: { brk: 2, onDie: (s, p, E) => { if (p.side !== 'P') return; const t = biggest(s, E); if (t) E.addMinus(s, t, 1); } },
   ZZ34: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 1); } },
   ZZ35: { onDie: (s, p, E) => { if (p.side === 'P') E.addBreak(s, 1); } },
@@ -251,7 +245,7 @@ export const S12 = {
     apply: (s, E, picks, x, o = {}) => E.token(s, 'P', T.saproling, o.kicked ? 4 : 2),
   },
   ZZ57: { play: (s, E) => ({ score: 8, run: () => E.token(s, 'P', T.spirit, 2) }), flashback: { cost: 2, req: ['K'] } }, // 未練ある魂
-  ZZ58: foe1('−2/−2 する クリーチャー', (s, E, t) => { shrink(s, E, t, 2); E.gain(s, 2); }, { n: 2 }), // 渇望の 瞬間
+  ZZ58: foe1('−1/−1カウンターを おく クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, 1); E.sba(s); } E.gain(s, 2); }, { n: 1 }), // 渇望の 瞬間（2026-11-05：−2/−2 → −1/−1カウンター 1こ）
   ZZ59: bolt(3, (s, E) => E.proliferate(s)), // 電圧の放出
   ZZ60: foe1('−1/−1カウンターを おく クリーチャー', (s, E, t) => { E.addMinus(s, t, 1); E.proliferate(s); E.sba(s); }, { n: 2 }), // 無情な苦悩
   ZZ61: foe1('はかいする クリーチャー', (s, E, t) => { killIt(s, E, t); E.proliferate(s); }), // 病の拡散
@@ -294,9 +288,9 @@ export const S12 = {
     play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.frozen).sort((a, b) => E.power(s, b) - E.power(s, a)); const x = Math.min(ctx.xMax || 0, ts.length); return x ? { score: 2 + x * 2, x, run: (xx) => { for (const t of ts.slice(0, xx)) detain(s, E, t); } } : null; },
     tgt: [{ side: 'E', max: 9, label: 'タップする クリーチャー（X体まで・つぎも おきない）' }], apply: (s, E, [ts], x) => { for (const t of ts.slice(0, x)) detain(s, E, t); },
   },
-  ZZ74: { ...ULT, // 潮の波（ひこうの ない てきを 3体まで タップ）
-    play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying')).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) { t.tapped = true; E.pump(t, -1, -1); } E.sba(s); } } : null; },
-    tgt: [{ side: 'E', max: 3, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: 'タップする ひこうの ない クリーチャー（3体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; E.pump(t, -1, -1); } E.sba(s); },
+  ZZ74: { ...ULT, // 潮の波（ひこうの ない てきを 3体まで タップ。2026-11-05：−1/−1 → −1/−1カウンター。コスト 2 → 4。青の きっかけも のこす）
+    play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying')).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) { t.tapped = true; E.addMinus(s, t, 1); } if (ts.length) E.zzBreak(s, 'U', '青：てきを よわく した'); E.sba(s); } } : null; },
+    tgt: [{ side: 'E', max: 3, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: 'タップして −1/−1カウンターを おく ひこうの ない クリーチャー（3体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; E.addMinus(s, t, 1); } if (ts.length) E.zzBreak(s, 'U', '青：てきを よわく した'); E.sba(s); },
   },
   ZZ75: { ...(foe1('ついほうする クリーチャー', (s, E, t) => { exileIt(s, E, t); E.gain(s, 2); })), ...ULT }, // ヴラスカの侮辱
   ZZ76: { ...ULT, play: (s, E, ctx) => { const v = wipeValue(s, E, (q) => left(s, E, q) <= 4); return v > 4 || (ctx.human && theirs(s, E).length) ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.pump(q, -4, -4); E.sba(s); } } : null; } }, // 衰滅
@@ -334,7 +328,7 @@ export const chainAll = (S, byColor) => { for (const [c, ids] of Object.entries(
 chainAll(S12, {
   W: ['ZZ01', 'ZZ07', 'ZZ10', 'ZZ11', 'ZZ14', 'ZZ15', 'ZZ18', 'ZZ20'],
   U: ['ZZ05', 'ZZ06', 'ZZ13', 'ZZ16'],
-  K: ['ZZ02', 'ZZ17', 'ZZ27'],
+  Kc: ['ZZ02', 'ZZ17', 'ZZ27'], // 黒は −1/−1カウンター（2026-11-05。第2弾と おなじ）
   R: ['ZZ09', 'ZZ12', 'ZZ22', 'ZZ24', 'ZZ25', 'ZZ26', 'ZZ28'],
   G: ['ZZ03', 'ZZ04', 'ZZ08', 'ZZ19', 'ZZ21', 'ZZ23'],
 });

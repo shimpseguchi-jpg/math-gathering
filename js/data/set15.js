@@ -4,7 +4,7 @@
 //   記憶の精霊：キャラ（と 一部の モブ）と つながった トークン（t.memoOf ＝ キャラの uid）。キャラが はなれると きえる。1キャラに 1体まで（もう いれば ＋1/＋1カウンター）
 //   追加攻撃 N：def.followUp を game.js の resolveCombat が よぶ（みかたの 戦闘ダメージで のこった 敵の クリーチャーに N点。ぴったり → 撃破）
 import { cr, T, mine, theirs, hit, foeBest, shrink, foe1, single, killIt, aura, regrow, isSub, gyCount, isSpellDef, bestIn, isCr } from './kit.js';
-import { SP_START, spOf, addSP, trail, spend, foeSkill, selfPump, spCut, ult, biggest, foeTurn, foeThreat, canSwing, spPit } from './set11.js';
+import { SP_START, spOf, addSP, trail, spend, foeSkill, selfPump, spCut, ult, biggest, foeTurn, foeThreat, canSwing, spPit, minusCtr } from './set11.js';
 import { PICK_FREE } from '../engine/game.js';
 
 // 自分で えらぶ ままの もの（game.js の PICK_FREE。格闘と、1・2・3点を どれに あてるか えらぶ のが 算数の もの）
@@ -338,7 +338,7 @@ export const S15 = {
   },
   SR116: { play: (s, E, ctx) => { const lib = s.P.lib; if (!lib.length) return null; const ok = lib.filter((c) => isCr(c.def) && !c.def.x && c.def.cost <= 3).length; const exp = Math.min(2, (ok / lib.length) * 6); return exp >= 0.8 || ctx.human ? { score: 3 + 4 * exp, run: () => storyFlip(s, E) } : null; } }, // 物語を めくって（Collected Company）
   SR117: foe1('はかいする クリーチャー', killIt), // 燃え盛る黎明のように（Terminate）
-  SR118: foe1('−5/−5 する クリーチャー（しぼうするなら ついほう）', (s, E, t) => { if (!t || !E.onBf(s, t)) return; t.exileT = s.turn; shrink(s, E, t, 5); }), // 何が真か
+  SR118: foe1('−1/−1カウンターを 5こ おく クリーチャー（しぼうするなら ついほう）', (s, E, t) => { if (!t || !E.onBf(s, t)) return; t.exileT = s.turn; minusCtr(s, E, t, 5); }), // 何が真か（2026-11-05：−5/−5 → −1/−1カウンター。コスト 4 → 5）
   // ---- モブ ----
   SR119: trail15({ ...memoLink, etb: (s, p, E) => { summonMemo(s, E, p, T15.memoW); } }),
   SR120: trail15(fu(1)),
@@ -381,7 +381,7 @@ export const S15 = {
     tgt: [{ side: 'E', label: 'はかいする 黒でない クリーチャー', filter: (s, E, t) => !E.colorsOf(t.def).includes('K') }], apply: (s, E, [[t]]) => vendetta(s, E, t),
   },
   SR141: aura('E', '−2/−2 する てきの クリーチャー', { p: -2, t: -2 }), // 幾度目かの春（Weakness は −2/−1）
-  SR142: foe1('−3/−3 する クリーチャー（同じ 名前の てきも）', (s, E, t) => { if (!t || !E.onBf(s, t)) return; const nm = t.def.name; for (const q of theirs(s, E).filter((q) => q.def.name === nm)) E.pump(q, -3, -3); E.sba(s); }, { n: 3 }), // 辿る記憶（Bile Blight）
+  SR142: foe1('−1/−1カウンターを 2こずつ おく クリーチャー（同じ 名前の てきも）', (s, E, t) => { if (!t || !E.onBf(s, t)) return; const nm = t.def.name; for (const q of theirs(s, E).filter((q) => q.def.name === nm)) E.addMinus(s, q, 2); E.sba(s); }, { n: 2 }), // 辿る記憶（Bile Blight。2026-11-05：−3/−3 → −1/−1カウンター 2こずつ）
   SR143: { // 燃ゆる影（Chandra's Outrage）
     play: (s, E, ctx) => { const b = foeBest(s, E, 4); return b || ctx.human || faceOK(s, E, 2) ? { score: 5 + (b?.score || 0), run: () => { if (b) hit(s, E, b.t, 4); faceHit(s, E, 2); } } : null; },
     tgt: [{ side: 'E', min: 0, label: '4点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => { if (t) hit(s, E, t, 4); faceHit(s, E, 2); },
@@ -432,7 +432,7 @@ export const S15 = {
     react: (s, E, ctx) => { const pw = (ctx.attackers || []).filter((t) => E.onBf(s, t)).reduce((a, t) => a + Math.max(0, E.power(s, t) - 1), 0); return pw >= 5 ? { score: pw, run: () => { for (const t of [...theirs(s, E)]) frog(s, E, t); E.sba(s); } } : null; },
   }),
   SR155: ult('SR82', 2, { play: (s, E) => { const c = bestIn(s.P.gy, (x) => isCr(x.def) && !x.def.x); return c ? { score: 6 + c.def.cost, run: () => { if (!s.P.gy.includes(c)) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.L(s, `ぼちから せんじょうへ：${c.def.name}`); E.enter(s, 'P', c.def, { card: c.def }); } } : null; } }), // 亡者の怒哮、蘇生の鐘（Zombify）
-  SR156: ult('SR105', 2, { play: (s, E, ctx) => { const ts = theirs(s, E); const k = ts.filter((t) => E.need(s, t) <= 1).length; const v = k * 4 + (ctx.phase === 1 ? ts.length : 0); return ts.length && (v >= 2 || ctx.human) ? { score: v, run: () => { for (const t of [...theirs(s, E)]) E.pump(t, -1, -1); E.sba(s); } } : null; } }), // 絶海の渦潮、呑魂の舞曲（Cower in Fear）
+  SR156: ult('SR105', 2, { play: (s, E, ctx) => { const ts = theirs(s, E); const k = ts.filter((t) => E.need(s, t) <= 1).length; const v = k * 4 + ts.length; return ts.length && (v >= 2 || ctx.human) ? { score: v, run: () => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); } } : null; } }), // 絶海の渦潮、呑魂の舞曲（Cower in Fear。2026-11-05：−1/−1 → −1/−1カウンター。コスト 3 → 5。のこる ので メイン2でも）
   SR157: ult('SR85', 2, { // 永劫の焼世、背負うべき未来（Unleash Fury）
     play: (s, E, ctx) => { if (ctx.phase !== 1 && !ctx.human) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && (ctx.human || (canSwing(s, E, t) && E.power(s, t) >= 3)) ? { score: 2 + E.power(s, t), run: () => fury(s, E, t) } : null; },
     tgt: [{ side: 'P', label: 'パワーを 2ばいに する クリーチャー' }], apply: (s, E, [[t]]) => fury(s, E, t),

@@ -1,7 +1,7 @@
 // 番外編「Fate/Grand Order」のうごき（名前・コスト・P/T は skel.js、文は docs/EXTRA.md 2章）
 // 宝具：攻撃するたび NP が ふえる（さいだい 300）。100 いじょうなら メインフェイズに NP を 100 へらして 宝具の こうか（あいては 自動で えらぶ）
 // オーバーチャージ（第2弾 set14.js の サーヴァント。def.oc）：NP を 100・200・300 の どれだけ つかうか えらぶ → 〔 〕の 数が 1倍・2倍・3倍（1ターンに 1回）。docs/EXTRA2_FG.md 2章
-import { cr, hit, mine, theirs, isSub, isCr, chosen1, foeBest, shrink, killIt, single, dig, foe1 } from './kit.js';
+import { cr, hit, mine, theirs, isSub, isCr, chosen1, foeBest, killIt, single, dig, foe1 } from './kit.js';
 
 export const isServant = (p) => isSub(p, 'servant');
 export const servants = (s, E) => mine(s, E).filter(isServant);
@@ -177,7 +177,7 @@ export const S10 = {
     saveDeath: (s, p, E) => { if (!(p.trial > 0)) return false; p.trial--; p.dmg = 0; p.dt = false; E.L(s, `じゅうにの しれん：${p.def.name} は たおれない（のこり ${p.trial}）`); return true; },
   },
   FG13: np(50, (s, E, p) => { E.pump(p, 0, 0, ['double']); E.L(s, `${p.def.name}：にだんこうげき`); }),
-  FG14: np(40, (s, E) => { for (const t of [...theirs(s, E)]) E.pump(t, -2, -2); E.sba(s); }),
+  FG14: np(40, (s, E) => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); }), // 2026-11-05：−2/−2 → −1/−1カウンター 1こずつ（ゴルゴーン FG57 と おなじ）
   FG15: np(40, (s, E) => { for (const q of servants(s, E)) if (q.def.id !== 'FG15') addNP(s, E, q, 50); }),
   // 令呪：3画。1画 つかうと サーヴァント1体の NP ＋100（すぐ 宝具を つかえる）
   FG16: {
@@ -212,7 +212,7 @@ export const S10 = {
   FG22: np(50, (s, E) => E.gain(s, 4)),
   FG23: np(50, (s, E) => E.drawCard(s)),
   FG24: np(40, (s, E) => { const t = biggest(s, E, (p) => E.power(s, p) >= 2); if (t) { E.bounce(s, t); E.sba(s); } }),
-  FG25: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b) shrink(s, E, b.t, 2); }),
+  FG25: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b && E.onBf(s, b.t)) { E.addMinus(s, b.t, 2); E.sba(s); } }), // 2026-11-05：−2/−2 → −1/−1カウンター（ステンノ FG54 と おなじ。はかって ほぼ かわらない ので P/T は その まま）
   FG26: np(40, (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) <= 3); if (b) killIt(s, E, b.t); }),
   FG27: np(40, (s, E) => allFoes(s, E, 1)),
   FG28: np(40, (s, E) => E.hitEnemy(s, 3, null)),
@@ -250,7 +250,7 @@ export const S10 = {
   FG53: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.assassin, 2); } },
   FG54: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b && E.onBf(s, b.t)) { E.addMinus(s, b.t, 2); E.sba(s); } }),
   FG55: np(40, (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) <= 4); if (b) killIt(s, E, b.t); }),
-  FG56: foe1('−2/−2 する クリーチャー', (s, E, t) => shrink(s, E, t, 2), { n: 2 }),
+  FG56: foe1('−1/−1カウンターを 2こ おく クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, 2); E.sba(s); } }, { n: 2 }), // 2026-11-05：−2/−2 → −1/−1カウンター。コスト 1 → 2
   FG57: np(40, (s, E) => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); }),
   FG58: np(50, (s, E) => { const t = biggest(s, E, (p) => !s.floor.untargetable?.(s, p, E)); if (t) killIt(s, E, t); }),
   FG59: np(50, (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 0); }),
