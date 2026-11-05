@@ -154,10 +154,9 @@ export function foeCard(html, ms) {
   });
 }
 
-// ---- かち／まけ：画面いっぱいの 演出（タップで とばせる） ----
-export function result(kind) {
+// ---- かち／まけ：画面いっぱいの 演出（タップで とばせる）。text：かちの ことばを かえる（次元渡りの 侵略者の ボス「勝利……？」）----
+export function result(kind, text = { win: 'かった！', lose: 'まけた…', draw: 'ひきわけ' }[kind]) {
   if (reduced()) return Promise.resolve();
-  const text = { win: 'かった！', lose: 'まけた…', draw: 'ひきわけ' }[kind];
   const e = put(`fx-result ${kind}`, null, `<div class="fx-rays"></div><b>${text}</b>`);
   e.style.pointerEvents = 'auto';
   if (kind === 'win') for (let i = 0; i < 36; i++) {
