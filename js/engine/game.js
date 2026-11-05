@@ -27,11 +27,12 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
   const s = {
     rng, diff, reshuffle, ai, logOn: log, logs: [],
     turn: 0, active: 'P', over: null, floor, phase: 1, combat: null, lastCombat: [],
-    P: { side: 'P', life: 20 + (em.life || 0) + (bless?.life || 0), bless, handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')), zzDeck: deck.some((d) => /^ZZ\d/.test(d.id || '')) },
+    P: { side: 'P', life: 20 + (em.life || 0) + (bless?.life || 0), bless, handSize: em.handSize || HAND_SIZE, lib: shuffle(rng, deck.map((d) => card(d))), cols: new Set(deck.flatMap(colorsOf)), hand: [], mana: [], bf: [], gy: [], exile: [], suspended: [], noLifeGain: false, flags: {}, emblem: em, srDeck: deck.some((d) => /^SR\d/.test(d.id || '')), zzDeck: deck.some((d) => /^ZZ\d/.test(d.id || '')), fgDeck: deck.some(isFG) },
     E: { side: 'E', lib: [], bf: [], gy: [], exile: [], life: 0, key: 0, extraTurns: 0, flags: {}, buff },
     stats: { exact: 0, playerTurns: 0, lifeLost: 0, reshuffled: 0 },
   };
   if (cmd) setCommander(s.P, cmd, cmdOpt);
+  if (s.P.fgDeck) s.P.reiju = REIJU_START; // FGO：令呪（デッキ）。統率者が FGO でも
   if (life) s.P.life = life;
   if (!floor.shieldWrapped) { const fu = floor.untargetable; floor.untargetable = (s2, p, E) => !!fu?.(s2, p, E) || shielded(s2, p); floor.shieldWrapped = true; }
   floor.setup(s, api);
@@ -95,7 +96,11 @@ export function applyPick(d) {
 
 // 装備の コスト（マスター：1 少なく なる。何まい あっても かさならない）
 export const equipCost = (s, p) => Math.max(0, (p.def.equip || 0) - (s[p.side].bf.some((q) => q.def.equipLess) ? 1 : 0));
-export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; if (isZZ(def)) side.zzDeck = true; }
+export function setCommander(side, def, o = {}) { side.cmd = [card(def)]; side.cmdId = def.id; side.cmdCasts = 0; side.cmdStep = o.step ?? 2; side.cmdLess = o.less || 0; if (isZZ(def)) side.zzDeck = true; if (isFG(def)) side.fgDeck = true; }
+// FGO：令呪（デッキ）（2026-11-05）。FGO の カードが ある デッキ（side.fgDeck）は、たたかいの はじめに 令呪を REIJU_START 画（side.reiju）。
+// マスターが 場に いる とき、じぶんの メインフェイズに 1ターン 1回、1画 つかって サーヴァント1体の NP ＋100（data/set10.js の useReiju。FG16 の 令呪とは べつ）
+export const REIJU_START = 3;
+const isFG = (d) => /^FG\d/.test(d?.id || '');
 export const cmdTax = (s) => (s.P.cmdStep ?? 2) * (s.P.cmdCasts || 0);
 // 統率領域から 唱える コスト ＝ コスト − 安く なる ぶん ＋ 統率者税（色の ぶんは のこる）
 export const cmdCost = (s, d) => Math.max(colorsOf(d).length, costOf(s, d) - (s.P.cmdLess || 0) + cmdTax(s));
@@ -416,9 +421,10 @@ export function proliferate(s) {
 // ゼンゼロ：エネルギー（みんなで 1つの 数。0〜10）
 export const BON_MAX = 10;
 // ゼンゼロ：ブレイクカウンター（MTG の 毒カウンター）。10 たまると 10こ とって「ブレイク」が 1回 つかえる（s.P.brkReady）
-// ブレイクは じぶんの ターンに えらんで つかう（useBreak）：ぜんたい（てきの クリーチャー ぜんぶに 3点）・たんたい（てきの クリーチャー 1体に 6点・本体に 5点。てき 1つに 10点）・マナから かいしゅう
+// ブレイクは じぶんの ターンに えらんで つかう（useBreak）：かいふく（ライフ ＋6）・たんたい（てきの クリーチャー 1体に 6点・本体に 5点）・マナから かいしゅう
 // 2026-10-27：つよすぎたので 威力を 下げた（たんたい 10 → 6点・本体へは 5点、ぜんたい 5 → 3点）。たまる 数は 10 の まま
-export const BREAK_AT = 10, BREAK_ALL = 3, BREAK_ONE = 6, BREAK_FACE = 5;
+// 2026-11-05：ぜんたい（てきの クリーチャー ぜんぶに 3点）を かいふく（ライフ ＋6。gainLife なので「ライフを えたとき」も おきる・ライフを えられない ときは なにも おきない）に かえた（ユーザーが きめた）
+export const BREAK_AT = 10, BREAK_HEAL = 6, BREAK_ONE = 6, BREAK_FACE = 5;
 export const breakDmg = (t) => (t === 'face' ? BREAK_FACE : BREAK_ONE);
 // 属性ブレイク（2026-10-26）：ゼンゼロの クリーチャーが 場に いると、その クリーチャーの 色の きっかけで 2こ。交代は 5こ
 // 白：ライフを えた　青：敵に マイナスの 修整　黒：敵に −1/−1カウンター　赤：呪文・能力で 敵に ダメージ　緑：＋1/＋1カウンター
@@ -455,14 +461,14 @@ export function addBreak(s, n) {
     L(s, 'ブレイク じゅんび OK！（じぶんの ターンに えらんで つかえる）');
   }
 }
-// mode：'all' てきの クリーチャー ぜんぶに 5点／'one' t（'face' か てきの パーマネント）に 10点／'mana' マナゾーンの カード t を 手札に
+// mode：'heal' ライフ ＋BREAK_HEAL／'one' t（'face' か てきの パーマネント）に BREAK_ONE 点（本体は BREAK_FACE 点）／'mana' マナゾーンの カード t を 手札に
 // ブレイクを つかえるのは、ブレイクを もつ 伝説の クリーチャーが じぶんの 場に いる とき だけ（たまるのは いつでも）
 export const canBreak = (s) => s.P.bf.some((q) => isCreature(q) && q.def.legend && q.def.brk);
 export function useBreak(s, mode, t) {
   if (!s.P.brkReady || s.over || !canBreak(s)) return false;
   s.P.brkReady--; s.inBreak = true;
   s.stats.brkUse = (s.stats.brkUse || 0) + 1;
-  if (mode === 'all') { L(s, `ブレイク！ てきの クリーチャー ぜんぶに ${BREAK_ALL}点`); for (const p of s.E.bf.filter(isCreature)) damage(s, p, BREAK_ALL, null); }
+  if (mode === 'heal') { L(s, `ブレイク！ ライフ ＋${BREAK_HEAL}${s.P.noLifeGain ? '（いまは ライフを えられない）' : `（${s.P.life} ＋ ${BREAK_HEAL} ＝ ${s.P.life + BREAK_HEAL}）`}`); gainLife(s, BREAK_HEAL); }
   else if (mode === 'one') { L(s, `ブレイク！ ${t === 'face' ? (s.floor.faceLabel || 'てきの 本体') : t.def.name}に ${breakDmg(t)}点`); hitTarget(s, t, breakDmg(t), null); }
   else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
   // 連携スキル（ゼンゼロ。def.chain は data/set12.js の chainSkill。2026-11-04 から エージェント みんな）：ブレイクの あと。inBreak の あいだ なので ブレイクは たまらない
@@ -1018,7 +1024,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, shielded, silenced, uncounterable, equipCost,
+  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

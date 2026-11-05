@@ -1143,6 +1143,7 @@ div.zk-card { cursor: default; }
 /* ゼンゼロの ブレイク：つかえる ときは ゲージが 光る（タップで えらぶ） */
 .pile.brk { font: inherit; color: inherit; }
 .pile.brk.ready { border-color: var(--gold); background: linear-gradient(#ffd56e, var(--gold)); color: var(--gold-ink); font-weight: 700; animation: ab-big 1.2s ease-in-out infinite; }
+.pile.brk.ready b { color: inherit; } /* 金色の ボタンの 上でも 数が 見える（ブレイク・れいじゅ） */
 :root[data-theme="gba"] .pile.brk.ready { background: var(--gold); color: var(--gold-ink); animation: gba-blink-o 0.8s steps(1) infinite; outline: 2px solid #fff8c0; }
 
 /* ---- ドラフト（2026-10-26）：3まいから 1まい ---- */

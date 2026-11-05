@@ -696,7 +696,7 @@ export const LORE = {
 "say": "こわいけど……がんばります！"
 },
 "SR32": {
-"when": "act",
+"when": "enter",
 "say": "あなたの きおくを、のぞかせて もらうわ。"
 },
 "SR33": {

@@ -1,8 +1,9 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
   api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, gyCast, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
-  zzBreak, useBreak, BREAK_ALL, BREAK_ONE, BREAK_FACE, ZZ_BLUE, legendDupe,
+  zzBreak, useBreak, BREAK_ONE, BREAK_FACE, ZZ_BLUE, legendDupe,
 } from './game.js';
+import { reijuOption } from '../data/set10.js'; // FGO の 令呪（デッキ）
 
 export const RARITY_PTS = { C: 1, U: 2, R: 3, L: 4 };
 // デッキの 点数（旗は 4点）
@@ -382,6 +383,7 @@ function main(s, phase) {
     for (const c of s.P.gy) if (c.def.escape) opts.push(...optionsFor(s, c, phase, 'escape'));
     if (phase === 1 && s.P.bf.some((q) => q.def.unearthAll)) for (const c of s.P.gy) if (isCrDef(c.def)) opts.push(...unearthOption(s, c));
     opts.push(...actOptions(s, phase));
+    if (s.P.fgDeck) { const o = reijuOption(s, api); if (o) opts.push(o); } // 令呪（デッキ）：マスターが いる とき 1ターン 1回
     if (!opts.length) break;
     opts.sort((a, b) => b.score - a.score);
     const before = s.P.mana.filter((m) => !m.tapped).length + s.P.hand.length + s.P.bf.length;
@@ -598,18 +600,21 @@ export function ninjutsu(s, c, a) {
   return true;
 }
 
-// ゼンゼロの ブレイク：本体で かてる → 本体。たおせる てきが 2体 いじょう → ぜんたい。つよい てきを たおせる → それ。あとは 本体（なければ マナから かいしゅう）
+// ゼンゼロの ブレイク：本体で かてる → 本体。ライフが BREAK_HEAL_AT いか → かいふく（2026-11-05 に ぜんたい から かえた）。つよい てきを たおせる → それ。あとは 本体（なければ マナから かいしゅう）
+export const BREAK_HEAL_AT = 10;
 function aiBreak(s) {
   const cr = s.E.bf.filter(isCreature);
   const left = (p) => pt(s, p)[1] - p.dmg;
   if (s.floor.face && s.E.life <= BREAK_FACE) return useBreak(s, 'one', 'face');
-  if (cr.filter((p) => left(p) <= BREAK_ALL).length >= 2) return useBreak(s, 'all');
+  if (s.P.life <= BREAK_HEAL_AT && !s.P.noLifeGain) return useBreak(s, 'heal');
   const big = cr.filter((p) => left(p) <= BREAK_ONE).sort((a, b) => power(s, b) - power(s, a))[0];
   if (big && power(s, big) >= 3) return useBreak(s, 'one', big);
   if (s.floor.face) return useBreak(s, 'one', 'face');
   if (big) return useBreak(s, 'one', big);
   const m = [...s.P.mana].sort((a, b) => (b.def.cost || 0) - (a.def.cost || 0))[0];
-  return m ? useBreak(s, 'mana', m) : useBreak(s, 'all');
+  if (m) return useBreak(s, 'mana', m);
+  const t = [...cr].sort((a, b) => power(s, b) - power(s, a))[0];
+  return t && s.P.noLifeGain ? useBreak(s, 'one', t) : useBreak(s, 'heal');
 }
 
 // 交代（ゼンゼロ。swapBlock の ある カード）：ブロックしている じぶんの クリーチャー（blocks の aUid の もの）を 手札に もどして、c を かわりに ブロックさせる

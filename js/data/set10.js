@@ -8,11 +8,12 @@ export const servants = (s, E) => mine(s, E).filter(isServant);
 // NP を ふやす（さいだい 300）。宝具は じぶんの メインフェイズに ボタンで つかう（NP −100）。
 // てきがわの サーヴァントは 100 で じどう（オーバーチャージの サーヴァントは 1ターンに 1回、つかえる いちばん 大きい 倍で）
 export const NP_MAX = 300;
-export function addNP(s, E, p, n) {
+// why：ログの おしまいに 出す わけ（「ダメージを うけた」など）
+export function addNP(s, E, p, n, why) {
   if (!p || !E.onBf(s, p) || !p.def.npFx) return;
   const was = p.np || 0;
   p.np = Math.min(NP_MAX, was + n);
-  E.L(s, `${p.def.name}：NP ${was} ＋ ${n} ＝ ${p.np}${was + n > NP_MAX ? `（さいだい ${NP_MAX}）` : ''}`);
+  E.L(s, `${p.def.name}：NP ${was} ＋ ${n} ＝ ${p.np}${was + n > NP_MAX ? `（さいだい ${NP_MAX}）` : ''}${why ? `（${why}）` : ''}`);
   if (p.side !== 'P') while (p.np >= 100 && E.onBf(s, p) && !s.over && !ocUsed(s, p)) fireNP(s, E, p, undefined, p.def.oc ? Math.min(3, Math.floor(p.np / 100)) : 1);
 }
 // オーバーチャージの サーヴァントが この ターン もう 宝具を つかったか（てきがわの ターンでも 見られる ように ターンの 番号で おぼえる）
@@ -42,9 +43,9 @@ export function fireNP(s, E, p, t, k = 1) {
 export const npLeft = (p) => { const g = p.def.np || 0, n = p.np || 0; return n >= 100 ? 0 : g ? Math.ceil((100 - n) / g) : null; };
 export function npNote(p) {
   const g = p.def.np, n = p.np || 0, k = npLeft(p);
-  const how = p.def.oc
+  const how = (p.def.oc
     ? `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう。オーバーチャージ：NP を 100・200・300 の どれだけ つかうか えらぶと、〔 〕の 数が 1ばい・2ばい・3ばい（1ターンに 1回）。NP は ${NP_MAX} まで ためられる`
-    : `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう（NP − 100）。NP は ${NP_MAX} まで ためられる`;
+    : `ほうぐは じぶんの メインフェイズに「ほうぐ」ボタンで つかう（NP − 100）。NP は ${NP_MAX} まで ためられる`) + `。ダメージを うけて たおれなければ NP ＋${NP_HIT}`;
   if (!k) return `NP ${n} ／ 100。ほうぐ を ${p.def.oc ? `いま ×${Math.min(3, Math.floor(n / 100))} まで` : `${Math.floor(n / 100)}回`} つかえる。${how}`;
   return `NP ${n} ／ 100。こうげき 1回で ＋${g}。あと ${k}回 こうげき すると ほうぐ（${[n, ...Array(k).fill(g)].filter((x, i) => i || x).join(' ＋ ')} ＝ ${n + g * k}）。${how}`;
 }
@@ -63,7 +64,21 @@ const hoguK = (k, x) => ({
 // 宝具の ある サーヴァント：npGain は 攻撃した ときに ふえる NP（40 いじょう。30 だと 4回 攻撃が いって ほぼ 出ない）。npFx(s, E, p, t, k)
 // x.oc：オーバーチャージ（×1・×2・×3 の ボタン）。x.npTgt：レアの 宝具で 人が あいてを えらぶ
 const withTgt = (a, x) => (x.npTgt ? { ...a, tgt: [x.npTgt], apply: (s, E, [[t]], _x, p) => fireNP(s, E, p, t, a.ocK || 1) } : a);
-export const np = (npGain, npFx, x = {}) => ({ np: npGain, npFx, ...x, acts: [...(x.oc ? [1, 2, 3].map((k) => withTgt(hoguK(k, x), x)) : [withTgt(hogu, x)]), ...(x.acts || [])], onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); } });
+export const np = (npGain, npFx, x = {}) => ({
+  np: npGain, npFx, ...x, acts: [...(x.oc ? [1, 2, 3].map((k) => withTgt(hoguK(k, x), x)) : [withTgt(hogu, x)]), ...(x.acts || [])],
+  onAttack: (s, p, E, atk, a) => { x.onAttack?.(s, p, E, atk, a); addNP(s, E, p, npGain); },
+  onHurt: (s, p, n, src, E) => { x.onHurt?.(s, p, n, src, E); npHit(s, E, p); },
+});
+// ダメージで NP（2026-11-05。FGO の「ダメージを うけると NP が たまる」）：サーヴァントが ダメージを うけて たおれなければ（のこりの タフネスが 1 いじょう・接死 なし）NP ＋NP_HIT。
+// 戦闘でも 呪文でも。どちらの がわも おなじ。てきがわは ためる だけ（宝具は その がわの メインフェイズに。set14.js の gainNP と おなじ）
+export const NP_HIT = 20;
+function npHit(s, E, p) {
+  if (!E.onBf(s, p) || !p.def.npFx || !isServant(p) || p.dt || E.need(s, p) <= 0) return;
+  if (p.side === 'P') return addNP(s, E, p, NP_HIT, 'ダメージを うけた');
+  const was = p.np || 0;
+  p.np = Math.min(NP_MAX, was + NP_HIT);
+  E.L(s, `${p.def.name}：NP ${was} ＋ ${NP_HIT} ＝ ${p.np}（ダメージを うけた）`);
+}
 // NP を いちばん ほしい サーヴァント（宝具に いちばん ちかい もの）。except は のぞく
 export const bestServant = (s, E, except) => servants(s, E).filter((p) => p.def.npFx && p !== except).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
 export const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
@@ -85,6 +100,36 @@ const npSpell = (n, more) => ({
 // マスター（2026-10-27：エンチャントに）：サーヴァントを 唱える コストと 装備の コストが 1 少なく なる。場に いる さいしょの マスターだけ（かさならない）
 export const isMaster = (p) => isSub(p, 'マスター');
 export const master = { equipLess: true, costCut: (s, q, d) => (isServant({ def: d }) && s.P.bf.find(isMaster) === q ? 1 : 0) };
+// 令呪（デッキ）（2026-11-05）：FGO の カードが ある デッキ（s.P.fgDeck）は、たたかいの はじめに 令呪 3画（s.P.reiju。game.js の REIJU_START）。
+// マスター（FG71〜FG75・クリプター。エンチャント）が じぶんの 場に いる とき、じぶんの メインフェイズに 1ターン 1回、1画 つかって サーヴァント1体の NP ＋100（FG16 と おなじ）。
+// FG16 の 令呪（その カードの p.seals）とは べつ。増殖では ふえない（カウンターでは ない）。画面は battle.js の showReiju、AI は ai.js の main
+const npServants = (s, E) => servants(s, E).filter((q) => !!q.def.npFx);
+// いま つかえない わけ（つかえる なら ''）。メインフェイズか どうかは 画面と AI が 見る
+export function reijuWhy(s, E) {
+  if (!s.P.fgDeck) return 'FGO の カードが デッキに ない';
+  if (!(s.P.reiju > 0)) return 'れいじゅが のこって いない';
+  if (s.P.flags.reijuT === s.turn) return 'この ターンは もう つかった（1ターンに 1回）';
+  if (!s.P.bf.some(isMaster)) return 'マスターが 場に いない';
+  if (!npServants(s, E).length) return 'NP の ある サーヴァントが 場に いない';
+  return '';
+}
+export function useReiju(s, E, t) {
+  if (reijuWhy(s, E) || !t || !E.onBf(s, t) || t.side !== 'P' || !t.def.npFx) return false;
+  const was = s.P.reiju;
+  s.P.reiju = was - 1; s.P.flags.reijuT = s.turn;
+  s.stats.reiju = (s.stats.reiju || 0) + 1;
+  E.L(s, `れいじゅ（デッキ）を 1画 つかった（${was} − 1 ＝ ${s.P.reiju}）：${t.def.name}`);
+  addNP(s, E, t, 100);
+  return true;
+}
+// AI：NP ＋100 が むだに ならない（300 を こえない）サーヴァントで、NP が いちばん 多い もの。オーバーチャージで この ターン もう つかった ものは のぞく
+export const reijuPick = (s, E) => npServants(s, E).filter((q) => (q.np || 0) <= NP_MAX - 100 && !ocUsed(s, q)).sort((a, b) => (b.np || 0) - (a.np || 0) || E.power(s, b) - E.power(s, a))[0];
+// AI の えらびかた（ai.js の main。FG16 と おなじ 点 7 → つぎに 宝具 8）：てきの クリーチャーが いる とき
+export function reijuOption(s, E) {
+  if (reijuWhy(s, E) || !theirs(s, E).length) return null;
+  const t = reijuPick(s, E);
+  return t ? { score: 7, name: 'れいじゅ（デッキ）', exec: () => useReiju(s, E, t) } : null;
+}
 const forServants = (a, b) => (s, q, p, E) => (p.side === q.side && E.isCreature(p) && isServant(p) ? [a, b] : null);
 
 // ---- 宝具（ほうぐ・装備品。FG76〜FG90）：シャドウ召喚（1マナ 多く はらうと 1/1 の シャドウ・サーヴァント）。場に 出る だけで、つけるには 装備の コスト ----
