@@ -1031,5 +1031,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, addBreak, setAnom, COLOR_JA, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, zzBreak, setAnom, COLOR_JA, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
 });
