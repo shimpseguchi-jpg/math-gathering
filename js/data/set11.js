@@ -2,7 +2,7 @@
 // 戦技ポイント：チーム みんなで 1つ（0〜5、はじめは 3）。この 弾の クリーチャーが 攻撃すると ＋1、戦技で −1
 // 撃破：ぴったりで たおしたら（game.js の pittari）
 // 光円錐・必殺技：MTG に あって この ゲームに まだ ない カードの こうか。必殺技は その キャラが 戦場に いると 安い
-import { mine, theirs, hit, foeBest, shrink, T, foe1, bolt, single, killIt, exileIt, xBurn, regrow, aura } from './kit.js';
+import { mine, theirs, hit, foeBest, T, foe1, bolt, single, killIt, exileIt, xBurn, regrow, aura } from './kit.js';
 
 export const SP_START = 3;
 export const spOf = (s) => s.P.sp ?? SP_START;
@@ -18,6 +18,8 @@ export const allFoes = (s, E, n) => { for (const t of [...theirs(s, E)]) E.damag
 export const detain = (s, E, t) => { if (t && E.onBf(s, t)) { t.tapped = true; t.frozen = true; E.L(s, `${t.def.name} を タップ（つぎも おきない）`); } };
 export const foeTurn = (s) => (s.active === 'E' ? s.turn : s.turn + 1); // 「つぎの てきの ターン」：てきの ターンの あいだ（ブロックの あとの まど）に 使ったら この ターン
 export const foeThreat = (s, E) => theirs(s, E).some((t) => t.def.attacks !== false && E.power(s, t) >= 2);
+// −1/−1カウンターを n こ（2026-11-05：番外編の「ターン終了時まで −N/−N」を カウンターに。のこる・増殖で ふえる）
+export const minusCtr = (s, E, t, n) => { if (!t || !E.onBf(s, t)) return; E.addMinus(s, t, n); E.sba(s); };
 
 // 戦技：ポイント 1つ、メインフェイズ、1ターンに max 回。sk = { label, play(s, p, E, ctx) → { score, run } , tgt?, apply?(s, E, picks, p) }
 export function spend(s, E, p) { addSP(s, E, -1); p.flags.turn.skill = (p.flags.turn.skill || 0) + 1; }
@@ -82,7 +84,8 @@ export const S11 = {
     skill: foeSkill('−1/−1カウンターを 2こ おく クリーチャー', 2, (s, E, t) => { E.addMinus(s, t, 2); E.sba(s); }),
     pittari: spPit,
   }),
-  SR10: trail({ skill: foeSkill('−2/−2 する クリーチャー', 2, (s, E, t) => shrink(s, E, t, 2)) }),
+  // 銀狼（2026-11-05）：−2/−2（ターン終了時まで）→ −1/−1カウンター 2こ（カフカと おなじ）。2/2 → 1/1。のこる ので、たおせる てきが いなくても AI は いちばん ねらいたい てきに おく
+  SR10: trail({ skill: foeSkill('−1/−1カウンターを 2こ おく クリーチャー', 2, (s, E, t) => minusCtr(s, E, t, 2), { pick: (s, E) => foeBest(s, E, 2) || foeBest(s, E) }) }),
   SR11: trail({ skill: pumpOther('＋2/＋2', 2, 2) }),
   SR12: trail({ pittari: (s, p, E) => { if (E.onBf(s, p)) p.tapped = false; addSP(s, E, 1); } }),
   SR13: trail({ allyDmgLess: 1 }),
@@ -139,7 +142,7 @@ export const S11 = {
   SR45: trail({ pittari: (s, p, E) => { E.hitEnemy(s, 1, p); E.gain(s, 1); } }),
   SR46: trail(),
   SR47: trail({ onDie: (s, p, E) => { if (p.side === 'P') E.hitEnemy(s, 1, null); } }),
-  SR48: trail(etbFoe('−1/−1 する クリーチャー', (s, E, t) => shrink(s, E, t, 1), (s, E) => foeBest(s, E, 1)?.t)),
+  SR48: trail(etbFoe('−1/−1カウンターを おく クリーチャー', (s, E, t) => minusCtr(s, E, t, 1), (s, E) => foeBest(s, E, 1)?.t)), // 2026-11-05：−1/−1 → −1/−1カウンター。2/2 → 1/2
   SR49: trail(),
   SR50: trail({ pittari: (s, p, E) => E.hitEnemy(s, 1, p) }),
   SR51: trail(),
@@ -165,7 +168,7 @@ export const S11 = {
   SR59: { equip: 2, eqP: 2, eqT: 2 }, // ヴァルショクの明けの星
   SR60: foe1('てふだに もどす（てきは やまふだの 上へ）クリーチャー', (s, E, t) => { E.bounce(s, t); E.sba(s); }, { score: 1 }), // 送還
   SR61: (() => { const b = bolt(4, (s, E) => E.hurt(s, 2, null)); return { ...b, play: (s, E, ctx) => (s.P.life > 6 || ctx.human ? b.play(s, E, ctx) : null) }; })(), // 精神の 爆発（じぶんに 2点）
-  SR62: foe1('−3/−3 する クリーチャー', (s, E, t) => shrink(s, E, t, 3), { n: 3 }), // 最後の 喘ぎ
+  SR62: foe1('−1/−1カウンターを 3こ おく クリーチャー', (s, E, t) => minusCtr(s, E, t, 3), { n: 3 }), // 最後の 喘ぎ（2026-11-05：−3/−3 → −1/−1カウンター。コスト 1 → 2）
   SR63: foe1('はかいする 黒でない クリーチャー', killIt, { filter: (s, E, p) => !E.colorsOf(p.def).includes('K') }), // 破滅の刃
   SR64: aura('P', '＋2/＋1 する あなたの クリーチャー', { p: 2, t: 1 }), // 不浄の 力
   SR65: bolt(3), // 稲妻

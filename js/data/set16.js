@@ -208,9 +208,9 @@ export const S16 = {
       const k = (ctx.manaLeft ?? 0) >= 3, b2 = foeBest(s, E, 2, (t) => left(s, E, t) <= 2), b5 = k ? foeBest(s, E, 5, (t) => left(s, E, t) <= 5) : null;
       const b = b2 && (!b5 || E.power(s, b2.t) >= E.power(s, b5.t)) ? b2 : b5;
       if (!b) return null; const kk = b !== b2;
-      return { score: 6 + b.score, extra: kk ? 3 : 0, run: () => { E.target(s, b.t); E.pump(b.t, kk ? -5 : -2, kk ? -5 : -2); E.sba(s); } };
+      return { score: 6 + b.score, extra: kk ? 3 : 0, run: () => { E.target(s, b.t); E.addMinus(s, b.t, kk ? 5 : 2); E.sba(s); } };
     },
-    tgt: [{ side: 'E', label: '−2/−2（キッカーで −5/−5）する クリーチャー' }], apply: (s, E, [[t]], x, o = {}) => { if (!t) return; const n = o.kicked ? 5 : 2; E.target(s, t); E.pump(t, -n, -n); E.L(s, `${t.def.name} は −${n}/−${n}`); E.sba(s); },
+    tgt: [{ side: 'E', label: '−1/−1カウンターを 2こ（キッカーで 5こ）おく クリーチャー' }], apply: (s, E, [[t]], x, o = {}) => { if (!t) return; const n = o.kicked ? 5 : 2; E.target(s, t); E.addMinus(s, t, n); E.sba(s); },
   },
   ZZ143: foe1('はかいする タップ状態（じょうたい）の クリーチャー', killIt, { filter: (s, E, p) => p.tapped }), // Assassinate
   ZZ144: { // Infernal Grasp
@@ -286,11 +286,11 @@ export const S16 = {
     play: (s, E, ctx = {}) => { const b = foeBest(s, E, 99); if (!b) return null; const tp = mine(s, E).filter((q) => q.tapped).length; if (!ctx.human && ctx.phase === 1 && E.power(s, b.t) < 3) return null; return { score: 6 + b.score + tp, run: () => { E.target(s, b.t); killIt(s, E, b.t); for (const q of mine(s, E)) if (q.tapped) E.addCounters(s, q, 1); } }; },
     tgt: [{ side: 'E', label: 'はかいする クリーチャー' }], apply: (s, E, [[t]]) => { if (t) { E.target(s, t); killIt(s, E, t); } for (const q of mine(s, E)) if (q.tapped) E.addCounters(s, q, 1); },
   },
-  ZZ157: { ...ULT, ...foe1('−2/−2 する クリーチャー（おなじ 名前の てきも）', (s, E, t) => { // Echoing Decay
+  ZZ157: { ...ULT, ...foe1('−1/−1カウンターを 2こ おく クリーチャー（おなじ 名前の てきも）', (s, E, t) => { // Echoing Decay（2026-11-05：−1/−1カウンターに）
     if (!t || !E.onBf(s, t)) return;
     const all = [t, ...theirs(s, E).filter((q) => q !== t && q.def.name === t.def.name)];
-    for (const q of all) E.pump(q, -2, -2);
-    E.L(s, `${t.def.name}${all.length > 1 ? `（${all.length}体）` : ''} は −2/−2`); E.sba(s);
+    for (const q of all) E.addMinus(s, q, 2);
+    E.sba(s);
   }, { n: 2 }) },
   ZZ158: { ...ULT, // Rolling Thunder（X を わりふる）
     play: (s, E, ctx = {}) => {
@@ -321,7 +321,7 @@ for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = 
 chainAll(S16, {
   W: ['ZZ84', 'ZZ85'],
   U: ['ZZ86', 'ZZ88', 'ZZ89'],
-  K: ['ZZ91', 'ZZ92', 'ZZ93', 'ZZ94'],
+  Kc: ['ZZ91', 'ZZ92', 'ZZ93', 'ZZ94'], // 黒は −1/−1カウンター（2026-11-05）
   R: ['ZZ96', 'ZZ97', 'ZZ98'],
   G: ['ZZ100', 'ZZ101', 'ZZ102', 'ZZ104', 'ZZ105', 'ZZ106'],
 });
