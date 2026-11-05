@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_ALL, BREAK_ONE, BREAK_FACE, pickOf,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_ALL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -561,6 +561,13 @@ async function doCast(c, from = 'hand') {
   if (!ci.ok) return;
   B.busy = true;
   const stop = () => { B.busy = false; render(); };
+  // 伝説の ルール（2026-11-05）：おなじ 名前の 伝説が もう 場に あれば、出す まえに ちゅうい（出すと まえから いる ほうは ぼちへ。game.js の legendRule）
+  if (legendDupe(s, 'P', d)) {
+    const nm1 = info(d).name;
+    const v = await sheet(`<p>${ruby(`${nm1}は 伝説（でんせつ）の カード。おなじ 伝説（でんせつ）は 場に 1まい だけ。`)}</p><p>${ruby(`出すと、いま 場に いる ${nm1}は 墓地（ぼち）に おかれる（カウンターや 装備（そうび）も なくなる）。`)}</p>`,
+      [{ label: 'それでも 出す', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: ruby('伝説（でんせつ）の ルール') });
+    if (!v) return stop();
+  }
   const req = gc ? gc.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
   let base = gc ? gc.cost : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);

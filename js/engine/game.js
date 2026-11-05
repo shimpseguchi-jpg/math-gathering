@@ -673,9 +673,29 @@ export function fight(s, a, b) {
 }
 
 // ---- 戦場を離れる ----
+// 伝説の ルール（2026-11-05）：おなじ 名前の 伝説の パーマネントは 1人 1まいだけ。2まい目が 出たら、まえから ある ほうを 墓地に（新しい ほうが のこる）。
+// 画面は 出す まえに ちゅういする（battle.js の doCast）。AI は 2まい目を 出さない（ai.js の permScore）
+const legendKey = (def) => (def?.legend && !(def.types || []).some((t) => t === 'instant' || t === 'sorcery') ? String(def.name || '').replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '') : null);
+// s.noLegendRule：tools/cardtest.mjs の せりふの しらべ だけ（おなじ カードを 2まい 出して「なかま」の きっかけを つくる ため）
+export const legendDupe = (s, side, def) => { const k = !s.noLegendRule && legendKey(def); return k ? s[side].bf.find((q) => onBf(s, q) && legendKey(q.def) === k) || null : null; };
+function legendRule(s) {
+  let changed = false;
+  if (s.noLegendRule) return false;
+  for (const side of ['P', 'E']) {
+    const seen = new Set();
+    for (const p of [...s[side].bf].reverse()) { // あたらしい じゅん
+      const k = onBf(s, p) && legendKey(p.def);
+      if (!k) continue;
+      if (!seen.has(k)) { seen.add(k); continue; }
+      if (leave(s, p, 'gy')) { L(s, `伝説（でんせつ）の ルール：${foe(s, side)}${p.def.name} は 1まい だけ。まえから いた ほうは ぼちへ`); changed = true; }
+    }
+  }
+  return changed;
+}
+
 export function sba(s) {
   for (let loop = 0; loop < 50 && !s.over; loop++) {
-    let changed = false;
+    let changed = legendRule(s);
     for (const side of ['P', 'E']) for (const p of [...s[side].bf]) {
       if (onBf(s, p) && isPW(p) && p.loy <= 0 && leave(s, p, 'gy')) { changed = true; continue; }
       if (!onBf(s, p) || !isCreature(p)) continue;

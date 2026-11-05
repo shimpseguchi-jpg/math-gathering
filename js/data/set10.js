@@ -88,15 +88,16 @@ export const master = { equipLess: true, costCut: (s, q, d) => (isServant({ def:
 const forServants = (a, b) => (s, q, p, E) => (p.side === q.side && E.isCreature(p) && isServant(p) ? [a, b] : null);
 
 // ---- 宝具（ほうぐ・装備品。FG76〜FG90）：シャドウ召喚（1マナ 多く はらうと 1/1 の シャドウ・サーヴァント）。場に 出る だけで、つけるには 装備の コスト ----
+// phantasm・hostOf・allWhile・gives は 第2弾の 宝具（FG171〜FG185。set14.js）でも つかう
 const SHADOW = cr('t_shadow', 'シャドウ・サーヴァント', null, '', 0, 1, 1, ['servant', 'シャドウ']);
-const phantasm = (x) => ({
+export const phantasm = (x) => ({
   kicker: 1, kickName: 'シャドウ召喚（しょうかん）', ...x,
   etb: (s, p, E, o) => { if (o?.kicked) { E.L(s, 'シャドウ召喚（しょうかん）：シャドウ・サーヴァントが あらわれた'); E.token(s, p.side, SHADOW); } x.etb?.(s, p, E, o); },
 });
-const hostOf = (s, q) => (q.attached ? [...s.P.bf, ...s.E.bf].find((p) => p.uid === q.attached) : null);
+export const hostOf = (s, q) => (q.attached ? [...s.P.bf, ...s.E.bf].find((p) => p.uid === q.attached) : null);
 // 装備されている あいだ、あなたの クリーチャー すべてに ＋a/＋b
-const allWhile = (a, b) => (s, q, p, E) => (q.attached && p.side === q.side && E.isCreature(p) ? [a, b] : null);
-const gives = (...kws) => (s, q, p) => (p.uid === q.attached ? kws : null);
+export const allWhile = (a, b) => (s, q, p, E) => (q.attached && p.side === q.side && E.isCreature(p) ? [a, b] : null);
+export const gives = (...kws) => (s, q, p) => (p.uid === q.attached ? kws : null);
 // ランダムな 敵（クリーチャー・プレインズウォーカー・本体）
 export function randomFoe(s, E) {
   const list = [...(s.floor.face ? ['face'] : []), ...s.E.bf.filter((p) => (E.isCreature(p) || E.isPW(p)) && !s.floor.untargetable?.(s, p, E))];
