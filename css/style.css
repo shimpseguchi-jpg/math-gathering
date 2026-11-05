@@ -1522,6 +1522,7 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .sp-pot.empty { opacity: 0.45; cursor: default; border-style: dashed; }
 
 .sp-boss { margin: 0; text-align: center; font-size: 13px; color: var(--bad); }
+.sp-boss small { display: block; margin-top: 2px; font-size: 11.5px; color: var(--ink-dim); } /* 侵略者の ボスの とくちょう（2026-11-05） */
 .sp-map { position: relative; height: calc(var(--rows) * 62px); border-radius: 16px; background: radial-gradient(ellipse at 50% 0%, var(--table-3), var(--table-2) 70%); border: 1px solid var(--line); }
 .sp-map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sp-map line { stroke: var(--line); stroke-width: 2.5; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }

@@ -11,7 +11,7 @@ import { packPool, cardValue } from './run.js';
 import { BY_ID, BASICS, SETS, SET_OF, boostBasic, SUN_RING } from '../data/cards.js';
 import { FLOORS } from '../data/enemies.js';
 import { grown } from '../data/strixhaven.js';
-import { SPIRE, ACTS, monsterFloor, withPeek, RELICS, RELIC_BY_ID, POTIONS, POTION_BY_ID, CURSE, EVENTS } from '../data/spire.js';
+import { SPIRE, ACTS, monsterFloor, withPeek, RELICS, RELIC_BY_ID, POTIONS, POTION_BY_ID, CURSE, EVENTS, bossName } from '../data/spire.js';
 
 export const asc = (R, n) => (R.asc || 0) >= n;
 const runVal = (R, k) => R.relics.reduce((t, id) => t + (RELIC_BY_ID[id]?.run?.[k] || 0), 0);
@@ -77,6 +77,7 @@ export function newRun({ cmd, asc: a = 0, pool = 'all', rng }) {
     phase: 'neow', over: null, stats: { fights: 0, elites: 0, bosses: 0, exact: 0 }, started: Date.now(),
   };
   if (asc(R, 6)) R.life = Math.round(R.maxLife * 0.9);
+  R.boss = pickBoss(0, rng);
   R.deck = starterDeck(R, rng);
   R.map = genMap(rng, R);
   return R;
@@ -151,6 +152,11 @@ export function nextNodes(R) {
 
 // ---- 戦闘（3章）----
 const floorTitle = (f) => String(f.name || '').replace(/^\d+階\s*/, '').replace(/（[ぁ-んー]+）/g, '');
+// その幕の ボス：はんぶんは その次元の ボス、はんぶんは 侵略者（ファイレクシアの法務官・ニコル・ボーラス・エルドラージ。2026-11-05）。マップの 上に 出す
+export function pickBoss(a, rng) { const act = ACTS[a]; return act.invaders?.length && rng() < 0.5 ? pick(rng, act.invaders) : act.boss; }
+// まえの 版の セーブ（R.boss が ない）は その次元の ボス
+export const actBoss = (R) => R.boss || ACTS[R.act].boss;
+export const actBossName = (R) => bossName(actBoss(R));
 function pickMonster(R, rng) {
   const act = ACTS[R.act];
   const list = (R.actFights < 2 ? act.weak : act.strong).filter((k) => k !== R.lastMonster);
@@ -187,7 +193,7 @@ function scaleLife(f, mul) {
   return f;
 }
 export function battleSetup(R, kind, rng) {
-  if (!R.enc || R.enc.kind !== kind) R.enc = { kind, key: kind === 'fight' ? pickMonster(R, rng) : kind === 'elite' ? pickElite(R, rng) : ACTS[R.act].boss };
+  if (!R.enc || R.enc.kind !== kind) R.enc = { kind, key: kind === 'fight' ? pickMonster(R, rng) : kind === 'elite' ? pickElite(R, rng) : actBoss(R) };
   const { key } = R.enc;
   const act = ACTS[R.act];
   let floor, diff = 'normal', buff = act.buff || 0;
@@ -201,7 +207,7 @@ export function battleSetup(R, kind, rng) {
   }
   withPeek(floor);
   const fx = relicFx(R);
-  return { kind, key, floor, floorName: kind === 'boss' ? ACTS[R.act].bossName : floorTitle(floor), diff, buff, life: R.life, deck: deckDefs(R), emblem: fx.emblem, bless: fx.bless, cmd: cmdInZone(R) ? BY_ID[R.cmd] : null };
+  return { kind, key, floor, floorName: kind === 'boss' ? actBossName(R) : floorTitle(floor), diff, buff, life: R.life, deck: deckDefs(R), emblem: fx.emblem, bless: fx.bless, cmd: cmdInZone(R) ? BY_ID[R.cmd] : null };
 }
 function goldRoll(R, kind, rng) {
   const [a, b] = SPIRE.goldOf[kind] || [0, 0];
@@ -289,7 +295,7 @@ async function claimReward(R, io, rng) {
   if (rw.kind === 'boss') {
     if (R.act >= ACTS.length - 1) R.over = 'win';
     else {
-      R.act++; R.pos = null; R.trail = []; R.actFights = 0; R.lastMonster = null;
+      R.act++; R.pos = null; R.trail = []; R.actFights = 0; R.lastMonster = null; R.boss = pickBoss(R.act, rng);
       R.life = asc(R, 5) ? Math.min(R.maxLife, R.life + Math.round((R.maxLife - R.life) * 0.75)) : R.maxLife;
       R.map = genMap(rng, R);
     }
