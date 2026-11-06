@@ -32,8 +32,9 @@ const PLANNED = [
   [7, 'アルケミー（デジタル 限定（げんてい））', 31],
 ].filter(([id]) => !SETS.some((x) => x.id === id));
 
-// 番外編（extra）と サブセット（sub）は せっていでは えらばない。もんしょう（パックの もんしょう）で いまの 弾に まざる
-const ALL_SETS = SETS.filter((x) => !x.extra && !x.sub && !x.raid).map((x) => x.id);
+// デバッグモードの「しゅうろくする 弾」で えらべる 弾。サブセット（sub）・番外編（extra）も もんしょう なしで えらべる（2026-11-06。ユーザーが きめた）。
+// ふつうは もんしょう（パックの もんしょう）で いまの 弾に まざる。レイドの 統率者カードは のぞく
+const ALL_SETS = SETS.filter((x) => !x.raid).map((x) => x.id);
 // 出ている 弾（released）。開発中の 弾は 開発モードで えらんだ ときだけ
 const RELEASED = SETS.filter((x) => x.released).map((x) => x.id);
 let sets = (() => {
@@ -178,9 +179,9 @@ export function settingsScreen(app, back, o = {}) {
       </section>
       <section class="st-sec">
         <h3><span class="dev-badge">デバッグモード</span>${ruby('しゅうろくする 弾（だん）')}</h3>
-        <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
+        <p class="st-note">${ruby('パックから 出る カードを、弾（だん）ごとに えらぶ。サブセット・番外編（ばんがいへん）も もんしょう なしで えらべる。つぎに あける パックから かわる（もう 持っている カードは そのまま）。1つは のこす。')}</p>
         <ul class="st-sets">
-          ${SETS.filter((x) => !x.raid).map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${(on.length === 1 && on.includes(x.id)) || x.extra || x.sub ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}${x.extra ? '・もんしょう「番外編（ばんがいへん）パック」で まざる' : ''}</small></span></label></li>`).join('')}
+          ${SETS.filter((x) => !x.raid).map((x) => `<li><label><input type="checkbox" id="set-${x.id}" data-set="${x.id}" ${on.includes(x.id) ? 'checked' : ''} ${on.length === 1 && on.includes(x.id) ? 'disabled' : ''}><span><b>${ruby(x.name)}</b><small>${x.cards.filter((d) => !d.noPack).length}しゅるい${x.released ? '' : '・<em class="st-dev">開発中</em>'}</small></span></label></li>`).join('')}
           ${PLANNED.map(([id, name, k]) => `<li class="planned"><label><input type="checkbox" id="plan-${id}" disabled><span><b>${ruby(name)}</b><small>じゅんびちゅう（あんは ${k}しゅるい）</small></span></label></li>`).join('')}
         </ul>
         <p class="st-pool">パックに 出る カード：<b>${n('C') + n('U') + n('R') + n('L')}しゅるい</b>（コモン ${n('C')}・アンコモン ${n('U')}・レア ${n('R')}・レジェンド ${n('L')}）</p>
