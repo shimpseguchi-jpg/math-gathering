@@ -36,7 +36,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 rt { font-size: 0.55em; }
 .no-rt rt { display: none; }
 button, input { font: inherit; color: inherit; }
-button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
 /* 上：タイトル・タブ・しぼりこみ */
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
@@ -47,12 +47,32 @@ h1 small { font-family: var(--body); font-size: 13px; color: var(--ink-dim); fon
 .title-row .sp { flex: 1; }
 .toggle { border: 1px solid var(--line); background: var(--bg-2); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
 .toggle[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
-.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.tabs::-webkit-scrollbar { display: none; }
-.tab { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 10px; padding: 6px 12px; cursor: pointer; font-weight: 700; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; } /* いくつでも えらべるので、えらんだ ものが ぜんぶ 見える ように おりかえす */
+.tab { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 10px; padding: 5px 11px; cursor: pointer; font-weight: 700; }
 .tab b { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-dim); font-weight: 700; }
-.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.tab[aria-selected="true"] b { color: var(--bg); opacity: 0.75; }
+.tab[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab[aria-pressed="true"] b { color: var(--bg); opacity: 0.75; }
+.tab.all { font-weight: 700; }
+.tabs-note { margin: -4px 0 0; font-size: 12px; color: var(--ink-dim); }
+/* 弾：いくつでも えらべる（ひらくと チェックの リスト） */
+.dd { border: 1px solid var(--line); background: var(--bg-2); border-radius: 8px; min-width: 0; }
+.dd summary { cursor: pointer; padding: 4px 10px; list-style: none; display: flex; align-items: center; gap: 2px; }
+.dd summary::-webkit-details-marker { display: none; }
+.dd summary::after { content: '▾'; color: var(--ink-dim); margin-left: 8px; }
+.dd[open] summary::after { content: '▴'; }
+.dd[open] { flex-basis: 100%; }
+.dd summary b { font-weight: 700; overflow-wrap: anywhere; }
+.dd-panel { padding: 8px 10px 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.dd-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.dd-quick button { border: 1px solid var(--line); background: var(--bg-3); border-radius: 999px; padding: 2px 12px; cursor: pointer; font-size: 12.5px; }
+.dd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 0 14px; }
+.chk { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
+.chk input { accent-color: var(--gold); width: 17px; height: 17px; flex: none; margin: 0; }
+.chk b { margin-left: auto; color: var(--ink-dim); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.color-title { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 18px 0 0; display: flex; align-items: center; gap: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--line); }
+.color-title:first-child { margin-top: 0; }
+.color-title .pip { width: 14px; height: 14px; }
+.color-title small { font-family: var(--body); font-size: 13px; color: var(--ink-dim); font-weight: 700; }
 .filters { display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: center; font-size: 13px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg button { border: 0; background: var(--bg-2); padding: 4px 10px; cursor: pointer; }
@@ -112,13 +132,16 @@ main .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; ga
       <span class="sp"></span>
       <button type="button" class="toggle" id="rt-toggle" aria-pressed="true">ふりがな</button>
     </div>
-    <nav class="tabs" id="tabs" role="tablist" aria-label="色"></nav>
+    <nav class="tabs" id="tabs" aria-label="色（いくつでも えらべる）"></nav>
+    <p class="tabs-note">色も 弾も いくつでも えらべる（もう いちど おすと はずれる）</p>
     <div class="filters">
-      <label><span class="flab">弾</span><select class="sel" id="f-set">
-        <option value="all">すべて</option><option value="play">遊べる（第1・2・5弾）</option><option value="dev">開発中（第3弾から・開発モード）</option><option value="draft">案（プロモ）</option>
-        <option value="1">第1弾 ファウンデーションズ</option><option value="2">第2弾</option><option value="3">第3弾（開発中）</option><option value="4">第4弾（開発中）</option>
-        <option value="5">第5弾</option><option value="6">サブセット 三つの旗（開発中）</option><option value="7">サブセット ラヴニカ（開発中）</option><option value="A">サブセット アルケミー（開発中）</option><option value="W">サブセット プレインズウォーカー（開発中）</option><option value="F">番外編 FGO（開発中）</option><option value="F2">番外編 FGO 第2弾（開発中）</option><option value="S">番外編 スターレイル（開発中）</option><option value="S2">番外編 スターレイル 第2弾（開発中）</option><option value="Z">番外編 ゼンゼロ（開発中）</option><option value="Z2">番外編 ゼンゼロ 第2弾（開発中）</option><option value="P">プロモ（案）</option>
-      </select></label>
+      <details class="dd" id="f-set"><summary><span class="flab">弾</span><b id="f-set-sum">すべて</b></summary>
+        <div class="dd-panel">
+          <div class="dd-quick"><button type="button" data-q="all">ぜんぶ えらぶ</button><button type="button" data-q="none">ぜんぶ はずす</button><button type="button" data-q="main">本編（第1〜5弾）</button><button type="button" data-q="sub">サブセット</button><button type="button" data-q="extra">番外編</button></div>
+          <div class="dd-list" id="f-set-list"></div>
+        </div>
+      </details>
+      <span><span class="flab">じょうたい</span><span class="seg" id="f-st"><button type="button" data-v="play" aria-pressed="true">遊べる</button><button type="button" data-v="dev" aria-pressed="true">開発中</button><button type="button" data-v="draft" aria-pressed="true">案</button></span></span>
       <span><span class="flab">レア</span><span class="seg" id="f-rar"><button type="button" data-v="C" aria-pressed="true">C</button><button type="button" data-v="U" aria-pressed="true">U</button><button type="button" data-v="R" aria-pressed="true">R</button><button type="button" data-v="L" aria-pressed="true">L</button><button type="button" data-v="P" aria-pressed="true" title="プロモ">P</button></span></span>
       <input class="search" id="q" type="search" placeholder="なまえ・ことばで さがす（例：ぴったり、飛行）" aria-label="さがす">
     </div>
@@ -147,24 +170,59 @@ const TRIS = [
   ['BA', 'バント', 'G', 'W', 'U'], ['ES', 'エスパー', 'W', 'U', 'K'], ['GX', 'グリクシス', 'U', 'K', 'R'], ['JU', 'ジャンド', 'K', 'R', 'G'], ['NA', 'ナヤ', 'R', 'G', 'W'],
 ];
 const SETS = [['1', '第1弾 ファウンデーションズ'], ['2', '第2弾'], ['3', '第3弾（開発中）'], ['4', '第4弾（開発中）'], ['5', '第5弾'], ['6', 'サブセット 三つの旗（開発中）'], ['7', 'サブセット ラヴニカ（開発中）'], ['A', 'サブセット アルケミー（開発中）'], ['W', 'サブセット プレインズウォーカー（開発中）'], ['F', '番外編 FGO（開発中）'], ['F2', '番外編 FGO 第2弾（開発中）'], ['S', '番外編 スターレイル（開発中）'], ['S2', '番外編 スターレイル 第2弾（開発中）'], ['Z', '番外編 ゼンゼロ（開発中）'], ['Z2', '番外編 ゼンゼロ 第2弾（開発中）'], ['P', 'プロモ（案）']];
+// 弾の みじかい 名前（しぼりこみの 見出し）と なかま（すばやく えらぶ ボタン）
+const SHORT = { 1: '第1弾', 2: '第2弾', 3: '第3弾', 4: '第4弾', 5: '第5弾', 6: '三つの旗', 7: 'ラヴニカ', A: 'アルケミー', W: 'プレインズウォーカー', F: 'FGO', F2: 'FGO 第2弾', S: 'スターレイル', S2: 'スターレイル 第2弾', Z: 'ゼンゼロ', Z2: 'ゼンゼロ 第2弾', P: 'プロモ' };
+const KIND = { main: ['1', '2', '3', '4', '5'], sub: ['6', '7', 'A', 'W'], extra: ['F', 'F2', 'S', 'S2', 'Z', 'Z2'] };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* なくても うごく */ } } };
-const st = { tab: 'W', set: 'all', rars: new Set(['C', 'U', 'R', 'L', 'P']), q: '' };
-const hash = location.hash.slice(1);
-st.tab = TABS.some((t) => t.k === hash) ? hash : (TABS.some((t) => t.k === store.get('cl-tab')) ? store.get('cl-tab') : 'W');
+// 色（tabs）・弾（sets）・じょうたい（states）は いくつでも えらべる（2026-11-06）。きほん・トークンは 1つだけ
+const COLORS = ['W', 'U', 'K', 'R', 'G', 'gold', 'tri', 'C'], ONLY = ['basic', 'token'];
+const ALL_SETS = SETS.map(([k]) => k), STATES = ['play', 'dev', 'draft'];
+const st = { tabs: new Set(['W']), sets: new Set(ALL_SETS), states: new Set(STATES), rars: new Set(['C', 'U', 'R', 'L', 'P']), q: '' };
+const listOf = (v, ok) => (v == null ? null : v.split(',').filter((x) => ok.includes(x)));
+{
+  const okTab = [...COLORS, ...ONLY];
+  const h = listOf(decodeURIComponent(location.hash.slice(1)) || null, okTab);
+  const t = h?.length ? h : listOf(store.get('cl-tabs'), okTab) || listOf(store.get('cl-tab'), okTab); // cl-tab：まえの 版（1つだけ）
+  if (t?.length) st.tabs = new Set(t.some((x) => ONLY.includes(x)) ? [t.find((x) => ONLY.includes(x))] : t);
+  const ss = listOf(store.get('cl-sets'), ALL_SETS), sv = listOf(store.get('cl-states'), STATES);
+  if (ss) st.sets = new Set(ss);
+  if (sv?.length) st.states = new Set(sv);
+  const old = store.get('cl-set'); // まえの 版の「弾」（1つだけ）を うつす
+  if (!ss && !sv && old && old !== 'all') { if (STATES.includes(old)) st.states = new Set([old]); else if (ALL_SETS.includes(old)) st.sets = new Set([old]); }
+}
 if (store.get('cl-rt') === '0') document.body.classList.add('no-rt');
-if ([...document.querySelectorAll('#f-set option')].some((o) => o.value === store.get('cl-set'))) st.set = store.get('cl-set');
 
 const $ = (id) => document.getElementById(id);
 const inTab = (c, k) => (k === 'gold' ? PAIRS.some((p) => p[0] === c.group) : k === 'tri' ? TRIS.some((t) => t[0] === c.group) : c.group === k);
 const nDraft = DATA.cards.filter((c) => c.draft).length, nDev = DATA.cards.filter((c) => c.dev).length;
 $('total').textContent = `${DATA.cards.length - nDraft - nDev}種 ＋ 開発中 ${nDev}種 ＋ 案 ${nDraft}種`;
-$('f-set').value = st.set;
-const setOk = (c) => st.set === 'all' || (st.set === 'play' ? !c.draft && !c.dev : st.set === 'dev' ? c.dev : st.set === 'draft' ? c.draft : c.set === st.set);
+const stateOf = (c) => (c.draft ? 'draft' : c.dev ? 'dev' : 'play');
+const setOk = (c) => st.sets.has(c.set) && st.states.has(stateOf(c));
+const colorTabs = () => COLORS.filter((k) => st.tabs.has(k));
+const save = () => {
+  store.set('cl-tabs', [...st.tabs].join(',')); store.set('cl-sets', [...st.sets].join(',')); store.set('cl-states', [...st.states].join(','));
+  try { history.replaceState(null, '', `#${[...st.tabs].join(',')}`); } catch { /* できなくても よい */ }
+};
+const setSummary = () => {
+  if (st.sets.size === ALL_SETS.length) return 'すべて';
+  if (!st.sets.size) return 'なし';
+  for (const [k, v] of Object.entries(KIND)) if (st.sets.size === v.length && v.every((x) => st.sets.has(x))) return { main: '本編（第1〜5弾）', sub: 'サブセット', extra: '番外編' }[k];
+  const on = ALL_SETS.filter((k) => st.sets.has(k));
+  return on.length <= 3 ? on.map((k) => SHORT[k]).join('・') : `${on.length}こ`;
+};
+function setListHtml() {
+  const inColors = (c) => colorTabs().some((k) => inTab(c, k)) || !colorTabs().length;
+  return SETS.map(([k, name]) => {
+    const n = DATA.cards.filter((c) => c.set === k && st.states.has(stateOf(c)) && inColors(c)).length;
+    return `<label class="chk"><input type="checkbox" value="${k}"${st.sets.has(k) ? ' checked' : ''}>${name}<b>${n}</b></label>`;
+  }).join('');
+}
 
 function tabsHtml() {
-  return TABS.map((t) => {
+  const allOn = COLORS.every((k) => st.tabs.has(k));
+  return `<button type="button" class="tab all" data-k="all" aria-pressed="${allOn}">ぜんぶの 色</button>` + TABS.map((t) => {
     const n = t.k === 'basic' ? DATA.basics.length : t.k === 'token' ? DATA.tokens.length : DATA.cards.filter((c) => inTab(c, t.k) && setOk(c)).length;
-    return `<button type="button" class="tab" role="tab" data-k="${t.k}" aria-selected="${st.tab === t.k}">${t.pip ? `<i class="pip p-${t.pip}"></i>` : ''}${t.label}<b>${n}</b></button>`;
+    return `<button type="button" class="tab" data-k="${t.k}" aria-pressed="${st.tabs.has(t.k)}">${t.pip ? `<i class="pip p-${t.pip}"></i>` : ''}${t.label}<b>${n}</b></button>`;
   }).join('');
 }
 const colorClass = (c) => (TRIS.some((t) => t[0] === c.group) ? 'tri' : c.group.length === 2 ? `c-${c.group[0]} pair` : `c-${c.group}`);
@@ -196,46 +254,76 @@ function tokenHtml(t) {
 const match = (plain) => !st.q || plain.includes(st.q);
 function render() {
   $('tabs').innerHTML = tabsHtml();
-  const isCards = !['basic', 'token'].includes(st.tab);
-  document.querySelector('.filters').style.visibility = isCards ? 'visible' : 'hidden';
+  $('f-set-sum').textContent = setSummary();
+  $('f-set-list').innerHTML = setListHtml();
+  for (const x of $('f-st').children) x.setAttribute('aria-pressed', String(st.states.has(x.dataset.v)));
+  for (const x of $('f-rar').children) x.setAttribute('aria-pressed', String(st.rars.has(x.dataset.v)));
+  const only = ONLY.find((k) => st.tabs.has(k));
+  document.querySelector('.filters').style.visibility = only ? 'hidden' : 'visible';
   let html = '', shown = 0, all = 0;
-  if (st.tab === 'basic') { all = shown = DATA.basics.length; html = `<div class="grid">${DATA.basics.map(cardHtml).join('')}</div>`; }
-  else if (st.tab === 'token') { all = shown = DATA.tokens.length; html = `<div class="grid">${DATA.tokens.map(tokenHtml).join('')}</div>`; }
+  if (only === 'basic') { all = shown = DATA.basics.length; html = `<div class="grid">${DATA.basics.map(cardHtml).join('')}</div>`; }
+  else if (only === 'token') { all = shown = DATA.tokens.length; html = `<div class="grid">${DATA.tokens.map(tokenHtml).join('')}</div>`; }
   else {
-    const base = DATA.cards.filter((c) => inTab(c, st.tab));
-    all = base.length;
-    const list = base.filter((c) => setOk(c) && st.rars.has(c.rar) && match(c.plain));
-    shown = list.length;
     // 弾ごとに 見出し（1つの 弾だけの ときは 見出しなし）
     const bySet = (cs) => {
       const parts = SETS.map(([k, name]) => [name, cs.filter((c) => c.set === k)]).filter(([, x]) => x.length);
       if (parts.length === 1) return `<div class="grid">${parts[0][1].map(cardHtml).join('')}</div>`;
       return parts.map(([name, x]) => `<h3 class="set-title">${name}（${x.length}）</h3><div class="grid">${x.map(cardHtml).join('')}</div>`).join('');
     };
-    const groups = st.tab === 'gold' ? PAIRS.map(([k, name, ...cs]) => [k, name, cs]) : st.tab === 'tri' ? TRIS.map(([k, name, ...cs]) => [k, name, cs]) : null;
-    if (groups) {
-      for (const [k, name, cs] of groups) {
-        const sub = list.filter((c) => c.group === k);
-        if (sub.length) html += `<h2 class="group-title">${cs.map((x) => `<i class="pip p-${x}"></i>`).join('')}${name}</h2>${bySet(sub)}`;
-      }
-    } else html = list.length ? bySet(list) : '';
-    if (!list.length) html = '<p class="empty">あてはまる カードが ない。しぼりこみを ゆるめてね。</p>';
+    const tabs = colorTabs(), many = tabs.length > 1;
+    for (const k of tabs) {
+      const t = TABS.find((x) => x.k === k);
+      const base = DATA.cards.filter((c) => inTab(c, k));
+      all += base.length;
+      const list = base.filter((c) => setOk(c) && st.rars.has(c.rar) && match(c.plain));
+      shown += list.length;
+      if (!list.length) continue;
+      // 色を いくつか えらんだ ときは 色ごとに 大きい 見出し
+      if (many) html += `<h2 class="color-title">${t.pip ? `<i class="pip p-${t.pip}"></i>` : ''}${t.label}<small>${list.length}まい</small></h2>`;
+      const groups = k === 'gold' ? PAIRS.map(([g, name, ...cs]) => [g, name, cs]) : k === 'tri' ? TRIS.map(([g, name, ...cs]) => [g, name, cs]) : null;
+      if (groups) {
+        for (const [g, name, cs] of groups) {
+          const sub = list.filter((c) => c.group === g);
+          if (sub.length) html += `<h2 class="group-title">${cs.map((x) => `<i class="pip p-${x}"></i>`).join('')}${name}</h2>${bySet(sub)}`;
+        }
+      } else html += bySet(list);
+    }
+    if (!shown) html = `<p class="empty">あてはまる カードが ない。${st.sets.size ? 'しぼりこみを ゆるめてね。' : '弾を 1つ いじょう えらんでね。'}</p>`;
   }
   $('list').innerHTML = html;
-  $('count').textContent = isCards ? `${all}まい中 ${shown}まい・弾ごとに コストの 小さい じゅん` : `${all}しゅるい（オレンジの ふちは 開発中、点線は 案）`;
+  $('count').textContent = only ? `${all}しゅるい（オレンジの ふちは 開発中、点線は 案）` : `${all}まい中 ${shown}まい・弾ごとに コストの 小さい じゅん`;
 }
+// 色：おすと えらぶ／はずす（いくつでも）。きほん・トークンは それだけを 見る
 $('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-k]'); if (!b) return;
-  st.tab = b.dataset.k; store.set('cl-tab', st.tab);
-  try { history.replaceState(null, '', `#${st.tab}`); } catch { /* できなくても よい */ }
-  render(); window.scrollTo({ top: 0 });
+  const k = b.dataset.k;
+  if (k === 'all') st.tabs = new Set(COLORS.every((x) => st.tabs.has(x)) ? ['W'] : COLORS);
+  else if (ONLY.includes(k)) st.tabs = new Set([k]);
+  else if (ONLY.some((x) => st.tabs.has(x))) st.tabs = new Set([k]);
+  else if (st.tabs.has(k)) { if (st.tabs.size > 1) st.tabs.delete(k); }
+  else st.tabs.add(k);
+  save(); render();
 });
-$('f-set').addEventListener('change', (e) => { st.set = e.target.value; store.set('cl-set', st.set); render(); });
+$('f-set-list').addEventListener('change', (e) => {
+  const v = e.target.value; if (!v) return;
+  if (e.target.checked) st.sets.add(v); else st.sets.delete(v);
+  save(); render();
+});
+document.querySelector('.dd-quick').addEventListener('click', (e) => {
+  const q = e.target.closest('[data-q]')?.dataset.q; if (!q) return;
+  st.sets = new Set(q === 'all' ? ALL_SETS : q === 'none' ? [] : KIND[q]);
+  save(); render();
+});
+$('f-st').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  const v = b.dataset.v;
+  if (st.states.has(v) && st.states.size > 1) st.states.delete(v); else st.states.add(v);
+  save(); render();
+});
 $('f-rar').addEventListener('click', (e) => {
   const b = e.target.closest('[data-v]'); if (!b) return;
   const v = b.dataset.v;
   if (st.rars.has(v) && st.rars.size > 1) st.rars.delete(v); else st.rars.add(v);
-  for (const x of $('f-rar').children) x.setAttribute('aria-pressed', String(st.rars.has(x.dataset.v)));
   render();
 });
 $('q').addEventListener('input', (e) => { st.q = e.target.value.trim(); render(); });
