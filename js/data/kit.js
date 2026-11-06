@@ -144,18 +144,18 @@ export function dig(s, E, n, k, f = () => true) {
 export const foeBest = (s, E, n = 99, filter) => { const b = E.burnTarget(s, n, { creatureOnly: true, filter }); return b && b.t !== 'face' ? b : null; };
 // −a/−b（ターン終了時まで）
 export const shrink = (s, E, t, a, b = a) => { if (!t || !E.onBf(s, t)) return; E.pump(t, -a, -b); E.sba(s); };
-// 敵の クリーチャー 1体を ねらう（AI は play、人は tgt で えらぶ）。o.n は たおせる 大きさ
+// 敵の クリーチャー 1体を ねらう（AI は play、人は tgt で えらぶ）。o.n は たおせる 大きさ（アンコモンは「n で たおせる なかで いちばん 大きい」を ねらう。tgt の n）
 export const foe1 = (label, f, o = {}) => ({
   play: (s, E, ctx) => {
     const b = foeBest(s, E, typeof o.n === 'function' ? o.n(s, E, ctx) : (o.n ?? 99), o.filter && ((p) => o.filter(s, E, p)));
     return b ? { score: (o.score ?? 6) + b.score, run: () => { E.target(s, b.t); f(s, E, b.t); } } : null;
   },
-  tgt: [{ side: o.side || 'E', label, filter: o.filter }], apply: (s, E, [[t]], x) => { if (t) E.target(s, t); f(s, E, t, x); },
+  tgt: [{ side: o.side || 'E', label, filter: o.filter, n: o.n }], apply: (s, E, [[t]], x) => { if (t) E.target(s, t); f(s, E, t, x); },
 });
 // N点（クリーチャーか 敵）
 export const bolt = (n, more) => ({
   play: (s, E, ctx = {}) => { const b = E.burnTarget(s, n, { mustHit: !!ctx.human }); return b ? { score: 6 + b.score, run: () => { hit(s, E, b.t, n); more?.(s, E); } } : null; },
-  tgt: [{ side: 'E', face: true, label: `${n}点を あたえる 相手` }], apply: (s, E, [[t]]) => { hit(s, E, t, n); more?.(s, E); },
+  tgt: [{ side: 'E', face: true, n, label: `${n}点を あたえる 相手` }], apply: (s, E, [[t]]) => { hit(s, E, t, n); more?.(s, E); },
 });
 export const killIt = (s, E, t) => { if (t && E.onBf(s, t)) { E.destroy(s, t); E.sba(s); } };
 export const exileIt = (s, E, t) => { if (t && E.onBf(s, t)) { E.exile(s, t); E.sba(s); } };

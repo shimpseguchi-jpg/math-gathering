@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe, mostOrder,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -381,20 +381,22 @@ const targetLabel = (t) => {
   return `${t.side === 'E' ? 'てき：' : ''}${(nm(t))}${isCreature(t) ? `（${power(s, t)}/${pt(s, t)[1] - t.dmg}）` : ''}`;
 };
 // tgt の並びを 順に えらぶ。やめたら null
-// ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：パワーが いちばん 大きい。game.js の pickOf）は、てきを ねらう ところを 自動で きめる
+// ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：（たおせる なかで）パワーが いちばん 大きい。game.js の pickOf）は、てきを ねらう ところを 自動で きめる
 const HARM = /ダメージ|破壊|追放|手札に ?もど|持ち主の ?手札|タップ|−[0-9X０-９]|留置|格闘|ブロックできない|つける/;
 const foeSlot = (spec, d) => spec.side === 'E' || (spec.side === 'any' && HARM.test(info(d).text.replace(/（[ぁ-ゖー]+）/g, '')));
 async function autoPick(mode, spec, ctx, list) {
   const d = ctx.card;
   const k = spec.divide ? 1 : d.strive ? Math.max(spec.min ?? 1, 1) : Math.min(spec.max ?? 1, list.length);
-  const order = mode === 'rand' ? [...list].sort(() => B.s.rng() - 0.5) : [...list].sort((a, b) => (b === 'face' ? -1 : a === 'face' ? 1 : power(B.s, b) - power(B.s, a)));
+  // アンコモン：n 点（−n/−n）で たおせる なかで パワーが いちばん 大きい てき（spec.n。いなければ いちばん 大きい。game.js の mostOrder）。本体は さいご
+  const m = mode === 'rand' ? null : mostOrder(B.s, list, typeof spec.n === 'function' ? spec.n(B.s, api, ctx) : spec.n === 'x' ? ctx.x : spec.n);
+  const order = m ? [...m.order, ...list.filter((t) => t === 'face')] : [...list].sort(() => B.s.rng() - 0.5);
   const chosen = order.slice(0, k);
   // 見せる：ランダムは 候補を じゅんばんに 光らせてから とまる
   const el = (t) => (t === 'face' ? app().querySelector('[data-face]') : app().querySelector(`.perm[data-uid="${t.uid}"]`));
   render();
   if (mode === 'rand' && list.length > 1) for (let i = 0; i < 8; i++) { const e = el(order[i % order.length]); e?.classList.add('pick-roll'); await fx.pause(90); e?.classList.remove('pick-roll'); }
   for (const t of chosen) el(t)?.classList.add('pick-hit');
-  toast(`${mode === 'rand' ? '🎲 ランダムで' : '👑 パワーが いちばん 大きい'} ${chosen.map(tName).join('・')} に きまった`);
+  toast(`${mode === 'rand' ? '🎲 ランダムで' : m.kill ? '👑 たおせる なかで パワーが いちばん 大きい' : '👑 パワーが いちばん 大きい'} ${chosen.map(tName).join('・')} に きまった`);
   await fx.pause(650);
   return chosen;
 }

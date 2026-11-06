@@ -373,6 +373,15 @@ export function pt(s, p) {
 }
 export const power = (s, p) => pt(s, p)[0];
 export const need = (s, p) => (hasKw(s, p, 'indestructible') || s.floor.cantLeave?.(s, p)) ? Infinity : Math.max(0, pt(s, p)[1] - p.dmg);
+// アンコモンの ねらいかた（2026-11-06。docs/REMOVAL.md）：n 点（−n/−n・−1/−1カウンター n こ）で「たおせる なかで パワーが いちばん 大きい」てき。
+// たおせる てきが いなければ パワーが いちばん 大きい てき。n が KILL_N いじょう（破壊・追放 など）は ただの「いちばん 大きい」
+export const KILL_N = 99;
+export function mostOrder(s, list, n) {
+  const byP = (xs) => [...xs].sort((a, b) => power(s, b) - power(s, a));
+  const cr = list.filter((t) => t !== 'face');
+  const k = n != null && n < KILL_N ? cr.filter((p) => need(s, p) <= n) : [];
+  return { order: [...byP(k), ...byP(cr.filter((p) => !k.includes(p)))], kill: k.length > 0 };
+}
 
 export function hasKw(s, p, k) {
   if (p.def.kw?.includes(k) || p.kwT.has(k) || levelRow(p)?.kw?.includes(k)) return true;

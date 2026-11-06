@@ -1,6 +1,6 @@
 // プレイヤー側のAI（シミュレーション用）。ルールは game.js、カードの使いどころは各カードの play / react
 import {
-  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, gyCast, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
+  api, COLORS, colorsOf, isCreature, onBf, pt, power, need, mostOrder, hasKw, tapPerm, enter, sba, L, canBlock, blockFacts, card, levelRow, discard, leave, costOf, gyCast, cant, cmdCost, cmdTax, canBreak, silenced, uncounterable, equipCost,
   zzBreak, useBreak, BREAK_ONE, BREAK_FACE, ZZ_BLUE, legendDupe,
 } from './game.js';
 import { reijuOption } from '../data/set10.js'; // FGO の 令呪（デッキ）
@@ -725,13 +725,13 @@ function scryKeep(s, c) {
 function burnTarget(s, n, o = {}) {
   let best = null, bs = 0;
   const list = (o.list || s.E.bf.filter(isCreature)).filter((p) => (!o.filter || o.filter(p)) && !(s.floor.untargetable?.(s, p, api)));
-  // ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：パワーが いちばん 大きい。game.js の pickOf）
+  // ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：たおせる なかで パワーが いちばん 大きい。game.js の pickOf・mostOrder）
   if (s.pickMode) {
     const face = !o.creatureOnly && s.floor.faceValue && s.floor.faceValue(s, n, api) > 0;
     const val = (t) => Math.max(0.5, t === 'face' ? s.floor.faceValue(s, n, api) : (s.floor.priority(s, t, api) || 0) * (need(s, t) <= n ? 1 : 0.2));
     let t = null;
     if (s.pickMode === 'rand') { const all = [...list, ...(face ? ['face'] : [])]; t = all.length ? all[Math.floor(s.rng() * all.length)] : null; }
-    else t = [...list].sort((a, b) => power(s, b) - power(s, a))[0] || (face ? 'face' : null);
+    else t = mostOrder(s, list, n).order[0] || (face ? 'face' : null); // たおせる なかで いちばん 大きい（n が 小さい とき）
     return t ? { t, score: val(t) } : null;
   }
   for (const p of list) {
