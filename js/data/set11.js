@@ -65,8 +65,10 @@ const etbFoe = (label, f, pick) => ({
   etb: (s, p, E, o) => { if (p.side !== 'P') return; const c = o?.chosen ? o.chosen[0]?.[0] : pick(s, E); if (c) f(s, E, c); },
 });
 
-// レア・レジェンドの クリーチャー：せんぎポイントが 2 いじょう あれば、2 つかって 2マナ やすく 唱える（じどう）
-export const spCut = { spCut: 2, costLess: (s) => (spOf(s) >= 2 ? 2 : 0), onPay: (s, E) => { if (spOf(s) >= 2) { E.L(s, 'せんぎポイントで 2マナ やすく した'); addSP(s, E, -2); } } };
+// レア・レジェンドの クリーチャー：せんぎポイントが 2 いじょう あれば、2 つかって 2マナ やすく 唱える。
+// 人は 唱える ときに つかうか えらぶ（2026-11-06。つかわない ときは battle.js が s.P.spNo を たてる）。AI は いつも つかう
+const spCutOn = (s) => spOf(s) >= 2 && !s.P.spNo;
+export const spCut = { spCut: 2, costLess: (s) => (spCutOn(s) ? 2 : 0), onPay: (s, E) => { if (spCutOn(s)) { E.L(s, 'せんぎポイントで 2マナ やすく した'); addSP(s, E, -2); } } };
 export const S11 = {
   SR01: trail({ skill: selfPump('＋2/＋0 と トランプル', 2, ['trample']) }),
   SR02: trail({ skill: shieldOne, pittari: spPit }),

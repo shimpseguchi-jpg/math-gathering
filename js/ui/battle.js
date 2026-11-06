@@ -564,7 +564,7 @@ async function doCast(c, from = 'hand') {
   const ci = castInfo(c, from);
   if (!ci.ok) return;
   B.busy = true;
-  const stop = () => { B.busy = false; render(); };
+  const stop = () => { s.P.spNo = false; B.busy = false; render(); };
   // 伝説の ルール（2026-11-05）：おなじ 名前の 伝説が もう 場に あれば、出す まえに ちゅうい（出すと まえから いる ほうは ぼちへ。game.js の legendRule）
   if (legendDupe(s, 'P', d)) {
     const nm1 = info(d).name;
@@ -574,6 +574,19 @@ async function doCast(c, from = 'hand') {
   }
   const req = gc ? gc.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
+  // スターレイルの レア・レジェンド：せんぎポイントを 2 つかって 2マナ 安く するか えらぶ（2026-11-06。set11.js の spCut。つかわない ときは s.P.spNo）
+  if (d.spCut && !gc && spOf(s) >= 2) {
+    const costNow = () => (from === 'cmd' ? cmdCost(s, d) : costOf(s, d));
+    const cut = costNow(); s.P.spNo = true; const full = costNow(); s.P.spNo = false;
+    if (full > cut) {
+      const v = await sheet(`<p>${ruby(`${info(d).name}は、せんぎポイントを 2 つかうと 2マナ 安く 出せる。`)}</p><p>${ruby(`せんぎポイントは 戦技（せんぎ）にも つかう。のこして おきたい ときは「つかわない」。`)}</p>`, [
+        { label: `せんぎポイントを つかう（${cut}マナ。せんぎポイント ${spOf(s)} − 2 ＝ ${spOf(s) - 2}）`, value: 'use', kind: 'primary' },
+        { label: `つかわない（${full}マナ）`, value: 'no', kind: 'primary', disabled: !plan(s, full, req, o), note: plan(s, full, req, o) ? '' : 'マナが たりない' },
+        { label: 'やめる', value: null }], { title: `せんぎポイント${manaNote()}` });
+      if (!v) return stop();
+      if (v === 'no') s.P.spNo = true;
+    }
+  }
   let base = gc ? gc.cost : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);
   const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
@@ -624,7 +637,7 @@ async function doCast(c, from = 'hand') {
   discard(s, drop);
   const run = mode ? mode.run : (d.apply && (picks || !d.tgt) ? () => d.apply(s, api, picks || [], x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined); // 対象の ない キッカーの 呪文（苗木の 移住）も apply で キッカーを うけとる
   if (from === 'hand') { const perm = !(d.types || []).some((t) => t === 'instant' || t === 'sorcery'); await fx.flyCard(app().querySelector(`[data-hand="${s.P.hand.indexOf(c)}"]`), app().querySelector(perm ? '.zone.mine' : '.battle'), !perm); }
-  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked });
+  try { await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked }); } finally { s.P.spNo = false; }
   B.busy = false;
   if (!checkOver()) render();
 }
