@@ -440,6 +440,7 @@ async function pickAll(tgt, ctx = {}) {
   // ねらえない てきの カードが いれば、なぜ ねらえないかを せつめい
   { const s = B.s, wd = s.srcDef; s.srcDef = ctx.card || wd; const sh = s.E.bf.filter((p) => LORE[p.def.id] && api.shielded(s, p)); s.srcDef = wd; for (const p of sh) await tellLore(p, 'shield'); }
   const picks = [];
+  ctx.prev = picks; // まえに えらんだ もの（spec.n の 関数が つかう。かみつきの「じぶんの クリーチャーの パワー」など）
   const mode = pickOf(ctx.card);
   for (const spec of tgt) {
     if (mode && foeSlot(spec, ctx.card)) {

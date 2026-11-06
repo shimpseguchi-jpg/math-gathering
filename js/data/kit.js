@@ -17,7 +17,8 @@ export const burn = (n, o = {}) => (s, E, ctx = {}) => { const b = E.burnTarget(
 export const xBurn = (s, E, ctx, bonus, after) => {
   for (let x = 1; x <= ctx.xMax; x++) {
     const b = E.burnTarget(s, x + bonus, {});
-    if (b && (b.t !== 'face' || x === ctx.xMax || b.score >= 100)) return { score: 4 + Math.min(b.score, 30), x, run: (xx) => { const t = hit(s, E, b.t, b.score >= 100 ? x + bonus : xx + bonus); if (t && after) after(t); } };
+    // ねらいかたが きまって いる（ランダム・いちばん 大きい）ときは、たおせる X まで 上げる（2026-11-06。まえは X＝1 で うって いた）
+    if (b && (b.t === 'face' ? (x === ctx.xMax || b.score >= 100) : (E.need(s, b.t) <= x + bonus || x === ctx.xMax || b.score >= 100))) return { score: 4 + Math.min(b.score, 30), x, run: (xx) => { const t = hit(s, E, b.t, b.score >= 100 ? x + bonus : xx + bonus); if (t && after) after(t); } };
   }
   return null;
 };

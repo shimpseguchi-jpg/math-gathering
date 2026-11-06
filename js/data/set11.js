@@ -42,7 +42,7 @@ export const trail = (x = {}) => {
 export const foeSkill = (label, n, f, o = {}) => ({
   label,
   play: (s, p, E) => { const b = (o.pick ? o.pick(s, E) : foeBest(s, E, n)); return b ? { score: 3 + Math.min(4, E.power(s, b.t || b)), run: () => f(s, E, b.t || b) } : null; },
-  tgt: [{ side: 'E', label }], apply: (s, E, [[t]]) => { E.target(s, t); f(s, E, t); },
+  tgt: [{ side: 'E', label, n: n || undefined }], apply: (s, E, [[t]]) => { E.target(s, t); f(s, E, t); }, // n：アンコモンは たおせる なかで いちばん 大きい
 });
 export const pumpOther = (label, a, b) => ({
   label,
@@ -142,7 +142,7 @@ export const S11 = {
   SR45: trail({ pittari: (s, p, E) => { E.hitEnemy(s, 1, p); E.gain(s, 1); } }),
   SR46: trail(),
   SR47: trail({ onDie: (s, p, E) => { if (p.side === 'P') E.hitEnemy(s, 1, null); } }),
-  SR48: trail(etbFoe('−1/−1カウンターを おく クリーチャー', (s, E, t) => minusCtr(s, E, t, 1), (s, E) => foeBest(s, E, 1)?.t)), // 2026-11-05：−1/−1 → −1/−1カウンター。2/2 → 1/2
+  SR48: trail(etbFoe('−1/−1カウンターを おく クリーチャー', (s, E, t) => minusCtr(s, E, t, 1), (s, E) => (foeBest(s, E, 1) || foeBest(s, E))?.t)), // じぶんで えらぶ（PICK_FREE。2026-11-06） // 2026-11-05：−1/−1 → −1/−1カウンター。2/2 → 1/2
   SR49: trail(),
   SR50: trail({ pittari: (s, p, E) => E.hitEnemy(s, 1, p) }),
   SR51: trail(),
@@ -152,10 +152,10 @@ export const S11 = {
   SR55: trail({ pittari: (s, p, E) => { if (E.onBf(s, p)) E.addCounters(s, p, 1); } }),
   // ---- 光円錐（MTG の カードの こうか。「元のカード」は docs/EXTRA.md 3.2） ----
   SR18: { equip: 3, eqP: 3, grant: (s, q, p) => (p.uid === q.attached ? ['trample', 'lifelink'] : null) }, // ロクソドンの戦槌
-  SR35: { play: (s, E, ctx) => xBurn(s, E, ctx, 0), tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手' }], apply: (s, E, [[t]], x) => hit(s, E, t, x) }, // 火の玉
+  SR35: { play: (s, E, ctx) => xBurn(s, E, ctx, 1), tgt: [{ side: 'E', face: true, n: (s, E, ctx) => (ctx.x || 0) + 1, label: 'X＋1点を あたえる 相手' }], apply: (s, E, [[t]], x) => hit(s, E, t, x + 1) }, // 火の玉（2026-11-06：X＋1点）
   SR36: { play: (s, E, ctx) => { const v = wipeValue(s, E, () => true); return v > 4 || (ctx.human && v > -99) ? { score: v, run: () => wipe(s, E) } : null; } }, // 審判の日
   SR37: { play: (s, E, ctx) => { const n = mine(s, E).filter((q) => canSwing(s, E, q)).length; return ctx.phase === 1 && n >= 2 ? { score: 3 * n, run: () => { for (const q of mine(s, E)) E.pump(q, 3, 3, ['trample']); } } : null; } }, // 踏み荒らし
-  SR38: { ...split(2, (s, E) => E.drawCard(s)) }, // 電解
+  SR38: bolt(2, (s, E) => E.drawCard(s)), // 電解（2026-11-06：わりふり → 文どおり たおせる なかで いちばん 大きい 1体）
   SR56: single(2, 2, { kw: ['lifelink'] }), // 英雄の 瞬間
   // 剣を鍬に：追放して、敵は その パワーぶんの ライフを 得る（2026-11-04：1マナで 何でも 消せて 強すぎたので もとに もどした）
   SR57: foe1('ついほうする クリーチャー', (s, E, t) => {
@@ -194,7 +194,7 @@ export const S11 = {
   SR75: ult('SR09', 1, { play: (s, E, ctx) => { const v = wipeValue(s, E, (s2, q) => E.pt(s, q)[1] - q.dmg <= 2); return v > 3 || ctx.human ? { score: v, run: () => { for (const q of [...mine(s, E), ...theirs(s, E)]) E.pump(q, -2, -2); E.sba(s); } } : null; } }), // 蔓延
   SR76: ult('SR21', 1, foe1('はかいする クリーチャー', killIt)), // 英雄の 破滅
   SR77: ult('SR08', 2, { play: (s, E) => ({ score: 7, run: () => { E.hitEnemy(s, 4, null); E.gain(s, 4); } }) }), // 魂の 饗宴
-  SR78: ult('SR04', 2, split(3)), // 弧状の 稲妻
+  SR78: ult('SR04', 2, bolt(3)), // 弧状の 稲妻（2026-11-06：わりふり → 文どおり たおせる なかで いちばん 大きい 1体）
   SR79: ult('SR15', 2, foe1('5点を あたえる クリーチャー', (s, E, t) => hit(s, E, t, 5), { n: 5 })), // 炎で 戦う
   SR80: ult('SR22', 2, { play: (s, E) => (E.basicsInLib(s) ? { score: 9, run: () => E.rampBasic(s, 2) } : null) }), // 爆発的 植生
 };

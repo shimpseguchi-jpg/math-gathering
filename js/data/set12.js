@@ -65,14 +65,15 @@ function zap(s, E, src, t, n) {
   E.target(s, t); E.damage(s, t, n, src || null); E.sba(s);
   return t;
 }
-// レアリティで ねらう（コモン：ランダム、アンコモン：パワーが いちばん 大きい、レア・レジェンド：AI の えらび。人は さきに えらんで おく p.trigPick）
-function foeBy(s, E, q, f, best) {
+// レアリティで ねらう（コモン：ランダム、アンコモン：（たおせる なかで）パワーが いちばん 大きい、レア・レジェンド：AI の えらび。人は さきに えらんで おく p.trigPick）
+// n：ダメージ・−1/−1カウンターの 数。アンコモンは n で たおせる なかで パワーが いちばん 大きい 敵（2026-11-06。game.js の mostOrder）
+function foeBy(s, E, q, f, best, n) {
   const pk = E.takePick(s, q);
   if (pk && pk !== 'face' && f(pk)) return pk;
   const list = theirs(s, E).filter((t) => ok(s, E, t) && f(t));
   if (!list.length) return null;
   if (q.def.rar === 'C') return list[Math.floor(s.rng() * list.length)];
-  if (q.def.rar === 'U') return list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+  if (q.def.rar === 'U') return n != null ? E.mostOrder(s, list, n).order[0] : list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
   return best(list);
 }
 const byPow = (s, E) => (list) => list.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
@@ -108,7 +109,7 @@ const half = (n) => Math.floor(n / 2);
 const halfLog = (s, E, n) => { const h = half(n); E.L(s, `連携（れんけい）の 数の 半分（はんぶん）：${n} ÷ 2 ＝ ${h}${n % 2 ? ' あまり 1' : ''}`); return h; };
 // 敵の クリーチャー1体に 連携の 数の ダメージ（over：たおすのに いる 数より 多い ぶんは 本体へ。葉瞬光）
 const dmgChain = (over = false) => chainSkill((s, q, E, n) => {
-  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, n, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, n, (p) => list.includes(p))?.t || byPow(s, E)(list), n);
   if (!t) return;
   if (!over) { zap(s, E, q, t, n); return; }
   const need = E.need(s, t), k = Math.min(n, need);
@@ -138,14 +139,14 @@ const tapHalfChain = chainSkill((s, q, E, n) => { const h = halfLog(s, E, n); de
 //   2026-11-05：はじめは −半分/−半分（ターン終了時まで）だった。第2弾（Kc）に あわせて 第1弾も カウンターに した（docs/EXTRA.md 6章）
 const minusCtrChain = chainSkill((s, q, E, n) => {
   const h = halfLog(s, E, n); if (!h) return;
-  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list), h);
   if (!t) return;
   E.target(s, t); E.addMinus(s, t, h); E.sba(s);
 }, (n) => (half(n) ? { side: 'E', label: `−1/−1カウンターを ${half(n)}こ おく てきの クリーチャー（れんけいの 数の 半分）` } : null));
 // 赤：敵の クリーチャー1体に 半分の ダメージ（この クリーチャーが あたえる ので 紊乱も おきる）
 const halfDmgChain = chainSkill((s, q, E, n) => {
   const h = halfLog(s, E, n); if (!h) return;
-  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list));
+  const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, h, (p) => list.includes(p))?.t || byPow(s, E)(list), h);
   if (t) zap(s, E, q, t, h);
 }, (n) => (half(n) ? { side: 'E', label: `${half(n)}点を あたえる てきの クリーチャー（れんけいの 数の 半分）` } : null));
 // 緑：あなたの クリーチャー1体に ＋1/＋1カウンターを 半分の 数（人は レア・レジェンドで えらぶ。ほかは AI と おなじ）
@@ -230,7 +231,7 @@ export const S12 = {
   ZZ49: { acts: [bonAct(3, {
     label: 'エネルギー 3：てきの クリーチャーに 3点',
     play: (s, p, E) => { const b = foeBest(s, E, 3); return b ? { score: 3 + b.score, run: () => hit(s, E, b.t, 3) } : null; },
-    tgt: [{ side: 'E', label: '3点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 3),
+    tgt: [{ side: 'E', n: 3, label: '3点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 3),
   })] },
   ZZ50: { upkeep: (s, p, E) => { if (p.side === 'P') addBon(s, E, 1); } },
   // ---- 音動機（MTG の カードの こうか） ----
@@ -245,7 +246,7 @@ export const S12 = {
     apply: (s, E, picks, x, o = {}) => E.token(s, 'P', T.saproling, o.kicked ? 4 : 2),
   },
   ZZ57: { play: (s, E) => ({ score: 8, run: () => E.token(s, 'P', T.spirit, 2) }), flashback: { cost: 2, req: ['K'] } }, // 未練ある魂
-  ZZ58: foe1('−1/−1カウンターを おく クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, 1); E.sba(s); } E.gain(s, 2); }, { n: 1 }), // 渇望の 瞬間（2026-11-05：−2/−2 → −1/−1カウンター 1こ）
+  ZZ58: (() => { const f = foe1('−1/−1カウンターを おく クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, 1); E.sba(s); } E.gain(s, 2); }, { n: 1 }); return { ...f, play: (s, E, ctx) => f.play(s, E, ctx) || (() => { const b = foeBest(s, E); return b ? { score: 4 + b.score, run: () => { E.target(s, b.t); E.addMinus(s, b.t, 1); E.sba(s); E.gain(s, 2); } } : null; })() }; })(), // じぶんで えらぶ（PICK_FREE）：たおせなくても のこる ので いちばん よい 敵に // 渇望の 瞬間（2026-11-05：−2/−2 → −1/−1カウンター 1こ）
   ZZ59: bolt(3, (s, E) => E.proliferate(s)), // 電圧の放出
   ZZ60: foe1('−1/−1カウンターを おく クリーチャー', (s, E, t) => { E.addMinus(s, t, 1); E.proliferate(s); E.sba(s); }, { n: 2 }), // 無情な苦悩
   ZZ61: foe1('はかいする クリーチャー', (s, E, t) => { killIt(s, E, t); E.proliferate(s); }), // 病の拡散
@@ -288,8 +289,8 @@ export const S12 = {
     play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.frozen).sort((a, b) => E.power(s, b) - E.power(s, a)); const x = Math.min(ctx.xMax || 0, ts.length); return x ? { score: 2 + x * 2, x, run: (xx) => { for (const t of ts.slice(0, xx)) detain(s, E, t); } } : null; },
     tgt: [{ side: 'E', max: 9, label: 'タップする クリーチャー（X体まで・つぎも おきない）' }], apply: (s, E, [ts], x) => { for (const t of ts.slice(0, x)) detain(s, E, t); },
   },
-  ZZ74: { ...ULT, // 潮の波（ひこうの ない てきを 3体まで タップ。2026-11-05：−1/−1 → −1/−1カウンター。コスト 2 → 4。青の きっかけも のこす）
-    play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying')).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) { t.tapped = true; E.addMinus(s, t, 1); } if (ts.length) E.zzBreak(s, 'U', '青：てきを よわく した'); E.sba(s); } } : null; },
+  ZZ74: { ...ULT, // 潮の波（ひこうの ない てきを 3体まで タップ。2026-11-05：−1/−1 → −1/−1カウンター。コスト 2 → 4。青の きっかけも のこす。2026-11-06：人は じぶんで えらぶ（PICK_FREE）、AI は パワーが 大きい じゅん）
+    play: (s, E, ctx) => { const ts = theirs(s, E).filter((t) => !t.tapped && !E.hasKw(s, t, 'flying') && !s.floor.untargetable?.(s, t, E)).sort((a, b) => E.power(s, b) - E.power(s, a)).slice(0, 3); return ctx.phase === 1 && ts.length ? { score: 2 + ts.length * 2, run: () => { for (const t of ts) { t.tapped = true; E.addMinus(s, t, 1); } if (ts.length) E.zzBreak(s, 'U', '青：てきを よわく した'); E.sba(s); } } : null; },
     tgt: [{ side: 'E', max: 3, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: 'タップして −1/−1カウンターを おく ひこうの ない クリーチャー（3体まで）' }], apply: (s, E, [ts]) => { for (const t of ts) { t.tapped = true; E.addMinus(s, t, 1); } if (ts.length) E.zzBreak(s, 'U', '青：てきを よわく した'); E.sba(s); },
   },
   ZZ75: { ...(foe1('ついほうする クリーチャー', (s, E, t) => { exileIt(s, E, t); E.gain(s, 2); })), ...ULT }, // ヴラスカの侮辱

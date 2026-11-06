@@ -9,6 +9,8 @@ import { PICK_FREE } from '../engine/game.js';
 
 // 自分で えらぶ ままの もの（game.js の PICK_FREE。格闘と、1・2・3点を どれに あてるか えらぶ のが 算数の もの）
 PICK_FREE.add('SR145'); PICK_FREE.add('SR158');
+// 2026-11-06（docs/REMOVAL.md 4.1）：1点・−1/−1 1こ・1体を タップ も じぶんで えらぶ
+PICK_FREE.add('SR106'); PICK_FREE.add('SR109'); PICK_FREE.add('SR125'); PICK_FREE.add('SR126');
 
 const isCrP = (q) => (q.def.types || []).includes('creature');
 const isGolden = (q) => isSub(q, '黄金裔');
@@ -106,8 +108,6 @@ const dragonOf = (s, p) => s[p.side].bf.find((q) => q.uid === p.dragonOn && q !=
 const setDragon = (s, E, p, t) => { if (!t || !E.onBf(s, t) || t === p) return; E.target(s, t); p.dragonOn = t.uid; E.L(s, `りゅうれい：${t.def.name} に ついた（＋1/＋0・ついかこうげき 1）`); };
 // サンデー：その クリーチャーと つながった 精霊も
 const sunday = (s, E, t) => { if (!t || !E.onBf(s, t)) return; E.target(s, t); E.pump(t, 2, 0); const m = memoOf(s, t); if (m) E.pump(m, 2, 0); };
-// 青雀：サイコロの 目の 点数
-const mahjong = (s, E, t, p) => { if (!t || !E.onBf(s, t)) return; const n = E.rollDie(s); if (n === leftOf(s, E, t)) E.L(s, 'アガリ！（ぴったり）'); zap(s, E, t, n, p); };
 // アナイクス：ランダムな 敵（クリーチャーか 本体）に 1点
 const pingRandom = (s, E, n, src) => {
   const t = pickRand(s, [...alive(s, E), ...(faceOK(s, E, n) ? ['face'] : [])]);
@@ -281,11 +281,14 @@ export const S15 = {
   } }),
   SR102: trail15({ onAttack: (s, p, E) => { if (p.side !== 'P') return; const n = Math.min(3, theirs(s, E).length); if (n) { E.pump(p, n, 0); E.L(s, `えいたつ：${p.def.name} ＋${n}/＋0`); } } }), // アルジェンティ
   SR103: trail15({ ...fu(1), pittari: spPit }), // 素裳
-  SR104: trail15({ skill: { // 青雀：サイコロ
+  SR104: trail15({ skill: { // 青雀：サイコロ。さきに ふって、その 目で たおせる なかで パワーが いちばん 大きい 敵（2026-11-06）
     label: 'サイコロの 目の 点数を あたえる クリーチャー',
-    play: (s, p, E) => { const b = foeBest(s, E); return b ? { score: 3, run: () => mahjong(s, E, b.t, p) } : null; },
-    tgt: [{ side: 'E', label: 'サイコロの 目の 点数を あたえる クリーチャー' }],
-    apply: (s, E, [[t]], p) => mahjong(s, E, t, p),
+    play: (s, p, E) => (alive(s, E).length ? { score: 3, run: () => {
+      const n = E.rollDie(s), t = E.mostOrder(s, alive(s, E).filter((q) => !s.floor.untargetable?.(s, q, E)), n).order[0];
+      if (!t) return;
+      if (n === leftOf(s, E, t)) E.L(s, 'アガリ！（ぴったり）');
+      zap(s, E, t, n, p);
+    } } : null),
   } }),
   SR105: trail15({ skill: { label: 'てきの クリーチャー みんなに 1点', play: (s, p, E) => { const ts = theirs(s, E); const k = ts.filter((t) => E.need(s, t) <= 1).length; return ts.length ? { score: 1 + ts.length / 2 + 3 * k, run: () => allFoes(s, E, 1, p) } : null; } } }), // セイレンス
   SR106: trail15({ skill: foeSkill('−1/−1カウンターと 1点を あたえる クリーチャー', 2, (s, E, t) => { if (!t || !E.onBf(s, t)) return; E.addMinus(s, t, 1); E.damage(s, t, 1, null); E.sba(s); }) }), // 椒丘
@@ -338,7 +341,7 @@ export const S15 = {
   },
   SR116: { play: (s, E, ctx) => { const lib = s.P.lib; if (!lib.length) return null; const ok = lib.filter((c) => isCr(c.def) && !c.def.x && c.def.cost <= 3).length; const exp = Math.min(2, (ok / lib.length) * 6); return exp >= 0.8 || ctx.human ? { score: 3 + 4 * exp, run: () => storyFlip(s, E) } : null; } }, // 物語を めくって（Collected Company）
   SR117: foe1('はかいする クリーチャー', killIt), // 燃え盛る黎明のように（Terminate）
-  SR118: foe1('−1/−1カウンターを 5こ おく クリーチャー（しぼうするなら ついほう）', (s, E, t) => { if (!t || !E.onBf(s, t)) return; t.exileT = s.turn; minusCtr(s, E, t, 5); }), // 何が真か（2026-11-05：−5/−5 → −1/−1カウンター。コスト 4 → 5）
+  SR118: foe1('−1/−1カウンターを 5こ おく クリーチャー（しぼうするなら ついほう）', (s, E, t) => { if (!t || !E.onBf(s, t)) return; t.exileT = s.turn; minusCtr(s, E, t, 5); }, { n: 5 }), // 何が真か（2026-11-05：−5/−5 → −1/−1カウンター。コスト 4 → 5）
   // ---- モブ ----
   SR119: trail15({ ...memoLink, etb: (s, p, E) => { summonMemo(s, E, p, T15.memoW); } }),
   SR120: trail15(fu(1)),
@@ -346,11 +349,11 @@ export const S15 = {
   SR122: trail15({ etb: (s, p, E) => { if (p.side === 'P') addSP(s, E, 1); } }),
   SR123: trail15({ skill: { label: 'せんじゅつ 2', play: (s, p, E, ctx) => (ctx.human || spOf(s) >= 3 ? { score: 1, run: () => E.scry(s, 2) } : null) } }),
   SR124: trail15(fu(1)),
-  SR125: trail15({ // ランダムな 敵の クリーチャー1体を タップ
+  SR125: trail15({ // 敵の クリーチャー1体を タップ（じぶんで えらぶ：PICK_FREE。2026-11-06 まで ランダム）
     tgt: [{ side: 'E', min: 0, label: 'タップする クリーチャー', filter: (s, E, t) => !t.tapped }],
-    etb: (s, p, E, o) => { if (p.side !== 'P') return; const t = o?.chosen ? o.chosen[0]?.[0] : pickRand(s, theirs(s, E).filter((x) => !x.tapped && !s.floor.untargetable?.(s, x, E))); if (t && E.onBf(s, t)) { E.target(s, t); t.tapped = true; E.L(s, `${t.def.name} を タップ`); } },
+    etb: (s, p, E, o) => { if (p.side !== 'P') return; const t = o?.chosen ? o.chosen[0]?.[0] : foeBest(s, E, 99, (x) => !x.tapped)?.t; if (t && E.onBf(s, t)) { E.target(s, t); t.tapped = true; E.L(s, `${t.def.name} を タップ`); } },
   }),
-  SR126: trail15({ onDie: (s, p, E) => { if (p.side !== 'P') return; const t = pickRand(s, alive(s, E)); if (t) { E.addMinus(s, t, 1); E.sba(s); } } }),
+  SR126: trail15({ onDie: (s, p, E) => { if (p.side !== 'P') return; const t = (foeBest(s, E, 1) || foeBest(s, E))?.t; if (t) { E.addMinus(s, t, 1); E.sba(s); } } }), // じぶんで えらぶ（AI が いちばん よい あいて）
   SR127: trail15(fu(1)),
   SR128: trail15({ onAttack: (s, p, E) => { if (p.side === 'P') E.hurt(s, 1); } }),
   SR129: trail15(fu(1)),

@@ -17,7 +17,8 @@ const charm = (modes) => ({
     return best || null;
   },
 });
-const monoColor = (p) => [...(p.def.color || '')].length === 1;
+// 1色か 無色（とうの 敵は みんな 無色。2026-11-06：まえは 1色 だけで、人は とうの 敵を えらべなかった。docs/REMOVAL.md 4.2）
+const monoColor = (p) => [...(p.def.color || '')].length <= 1;
 const tuck = (s, E, t, top) => { if (!t || !E.onBf(s, t)) return; E.leave(s, t, top ? 'lib' : 'lib'); E.sba(s); };
 
 export const S6 = {
@@ -61,12 +62,12 @@ export const S6 = {
     { label: '自分の クリーチャーに ＋1/＋1 と 絆魂（はんこん）', ai: (s, E, ctx) => (ctx.phase === 1 && mine(s, E).length >= 3 ? { score: 2 * mine(s, E).length, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 1, ['lifelink']); } } : null), apply: (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 1, ['lifelink']); } },
   ]),
   SU03: charm([
-    { label: '1色の クリーチャー1体を はかい', tgt: [{ side: 'any', label: 'はかいする クリーチャー', filter: (s, E, p) => monoColor(p) }], ai: (s, E) => { const b = foeBest(s, E); return b && { score: 6 + b.score, run: () => killIt(s, E, b.t) }; }, apply: (s, E, [[t]]) => killIt(s, E, t) },
+    { label: '1色か むしょくの クリーチャー1体を はかい', tgt: [{ side: 'any', label: 'はかいする クリーチャー（1色か むしょく）', filter: (s, E, p) => monoColor(p) }], ai: (s, E) => { const b = foeBest(s, E, 99, monoColor); return b && { score: 6 + b.score, run: () => killIt(s, E, b.t) }; }, apply: (s, E, [[t]]) => killIt(s, E, t) },
     { label: 'アーティファクトか エンチャント1つを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする パーマネント', filter: (s, E, p) => !E.isCreature(p) && !!p.def.rar && !s.floor.cantLeave?.(s, p, E) }], ai: (s, E) => { const t = s.E.bf.filter((p) => !E.isCreature(p) && p.def.rar && ['artifact', 'enchantment'].some((k) => (p.def.types || []).includes(k)) && !s.floor.cantLeave?.(s, p, E)).sort((a, b) => b.def.cost - a.def.cost)[0]; return t && { score: 3 + t.def.cost, run: () => killIt(s, E, t) }; }, apply: (s, E, [[t]]) => killIt(s, E, t) },
     { label: '2まい 引いて 1まい すてる', ai: (s, E, ctx) => (ctx.phase === 2 ? { score: 4, run: () => { E.drawCard(s, 2); const c = lowestKeep(s, E); if (c) E.discard(s, [c]); } } : null), apply: (s, E) => { E.drawCard(s, 2); const c = lowestKeep(s, E); if (c) E.discard(s, [c]); } },
   ]),
   MA03: charm([
-    { label: 'クリーチャー1体に 4点', tgt: [{ side: 'any', label: '4点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 4); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 4) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 4) },
+    { label: 'クリーチャー1体に 4点', tgt: [{ side: 'any', n: 4, label: '4点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 4); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 4) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 4) },
     { label: 'せんせいこうげきを もつ 白の 1/1 の 戦士（せんし）を 2体', ai: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.warriorFS, 2) }), apply: (s, E) => E.token(s, 'P', T.warriorFS, 2) },
     { label: 'てきの やまふだの 上 3まいを 見て 1まいを 一番下に', ai: () => null, apply: (s) => { if (s.E.lib.length) s.E.lib.push(s.E.lib.shift()); } },
   ]),
@@ -147,7 +148,7 @@ export const S6 = {
     tgt: [{ side: 'E', label: 'はかいする クリーチャー' }], apply: (s, E, [[t]]) => killIt(s, E, t),
   },
   R73: {
-    tgt: [{ side: 'E', face: true, min: 0, label: 'きょうしゅう：2点を あたえる 相手' }],
+    tgt: [{ side: 'E', face: true, min: 0, n: 2, label: 'きょうしゅう：2点を あたえる 相手' }],
     etb: (s, p, E, o) => { if (p.side !== 'P' || !s.P.flags.attacked) return; let t = chosen1(o); if (t === undefined) t = E.burnTarget(s, 2, { mustHit: true })?.t; if (t) { E.L(s, 'きょうしゅう：2点'); hit(s, E, t, 2); } },
   },
   W75: { etb: (s, p, E) => { if (p.side === 'P' && s.P.flags.attacked) { E.L(s, 'きょうしゅう：せんし'); E.token(s, 'P', TK.warrior); } } },
