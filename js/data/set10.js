@@ -132,12 +132,20 @@ export function reijuOption(s, E) {
 }
 const forServants = (a, b) => (s, q, p, E) => (p.side === q.side && E.isCreature(p) && isServant(p) ? [a, b] : null);
 
-// ---- 宝具（ほうぐ・装備品。FG76〜FG90）：シャドウ召喚（1マナ 多く はらうと 1/1 の シャドウ・サーヴァント）。場に 出る だけで、つけるには 装備の コスト ----
+// ---- 宝具（ほうぐ・装備品。FG76〜FG90）：シャドウ召喚（1マナ 多く はらうと 1/1 の シャドウ・サーヴァントが 出て、それに 装備した ままで 出る）。シャドウ召喚 なしなら 出る だけで、つけるには 装備の コスト ----
 // phantasm・hostOf・allWhile・gives は 第2弾の 宝具（FG171〜FG185。set14.js）でも つかう
 const SHADOW = cr('t_shadow', 'シャドウ・サーヴァント', null, '', 0, 1, 1, ['servant', 'シャドウ']);
 export const phantasm = (x) => ({
   kicker: 1, kickName: 'シャドウ召喚（しょうかん）', ...x,
-  etb: (s, p, E, o) => { if (o?.kicked) { E.L(s, 'シャドウ召喚（しょうかん）：シャドウ・サーヴァントが あらわれた'); E.token(s, p.side, SHADOW); } x.etb?.(s, p, E, o); },
+  // シャドウ召喚：シャドウに さいしょから 装備した ままで 出る（2026-11-06。ユーザーが きめた。「装備したとき」も おきる）。シャドウが いなく なったら つけかえは 装備の コスト
+  etb: (s, p, E, o) => {
+    if (o?.kicked) {
+      E.L(s, 'シャドウ召喚（しょうかん）：シャドウ・サーヴァントが あらわれた');
+      const [t] = E.token(s, p.side, SHADOW);
+      if (t && E.onBf(s, t)) { p.attached = t.uid; E.L(s, `そうび：${p.def.name} → ${t.def.name}`); p.def.onEquip?.(s, p, t, E); }
+    }
+    x.etb?.(s, p, E, o);
+  },
 });
 export const hostOf = (s, q) => (q.attached ? [...s.P.bf, ...s.E.bf].find((p) => p.uid === q.attached) : null);
 // 装備されている あいだ、あなたの クリーチャー すべてに ＋a/＋b
