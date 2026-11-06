@@ -178,7 +178,7 @@ export const S12 = {
     tgt: [{ side: 'P', label: '＋1/＋1 する クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.pump(t, 1, 1); },
   })] },
   ZZ08: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P') E.addCounters(s, p, 1); } },
-  ZZ09: { brk: 3, etb: etbBon(1), anthem: lord('白祇重工', 1, 0) },
+  ZZ09: { brk: 3, etb: etbBon(1), anthem: lord('エージェント', 1, 0) }, // 2026-11-06：陣営（白祇重工）の タイプを なくしたので エージェント みんな
   ZZ10: { brk: 2, etb: prolif },
   ZZ11: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
   ZZ12: { brk: 2, allyDmgLess: 1 },
@@ -194,7 +194,7 @@ export const S12 = {
     play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== s.turn + 1 ? { score: 2, run: () => { t.shieldT = s.turn + 1; } } : null; },
     tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = s.turn + 1; E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
   })] },
-  ZZ21: { brk: 2, anthem: lord('カリュドーンの子', 1, 1) },
+  ZZ21: { brk: 2, anthem: lord('エージェント', 1, 1) }, // 2026-11-06：陣営（カリュドーンの子）の タイプを なくしたので エージェント みんな
   ZZ22: { brk: 3, onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const t of [...theirs(s, E)]) E.damage(s, t, 1, p); E.sba(s); } },
   ZZ23: { brk: 2, onAttack: atkBon(1) },
   ZZ24: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
