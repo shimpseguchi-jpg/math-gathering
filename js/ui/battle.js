@@ -217,20 +217,22 @@ function humanAI() {
       }
       await instantWindow('defend', { attackers, blocks });
     },
+    // てきの こうげきの まえ：インスタント・能力で こうげきして くる 敵を へらせる（instantWindow 'precombat'。2026-11-06）
+    beforeCombat: (s, attackers) => instantWindow('precombat', { attackers }),
     // てきの ターンの おわり：のこった マナで インスタント（instantWindow 'eot'）
     endOfTurn: (s) => instantWindow('eot', {}),
   };
 }
 
 // ---- てきの ターンの インスタント（2026-10-29。REQUIREMENTS 8.8）----
-// ブロックの あと（'defend'：こうげきしてくる てきを ねらえる・ブロッカーを 強化できる）と、ターンの おわり（'eot'：のこった マナで）に、手札の インスタントを タップして 使える
+// こうげきの まえ（'precombat'：こうげきして くる 敵を たおす・タップする。2026-11-06）、ブロックの あと（'defend'：こうげきしてくる てきを ねらえる・ブロッカーを 強化できる）と、ターンの おわり（'eot'：のこった マナで）に、手札の インスタントを タップして 使える
 // 使える カードが 1まいも なければ 止まらない。チュートリアル・ストーリーの コーチが いる たたかいと、インスタントが 使えない とき（ドロモカ）は 出さない
-const WIN_MODES = ['defend', 'eot'];
+const WIN_MODES = ['precombat', 'defend', 'eot'];
 const inWindow = () => WIN_MODES.includes(B.mode);
 const winCtx = () => (B.mode === 'defend' && B.winCtx ? B.winCtx : {});
 const blockersNow = () => [...new Set([...(B.winCtx?.blocks?.values?.() || [])])].filter((b) => b && onBf(B.s, b));
 const isTrick = (d) => !!d.trick && !d.bloodrush && !d.trick.atk; // ブロックの あとに 使える コンバットトリック（1体を 強化・まとめて 強化）。ゆうけつと「こうげきしている クリーチャーだけ」の まとめて 強化（ラッパの 一吹き）は こうげきの ときだけ
-const winPhase = () => (B.mode === 'defend' ? 1 : 2); // まどの 中で 能力の play に わたす フェイズ（ブロックの あと＝たたかいの まえ、ターンの おわり＝たたかいの あと）
+const winPhase = () => (B.mode === 'defend' || B.mode === 'precombat' ? 1 : 2); // まどの 中で 能力の play に わたす フェイズ（ブロックの あと＝たたかいの まえ、ターンの おわり＝たたかいの あと）
 const windowHasPlay = () => B.s.P.hand.some((c) => handMark(c)) || B.s.P.bf.some((p) => abilityMark(B.s, p)); // まどで 使える ものが ある？（手札の インスタント・クリーチャーの 能力）
 function instantWindow(mode, ctx) {
   const s = B.s;
@@ -534,7 +536,7 @@ function castInfo(c, from = 'hand') {
   if (d.counter && !d.modes) return { why: 'てきが じゅもんを となえたときに 使う' };
   if (from === 'hand' && d.suspend && !plan(s, cost, req, o) && s.active === 'P' && B.mode === 'main') return { why: 'マナが たりない（たいきなら 使える かも）' };
   if (d.react && !d.play && B.mode !== 'defend') return { why: 'てきが こうげきしてきたときに 使う' };
-  if (!perm && !d.play && (d.trick || d.bloodrush)) return { why: B.mode === 'defend' ? 'こうげきしている クリーチャーにだけ（こうげきの ときに 使う）' : B.mode === 'eot' ? 'たたかいの とちゅう（ブロックの あと）に 使う' : 'こうげきの とちゅう（ブロックの あと）に 使う' };
+  if (!perm && !d.play && (d.trick || d.bloodrush)) return { why: B.mode === 'defend' ? 'こうげきしている クリーチャーにだけ（こうげきの ときに 使う）' : B.mode === 'eot' || B.mode === 'precombat' ? 'たたかいの とちゅう（ブロックの あと）に 使う' : 'こうげきの とちゅう（ブロックの あと）に 使う' };
   if (!win && (s.active !== 'P' || !(B.mode === 'main' || (B.mode === 'tricks' && d.flash && !isSpell(d))))) return { why: 'いまは 使えない' }; // 瞬速の パーマネント（炎の 宝剣）は 攻撃の とちゅうにも
   let x = 0;
   if (d.x) {
@@ -1298,8 +1300,12 @@ function revealNote(d) {
 function banner() {
   switch (B.mode) {
     case 'attack': return 'こうげきする クリーチャーを てきへ ひっぱる（タップでも えらべる）';
-    case 'tricks': return B.blocks.size ? 'ブロックされた！ 強化の じゅもんを 使うなら いま' : 'ブロックされなかった。強化の じゅもんを 使うなら いま';
+    case 'tricks': { // 反撃（ねらった クリーチャーが 起きて いた）と ブロック（本体などへの こうげきを とめた）
+      const fb = B.atk.filter((a) => B.blocks.get(a.p.uid) && B.blocks.get(a.p.uid) === a.t).length, bl = B.blocks.size - fb;
+      return `${bl && fb ? 'ブロックと はんげき' : fb ? 'はんげき してくる' : bl ? 'ブロックされた' : 'ブロックされなかった'}${bl || fb ? '！' : '。'} 強化の じゅもんを 使うなら いま`;
+    }
     case 'block': return 'てきの こうげき！ 自分の クリーチャーを こうげきしてくる てきへ ひっぱって ブロック';
+    case 'precombat': return 'てきの こうげきの まえ：光っている インスタントや 能力（のうりょく）で、こうげきして くる てきを へらせる';
     case 'defend': return 'ブロックの あと：光っている インスタントや クリーチャーの 能力を 使える';
     case 'eot': return 'てきの ターンの おわり：のこった マナで 光っている インスタントや 能力（のうりょく）を 使える';
     case 'enemy': return B.s.floor.id === 'pvp' ? 'あいての ターン…' : 'てきの ターン…';
@@ -1309,12 +1315,13 @@ function banner() {
 
 function permLabel(p) {
   const s = B.s;
-  if (B.mode === 'attack' && B.sel.has(p.uid)) return B.sel.get(p.uid).def?.medusa && power(s, p) >= STONE ? '!石に なる！' : `→ ${tName(B.sel.get(p.uid))}`;
+  if (B.mode === 'attack' && B.sel.has(p.uid)) { const t = B.sel.get(p.uid); return t.def?.medusa && power(s, p) >= STONE ? '!石に なる！' : `→ ${tName(t)}${api.fightsBack(s, p, t) ? `（はんげき ${power(s, t)}）` : ''}`; }
   if (B.mode === 'main' && p.side === 'E' && willAttack(p) && !p.frozen) return '!つぎに こうげき';
+  if (B.mode === 'precombat' && p.side === 'E' && B.winCtx?.attackers?.includes(p) && !p.tapped) return '!こうげき してくる';
   if (B.mode === 'tricks') {
     const a = B.atk.find((x) => x.p === p);
-    if (a) { const bl = B.blocks.get(p.uid); return bl ? `ブロック：${nmText(bl)}` : `→ ${tName(a.t)}`; }
-    for (const [k, v] of B.blocks) if (v === p) return 'ブロック中';
+    if (a) { const bl = B.blocks.get(p.uid); return bl ? `${bl === a.t ? 'はんげき' : 'ブロック'}：${nmText(bl)}` : `→ ${tName(a.t)}`; }
+    for (const [k, v] of B.blocks) if (v === p) return B.atk.some((x) => x.p.uid === k && x.t === p) ? 'はんげき' : 'ブロック中';
   }
   if (B.mode === 'defend' && B.winCtx) {
     const { attackers, blocks } = B.winCtx;
