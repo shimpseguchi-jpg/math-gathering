@@ -8,7 +8,7 @@ import { SUN_RING } from './cards.js';
 import { shuffle } from '../engine/rng.js';
 
 const { esp, pc, biggest, weakest, build, toLib, attackers, sumPow } = KIT;
-const { att, wall } = RAV_KIT;
+const { att, wall, speak } = RAV_KIT;
 
 // ---- 冒険の数字（シミュレーションで合わせる。docs/SPIRE.md 10章）----
 export const SPIRE = {
@@ -53,6 +53,24 @@ const tapBig = (n) => (s, E) => { for (const t of pc(s, E).filter((p) => !p.tapp
 const raise = (n) => (s, E) => { for (let i = 0; i < n; i++) { const k = s.E.gy.findIndex((c) => c.def.types.includes('creature')); if (k < 0) return; const [c] = s.E.gy.splice(k, 1); E.enter(s, 'E', c.def); } };
 const drain = (n) => (s, E) => { E.hurt(s, n); s.E.life += n; E.L(s, `ライフを ${n} 吸われた（敵 ${s.E.life}）`); };
 const lifeOnDeath = (n) => ({ onLeave(s, p, E, o) { if (p.side === 'E' && o?.died && E.isCreature(p)) { s.E.life += n; E.L(s, `敵のライフ ＋${n}（${s.E.life}）`); } } });
+// 侵略者（次元渡りだけ）の わざ
+const hurtN = (n) => (s, E) => E.hurt(s, n);
+const spawn = (name, pow, tou, n = 1, kw = []) => (s, E) => E.token(s, 'E', att(name, pow, tou, kw), n);
+const killBig = (n) => (s, E) => { for (let i = 0; i < n; i++) { const t = biggest(s, E); if (!t) break; E.L(s, `${t.def.name} を破壊`); E.destroy(s, t); E.sba(s); } };
+// 墓地へ（生贄。破壊不能でも 墓地へ）。big：大きいほうから
+const sac = (n, big = false) => (s, E) => { for (let i = 0; i < n; i++) { const t = big ? biggest(s, E) : weakest(s, E); if (!t) break; E.L(s, `${t.def.name} を墓地へ`); E.leave(s, t, 'gy', { died: true }); E.sba(s); } };
+const minusWeak = (n) => (s, E) => { const t = weakest(s, E); if (t) E.addMinus(s, t, n, 'E'); E.sba(s); };
+// 手札を ランダムに 捨てさせる（ポーション・もんしょうの カードは のこす）
+const discardRand = (n) => (s, E) => { for (let i = 0; i < n; i++) { const h = s.P.hand.filter((c) => !c.def.potion && !c.emblem); if (!h.length) return; E.discard(s, [h[Math.floor(s.rng() * h.length)]]); } };
+// 山札の 上から 追放（この 戦闘の あいだ もどらない）・墓地を ぜんぶ 追放
+const exileTop = (n) => (s, E) => { const ex = s.P.lib.splice(0, n); s.P.exile.push(...ex); if (ex.length) E.L(s, `あなたの山札の上から ${ex.length}枚を追放：${ex.map((c) => c.def.name).join('、')}`); };
+const exileGy = (s, E) => { const n = s.P.gy.length; s.P.exile.push(...s.P.gy.splice(0)); if (n) E.L(s, `あなたの墓地の ${n}枚を追放`); };
+// n ターンごとの わざ（敵の ターンの はじめ）。left：つぎまで あと 何ターンか（1 なら つぎの 敵の ターン）
+const every = (n, fx) => (s, E) => { s.E.flags.t = (s.E.flags.t || 0) + 1; if (s.E.flags.t % n === 0) fx(s, E); };
+const left = (s, n) => n - ((s.E.flags.t || 0) % n);
+const soon = (s, n, what) => (left(s, n) === 1 ? `つぎの敵のターンのはじめに、${what}` : `${left(s, n)}ターンごとに ${what}（あと ${left(s, n)}ターン）`);
+// 3段階（ライフ 2/3・1/3 で かわる）
+const phaseOf = (s) => (s.E.life > (s.E.lifeMax * 2) / 3 ? 1 : s.E.life > s.E.lifeMax / 3 ? 2 : 3);
 
 export const MONSTERS = {
   // ===== 第1幕 テーロス =====
@@ -77,31 +95,118 @@ export const MONSTERS = {
     turnStart(s, E) { for (const p of E.creatures(s, 'E')) if (p.ctr > 0) E.addCounters(s, p, Math.min(8, p.ctr * 2) - p.ctr); } },
   sp_elementals: { name: 'プリズマリの精霊', life: 25, deck: [[3, att('炎の精霊', 4, 2, ['haste'])], [2, att('嵐の精霊', 3, 3, ['flying'])], [1, att('溶岩の巨像', 6, 6)], [2, sorc('芸術の爆発', 'あなたのクリーチャーすべてに 2点', sweep(2), 4)], [2, sorc('即興曲', 'あなたに 3点', (s, E) => E.hurt(s, 3), 3)]] },
   sp_spirits: { name: 'ロアホールドの霊', life: 27, deck: [[3, att('過去の霊', 2, 2, ['flying'])], [2, att('戦史の霊', 4, 4)], [2, wall('石の衛兵', 1, 5)], [2, sorc('呼び起こし', '墓地のクリーチャーを 2体もどす', raise(2), 4)], [1, sorc('歴史の再演', '敵のクリーチャーすべて ＋2/＋2', pumpAll(2, 2), 4)]] },
+
+  // ===== 侵略者（次元渡りだけ。2026-11-05）：ファイレクシア（第1幕）・ニコル・ボーラス（第2幕）・エルドラージ（第3幕）=====
+  // --- ファイレクシア：手下 ---
+  sp_phyx_scouts: { name: 'ファイレクシアの先兵', life: 12, deck: [[4, att('ぎらつく油の斥候', 1, 1, ['haste'])], [2, att('ファイレクシアの歩兵', 2, 2)], [2, sorc('油の浸食', 'いちばん小さいクリーチャーに −1/−1カウンター', minusWeak(1), 3)], [2, wall('鉄の殻', 0, 3)]] },
+  sp_phyx_host: { name: '完成化の軍勢', life: 17, deck: [[3, att('完成化した兵', 2, 3)], [2, att('ファイレクシアの巨獣', 4, 3)], [2, sorc('完成化', '敵のクリーチャーすべてに ＋1/＋1カウンター', ctrAll(1), 3)], [2, sorc('油の刃', 'いちばん大きいクリーチャーに 3点', hitBig(3), 3)], [1, wall('侵略の門', 0, 6)]] },
+  sp_phyx_ship: { name: 'ファイレクシアの侵略艦', life: 18, intent: (s) => soon(s, 2, '1/1 のファイレクシアの幼体が出る'), turnStart: every(2, spawn('ファイレクシアの幼体', 1, 1)),
+    deck: [[3, att('降下兵', 2, 2, ['flying'])], [2, att('ファイレクシアの処刑者', 4, 4)], [2, sorc('一斉降下', '1/1 の幼体を 2体', spawn('ファイレクシアの幼体', 1, 1, 2), 2)], [2, sorc('艦砲射撃', 'あなたのクリーチャーすべてに 1点', sweep(1), 3)]] },
+  // --- ファイレクシアの 法務官（第1幕の ボス。5体から 1体）---
+  sp_norn: { boss: true, name: '大修道士、エリシュ・ノーン', speaker: 'エリシュ・ノーン', life: 28, blurb: '敵のターンのはじめに、あなたのクリーチャーすべてに 1点',
+    lines: { start: 'すべての肉は、完成されねばならない。', mid: '抗うほどに、痛みは増すだけだ。', low: 'なぜ……完成を拒む……', pinch: '跪け。それが救いだ。' },
+    intent: () => '敵のターンのはじめに、あなたのクリーチャーすべてに 1点', turnStart: sweep(1),
+    deck: [[3, att('ファイレクシアの聖戦士', 2, 2, ['vigilance'])], [2, att('白金の天使', 3, 3, ['flying'])], [2, wall('完成化の守り手', 1, 4)], [2, sorc('完成化の啓示', '敵のクリーチャーすべて ＋1/＋1', pumpAll(1, 1), 3)], [1, sorc('剥き出しの法', 'いちばん大きいクリーチャーを破壊', killBig(1), 4)]] },
+  sp_jin: { boss: true, name: '核の占い師、ジン＝ギタクシアス', speaker: 'ジン＝ギタクシアス', life: 28, blurb: '敵のターンのはじめに、あなたの手札を 1枚捨てさせる',
+    lines: { start: 'お前の知識は、我が研究の糧となる。', mid: '興味深い。だが無駄だ。', low: 'この誤差は……計算外だ……', pinch: '結論は出た。お前は失敗作だ。' },
+    intent: () => '敵のターンのはじめに、あなたの手札を 1枚捨てさせる', turnStart: discardRand(1),
+    deck: [[3, att('ファイレクシアの思考刈り', 2, 1, ['flying'])], [2, wall('嘲笑う詮索者', 1, 5)], [2, att('ギタクシアの探究者', 3, 3)], [2, sorc('知識の剥奪', 'あなたの手札を 1枚捨てさせる', discardRand(1), 3)], [1, sorc('思考の侵食', 'クリーチャー 2体をタップ', tapBig(2), 3)]] },
+  sp_sheol: { boss: true, name: '囁くもの、シェオルドレッド', speaker: 'シェオルドレッド', life: 26, blurb: '2ターンごとに、あなたのいちばん小さいクリーチャーを墓地へ',
+    lines: { start: '死は終わりではない。我が下僕となる始まりだ。', mid: '倒れた者は、すべて私のものだ。', low: 'まだ……死は私の味方……', pinch: 'さあ、こちらへおいで。' },
+    intent: (s) => soon(s, 2, 'あなたのいちばん小さいクリーチャーを墓地へ'), turnStart: every(2, sac(1)),
+    deck: [[3, att('ファイレクシアの屍術士', 2, 2)], [2, att('墓所の這い者', 3, 2)], [2, sorc('鉄の蘇生', '墓地のクリーチャーを 1体もどす', raise(1), 3)], [2, wall('骨の壁', 0, 4)], [1, sorc('死の囁き', 'あなたに 2点・敵のライフ ＋2', drain(2), 3)]] },
+  sp_ura: { boss: true, name: '隠れしウラブラスク', speaker: 'ウラブラスク', life: 28, blurb: '敵のクリーチャーはすべて速攻。敵のターンのはじめに、あなたに 1点',
+    lines: { start: '炉の火は、すべてを鍛え直す。', mid: 'いい火花だ。もっと燃えろ。', low: '炉が……冷えていく……', pinch: '燃え尽きるがいい。' },
+    intent: () => '敵のターンのはじめに、あなたに 1点（敵のクリーチャーはすべて速攻）', turnStart: hurtN(1),
+    deck: [[3, att('溶鉱炉の狂信者', 2, 1, ['haste'])], [2, att('ファイレクシアの溶鉄獣', 4, 2, ['haste'])], [2, sorc('溶けた鉄', 'いちばん大きいクリーチャーに 3点', hitBig(3), 3)], [2, sorc('煉獄の炎', 'あなたのクリーチャーすべてに 1点', sweep(1), 3)], [1, att('灼熱の巨人', 5, 4, ['haste', 'trample'])]] },
+  sp_vori: { boss: true, name: '飢餓の声、ヴォリンクレックス', speaker: 'ヴォリンクレックス', life: 28, blurb: '2ターンごとに、敵のクリーチャーすべてに ＋1/＋1カウンター',
+    lines: { start: '喰らい、育ち、すべてを覆い尽くせ。', mid: '肉が足りぬ。もっと寄越せ。', low: '飢えが……満たされぬ……', pinch: 'お前も我が群れの餌だ。' },
+    intent: (s) => soon(s, 2, '敵のクリーチャーすべてに ＋1/＋1カウンター'), turnStart: every(2, ctrAll(1)),
+    deck: [[3, att('ファイレクシアの捕食獣', 2, 2)], [2, att('寄生の大蛇', 3, 3, ['trample'])], [2, wall('鉄皮の巨体', 1, 5)], [2, sorc('増殖する肉', '1/1 のファイレクシアの幼体を 2体', spawn('ファイレクシアの幼体', 1, 1, 2), 2)], [1, sorc('飢えた咆哮', '敵のクリーチャーすべて ＋2/＋0・トランプル', pumpAll(2, 0, ['trample']), 4)]] },
+
+  // --- ニコル・ボーラス：手下 ---
+  sp_dread: { name: '戦慄衆の群れ', life: 14, deck: [[4, att('戦慄衆の歩兵', 2, 2)], [2, att('戦慄衆の射手', 1, 3, ['reach'])], [2, sorc('戦慄衆の復活', '墓地のクリーチャーを 1体もどす', raise(1), 3)], [2, sorc('灯の収穫', 'あなたに 2点・敵のライフ ＋2', drain(2), 3)]] },
+  sp_eternal: { name: '永遠衆の軍団', life: 20, deck: [[3, att('永遠衆の兵', 3, 3)], [2, att('永遠衆の巨人', 5, 5)], [2, sorc('苦悶', 'あなたに 3点', hurtN(3), 3)], [2, sorc('進軍の号令', '敵のクリーチャーすべて ＋1/＋1', pumpAll(1, 1), 3)], [1, wall('龍神の霊廟', 0, 6)]] },
+  sp_oketra: { name: '永遠神オケチラ', life: 20, intent: (s) => soon(s, 2, '2/2 の永遠衆の戦士が出る'), turnStart: every(2, spawn('永遠衆の戦士', 2, 2)),
+    deck: [[3, att('オケチラの信徒', 2, 2, ['vigilance'])], [2, att('永遠衆の弓兵', 2, 3, ['reach'])], [2, sorc('神の加護', '敵のクリーチャーすべて ＋1/＋1', pumpAll(1, 1), 3)], [2, sorc('永遠化', '墓地のクリーチャーを 1体もどす', raise(1), 3)], [1, sorc('裁きの光', 'いちばん大きいクリーチャーをタップ', tapBig(1), 3)]] },
+  // --- ニコル・ボーラス（第2幕の ボス）：3段階 ---
+  sp_bolas: { boss: true, name: '龍神、ニコル・ボーラス', speaker: 'ニコル・ボーラス', life: 26, phases: true,
+    blurb: '3段階：戦慄衆を呼ぶ → 手札を捨てさせる → いちばん大きいクリーチャーを破壊',
+    lines: { start: '我は神。この多元宇宙で、私にひざまずかぬ者はいない。', p2: '小賢しい。その思考ごと砕いてやろう。', p3: '思い上がるな、定命の者よ！', low: 'ありえぬ……この私が……！', pinch: '終わりだ。灯ごと消えるがいい。' },
+    intent: (s) => [soon(s, 2, '2/2 の戦慄衆が出る'), '敵のターンのはじめに、あなたの手札を 1枚捨てさせる', '敵のターンのはじめに、あなたのいちばん大きいクリーチャーを破壊'][phaseOf(s) - 1],
+    turnStart(s, E) {
+      const ph = phaseOf(s);
+      if (ph === 1) every(2, spawn('戦慄衆の歩兵', 2, 2))(s, E);
+      else if (ph === 2) discardRand(1)(s, E);
+      else killBig(1)(s, E);
+    },
+    deck: [[3, att('戦慄衆の歩兵', 2, 2)], [2, att('永遠衆の戦士', 3, 2)], [1, att('ボーラスの龍', 4, 4, ['flying'])], [2, sorc('精神の掌握', 'いちばん大きいクリーチャーをタップ', tapBig(1), 3)], [2, wall('龍神の霊廟', 0, 5)], [1, sorc('龍神の業火', 'あなたのクリーチャーすべてに 1点', sweep(1), 3)]] },
+
+  // --- エルドラージ：手下 ---
+  sp_spawn: { name: 'エルドラージの落とし子の群れ', life: 16, deck: [[5, att('エルドラージの落とし子', 1, 1)], [2, att('エルドラージのドローン', 2, 2)], [2, sorc('産卵', '1/1 の落とし子を 2体', spawn('エルドラージの落とし子', 1, 1, 2), 2)], [1, sorc('嚥下', 'あなたの山札の上から 2枚を追放', exileTop(2), 2)]] },
+  sp_scions: { name: 'ウラモグの末裔たち', life: 24, deck: [[3, att('ウラモグの末裔', 3, 3)], [2, att('嚥下するもの', 4, 4, ['trample'])], [2, sorc('無への回帰', 'あなたの墓地をすべて追放', exileGy, 2)], [2, sorc('虚無の触手', 'いちばん大きいクリーチャーに 4点', hitBig(4), 4)], [1, wall('空虚の繭', 0, 7)]] },
+  sp_breaker: { name: 'ウラモグの破壊者', life: 16, intent: () => '敵のターンのはじめに、あなたの山札の上から 1枚を追放', turnStart: exileTop(1),
+    deck: [[1, att('ウラモグの破壊者', 5, 5, ['trample'])], [2, att('エルドラージのドローン', 1, 1)], [4, wall('エルドラージの落とし子', 0, 1)], [2, sorc('殲滅', 'あなたのいちばん小さいクリーチャーを墓地へ', sac(1), 3)]] },
+  // --- エルドラージの 巨神（第3幕の ボス。3体から 1体）---
+  sp_emrakul: { boss: true, name: '引き裂かれし永劫、エムラクール', speaker: 'エムラクール', life: 26, blurb: '3ターンごとに「滅殺」：あなたのいちばん大きいクリーチャー 2体を墓地へ',
+    lines: { start: '……（世界そのものが、ねじれていく）', mid: '……（月が、悲鳴を上げた）', low: '……（巨体が、次元の裂け目へ沈みかける）', pinch: '……（あなたの影が、引き裂かれていく）' },
+    intent: (s) => { const left = 3 - ((s.E.flags.t || 0) % 3); return left === 1 ? 'つぎの敵のターンに「滅殺」：あなたのいちばん大きいクリーチャー 2体を墓地へ' : `「滅殺」まで あと ${left} ターン`; },
+    turnStart(s, E) { s.E.flags.t = (s.E.flags.t || 0) + 1; if (s.E.flags.t % 3 === 0) { E.L(s, 'エムラクールの滅殺'); sac(2, true)(s, E); } },
+    deck: [[4, wall('エルドラージの落とし子', 0, 1)], [3, att('エルドラージのドローン', 2, 2)], [2, att('穢すもの', 4, 4, ['flying'])], [1, sorc('引き裂く時', 'あなたに 4点', hurtN(4), 4)]] },
+  sp_ulamog: { boss: true, name: '絶え間ない飢餓、ウラモグ', speaker: 'ウラモグ', life: 26, blurb: '敵のターンのはじめに、あなたの山札の上から 1枚を追放（この戦闘のあいだ もどらない）',
+    lines: { start: '……（大地が、色を失っていく）', mid: '……（喰らった次元の数を、誰も知らない）', low: '……（飢えた巨体が、ゆらいだ）', pinch: '……（あなたのすべてが、喰われようとしている）' },
+    intent: () => '敵のターンのはじめに、あなたの山札の上から 1枚を追放', turnStart: exileTop(1),
+    deck: [[3, wall('エルドラージの落とし子', 0, 1)], [3, att('飢えた末裔', 2, 3)], [2, att('嚥下するもの', 3, 3, ['trample'])], [2, sorc('無への回帰', 'あなたの墓地をすべて追放', exileGy, 3)]] },
+  sp_kozilek: { boss: true, name: '真実の解体者、コジレック', speaker: 'コジレック', life: 26, reveal: 1.5, blurb: 'あなたの呪文のコストは ＋1。敵は山札を多めにめくる',
+    lines: { start: '……（見えているものが、真実とはかぎらない）', mid: '……（あなたの呪文が、ゆがんでいく）', low: '……（ゆがみが、ほどけはじめた）', pinch: '……（真実が、解体されていく）' },
+    intent: () => 'あなたの呪文のコストは ＋1（基本カードは のぞく）',
+    hooks: { costTax: (s, d) => (!d.basic && d.cost ? 1 : 0) },
+    deck: [[4, wall('エルドラージの落とし子', 0, 1)], [3, att('ゆがみの末裔', 2, 2)], [2, att('真実をむさぼるもの', 4, 3)], [1, sorc('歪曲', 'あなたに 3点', hurtN(3), 3)]] },
 };
+// 侵略者の ボス（幕の はじめに、その幕の ボスと はんぶんずつ）
+export const bossName = (key) => MONSTERS[key]?.name || ACTS.find((a) => a.boss === key)?.bossName || key;
+export const bossBlurb = (key) => MONSTERS[key]?.blurb || '';
 
 // ふつうの敵の階（o.lifeMul・o.reveal はアセンション）
+// 侵略者の ボス（c.boss）：ライフは むずかしさで かわる（アセンション 4 で「むずかしい」）。c.lines：セリフ。c.phases：ライフ 2/3・1/3 で 3段階
+// 勝っても カットインは「勝利……？」（エルドラージ・ボーラス・法務官は、いつか レイドの ボスで もどって くる かも。ユーザーが きめた 2026-11-05）
+const BOSS_DIFF = { easy: 0.85, normal: 1, hard: 1.2 };
+const INVADER_WIN = '勝利……？';
 export function monsterFloor(key, o = {}) {
   const c = MONSTERS[key];
-  const life = Math.round(c.life * (o.lifeMul || 1)), rv = o.reveal || 1;
+  const lifeOf = (s) => Math.round(c.life * (o.lifeMul || 1) * (c.boss ? BOSS_DIFF[s?.diff] ?? 1 : 1)), rv = (o.reveal || 1) * (c.reveal || 1);
   const revealN = (s) => Math.floor((s.E.flags.rv || 0) + rv);
-  const check = (s) => { if (s.E.life <= 0) s.over = 'win'; };
+  // セリフ：段階が かわる・ライフ はんぶん・のこり すこし・あなたの ライフが 5 いか
+  const talk = (s, E) => {
+    if (!c.lines || s.over) return;
+    if (c.phases) { const ph = phaseOf(s); if (ph !== s.phase) { s.phase = ph; s.stats.phase = ph; speak(s, E, `p${ph}`, c.lines[`p${ph}`]); } }
+    else if (s.E.life <= s.E.lifeMax / 2) speak(s, E, 'mid', c.lines.mid);
+    if (s.E.life > 0 && s.E.life <= s.E.lifeMax / 5) speak(s, E, 'low', c.lines.low);
+    if (s.P.life > 0 && s.P.life <= 5) speak(s, E, 'pinch', c.lines.pinch);
+  };
+  const check = (s, E) => { if (s.E.life <= 0) s.over = 'win'; else if (E) talk(s, E); };
   return {
-    id: key, name: c.name, rav: true, spire: true, faceUnit: 1, faceLabel: c.name,
-    goal: () => `${c.name}のライフ（${life}）を 0 にする。${c.intent ? c.intent() + '。' : ''}`,
+    id: key, name: c.name, rav: true, spire: true, faceUnit: 1, faceLabel: c.name, speaker: c.speaker, lines: c.lines, winText: c.boss ? INVADER_WIN : undefined,
+    goal: (s) => `${c.lines ? `${c.speaker}「${c.lines.start}」\n` : ''}${c.name}のライフ（${s?.E?.lifeMax || lifeOf(s)}）を 0 にする。${c.blurb ? `${c.blurb}。` : c.intent ? `${c.intent(s)}。` : ''}`,
     setup(s, E) {
+      const life = lifeOf(s);
       s.E.life = life; s.E.lifeMax = life;
+      if (c.lines) s.E.say = c.lines.start;
+      if (c.phases) { s.phase = 1; s.stats.phase = 1; }
       for (const p of s.E.bf) p.sick = false;
       s.E.lib = toLib(s, E, build(c.deck));
     },
     async enemyTurn(s, E) {
       await c.turnStart?.(s, E);
       if (s.over) return;
+      talk(s, E);
       const k = revealN(s);
       s.E.flags.rv = (s.E.flags.rv || 0) + rv - k;
       if (s.E.lib.length < k && s.E.gy.length) { s.E.lib.push(...shuffle(s.rng, s.E.gy.splice(0))); E.L(s, '敵は墓地をまぜて山札にもどした'); }
       await E.reveal(s, k);
       if (s.over) return;
       await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
+      talk(s, E);
     },
     revealN,
     intent: (s, E) => (c.intent ? [c.intent(s, E)] : []),
@@ -117,7 +222,7 @@ export function monsterFloor(key, o = {}) {
     threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks); return { damage: sumPow(s, E, a) + 1, attackers: a.length }; },
     anyTarget() { return 'face'; },
     castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
-    status: (s) => `<span class="chip hot">${c.name} ライフ ${s.E.life}</span>`,
+    status: (s) => `${c.phases ? `<span class="chip">段階 ${s.phase || 1}/3</span>` : ''}<span class="chip hot">${c.name} ライフ ${s.E.life}</span>`,
     ...c.hooks,
   };
 }
@@ -127,12 +232,16 @@ for (const k of Object.keys(MONSTERS)) FLOORS[k] = () => monsterFloor(k);
 // buff：その幕の敵クリーチャーは ＋buff/＋buff（bossBuff：ボスだけさらに）。lifeMul：ライフを持つ敵（ふつうの敵・ラヴニカのギルド・寮・ボス）のライフの倍率
 // bossDiff：ボスの難しさ（アセンション 4 で 1段上がる）
 export const ACTS = [
-  { id: 'theros', name: 'テーロス', weak: ['sp_satyrs', 'sp_harpies', 'sp_minotaur'], strong: ['sp_centaurs', 'sp_cyclops', 'sp_nyx'],
-    elites: ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon'], boss: 'erebos', bossName: '死者の神エレボス', buff: 0, lifeMul: 1.2 },
-  { id: 'ravnica', name: 'ラヴニカ', weak: ['sp_jesters', 'sp_rotters', 'sp_weirds'], strong: ['sp_raiders', 'sp_tithe', 'sp_krasis'],
-    elites: ['boros', 'selesnya', 'simic', 'izzet', 'golgari', 'azorius', 'rakdos', 'orzhov', 'gruul', 'dimir'], boss: 'jace', bossName: 'ギルドパクトのジェイス', buff: 1, lifeMul: 1.7 },
-  { id: 'strixhaven', name: 'ストリクスヘイヴン', weak: ['sp_brooms', 'sp_pests', 'sp_inklings'], strong: ['sp_fractals', 'sp_elementals', 'sp_spirits'],
-    elites: ['sx_silverquill', 'sx_prismari', 'sx_witherbloom', 'sx_lorehold', 'sx_quandrix'], boss: 'sx_extus', bossName: '卒業試験（オリークのエクタス）', buff: 2, lifeMul: 2.4 },
+  // invaders：侵略者の ボス（幕の はじめに、boss と はんぶんずつ。侵略者の 中は ランダム）。手下は weak・strong・elites に まぜる
+  { id: 'theros', name: 'テーロス', weak: ['sp_satyrs', 'sp_harpies', 'sp_minotaur', 'sp_phyx_scouts'], strong: ['sp_centaurs', 'sp_cyclops', 'sp_nyx', 'sp_phyx_host'],
+    elites: ['hydra', 'clock', 'horde', 'dragon', 'factory', 'slime', 'twins', 'xenagos', 'gorgon', 'sp_phyx_ship'], boss: 'erebos', bossName: '死者の神エレボス', buff: 0, lifeMul: 1.2,
+    invaders: ['sp_norn', 'sp_jin', 'sp_sheol', 'sp_ura', 'sp_vori'] },
+  { id: 'ravnica', name: 'ラヴニカ', weak: ['sp_jesters', 'sp_rotters', 'sp_weirds', 'sp_dread'], strong: ['sp_raiders', 'sp_tithe', 'sp_krasis', 'sp_eternal'],
+    elites: ['boros', 'selesnya', 'simic', 'izzet', 'golgari', 'azorius', 'rakdos', 'orzhov', 'gruul', 'dimir', 'sp_oketra'], boss: 'jace', bossName: 'ギルドパクトのジェイス', buff: 1, lifeMul: 1.7,
+    invaders: ['sp_bolas'] },
+  { id: 'strixhaven', name: 'ストリクスヘイヴン', weak: ['sp_brooms', 'sp_pests', 'sp_inklings', 'sp_spawn'], strong: ['sp_fractals', 'sp_elementals', 'sp_spirits', 'sp_scions'],
+    elites: ['sx_silverquill', 'sx_prismari', 'sx_witherbloom', 'sx_lorehold', 'sx_quandrix', 'sp_breaker'], boss: 'sx_extus', bossName: '卒業試験（オリークのエクタス）', buff: 2, lifeMul: 2.4,
+    invaders: ['sp_emrakul', 'sp_ulamog', 'sp_kozilek'] },
 ];
 
 // ---- 予告：つぎにめくる山札のカード（すべての敵）----
