@@ -800,9 +800,10 @@ export function gorgon() {
 }
 
 // ===== チュートリアル：メレティスの 訓練場 =====
-// 「訓練の まと」（タフネス 10）を たおせば かち。わらの 兵士は 3回めの 敵の ターンから 攻撃する（さきに こうげきを おぼえる。2026-10-30）
+// 「訓練の まと」（タフネス 10）を たおせば かち。わらの 兵士は 3回めの 敵の ターンから 攻撃する（さきに こうげきを おぼえる。2026-10-30）。
+// まとは はんげき しない（noBlock）。わらの 兵士は こうげき されたら はんげき する（2026-11-06）
 const DUMMY = ecr('訓練（くんれん）の まと', 0, 10, ['wall'], [], { id: 'tut_dummy', dummy: true, noBlock: true, noCopy: true });
-const STRAW = ecr('わらの 兵士（へいし）', 3, 3, ['scarecrow'], [], { id: 'tut_straw', straw: true, noBlock: true });
+const STRAW = ecr('わらの 兵士（へいし）', 3, 3, ['scarecrow'], [], { id: 'tut_straw', straw: true }); // こうげき されたら はんげき する（2026-11-06。まとへの こうげきに わりこむ ことは ない）
 
 export function tutorial() {
   return {

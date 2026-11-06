@@ -52,11 +52,16 @@ const STEPS = [
     hl: hand('B01'), hand: { B01: ['charge'] }, done: (s) => s.P.mana.length >= 4,
   },
   {
+    // 2026-11-06：反撃の きまり（REQUIREMENTS 8.11）
+    text: 'てきの クリーチャーを こうげきすると、あいてが おきて いれば（タップして いなければ）「はんげき」して くる。おたがいに パワーぶんの ダメージ！ まとは パワー 0 だから へっちゃら。わらの へいしは パワー 3 だから、いま こうげきすると やられちゃうよ。',
+    hl: perm('tut_straw'), next: true,
+  },
+  {
     text: 'さあ、はじめての こうげき！ へいし 2体と エルフを、まとへ ひっぱって えらぼう。えらんだら「攻撃（こうげき）！」。',
     hl: perm('tut_dummy'), acts: ['attack', 'declare'], drag: true, perms: true, done: (s, B) => B.mode === 'tricks',
   },
   {
-    text: 'まとは ブロックしない。「ダメージ！」を おそう。',
+    text: 'まとは はんげき しない。「ダメージ！」を おそう。',
     hl: '[data-act=damage]', acts: ['damage'], done: (s, B) => B.mode === 'main' && B.combatDone,
   },
   {
