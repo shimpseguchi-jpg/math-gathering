@@ -667,8 +667,8 @@ function splitTwins(s, E, atkers, [a, b], kill) {
     const rest = atkers.filter((p) => !ga.includes(p) && !gb.includes(p));
     const plan = [...ga.map((p) => ({ p, t: a })), ...gb.map((p) => ({ p, t: b })), ...E.assignKill(s, rest, kill, null)];
     const bl = E.enemyBlocks(s, plan);
-    const thru = (g) => g.filter((p) => !bl.has(p.uid));
-    if (enough(thru(ga), na) && enough(thru(gb), nb)) best = { used, plan };
+    const thru = (g, t) => g.filter((p) => !bl.has(p.uid) || bl.get(p.uid) === t); // ねらった 相手の 反撃（2026-11-06）は ダメージが その 相手に とどく
+    if (enough(thru(ga, a), na) && enough(thru(gb, b), nb)) best = { used, plan };
     return null;
   });
   return best?.plan || null;

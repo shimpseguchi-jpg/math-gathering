@@ -878,11 +878,17 @@ function kills(s, x, y) { const px = power(s, x); return px > 0 && (hasKw(s, x, 
 function survives(s, x, y) { return hasKw(s, x, 'indestructible') || (!kills(s, y, x)); }
 export const blockFacts = (s, b, a) => ({ kills: kills(s, b, a), survives: survives(s, b, a) });
 
-// 敵のブロック：倒せるか、倒されないときだけブロックする（頭・神・ブロックしないクリーチャーはしない）
+// 反撃（2026-11-06。ユーザーが きめた）：敵の クリーチャーを 攻撃したら、その クリーチャーが 起きて いて（タップして いない）ブロックできるなら
+// 反撃する（攻撃してきた ものを その クリーチャーが ブロックした ことに なる → おたがいに ダメージ）。タップして いれば 一方的。ほかの 敵は わりこまない
+export const fightsBack = (s, p, t) => !!(t && typeof t === 'object' && t.side !== p.side && onBf(s, t) && isCreature(t) && !t.tapped && !t.def.noBlock && canBlock(s, t, p));
+const atCreature = (a) => a.t && typeof a.t === 'object' && isCreature(a.t);
+// 敵のブロック：攻撃先が クリーチャーなら その クリーチャーの 反撃だけ。本体などへの 攻撃は、倒せるか、倒されないときだけブロックする（頭・神・ブロックしないクリーチャーはしない）
 export function enemyBlocks(s, atk) {
   const blocks = new Map();
-  const avail = s.E.bf.filter((b) => isCreature(b) && !b.tapped && !b.def.noBlock);
-  const order = [...atk].sort((x, y) => power(s, y.p) - power(s, x.p));
+  for (const a of atk) if (atCreature(a) && fightsBack(s, a.p, a.t)) blocks.set(a.p.uid, a.t);
+  const targeted = new Set(atk.filter(atCreature).map((a) => a.t)); // 攻撃されて いる クリーチャーは ほかの ブロックに 出ない
+  const avail = s.E.bf.filter((b) => isCreature(b) && !b.tapped && !b.def.noBlock && !targeted.has(b));
+  const order = [...atk].filter((a) => !atCreature(a)).sort((x, y) => power(s, y.p) - power(s, x.p));
   for (const a of order) {
     let best = null, bv = 0;
     for (const b of avail) {
@@ -966,6 +972,15 @@ export function finishCombat(s, atk, blocks) {
 export async function enemyAttack(s, attackers) {
   attackers = attackers.filter((p) => onBf(s, p) && isCreature(p) && !auraFlag(s, p, 'pacify'));
   if (!attackers.length) return;
+  // こうげきの まえ（2026-11-06。ユーザーが きめた）：プレイヤーが インスタント・能力を 使える（battle.js の humanAI。AI どうしの シミュレーションでは なし）。
+  // ここで たおされた・タップされた 敵は こうげきしない
+  if (s.ai.beforeCombat) {
+    const up = new Set(attackers.filter((p) => !p.tapped));
+    await s.ai.beforeCombat(s, attackers);
+    if (s.over) return;
+    attackers = attackers.filter((p) => onBf(s, p) && isCreature(p) && !auraFlag(s, p, 'pacify') && !(up.has(p) && p.tapped));
+    if (!attackers.length) { L(s, 'てきは こうげき できなかった'); return; }
+  }
   for (const p of attackers) { p.attacking = true; if (!hasKw(s, p, 'vigilance')) p.tapped = true; }
   L(s, `てきの こうげき：${attackers.map((p) => p.def.name).join('、')}`);
   await s.ai.beforeBlocks(s, attackers);
@@ -1039,7 +1054,7 @@ Object.assign(api, {
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
-  shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
+  shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, fightsBack, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
