@@ -168,7 +168,7 @@ export const S10 = {
     },
   }),
   FG08: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); E.drawCard(s); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }), // レア：人は えらべる
-  FG09: np(50, (s, E) => detain(s, E, biggest(s, E, (p) => !p.frozen))),
+  FG09: np(50, (s, E, p, t) => detain(s, E, t || biggest(s, E, (q) => !q.frozen)), { npTgt: { side: 'E', label: 'タップして つぎの ターン 起きない クリーチャー' } }), // じぶんで えらぶ（PICK_FREE。2026-11-06）
   FG10: np(20, (s, E) => E.drawCard(s, 2), { onCast: (s, p, d, E) => { if (p.side === 'P' && ['instant', 'sorcery'].some((t) => d.types.includes(t))) addNP(s, E, p, 20); } }),
   FG11: np(20, (s, E) => { E.gain(s, 3); for (const q of mine(s, E)) E.addCounters(s, q, 1); }, { upkeep: (s, p, E) => { if (p.side === 'P') for (const q of servants(s, E)) addNP(s, E, q, 20); } }),
   // 十二の試練：試練カウンター 3こ。死亡する かわりに 1こ とって ダメージを 0 に

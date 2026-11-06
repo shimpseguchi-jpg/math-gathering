@@ -52,7 +52,7 @@ export const S2B = {
     aura: true, tgt: [{ side: 'E', label: 'つける てきの クリーチャー（しょうしつが おわると はかい）' }],
     need: (s, E) => theirs(s, E).length > 0,
     etb: (s, p, E, o) => {
-      let h = chosen1(o); if (h === undefined) h = bigFoe(s, E);
+      let h = chosen1(o); if (h === undefined) h = foeBest(s, E)?.t; // コモン：ランダム（pickMode）
       if (!h || !E.onBf(s, h)) { E.leave(s, p, 'gy'); return; }
       E.attach(s, p, h);
     },
@@ -61,11 +61,12 @@ export const S2B = {
   U96: {
     play: (s, E) => (theirs(s, E).length ? {
       score: 4 + (s.P.hand.length <= 1 ? 3 : 0),
-      run: () => { const n = s.P.hand.length === 0 ? 2 : 1; if (n === 2) E.L(s, 'ぼうゆう：2体まで'); for (const t of theirs(s, E).sort((a, b) => E.power(s, b) - E.power(s, a)).slice(0, n)) { E.bounce(s, t); } E.sba(s); },
+      run: () => { const n = s.P.hand.length === 0 ? 2 : 1; if (n === 2) E.L(s, 'ぼうゆう：2体まで'); const pool = theirs(s, E).filter((t) => !s.floor.untargetable?.(s, t, E)); for (let i = 0; i < n && pool.length; i++) E.bounce(s, pool.splice(Math.floor(s.rng() * pool.length), 1)[0]); E.sba(s); }, // コモン：ランダム（2026-11-06）
     } : null),
   },
   U97: {
     play: (s, E, ctx) => { const t = bestFreeze(s, E); return t && ctx.phase === 1 ? { score: 4, run: () => { E.target(s, t); tapIt(s, E, t, true); } } : null; },
+    tgt: [{ side: 'E', label: 'タップして つぎの ターン 起きない クリーチャー' }], apply: (s, E, [[t]]) => { if (t) { E.target(s, t); tapIt(s, E, t, true); } }, // じぶんで えらぶ（PICK_FREE）
     escape: { total: 5, req: ['U'] },
   },
   U98: { acts: [adapt(3, ['U'], 2)], onCounters: (s, p, E) => { if (p.side !== 'P') return; const t = bigFoe(s, E); if (t) tapIt(s, E, t); } },

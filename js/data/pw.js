@@ -130,7 +130,7 @@ export const SPW = {
   },
   PW12: { etb: (s, p, E) => { if (p.side !== 'P') return; E.drawCard(s, 3); E.discard(s, E.discardPick(s, 2)); } },
   PW13: {
-    tgt: [{ side: 'E', min: 0, label: '3点を あたえる クリーチャー' }],
+    tgt: [{ side: 'E', min: 0, n: 3, label: '3点を あたえる クリーチャー' }],
     etb: (s, p, E, o) => { if (p.side !== 'P') return; let t = chosen1(o); if (t === undefined) t = foeBest(s, E, 3)?.t || foeBest(s, E)?.t; if (t) hit(s, E, t, 3); },
     onOtherEnter: (s, q, p, E) => { if (q.side === p.side && E.isPW(p)) q.flags.turn.pwIn = true; },
     endStep: (s, p, E) => { if (p.side === 'P' && p.flags.turn.pwIn) { p.flags.turn.pwIn = false; E.L(s, 'チャンドラの ちかい：てきに 2点'); E.hitEnemy(s, 2, p); } },

@@ -54,7 +54,10 @@ export function newGame({ deck, floor, diff = 'normal', seed = 1, reshuffle = tr
 // コモン＝ランダム（'rand'）、アンコモン・きほん＝パワーが いちばん 大きい てき（'most'）、レア・レジェンド＝自分で えらぶ（null）
 // ただし 自分で えらぶ ままの もの（PICK_FREE）：格闘・かみつき（ランダムだと つよい てきに あたって 自分が そんする）と、もともと よわい もの（1点・−1/−1 1こ・留置・1体を タップ）、
 // 名前で えらぶ もの（ZZ157 ナイトメア・パラソル：おなじ 名前の てきも まとめて −2/−2 なので、どの 名前を ねらうかが だいじ。2026-11-04）
-export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'FG67', 'ZZ79', 'RV27', 'U14', 'B04', 'B06', 'ZZ60', 'ZZ62', 'ZZ33', 'FG54', 'SR27', 'U03', 'FG31', 'FG41', 'ZZ157']);
+// 2026-11-06（docs/REMOVAL.md 4.1）：あとから 足した 弾の 1点・−1/−1 1こ・留置・1体を タップ・格闘も ここに（第1〜12弾。第14〜16弾は set14/15/16.js の PICK_FREE.add）、
+// 割り振る 光の 矢の 雨（W13）・留置の 死者の ねむり（U97）も。人が えらぶ 画面の ない 能力（星座・攻撃したとき など）は AI が いちばん よい あいてを えらぶ
+export const PICK_FREE = new Set(['G08', 'G19', 'G27', 'G30', 'SR70', 'TE03', 'FG67', 'ZZ79', 'RV27', 'U14', 'B04', 'B06', 'ZZ60', 'ZZ62', 'ZZ33', 'FG54', 'SR27', 'U03', 'FG31', 'FG41', 'ZZ157',
+  'W13', 'U97', 'R51', 'R86', 'KG10', 'U110', 'U99', 'U59', 'U46', 'U98', 'W50', 'U105', 'WU10', 'G53', 'GU03', 'RV29', 'FG09', 'YK01', 'SR48', 'ZZ58', 'ZZ74']);
 export const pickOf = (d) => (!d || d.token || !d.rar || PICK_FREE.has(d.id) ? null : d.rar === 'C' ? 'rand' : d.rar === 'U' || d.rar === 'B' ? 'most' : null);
 const PICK_KEYS = ['play', 'apply', 'etb', 'onAttack', 'onAttacks', 'onDie', 'onCombatHit', 'onFaceHit', 'onKill', 'upkeep', 'onTapped', 'onExact', 'onDamageCreature', 'onMinus', 'onCounters', 'onDraw', 'onOtherEnter', 'onAllyHit', 'onAnyCast', 'onPWAttacked', 'onLeaveSelf', 'onOtherLeave', 'onHurt'];
 // カードの こうかを 動かす あいだだけ s.pickMode を つける（ai.js の burnTarget が 見る）。play が かえす run も おなじ
@@ -373,6 +376,15 @@ export function pt(s, p) {
 }
 export const power = (s, p) => pt(s, p)[0];
 export const need = (s, p) => (hasKw(s, p, 'indestructible') || s.floor.cantLeave?.(s, p)) ? Infinity : Math.max(0, pt(s, p)[1] - p.dmg);
+// アンコモンの ねらいかた（2026-11-06。docs/REMOVAL.md）：n 点（−n/−n・−1/−1カウンター n こ）で「たおせる なかで パワーが いちばん 大きい」てき。
+// たおせる てきが いなければ パワーが いちばん 大きい てき。n が KILL_N いじょう（破壊・追放 など）は ただの「いちばん 大きい」
+export const KILL_N = 99;
+export function mostOrder(s, list, n) {
+  const byP = (xs) => [...xs].sort((a, b) => power(s, b) - power(s, a));
+  const cr = list.filter((t) => t !== 'face');
+  const k = n != null && n < KILL_N ? cr.filter((p) => need(s, p) <= n) : [];
+  return { order: [...byP(k), ...byP(cr.filter((p) => !k.includes(p)))], kill: k.length > 0 };
+}
 
 export function hasKw(s, p, k) {
   if (p.def.kw?.includes(k) || p.kwT.has(k) || levelRow(p)?.kw?.includes(k)) return true;
@@ -1024,7 +1036,7 @@ export function resolveCombat(s, atk, blocks) {
 
 Object.assign(api, {
   L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
-  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost,
+  setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
   shuffleLib: (s) => { s.P.lib = shuffle(s.rng, s.P.lib); }, enemyBlocks, canBlock, blockFacts, is, isCreature, isPW, onBf, colorsOf, card, bolster, formidable, totalPower, levelRow,

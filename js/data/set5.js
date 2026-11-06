@@ -318,6 +318,7 @@ Object.assign(S5, {
     acts: [{
       cost: 0, tap: true, when: [1], label: 'てきの クリーチャーを タップ（マナ 8まい いじょう）', can: (s) => s.P.mana.length >= 8, cantWhy: 'マナゾーンが 8まい いじょう いる',
       play: (s, p, E) => { const t = bigFoe5(s, E, (q) => !q.tapped); return s.P.mana.length >= 8 && t ? { score: 3, run: () => { t.tapped = true; E.L(s, `${t.def.name} を タップ`); } } : null; },
+      tgt: [{ side: 'E', label: 'タップする クリーチャー' }], apply: (s, E, [[t]]) => { if (t && E.onBf(s, t)) { E.target(s, t); t.tapped = true; E.L(s, `${t.def.name} を タップ`); } }, // じぶんで えらぶ（PICK_FREE）
     }],
   },
   U106: { acts: [{ cost: 4, req: ['U'], when: [1], label: 'ブロックされない', play: (s, p, E) => { const t = E.bestBuffTarget(s, null, { ready: true }); return t && !t.flags.turn.unblockable && E.power(s, t) >= 3 ? { score: 2 + E.power(s, t), run: () => { t.flags.turn.unblockable = true; } } : null; } }] },
@@ -347,8 +348,8 @@ Object.assign(S5, {
       tgt: [{ side: 'E', label: 'ブロックできなく する クリーチャー' }], apply: (s, E, [[t]]) => { t.noBlockT = s.turn; },
     }],
   },
-  R102: {
-    play: (s, E) => { const t = bigFoe5(s, E); return t ? { score: 5 + Math.max(0, 5 - E.need(s, t)), run: () => {
+  R102: { // たおせる なかで パワーが いちばん 大きい（2026-11-06）
+    play: (s, E) => { const t = E.mostOrder(s, theirs(s, E).filter((p) => !s.floor.untargetable?.(s, p, E)), 5).order[0]; return t ? { score: 5 + Math.max(0, 5 - E.need(s, t)), run: () => {
       const rest = Math.max(0, 5 - E.need(s, t));
       E.target(s, t); E.damage(s, t, 5, null); E.sba(s);
       if (rest > 0) { E.L(s, `5 − ${5 - rest} ＝ ${rest}点 あまった`); E.hitEnemy(s, rest, null); }
@@ -493,10 +494,10 @@ Object.assign(S5, {
   K102: {
     etb: (s, p, E) => {
       if (p.side !== 'P') return;
-      const n = E.gainedNow(s) ? 4 : 2, b = foeBest(s, E);
+      const n = E.gainedNow(s) ? 4 : 2, b = foeBest(s, E, n); // たおせる なかで いちばん 大きい
       if (b) { E.L(s, `ライフを ${n === 4 ? 'えた' : 'えて いない'}：−${n}/−${n}`); E.target(s, b.t); shrink(s, E, b.t, n); }
     },
-    permScore: (s, E) => 20 + (E.gainedNow(s) && foeBest(s, E) ? 6 : 0),
+    permScore: (s, E) => 20 + (E.gainedNow(s) && foeBest(s, E, 4) ? 6 : 0),
   },
   K103: {
     play: (s, E) => {
@@ -645,6 +646,9 @@ Object.assign(S5, {
         const d = lowestKeep(s, E); if (d) E.discard(s, [d]);
       } };
     },
+    // 人は 2体まで じぶんで えらぶ（PICK_FREE。2026-11-06）
+    tgt: [{ side: 'E', min: 0, max: 2, label: 'タップして つぎの ターン 起きない クリーチャー（2体まで）' }],
+    apply: (s, E, [ts]) => { for (const t of ts || []) if (E.onBf(s, t)) { E.target(s, t); tapFreeze(s, E, t); E.L(s, `${t.def.name} を タップ（つぎの ターン 起きない）`); } E.drawCard(s, 2); const d = lowestKeep(s, E); if (d) E.discard(s, [d]); },
   },
   U111: {
     etb: (s, p, E) => {
@@ -746,7 +750,7 @@ Object.assign(S5, {
       return a ? { score: 3 + (a.def.cost || 0), run: () => killIt(s, E, a) } : null;
     },
     modes: [
-      { label: 'パワーが いちばん 大きい てきの クリーチャーに 3点', tgt: [{ side: 'E', label: '3点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 3) },
+      { label: 'たおせる なかで パワーが いちばん 大きい てきの クリーチャーに 3点', tgt: [{ side: 'E', n: 3, label: '3点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 3) },
       { label: 'てきの アーティファクトか エンチャントを はかい', tgt: [{ side: 'E', perm: true, label: 'はかいする アーティファクトか エンチャント', filter: (s, E, p) => isArtOrEnch(p) && !s.floor.cantLeave?.(s, p, E) }], apply: (s, E, [[t]]) => killIt(s, E, t) },
     ],
   },

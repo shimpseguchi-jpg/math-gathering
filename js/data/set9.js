@@ -79,7 +79,7 @@ export const S9 = {
   RV17: { onCast: (s, p, d, E) => { if (p.side === 'P' && isSpellDef(d)) E.pump(p, 2, 0); } },
   RV18: { costCut: (s, q, d) => (isSpellDef(d) ? 1 : 0) },
   RV19: charm([
-    { label: 'てきの 1体に 2点', tgt: [{ side: 'E', label: '2点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
+    { label: 'てきの 1体に 2点', tgt: [{ side: 'E', n: 2, label: '2点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
     { label: 'てき（本体（ほんたい））に 2点', ai: (s, E) => { const b = E.burnTarget(s, 2); return b?.t === 'face' && { score: 5 + b.score, run: () => E.hitEnemy(s, 2, null) }; }, apply: (s, E) => E.hitEnemy(s, 2, null) },
     { label: '2まい 引いて 1まい すてる', ai: (s, E, ctx) => (ctx.phase === 2 ? { score: 4, run: () => loot(s, E) } : null), apply: (s, E) => loot(s, E) },
   ]),
@@ -94,7 +94,7 @@ export const S9 = {
   RV24: charm([
     { label: 'てき ぜんぶ −1/−1', ai: (s, E) => { const n = theirs(s, E).filter((p) => E.pt(s, p)[1] - p.dmg <= 1).length; return n && { score: 4 + 4 * n, run: () => { for (const t of theirs(s, E)) E.pump(t, -1, -1); E.sba(s); } }; }, apply: (s, E) => { for (const t of theirs(s, E)) E.pump(t, -1, -1); E.sba(s); } },
     { label: 'ぼちの クリーチャーを 1まい てふだに', ai: (s, E) => (s.P.gy.some((c) => isCr(c.def)) ? { score: 4, run: () => regrow(s, E, isCr) } : null), apply: (s, E) => regrow(s, E, isCr) },
-    { label: 'てきの 1体を −2/−2', tgt: [{ side: 'E', label: '−2/−2 する クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => shrink(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => shrink(s, E, t, 2) },
+    { label: 'てきの 1体を −2/−2', tgt: [{ side: 'E', n: 2, label: '−2/−2 する クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => shrink(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => shrink(s, E, t, 2) },
   ]),
   RV25: { pow: (s, p) => 2 + (p.side === 'P' ? gyCr(s) : 0), tou: (s, p) => 2 + (p.side === 'P' ? gyCr(s) : 0) },
 
@@ -115,9 +115,9 @@ export const S9 = {
 
   // ---- ラクドス ----
   RV32: spectacle(2),
-  RV33: { ...bolt(3), ...spectacle(2) },
+  RV33: { ...bolt(3), ...spectacle(1) }, // 2026-11-06：コスト 3 → 2・絢爛 2 → 1（絢爛で 1マナ は おなじ。docs/REMOVAL.md）
   RV34: charm([
-    { label: 'てきの 1体に 2点', tgt: [{ side: 'E', label: '2点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
+    { label: 'てきの 1体に 2点', tgt: [{ side: 'E', n: 2, label: '2点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
     { label: 'てき（本体（ほんたい））に 2点', ai: (s, E) => { const b = E.burnTarget(s, 2); return b?.t === 'face' && { score: 5 + b.score, run: () => E.hitEnemy(s, 2, null) }; }, apply: (s, E) => E.hitEnemy(s, 2, null) },
     { label: 'じぶんの クリーチャー ぜんぶ ＋1/＋0', ai: () => null, apply: (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 0); } },
   ]),
@@ -147,7 +147,7 @@ export const S9 = {
   RV44: charm([
     { label: '飛行（ひこう）の てき ぜんぶに 3点', ai: (s, E) => { const n = theirs(s, E).filter((p) => E.hasKw(s, p, 'flying')).length; return n && { score: 4 + 4 * n, run: () => flyers3(s, E) }; }, apply: (s, E) => flyers3(s, E) },
     { label: 'じぶんの クリーチャー ぜんぶ ＋1/＋0 と トランプル', ai: () => null, apply: (s, E) => { for (const q of mine(s, E)) E.pump(q, 1, 0, ['trample']); } },
-    { label: 'てきの 1体に 2点', tgt: [{ side: 'E', label: '2点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
+    { label: 'てきの 1体に 2点', tgt: [{ side: 'E', n: 2, label: '2点を あたえる クリーチャー' }], ai: (s, E) => { const b = foeBest(s, E, 2); return b && { score: 6 + b.score, run: () => hit(s, E, b.t, 2) }; }, apply: (s, E, [[t]]) => hit(s, E, t, 2) },
   ]),
   RV45: {
     acts: [{

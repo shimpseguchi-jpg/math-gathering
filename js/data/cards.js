@@ -93,7 +93,7 @@ const G = [
   }),
   // 青緑
   sp('G18', '豊（ゆた）かな 成長（せいちょう）', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 && hasBasic(s) ? 14 : 2, run: () => api_ramp(s) }) }),
-  sp('G19', '弱者（じゃくしゃ）の 選別（せんべつ）', 'C', 'G', 4, 'sorcery', {
+  sp('G19', '弱者（じゃくしゃ）の 選別（せんべつ）', 'C', 'G', 2, 'sorcery', {
     play: (s, E) => {
       const me = E.bestBuffTarget(s, null); if (!me) return null;
       const b = E.burnTarget(s, E.power(s, me) + 1, { creatureOnly: true }); if (!b) return null;
@@ -137,7 +137,7 @@ const W = [
     },
   }),
   cr('W06', '群衆（ぐんしゅう）の 天使（てんし）', 'U', 'W', 6, (s, p, E) => E.creatures(s, p.side).length, (s, p, E) => E.creatures(s, p.side).length, ['angel'], ['convoke', 'flying']),
-  pm('W07', '議事会（ぎじかい）の さばき', 'U', 'W', 4, ['enchantment'], {
+  pm('W07', '議事会（ぎじかい）の さばき', 'U', 'W', 3, ['enchantment'], {
     kw: ['convoke'],
     need: (s, E) => !!E.burnTarget(s, 99, { creatureOnly: true, mustHit: true }),
     etb: (s, p, E, o) => { const t = o.chosen ? o.chosen[0]?.[0] : E.burnTarget(s, 99, { creatureOnly: true, mustHit: true })?.t; if (t) E.exileLinked(s, p, t); },
@@ -159,7 +159,7 @@ const W = [
       return ts.length ? { score: 3 + ts.length * 2, extra: ts.length - 1, run: () => { for (const t of ts) { E.target(s, t); E.addCounters(s, t, 1); } } } : null;
     },
   }),
-  sp('W13', '光の 矢の 雨', 'C', 'W', 4, 'instant', {
+  sp('W13', '光の 矢の 雨', 'C', 'W', 3, 'instant', {
     reactive: true,
     react: (s, E, ctx) => {
       const atk = ctx.attackers || [];
@@ -262,7 +262,7 @@ const U = [
   cr('U04', '対称（たいしょう）の 賢者（けんじゃ）', 'C', 'U', 2, 0, 2, ['human', 'wizard'], ['flying'], {
     onCast: (s, p, d) => { if (d.types.includes('instant') || d.types.includes('sorcery')) p.base2 = true; },
   }),
-  sp('U05', 'ゼロで わる', 'U', 'U', 3, 'instant', {
+  sp('U05', 'ゼロで わる', 'U', 'U', 2, 'instant', {
     play: (s, E) => {
       const b = E.burnTarget(s, 99, { creatureOnly: true, mustHit: true });
       return b ? { score: 4 + b.score * 0.5, run: () => { E.bounce(s, b.t); E.drawCard(s); E.sba(s); } } : null;
@@ -357,9 +357,9 @@ const R = [
   cr('R09', '僧院（そういん）の 速槍（はややり）', 'C', 'R', 1, 1, 2, ['human', 'monk'], ['haste', 'prowess']),
   sp('R10', '火炎（かえん）', 'C', 'R', 1, 'sorcery', {
     x: true,
-    play: (s, E, ctx) => xBurn(s, E, ctx, 0, (t) => { if (t.exact) E.drawCard(s); }),
+    play: (s, E, ctx) => xBurn(s, E, ctx, 1, (t) => { if (t.exact) E.drawCard(s); }), // X＋1点（2026-11-06）
   }),
-  sp('R11', '裂（さ）け目（め）の 稲妻（いなずま）', 'C', 'R', 2, 'sorcery', { play: burn(3), burnN: 3, suspend: { cost: 1, req: ['R'], turns: 1 }, suspendScore: 9 }),
+  sp('R11', '裂（さ）け目（め）の 稲妻（いなずま）', 'C', 'R', 2, 'sorcery', { play: burn(4), burnN: 4, suspend: { cost: 1, req: ['R'], turns: 1 }, suspendScore: 9 }),
   cr('R12', '火口（かこう）の 射手（いて）', 'C', 'R', 2, 2, 2, ['human', 'archer'], [], {
     onCast: (s, p, d, E) => { if (!d.types.includes('creature')) E.hitEnemy(s, 1, p); },
   }),
@@ -379,7 +379,7 @@ const R = [
   }),
   // 緑赤
   cr('R18', '山頂（さんちょう）の 徘徊者（はいかいしゃ）', 'C', 'R', 4, 4, 3, ['troll'], [], { pittari: (s, p, E) => E.addCounters(s, p, 1) }),
-  sp('R19', '引（ひ）き倒（たお）し', 'C', 'R', 3, 'instant', {
+  sp('R19', '引（ひ）き倒（たお）し', 'C', 'R', 2, 'instant', {
     play: (s, E) => {
       const b = E.burnTarget(s, 5, { creatureOnly: true, filter: (p) => E.need(s, p) <= (p.ctr > 0 ? 5 : 3) });
       return b ? { score: 6 + b.score, run: () => hit(s, E, b.t, b.t.ctr > 0 ? 5 : 3) } : null;
@@ -680,7 +680,7 @@ const U3 = [
 ];
 
 const G2 = [
-  sp('G27', '力（ちから）くらべ', 'C', 'G', 1, 'instant', {
+  sp('G27', '力（ちから）くらべ', 'C', 'G', 2, 'instant', {
     play: (s, E) => {
       const me = E.bestBuffTarget(s, null); if (!me) return null;
       const b = E.burnTarget(s, E.power(s, me) + (E.coven(s) ? 1 : 0), { creatureOnly: true }); if (!b) return null;
@@ -830,7 +830,7 @@ const GOLD3 = [
   cr('UR03', 'からっぽの 手（て）の 嵐使（あらしつか）い', 'U', 'UR', 2, (s, p) => 2 + (hb(s, p) ? 2 : 0), 3, ['human', 'wizard'], ['prowess'], {
     hellbent: true, kwFn: (s, p) => (hb(s, p) ? ['flying'] : null),
   }),
-  sp('UR04', '爆発（ばくはつ）', 'R', 'UR', 3, 'sorcery', {
+  sp('UR04', '爆発（ばくはつ）', 'R', 'UR', 2, 'instant', {
     x: true,
     play: (s, E, ctx) => {
       const k = s.P.hand.filter((c) => c !== ctx.c).length === 0 ? 2 : 1;
@@ -1002,13 +1002,13 @@ REG.byId = BY_ID; REG.all = ALL_DEV;
 const kill1 = (n) => ({ tgt: [{ side: 'E', face: true, label: `${n}点を あたえる 相手` }], apply: (s, E, [[t]]) => hit(s, E, t, n) });
 const TARGETS = {
   R04: { tgt: [{ side: 'E', face: true, label: 'ダメージを あたえる 相手' }], apply: (s, E, [[t]], x, o = {}) => hit(s, E, t, o.kicked ? 4 : 2) },
-  R11: kill1(3),
-  R15: { tgt: [{ side: 'E', face: true, label: '3点を あたえる 相手' }], apply: (s, E, [[t]]) => { hit(s, E, t, 3); return E.scry(s, 2); } },
+  R11: kill1(4),
+  R15: { tgt: [{ side: 'E', face: true, n: 3, label: '3点を あたえる 相手' }], apply: (s, E, [[t]]) => { hit(s, E, t, 3); return E.scry(s, 2); } },
   B04: { tgt: [{ side: 'E', label: '1点を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 1) },
-  R10: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手' }], apply: (s, E, [[t]], x) => { const h = hit(s, E, t, x); if (h?.exact) E.drawCard(s); } },
+  R10: { tgt: [{ side: 'E', face: true, label: 'X＋1点を あたえる 相手' }], apply: (s, E, [[t]], x) => { const h = hit(s, E, t, x + 1); if (h?.exact) E.drawCard(s); } },
   R16: { tgt: [{ side: 'E', face: true, label: 'X点を あたえる 相手（どうもうなら ＋2）' }], apply: (s, E, [[t]], x) => hit(s, E, t, x + (ferocious(s, E) ? 2 : 0)) },
   R19: { tgt: [{ side: 'E', label: '3点（カウンターが あれば 5点）を あたえる クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, t.ctr > 0 ? 5 : 3) },
-  R22: { tgt: [{ side: 'E', filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: '5点を あたえる ひこうのない クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
+  R22: { tgt: [{ side: 'E', n: 5, filter: (s, E, p) => !E.hasKw(s, p, 'flying'), label: '5点を あたえる ひこうのない クリーチャー' }], apply: (s, E, [[t]]) => hit(s, E, t, 5) },
   // モードを 1つ えらぶ（ui/battle.js の chooseMode）。tgt の side 'mine' は 自分の クリーチャー（攻撃中なら 攻撃している もの）
   RW01: {
     escalate: 2,

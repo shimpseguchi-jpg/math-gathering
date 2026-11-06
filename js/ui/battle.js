@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe, mostOrder,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -381,20 +381,22 @@ const targetLabel = (t) => {
   return `${t.side === 'E' ? 'てき：' : ''}${(nm(t))}${isCreature(t) ? `（${power(s, t)}/${pt(s, t)[1] - t.dmg}）` : ''}`;
 };
 // tgt の並びを 順に えらぶ。やめたら null
-// ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：パワーが いちばん 大きい。game.js の pickOf）は、てきを ねらう ところを 自動で きめる
+// ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：（たおせる なかで）パワーが いちばん 大きい。game.js の pickOf）は、てきを ねらう ところを 自動で きめる
 const HARM = /ダメージ|破壊|追放|手札に ?もど|持ち主の ?手札|タップ|−[0-9X０-９]|留置|格闘|ブロックできない|つける/;
 const foeSlot = (spec, d) => spec.side === 'E' || (spec.side === 'any' && HARM.test(info(d).text.replace(/（[ぁ-ゖー]+）/g, '')));
 async function autoPick(mode, spec, ctx, list) {
   const d = ctx.card;
   const k = spec.divide ? 1 : d.strive ? Math.max(spec.min ?? 1, 1) : Math.min(spec.max ?? 1, list.length);
-  const order = mode === 'rand' ? [...list].sort(() => B.s.rng() - 0.5) : [...list].sort((a, b) => (b === 'face' ? -1 : a === 'face' ? 1 : power(B.s, b) - power(B.s, a)));
+  // アンコモン：n 点（−n/−n）で たおせる なかで パワーが いちばん 大きい てき（spec.n。いなければ いちばん 大きい。game.js の mostOrder）。本体は さいご
+  const m = mode === 'rand' ? null : mostOrder(B.s, list, typeof spec.n === 'function' ? spec.n(B.s, api, ctx) : spec.n === 'x' ? ctx.x : spec.n);
+  const order = m ? [...m.order, ...list.filter((t) => t === 'face')] : [...list].sort(() => B.s.rng() - 0.5);
   const chosen = order.slice(0, k);
   // 見せる：ランダムは 候補を じゅんばんに 光らせてから とまる
   const el = (t) => (t === 'face' ? app().querySelector('[data-face]') : app().querySelector(`.perm[data-uid="${t.uid}"]`));
   render();
   if (mode === 'rand' && list.length > 1) for (let i = 0; i < 8; i++) { const e = el(order[i % order.length]); e?.classList.add('pick-roll'); await fx.pause(90); e?.classList.remove('pick-roll'); }
   for (const t of chosen) el(t)?.classList.add('pick-hit');
-  toast(`${mode === 'rand' ? '🎲 ランダムで' : '👑 パワーが いちばん 大きい'} ${chosen.map(tName).join('・')} に きまった`);
+  toast(`${mode === 'rand' ? '🎲 ランダムで' : m.kill ? '👑 たおせる なかで パワーが いちばん 大きい' : '👑 パワーが いちばん 大きい'} ${chosen.map(tName).join('・')} に きまった`);
   await fx.pause(650);
   return chosen;
 }
@@ -438,6 +440,7 @@ async function pickAll(tgt, ctx = {}) {
   // ねらえない てきの カードが いれば、なぜ ねらえないかを せつめい
   { const s = B.s, wd = s.srcDef; s.srcDef = ctx.card || wd; const sh = s.E.bf.filter((p) => LORE[p.def.id] && api.shielded(s, p)); s.srcDef = wd; for (const p of sh) await tellLore(p, 'shield'); }
   const picks = [];
+  ctx.prev = picks; // まえに えらんだ もの（spec.n の 関数が つかう。かみつきの「じぶんの クリーチャーの パワー」など）
   const mode = pickOf(ctx.card);
   for (const spec of tgt) {
     if (mode && foeSlot(spec, ctx.card)) {
@@ -561,7 +564,7 @@ async function doCast(c, from = 'hand') {
   const ci = castInfo(c, from);
   if (!ci.ok) return;
   B.busy = true;
-  const stop = () => { B.busy = false; render(); };
+  const stop = () => { s.P.spNo = false; B.busy = false; render(); };
   // 伝説の ルール（2026-11-05）：おなじ 名前の 伝説が もう 場に あれば、出す まえに ちゅうい（出すと まえから いる ほうは ぼちへ。game.js の legendRule）
   if (legendDupe(s, 'P', d)) {
     const nm1 = info(d).name;
@@ -571,6 +574,19 @@ async function doCast(c, from = 'hand') {
   }
   const req = gc ? gc.req : from === 'escape' ? d.escape.req || colorsOf(d) : colorsOf(d);
   const o = { convoke: d.kw?.includes('convoke'), req2: d.req2, lifeKeep: c.conj ? 1 : 0 };
+  // スターレイルの レア・レジェンド：せんぎポイントを 2 つかって 2マナ 安く するか えらぶ（2026-11-06。set11.js の spCut。つかわない ときは s.P.spNo）
+  if (d.spCut && !gc && spOf(s) >= 2) {
+    const costNow = () => (from === 'cmd' ? cmdCost(s, d) : costOf(s, d));
+    const cut = costNow(); s.P.spNo = true; const full = costNow(); s.P.spNo = false;
+    if (full > cut) {
+      const v = await sheet(`<p>${ruby(`${info(d).name}は、せんぎポイントを 2 つかうと 2マナ 安く 出せる。`)}</p><p>${ruby(`せんぎポイントは 戦技（せんぎ）にも つかう。のこして おきたい ときは「つかわない」。`)}</p>`, [
+        { label: `せんぎポイントを つかう（${cut}マナ。せんぎポイント ${spOf(s)} − 2 ＝ ${spOf(s) - 2}）`, value: 'use', kind: 'primary' },
+        { label: `つかわない（${full}マナ）`, value: 'no', kind: 'primary', disabled: !plan(s, full, req, o), note: plan(s, full, req, o) ? '' : 'マナが たりない' },
+        { label: 'やめる', value: null }], { title: `せんぎポイント${manaNote()}` });
+      if (!v) return stop();
+      if (v === 'no') s.P.spNo = true;
+    }
+  }
   let base = gc ? gc.cost : from === 'cmd' ? cmdCost(s, d) : costOf(s, d);
   const mul = d.xMul || 1;
   // X：いくつに するかは 自分で きめる
@@ -621,7 +637,7 @@ async function doCast(c, from = 'hand') {
   discard(s, drop);
   const run = mode ? mode.run : (d.apply && (picks || !d.tgt) ? () => d.apply(s, api, picks || [], x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined); // 対象の ない キッカーの 呪文（苗木の 移住）も apply で キッカーを うけとる
   if (from === 'hand') { const perm = !(d.types || []).some((t) => t === 'instant' || t === 'sorcery'); await fx.flyCard(app().querySelector(`[data-hand="${s.P.hand.indexOf(c)}"]`), app().querySelector(perm ? '.zone.mine' : '.battle'), !perm); }
-  await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked });
+  try { await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked }); } finally { s.P.spNo = false; }
   B.busy = false;
   if (!checkOver()) render();
 }

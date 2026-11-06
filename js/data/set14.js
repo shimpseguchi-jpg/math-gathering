@@ -2,9 +2,10 @@
 // しくみは 第1弾（set10.js）と 同じ：攻撃で NP が たまり、100 で 宝具（ほうぐ）。
 // オーバーチャージ（oc: true）：NP を 100・200・300 の どれだけ つかうか えらぶ → 〔 〕の 数が 1倍・2倍・3倍（1ターンに 1回）。〔 〕の 数は oc(p, n)
 // クリプター（第2弾の マスター）：宝具を つかうたび、つかった NP 100 に つき（onHogu の k 回）
-// ねらいかた：コモンは ランダム、アンコモンは パワーが いちばん 大きい（game.js の pickOf。foeBest が したがう）。レアの 1体は 人が えらぶ（npTgt）
+// ねらいかた：コモンは ランダム、アンコモンは パワーが いちばん 大きい（ダメージ・−N/−N・−1/−1カウンターは たおせる なかで。game.js の pickOf・mostOrder。foeBest が したがう）。レアの 1体は 人が えらぶ（npTgt）
 // クラス相性（あいしょう）は 入れない（2026-11-01 ユーザーが きめた）。クラスは サブタイプとして のこす
 import { cr, mine, theirs, isCr, hit, foeBest, shrink, killIt, chosen1, dig, regrow, T, foe1, bestIn } from './kit.js';
+import { PICK_FREE } from '../engine/game.js';
 import { S10, np, oc, addNP, servants, isServant, bestServant, detain, biggest, allFoes, master, randomFoe, NP_MAX, phantasm, hostOf, allWhile, gives } from './set10.js';
 
 // ---- 道具 ----
@@ -13,6 +14,10 @@ const ocNP = (g, fx, x = {}) => np(g, fx, { oc: true, ...x });
 const foes = (s, E, f = () => true) => theirs(s, E).filter((t) => !s.floor.untargetable?.(s, t, E) && f(t));
 const byPow = (s, E, list) => [...list].sort((a, b) => E.power(s, b) - E.power(s, a));
 const topFoe = (s, E, f) => byPow(s, E, foes(s, E, f))[0];
+// n 点（−n/−n）で たおせる なかで パワーが いちばん 大きい 敵（いなければ いちばん 大きい。2026-11-06。game.js の mostOrder）
+const killTop = (s, E, n, f) => E.mostOrder(s, foes(s, E, f), n).order[0];
+// じぶんで えらぶ（PICK_FREE。docs/REMOVAL.md 4.1）：留置（玄奘三蔵）・−1/−1 1こ（モース）・格闘（フェルグス）
+PICK_FREE.add('FG97'); PICK_FREE.add('FG132'); PICK_FREE.add('FG160');
 const canKill = (s, E) => (t) => !E.hasKw(s, t, 'indestructible') && !s.floor.cantLeave?.(s, t, E);
 const canMove = (s, E) => (t) => !s.floor.cantLeave?.(s, t, E);
 // AI が 宝具を つかう ときの 〔 〕の 数の よそう（黒の聖杯・モルガンの「1つ 上がる」も 入れる）
@@ -192,7 +197,7 @@ export const S14 = {
   FG121: ocNP(40, (s, E, p) => { allFoes(s, E, oc(p, 1)); regrow(s, E, isCr); }, { npAI: (s, p, E) => needFoe(s, p, E) || s.P.gy.some((c) => isCr(c.def)) }),
   FG122: ocNP(50, (s, E, p) => { const n = oc(p, 1); allFoes(s, E, n); if (E.onBf(s, p)) { E.damage(s, p, n, null); E.sba(s); } }, { npAI: needFoe, onDie: S10.FG07.onDie }),
   FG123: crypter('K', (s, q, p, E) => minusRandom(s, E, q.side)),
-  FG124: ocNP(40, (s, E, p) => { const n = oc(p, 2), t = topFoe(s, E); if (t) { E.target(s, t); E.L(s, `${t.def.name}：${ptMsg(-n, -n)}`); shrink(s, E, t, n, n); } }, {
+  FG124: ocNP(40, (s, E, p) => { const n = oc(p, 2), t = killTop(s, E, n); if (t) { E.target(s, t); E.L(s, `${t.def.name}：${ptMsg(-n, -n)}`); shrink(s, E, t, n, n); } }, {
     npAI: needFoe,
     etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.shikigami, 2); },
   }),
@@ -218,12 +223,12 @@ export const S14 = {
   FG131: ocNP(50, (s, E, p) => { const n = oc(p, 2), b = foeBest(s, E, 99, (t) => E.power(s, t) <= n && canKill(s, E)(t)); if (b) { E.target(s, b.t); killIt(s, E, b.t); } }, {
     npAI: (s, p, E, ctx, k) => foes(s, E, (t) => E.power(s, t) <= ocN(s, p, k, 2) && canKill(s, E)(t)).length > 0,
   }),
-  FG132: { onDie: (s, p, E) => minusRandom(s, E, p.side) },
+  FG132: { onDie: (s, p, E) => { if (p.side !== 'P') return minusRandom(s, E, p.side); const b = foeBest(s, E, 1) || foeBest(s, E); if (b) { E.addMinus(s, b.t, 1); E.sba(s); } } }, // じぶんで えらぶ（AI が いちばん よい あいて）
   FG133: foe1('−1/−1カウンターを 2こ おく クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, 2); E.sba(s); } }, { n: 2 }),
 
   // ---- 赤 ----
   FG134: ocNP(40, (s, E, p) => {
-    const t = topFoe(s, E);
+    const t = killTop(s, E, oc(p, 4));
     if (t) hit(s, E, t, oc(p, 4));
     E.hitEnemy(s, oc(p, 2), null);
   }, { etb: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 50); } }),
@@ -233,14 +238,14 @@ export const S14 = {
   FG138: crypter('R', (s, q, p, E) => E.hitEnemy(s, 1, null)),
   FG139: ocNP(40, (s, E, p) => E.hitEnemy(s, oc(p, 3), null), { onHurt: (s, p, n, src, E) => gainNP(s, E, p, 30) }),
   FG140: ocNP(50, (s, E, p) => {
-    const n = oc(p, 1), t = topFoe(s, E);
+    const n = oc(p, 1), t = killTop(s, E, 3 * n);
     if (!t) return;
     E.target(s, t);
     E.L(s, `無明三段突（むみょうさんだんづ）き：${n}点 × 3回`);
     for (let i = 0; i < 3 && E.onBf(s, t); i++) { E.damage(s, t, n, null); E.sba(s); }
   }, { npAI: needFoe }),
   FG141: ocNP(50, (s, E, p) => pumpOne(s, E, p, oc(p, 2), 0, ['trample']), { npAI: selfSwing }),
-  FG142: ocNP(40, (s, E, p) => { E.hitEnemy(s, oc(p, 2), null); const t = topFoe(s, E); if (t) hit(s, E, t, oc(p, 2)); }),
+  FG142: ocNP(40, (s, E, p) => { E.hitEnemy(s, oc(p, 2), null); const t = killTop(s, E, oc(p, 2)); if (t) hit(s, E, t, oc(p, 2)); }),
   FG143: ocNP(50, (s, E, p) => hitOne(s, E, oc(p, 2)), { npAI: needFoe }),
   FG144: np(50, (s, E, p) => { E.pump(p, 0, 0, ['indestructible']); E.L(s, `不滅（ふめつ）の 誠（まこと）：${p.def.name} は この ターン 破壊不能（はかいふのう）`); }, {
     npAI: selfSwing,
@@ -284,7 +289,7 @@ export const S14 = {
   }),
   FG158: etbNP(20),
   FG159: ocNP(50, (s, E, p) => counters(s, E, p, oc(p, 1))),
-  FG160: np(50, (s, E, p) => { const b = foeBest(s, E, E.power(s, p)) || foeBest(s, E); if (b && E.onBf(s, b.t) && E.onBf(s, p)) { E.target(s, b.t); E.fight(s, p, b.t); } }, { npAI: needFoe }),
+  FG160: np(50, (s, E, p, t) => { const b = t ? { t } : (foeBest(s, E, E.power(s, p)) || foeBest(s, E)); if (b && E.onBf(s, b.t) && E.onBf(s, p)) { E.target(s, b.t); E.fight(s, p, b.t); } }, { npAI: needFoe, npTgt: { side: 'E', label: 'かくとうする てきの クリーチャー' } }), // じぶんで えらぶ（PICK_FREE。2026-11-06）
   FG161: ocNP(50, (s, E, p) => hitOne(s, E, oc(p, 2)), { npAI: needFoe }),
   FG162: { trick: { kind: 'single', p: 2, t: 2 }, singleRun: (s, E, q) => { pumpOne(s, E, q, 2, 2); if (isServant(q)) addNP(s, E, q, 20); } },
 
@@ -398,7 +403,7 @@ export const S14 = {
   FG181: phantasm({
     equip: 1, eqP: 2,
     ...hostHogu((s, q, p, E) => {
-      const n = E.onBf(s, p) ? E.power(s, p) : 0, t = topFoe(s, E);
+      const n = E.onBf(s, p) ? E.power(s, p) : 0, t = killTop(s, E, n); // たおせる なかで いちばん 大きい（2026-11-06）
       if (!t || n <= 0) return;
       E.L(s, `${eqName(q)}：${p.def.name} の パワー ${n} → ${n}点`);
       hit(s, E, t, n);

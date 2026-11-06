@@ -27,7 +27,7 @@ export const SY = {
     },
   },
   YK01: {
-    play: (s, E) => { const b = foeBest(s, E, 1); return b ? { score: 5 + b.score, run: () => weaken(s, E, b.t) } : null; },
+    play: (s, E) => { const b = foeBest(s, E, 1) || foeBest(s, E); return b ? { score: 5 + b.score, run: () => weaken(s, E, b.t) } : null; }, // じぶんで えらぶ（PICK_FREE）：たおせなくても 永久に のこる
     tgt: [{ side: 'any', label: 'えいきゅうに −1/−1 する クリーチャー' }], apply: (s, E, [[t]]) => weaken(s, E, t),
   },
   YK02: { play: (s, E) => (s.P.lib.some((c) => isCr(c.def) && (c.def.pow ?? 0) <= 3) ? { score: 6, run: () => { for (let i = 0; i < 2; i++) seek(s, E, (d) => isCr(d) && typeof d.pow === 'number' && d.pow <= 3); } } : null) },
@@ -52,7 +52,7 @@ export const SY = {
   YR02: doubleTeam,
   YR03: {
     intensity: 1,
-    tgt: [{ side: 'E', face: true, label: '強度（きょうど）の 点を あたえる 相手' }],
+    tgt: [{ side: 'E', face: true, n: (s) => intensity(s, REG.byId.YR03), label: '強度（きょうど）の 点を あたえる 相手' }],
     etb: (s, p, E, o) => { if (p.side !== 'P') return; const n = intensity(s, REG.byId.YR03); const t = o.chosen ? o.chosen[0]?.[0] : null; if (t) hit(s, E, t, n); else E.hitEnemy(s, n, p); },
     onAttack: (s, p) => { if (p.side === 'P') addIntensity(s, REG.byId.YR03, 1); },
   },

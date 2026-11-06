@@ -127,7 +127,7 @@ export const S4 = {
     acts: [{
       cost: 1, when: [1, 2], label: 'きほんか 祠（ほこら）を すてて、祠（ほこら）の 数の ダメージ', can: (s) => s.P.hand.some((c) => c.def.basic || isSub({ def: c.def }, 'shrine')), cantWhy: 'すてる きほんカードが ない',
       play: (s, p, E) => { const c = s.P.hand.find((x) => x.def.basic); const b = c && foeBest(s, E, shrines(s)); return b ? { score: 3 + b.score, run: () => { E.discard(s, [c]); hit(s, E, b.t, shrines(s)); } } : null; },
-      tgt: [{ side: 'E', label: '祠（ほこら）の 数の ダメージを あたえる クリーチャー' }],
+      tgt: [{ side: 'E', n: (st) => shrines(st), label: '祠（ほこら）の 数の ダメージを あたえる クリーチャー' }],
       apply: (s, E, [[t]]) => { const c = s.P.hand.find((x) => x.def.basic || isSub({ def: x.def }, 'shrine')); if (!c) return; E.discard(s, [c]); hit(s, E, t, shrines(s)); },
     }],
   },
@@ -370,7 +370,7 @@ Object.assign(S4, {
     acts: [{
       cost: 3, when: [1, 2], label: 'クリーチャーか 食物（しょくもつ）を ぼちに おいて 2点', can: (s, p, E) => !!feed(s, E, p), cantWhy: 'ぼちに おく ものが ない',
       play: (s, p, E) => { const f = feed(s, E, p), b = foeBest(s, E, 2); return f && b ? { score: 3 + b.score, run: () => { feedPay(s, E, f); hit(s, E, b.t, 2); } } : null; },
-      tgt: [{ side: 'E', label: '2点を あたえる クリーチャー' }],
+      tgt: [{ side: 'E', n: 2, label: '2点を あたえる クリーチャー' }],
       apply: (s, E, [[t]], x, p) => { const f = feed(s, E, p); if (!f) return; feedPay(s, E, f); hit(s, E, t, 2); },
     }],
   },

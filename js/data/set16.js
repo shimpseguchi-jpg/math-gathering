@@ -10,6 +10,8 @@ import {
 } from './set12.js';
 
 PICK_FREE.add('ZZ149'); // 格闘（狸の 七変化）：コモンでも あいては じぶんで えらぶ（ランダムだと つよい てきに あたって そんする）
+// 2026-11-06（docs/REMOVAL.md 4.1）：1点・−1/−1 1こ・留置・1体を タップ も じぶんで えらぶ。ふたまたの 火花（ZZ146）は 2点を じぶんで 割り振る（算数）
+for (const id of ['ZZ109', 'ZZ114', 'ZZ115', 'ZZ120', 'ZZ124', 'ZZ139', 'ZZ146', 'ZZ148']) PICK_FREE.add(id);
 
 const CJ = { W: '白', U: '青', K: '黒', R: '赤', G: '緑' };
 const ANOM = { kw: ['anomaly'] }; // 属性異常（キーワード。gen_texts の KW に ない ので ここで つける）
@@ -63,7 +65,7 @@ const atkZap = (n, label, f = () => true, pay = null) => ({
   trigTgt: { on: 'attack', label },
   onAttack: (s, p, E) => {
     if (p.side !== 'P') return;
-    const t = foeBy(s, E, p, (q) => f(s, E, q), (list) => foeBest(s, E, n, (q) => list.includes(q))?.t || byPow(s, E)(list));
+    const t = foeBy(s, E, p, (q) => f(s, E, q), (list) => foeBest(s, E, n, (q) => list.includes(q))?.t || byPow(s, E)(list), n);
     if (!t || (pay && !pay.can(s))) return;
     pay?.run(s, E);
     zap(s, E, p, t, n);
@@ -304,7 +306,9 @@ export const S16 = {
   ZZ159: { ...ULT, ...foe1('4点を あたえる クリーチャー（この ターンに 死亡（しぼう）したら 追放（ついほう））', (s, E, t) => { if (t && E.onBf(s, t)) t.exileT = s.turn; hit(s, E, t, 4); }, { n: 4 }) }, // Lava Coil
   ZZ160: { ...ULT, // Clear Shot：＋1/＋1 して、その パワーの ダメージ（あなたの クリーチャーが あたえる ので 紊乱も おきる）
     play: (s, E) => { const me = E.bestBuffTarget(s, null); if (!me) return null; const b = foeBest(s, E, E.power(s, me) + 1); return b ? { score: 5 + b.score, run: () => { E.target(s, me); E.pump(me, 1, 1); zap(s, E, me, b.t, E.power(s, me)); } } : null; },
-    tgt: pair('＋1/＋1 する あなたの クリーチャー', 'ダメージを うける てきの クリーチャー'), apply: (s, E, [[a], [b]]) => { if (!a) return; E.target(s, a); E.pump(a, 1, 1); if (b) zap(s, E, a, b, E.power(s, a)); },
+    // 人：てきは たおせる なかで パワーが いちばん 大きい（じぶんの クリーチャーの パワー ＋1 で。battle.js の ctx.prev）
+    tgt: (() => { const [a, b] = pair('＋1/＋1 する あなたの クリーチャー', 'ダメージを うける てきの クリーチャー'); return [a, { ...b, n: (s, E, ctx) => { const me = ctx?.prev?.[0]?.[0]; return me && me !== 'face' ? E.power(s, me) + 1 : undefined; } }]; })(),
+    apply: (s, E, [[a], [b]]) => { if (!a) return; E.target(s, a); E.pump(a, 1, 1); if (b) zap(s, E, a, b, E.power(s, a)); },
   },
   ZZ161: { ...ULT, // Overwhelming Stampede
     play: (s, E, ctx = {}) => {
