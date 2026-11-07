@@ -12,7 +12,7 @@ import { spOf, spMax } from '../data/set11.js';
 const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</b> ${'●'.repeat(n)}${'○'.repeat(spMax(s) - n)}`; };
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
 import '../data/strixhaven.js'; // ストリクスヘイヴンの 塔の 階も
-import { permFace, cardFace, detail, loreHtml, speak, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
+import { permFace, cardFace, detail, permState, loreHtml, speak, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
 import { LORE } from '../data/lore.js';
 import * as fx from './fx.js';
@@ -1052,7 +1052,7 @@ function actsMark(s, p) {
 async function tapPerm_(p) {
   const s = B.s;
   if (B.mode === 'attack' && p.side === 'P') {
-    if (!readyAttackers(s).includes(p)) return sheet(detail(p.def), [{ label: 'このターンは こうげきできない', value: 0 }]);
+    if (!readyAttackers(s).includes(p)) return sheet(`${detail(p.def)}${permState(s, p)}`, [{ label: 'このターンは こうげきできない', value: 0 }]);
     if (B.sel.has(p.uid) && !p.def.mustAttack) { B.sel.delete(p.uid); return render(); }
     const ts = attackTargets();
     if (!ts.length) return sheet('<p>こうげきできる 相手が いない。</p>', [{ label: 'とじる', value: 0 }]);
@@ -1090,7 +1090,7 @@ async function tapPerm_(p) {
   }
   if (p.side === 'P' && (B.mode === 'tricks' || B.mode === 'defend')) for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !(B.mode === 'defend' ? blockersNow().includes(p) : p.attacking) }); // こうげき中 か ブロック中の クリーチャーだけ
   choices.push({ label: 'とじる', value: null });
-  const v = await sheet(`${detail(p.def, { enemy: p.side === 'E' })}${p.def.npFx && p.def.np ? `<p class="what">${esc(npNote(p))}</p>` : ''}`, choices);
+  const v = await sheet(`${detail(p.def, { enemy: p.side === 'E' })}${permState(s, p)}${p.def.npFx && p.def.np ? `<p class="what">${esc(npNote(p))}</p>` : ''}`, choices);
   if (!v) return;
   if (win) return windowCast(() => runAct(p, v)); // まどの 中：使い終わったら つづきが あるか 見る
   return runAct(p, v);

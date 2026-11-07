@@ -1,7 +1,7 @@
 // 画面の部品：カードの見た目・ルビ・下から出るシート
 import { LORE } from '../data/lore.js';
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
-import { colorsOf, pt, basePT as rawPT, hasKw, isCreature } from '../engine/game.js';
+import { colorsOf, pt, basePT as rawPT, hasKw, isCreature, COLOR_JA } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
 import { mapRuby } from './ruby.js';
 
@@ -205,7 +205,7 @@ export function permFace(s, p, o = {}) {
   const kws = Object.keys(KW).filter((k) => hasKw(s, p, k) && k !== 'convoke').map((k) => KW[k]);
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
-    p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '',
+    p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '', // カウンターの くわしい ことは タップした ときの「いまの ようす」（permState）
     p.shieldCtr ? `<span class="b mark">たて${p.shieldCtr > 1 ? ' ' + p.shieldCtr : ''}</span>` : '', // 盾カウンター（FGO：ナイチンゲール・プレッジ）
     p.frozen && p.side === 'P' ? '<span class="b time">まひ</span>' : '',
     p.def.npFx ? `<span class="b np${(p.np || 0) >= 100 ? ' ready' : ''}">NP ${p.np || 0}${(p.np || 0) >= 100 ? '・ほうぐOK' : p.def.np ? `・あと${Math.ceil((100 - (p.np || 0)) / p.def.np)}回` : ''}</span>` : '', // 番外編 FGO：宝具の NP と あと なん回 攻撃で 宝具（100 いじょうで ボタンが つかえる）
@@ -220,6 +220,7 @@ export function permFace(s, p, o = {}) {
     p.tapped ? '<span class="b tap">タップ</span>' : '',
     p.sick && !enemy && isCreature(p) && !hasKw(s, p, 'haste') ? '<span class="b zz">zz</span>' : '',
     p.frozen ? '<span class="b ice">こおり</span>' : '',
+    p.anom ? `<span class="b anom an-${p.anom}" title="ちがう 色の クリーチャーで ダメージを あたえると 2ばい（びんらん）">${ruby(`${COLOR_JA[p.anom]}の 異常（いじょう）`)}</span>` : '', // ゼンゼロ 第2弾：属性異常（どの 色か 見える ように。2026-11-06）
     p.stone ? '<span class="b stone">石</span>' : '',
     p.def.dragon && !s.E.flags.awake ? '<span class="b zz">ねている</span>' : '',
     p.token ? '<span class="b tok">トークン</span>' : '',
@@ -261,6 +262,38 @@ export function detail(def, o = {}) {
     <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
     <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>
   </div>`;
+}
+
+// いまの ようす（2026-11-06。ユーザーの たのみ）：カードを タップした ときの せつめいに、カウンター・異常・ダメージ・ついて いる もの を 出す。
+// カードの 表には ぜんぶは 出さない（よめなく なる ので）
+export function permState(s, p) {
+  if (!p) return '';
+  const rows = [];
+  if (isCreature(p)) {
+    const [P, T] = pt(s, p), [P0, T0] = rawPT(s, p);
+    rows.push(`パワー／タフネス：${P}/${T}${P !== P0 || T !== T0 ? `（もとは ${P0}/${T0}）` : ''}`);
+    if (p.dmg) rows.push(`うけた ダメージ：${p.dmg}（のこり ${T - p.dmg}。ターンの おわりに もどる）`);
+  }
+  if (p.ctr) rows.push(`＋1/＋1カウンター：${p.ctr}こ`);
+  if (p.mctr) rows.push(`−1/−1カウンター：${p.mctr}こ`);
+  if (p.shieldCtr) rows.push(`盾（たて）カウンター：${p.shieldCtr}こ`);
+  if (p.anom) rows.push(`${COLOR_JA[p.anom]}の 異常（いじょう）：${COLOR_JA[p.anom]} いがいの 色の クリーチャーで ダメージを あたえると 2ばい（紊乱（びんらん））`);
+  if (p.def.vanishing) rows.push(`じかんカウンター：${p.time || 0}こ（0に なると 墓地（ぼち）へ）`);
+  if (p.marks) rows.push(`しるし：${p.marks}こ`);
+  if (p.fire) rows.push(`ひだね：${p.fire}こ`);
+  if (p.bud) rows.push(`しんらい：${p.bud}こ`);
+  if (p.trial != null) rows.push(`しれんカウンター：${p.trial}こ`);
+  if (p.shin) rows.push(`しんくん：${p.shin}`);
+  if (p.seals != null) rows.push(`れいじゅ：${p.seals}画（かく）`);
+  if (p.def.npFx) rows.push(`NP：${p.np || 0}`);
+  if (p.loy != null && p.def.loyalty) rows.push(`ちゅうせい：${p.loy}`);
+  if (p.tapped) rows.push('タップして いる（こうげき・ブロックが できない）');
+  if (p.frozen) rows.push('こおり：つぎの ターンの はじめに おきない');
+  if (p.stone) rows.push('石に なって いる');
+  const on = [...s.P.bf, ...s.E.bf].filter((q) => q.attached === p.uid).map((q) => info(q.def).name);
+  if (on.length) rows.push(`ついて いる もの：${on.join('・')}`);
+  if (!rows.length) return '';
+  return `<div class="perm-state"><p class="ps-h">いまの ようす</p><ul>${rows.map((r) => `<li>${ruby(r)}</li>`).join('')}</ul></div>`;
 }
 
 // とくべつな ルールの カード：せりふ と しくみ（data/lore.js）
