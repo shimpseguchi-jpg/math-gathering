@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe, mostOrder,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe, mostOrder, deckCols, basicCol,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -499,7 +499,7 @@ async function chooseMode(d, ctx = {}) {
     const all = [];
     for (const m of ms) { const picks = m.tgt ? await pickAll(m.tgt, { ...ctx, card: d }) : []; if (!picks) break; all.push([m, picks]); }
     if (all.length < ms.length) continue;
-    return { run: (x) => { for (const [m, picks] of all) m.apply(B.s, api, picks, x); }, extra: (d.escalate || 0) * (ms.length - 1) + ms.reduce((n, m) => n + (m.extra || 0), 0) }; // m.extra：超過（なごり雪）など、その モードだけ 多く はらう
+    return { label: ms.map((m) => m.label).join('／'), run: (x) => { for (const [m, picks] of all) m.apply(B.s, api, picks, x); }, extra: (d.escalate || 0) * (ms.length - 1) + ms.reduce((n, m) => n + (m.extra || 0), 0) }; // m.extra：超過（なごり雪）など、その モードだけ 多く はらう
   }
 }
 
@@ -558,6 +558,39 @@ function castInfo(c, from = 'hand') {
   if (!r) return { why: 'いまは こうかが ない（ねらう 相手が いない など）' };
   if (d.x && r.x) x = Math.min(r.x, x);
   return { ok: true, pl: plan(s, cost + x * mul, req, o), r, x };
+}
+
+// きほんカードを マナに（2026-11-07）：デッキから さがすか、そとから 持って くるか、色も えらぶ（game.js の rampBasic・s.P.rampSrc）
+// カードの 文に「ライブラリー（山札）から きほんカードを」が ある とき。カラメトラは 場に いて クリーチャーを 唱える とき
+const RAMP_RE = /(?:ライブラリー|山札|やまふだ)から\s*(?:([白青黒赤緑])の\s*)?(?:きほん|基本)カードを/;
+const COL_OF = { 白: 'W', 青: 'U', 黒: 'K', 赤: 'R', 緑: 'G' };
+function rampOf(s, d, { adv = false, mode = null } = {}) {
+  if (mode) return /きほんカード/.test(mode.label || '') && /マナゾーン/.test(mode.label || '') ? { col: null } : null;
+  let t = noRuby(info(d).text || '');
+  const k = t.indexOf('出来事'); if (k >= 0) t = adv ? t.slice(k) : t.slice(0, k);
+  const m = !/唱えるたび/.test(t) && t.match(RAMP_RE);
+  if (m) return { col: COL_OF[m[1]] || null };
+  if (!adv && (d.types || []).includes('creature') && s.P.bf.some((p) => /クリーチャー呪文を唱えるたび[^。]*(?:きほん|基本)カード/.test(noRuby(info(p.def).text || '')))) return { col: null };
+  return null;
+}
+const colPip = (k) => (k === 'C' ? '無色（むしょく）' : `<i class="pip m-${k}">${COLOR_NAME[k]}</i>`);
+// null：やめる。{ from, col }：えらんだ
+async function rampSheet(s, d, r) {
+  const nm = info(d).name, fixed = r.col;
+  const inLib = (k) => s.P.lib.filter((c) => c.def.basic && (!k || basicCol(c.def) === k)).length;
+  const nb = inLib(fixed);
+  const from = await sheet(`<p>${ruby(`${nm}で、きほんカードを マナゾーンに 置（お）く。どこから 持って くる？`)}</p>`, [
+    { label: `デッキから さがす（${fixed ? `${COLOR_NAME[fixed]}の ` : ''}きほんカード のこり ${nb}まい）`, value: 'lib', kind: 'primary', disabled: !nb, note: nb ? 'デッキが へって、ほかの カードを 引きやすく なる' : 'デッキに のこって いない' },
+    { label: 'そとから 持って くる', value: 'out', kind: 'primary', note: 'デッキの カードの 数は へらない（引く カードが なくなりにくい）' },
+    { label: 'やめる', value: null }], { title: 'きほんカードを マナに' });
+  if (!from) return null;
+  if (fixed) return { from, col: fixed };
+  const cols = from === 'lib' ? [...new Set(s.P.lib.filter((c) => c.def.basic).map((c) => basicCol(c.def)))].sort((a, b) => 'WUKRGC'.indexOf(a) - 'WUKRGC'.indexOf(b)) : deckCols(s);
+  if (cols.length < 2) return { from, col: cols[0] || null };
+  const col = await sheet(`<p>${ruby('どの 色の きほんカードに する？')}</p>`, [
+    ...cols.map((k) => ({ label: `${colPip(k)}${from === 'lib' ? `（のこり ${inLib(k)}まい）` : ''}`, value: k, kind: 'primary', note: `マナゾーンに いま ${s.P.mana.filter((m) => basicCol(m.def) === k).length}まい` })),
+    { label: 'やめる', value: null }], { title: 'きほんカードの 色' });
+  return col ? { from, col } : null;
 }
 
 async function doCast(c, from = 'hand') {
@@ -634,12 +667,16 @@ async function doCast(c, from = 'hand') {
     if (!v) return stop();
     picks = [[v]];
   }
+  const rr = rampOf(s, d, { mode });
+  const rs = rr && await rampSheet(s, d, rr);
+  if (rr && !rs) return stop();
   const pl = (extra || x !== ci.x) ? await payable(base + x * mul + extra, req, o) : plan(s, base + x * mul, req, o);
   if (!pl) return stop();
+  if (rs) { s.P.rampSrc = rs; s.P.rampPref = rs.from; } // あとの たび（タイタンの こうげきなど）も さいごに えらんだ ほう
   discard(s, drop);
   const run = mode ? mode.run : (d.apply && (picks || !d.tgt) ? () => d.apply(s, api, picks || [], x, { kicked }) : ci.r ? () => ci.r.run(x) : undefined); // 対象の ない キッカーの 呪文（苗木の 移住）も apply で キッカーを うけとる
   if (from === 'hand') { const perm = !(d.types || []).some((t) => t === 'instant' || t === 'sorcery'); await fx.flyCard(app().querySelector(`[data-hand="${s.P.hand.indexOf(c)}"]`), app().querySelector(perm ? '.zone.mine' : '.battle'), !perm); }
-  try { await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked }); } finally { s.P.spNo = false; }
+  try { await castCard(s, c, pl, { from, x: d.x ? x : undefined, ctr: d.x ? x : 0, run, chosen: picks || undefined, escExile, kicked }); } finally { s.P.spNo = false; s.P.rampSrc = null; }
   B.busy = false;
   if (!checkOver()) render();
 }
@@ -861,9 +898,13 @@ async function doAdventure(c) {
     if (!r) return sheet('<p>いまは こうかが ない。</p>', [{ label: 'とじる', value: 0 }]);
     run = r.run;
   }
+  const rr = rampOf(s, c.def, { adv: true });
+  const rs = rr && await rampSheet(s, a, rr);
+  if (rr && !rs) return render();
   const pl = await payable(a.cost, a.req, {}); if (!pl) return render();
   B.busy = true;
-  await castAdventure(s, c, pl, run);
+  if (rs) { s.P.rampSrc = rs; s.P.rampPref = rs.from; }
+  try { await castAdventure(s, c, pl, run); } finally { s.P.rampSrc = null; }
   B.busy = false;
   if (!checkOver()) render();
 }

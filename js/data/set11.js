@@ -159,7 +159,7 @@ export const S11 = {
   SR50: trail({ pittari: (s, p, E) => E.hitEnemy(s, 1, p) }),
   SR51: trail(),
   SR52: trail({ etb: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); } }),
-  SR53: trail({ etb: (s, p, E) => { if (p.side === 'P' && E.basicsInLib(s)) E.rampBasic(s, 1); } }),
+  SR53: trail({ etb: (s, p, E) => { if (p.side === 'P') E.rampBasic(s, 1); } }),
   SR54: trail(),
   SR55: trail({ pittari: (s, p, E) => { if (E.onBf(s, p)) E.addCounters(s, p, 1); } }),
   // ---- 光円錐（MTG の カードの こうか。「元のカード」は docs/EXTRA.md 3.2） ----
@@ -208,7 +208,7 @@ export const S11 = {
   SR77: ult('SR08', 2, { play: (s, E) => ({ score: 7, run: () => { E.hitEnemy(s, 4, null); E.gain(s, 4); } }) }), // 魂の 饗宴
   SR78: ult('SR04', 2, bolt(3)), // 弧状の 稲妻（2026-11-06：わりふり → 文どおり たおせる なかで いちばん 大きい 1体）
   SR79: ult('SR15', 2, foe1('5点を あたえる クリーチャー', (s, E, t) => hit(s, E, t, 5), { n: 5 })), // 炎で 戦う
-  SR80: ult('SR22', 2, { play: (s, E) => (E.basicsInLib(s) ? { score: 9, run: () => E.rampBasic(s, 2) } : null) }), // 爆発的 植生
+  SR80: ult('SR22', 2, { play: (s, E) => ({ score: 9, run: () => E.rampBasic(s, 2) }) }), // 爆発的 植生
 };
 for (const id of ['SR04', 'SR05', 'SR06', 'SR07', 'SR09', 'SR11', 'SR13', 'SR14', 'SR15', 'SR17', 'SR21', 'SR22', 'SR33', 'SR34']) S11[id] = { ...S11[id], ...spCut }; // 4マナ いじょうの レア・レジェンド
 // あなたの マナゾーンの 青の カードの 数（岸の 飲み込み）

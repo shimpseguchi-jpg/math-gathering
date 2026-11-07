@@ -92,7 +92,7 @@ const G = [
     }],
   }),
   // 青緑
-  sp('G18', '豊（ゆた）かな 成長（せいちょう）', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 && hasBasic(s) ? 14 : 2, run: () => api_ramp(s) }) }),
+  sp('G18', '豊（ゆた）かな 成長（せいちょう）', 'C', 'G', 2, 'sorcery', { play: (s) => ({ score: s.P.mana.length < 6 ? 14 : 2, run: () => api_ramp(s) }) }),
   sp('G19', '弱者（じゃくしゃ）の 選別（せんべつ）', 'C', 'G', 2, 'sorcery', {
     play: (s, E) => {
       const me = E.bestBuffTarget(s, null); if (!me) return null;
@@ -556,11 +556,7 @@ const W2 = [
     },
   }),
   pm('W32', 'メレティスの 誕生（たんじょう）', 'U', 'W', 2, ['enchantment'], { sub: ['saga'], ...saga([
-    { run: (s, E) => {
-      const i = s.P.lib.findIndex((c) => c.def.basic && E.colorsOf(c.def).includes('W'));
-      if (i < 0) return E.drawCard(s);
-      const [c] = s.P.lib.splice(i, 1); s.P.mana.push({ ...c, tapped: true }); E.L(s, `マナ：${c.def.name}`);
-    } },
+    { run: (s, E) => E.rampBasic(s, 1, 'W') }, // デッキから か そとから（2026-11-07）
     { run: (s, E) => E.token(s, 'P', T.wall) },
     { run: (s, E) => E.gain(s, 3) },
   ]) }),
@@ -941,9 +937,9 @@ BASICS.K = build('B06', B06);
 
 // ライブラリーから きほんカードを さがして マナゾーンに（豊かな成長・耕作・カラメトラ・空身像。2026-10-24 に「一番上を」から かえた）
 let api_ramp = () => 0;
-const hasBasic = (s) => s.P.lib.some((c) => c.def.basic);
 export function bindEngine(E) {
   api_ramp = (s, n = 1) => E.rampBasic(s, n);
+  E.setBasics(BASICS); // そとから 持って くる きほんカード（rampBasic）
   const solemn = ALL.find((d) => d.id === 'C09');
   solemn.etb = (s) => E.rampBasic(s, 1);
 }

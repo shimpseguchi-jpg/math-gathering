@@ -273,7 +273,7 @@ export const S10 = {
   FG65: np(50, (s, E) => { const b = foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); }),
   FG66: np(40, (s, E) => { const t = E.bestBuffTarget(s, null); if (t) E.addCounters(s, t, 3); }),
   FG67: np(50, (s, E, p) => { const b = foeBest(s, E, E.power(s, p)) || foeBest(s, E); if (b && E.onBf(s, b.t)) E.fight(s, p, b.t); }),
-  FG68: { play: (s, E) => (E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) },
+  FG68: { play: (s, E) => ({ score: 5, run: () => E.rampBasic(s, 1) }) },
   FG69: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }),
   FG70: np(40, (s, E) => { E.gain(s, 3); for (const q of mine(s, E)) E.addCounters(s, q, 1); }), // 2026-11-07：L → R（5点 → 3点、3/4 → 2/4）
   // ---- マスター（FG71〜FG75・エンチャント） ----
