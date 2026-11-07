@@ -10,6 +10,9 @@ import { S10, np, oc, addNP, servants, isServant, bestServant, detain, biggest, 
 
 // ---- 道具 ----
 const ocNP = (g, fx, x = {}) => np(g, fx, { oc: true, ...x });
+// メルトリリス（FG110）と、それに ついて いる 弁財天五弦琵琶（FG176）
+const MELT = new Set(['FG110']);
+const lute = (s, p) => [...s.P.bf, ...s.E.bf].some((q) => q.attached === p.uid && q.def.meltLute);
 // ねらえる 敵の クリーチャー（f で しぼる）と、パワーが 大きい じゅん
 const foes = (s, E, f = () => true) => theirs(s, E).filter((t) => !s.floor.untargetable?.(s, t, E) && f(t));
 const byPow = (s, E, list) => [...list].sort((a, b) => E.power(s, b) - E.power(s, a));
@@ -151,14 +154,24 @@ export const S14 = {
     const ready = E.readyAttackers(s);
     for (const q of byPow(s, E, ready.length ? ready : mine(s, E)).slice(0, oc(p, 2))) { q.flags.turn.unblockable = true; E.L(s, `${q.def.name} は この ターン ブロックされない`); }
   }, { npAI: preCombat }),
-  // メルトリリス（2026-11-07：U → L・青）：ほかの クリーチャー ぜんぶ（敵も 味方も）−〔1〕/−〔1〕、その 数の ＋1/＋1カウンター
+  // メルトリリス（2026-11-07：U → L・青）：ほかの クリーチャー ぜんぶ（敵も 味方も）−〔1〕/−〔1〕、その 数の ＋1/＋1カウンター。
+  // 2026-11-07（あと）：攻撃するたび メルトウイルス（敵1体に −1/−1カウンター、じぶんに ＋1/＋1カウンター）。弁財天五弦琵琶（FG176）を つけて いれば 宝具は 味方を けずらない
   FG110: ocNP(40, (s, E, p) => {
-    const n = oc(p, 1), others = [...s.P.bf, ...s.E.bf].filter((q) => q !== p && E.isCreature(q));
+    const n = oc(p, 1), spare = lute(s, p), others = [...s.P.bf, ...s.E.bf].filter((q) => q !== p && E.isCreature(q) && !(spare && q.side === p.side));
     for (const q of others) E.pump(q, -n, -n);
     E.L(s, `${p.def.name}：ほかの クリーチャー ${others.length}体を −${n}/−${n}`);
     E.sba(s);
     if (others.length) E.addCounters(s, p, others.length);
-  }, { npAI: (s, p, E) => theirs(s, E).length > 0 && theirs(s, E).length >= mine(s, E).filter((q) => q !== p).length }),
+  }, {
+    npAI: (s, p, E) => theirs(s, E).length > 0 && (lute(s, p) || theirs(s, E).length >= mine(s, E).filter((q) => q !== p).length),
+    trigTgt: { on: 'attack', label: '−1/−1カウンターを おく てきの クリーチャー' },
+    onAttack: (s, p, E) => {
+      if (p.side !== 'P') return;
+      const pk = E.takePick(s, p), t = pk && E.onBf(s, pk) ? pk : (foeBest(s, E, 1) || foeBest(s, E))?.t;
+      if (t) { E.target(s, t); E.addMinus(s, t, 1); E.L(s, `メルトウイルス：${t.def.name} に −1/−1カウンター`); E.sba(s); }
+      E.addCounters(s, p, 1);
+    },
+  }),
   FG111: ocNP(40, (s, E, p) => {
     const n = oc(p, 2), t = topFoe(s, E, (q) => E.stealable(s, q) && !q.def.head && E.power(s, q) <= n);
     if (t && E.onBf(s, t) && t.side === 'E') { E.target(s, t); E.steal(s, t, p); }
@@ -375,8 +388,14 @@ export const S14 = {
       if (t) { t.tapped = true; E.L(s, `${eqName(q)}：${t.def.name} を タップ`); }
     },
   }),
+  // 弁財天五弦琵琶（メルトリリスの 宝具）：シャドウ召喚 しなければ メルトリリスに つく。メルトリリスに つけると 宝具が 味方を けずらない（FG110 の lute）
   FG176: phantasm({
-    equip: 1, eqP: 1,
+    equip: 1, eqP: 1, meltLute: true,
+    etb: (s, p, E, o) => {
+      if (o?.kicked) return;
+      const m = s[p.side].bf.find((q) => MELT.has(q.def.id) && E.isCreature(q));
+      if (m) { p.attached = m.uid; E.L(s, `そうび：${p.def.name} → ${m.def.name}`); p.def.onEquip?.(s, p, m, E); }
+    },
     onHostAttack: (s, q, host, E) => {
       if (q.side !== 'P') return;
       const t = topFoe(s, E);

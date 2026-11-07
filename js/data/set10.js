@@ -256,7 +256,8 @@ export const S10 = {
   FG50: np(40, (s, E) => { for (const t of theirs(s, E)) detain(s, E, t); }),
   FG51: np(50, (s, E) => E.hitEnemy(s, 2, null), { onAttack: (s, p) => { p.flags.turn.unblockable = true; } }),
   // フィン・マックール（2026-10-27：ネモと いれかえ）：出たとき 占術2。宝具で 敵1体を 手札へ ＋ 1まい 引く
-  FG52: { etb: (s, p, E) => { if (p.side === 'P') E.scry(s, 2); }, ...np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b && E.onBf(s, b.t)) { E.bounce(s, b.t); E.sba(s); } E.drawCard(s); }, { npTgt: { side: 'E', label: '手札（てふだ）に もどす クリーチャー' } }) },
+  // フィン・マックール：占術するたび NP ＋（占術の 数 × 10）（2026-11-07。ユーザーが きめた）
+  FG52: { etb: (s, p, E) => { if (p.side === 'P') E.scry(s, 2); }, onScry: (s, p, n, E) => { if (p.side === 'P') addNP(s, E, p, 10 * n, `せんじゅつ ${n}`); }, ...np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b && E.onBf(s, b.t)) { E.bounce(s, b.t); E.sba(s); } E.drawCard(s); }, { npTgt: { side: 'E', label: '手札（てふだ）に もどす クリーチャー' } }) },
   FG53: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.assassin, 2); } },
   FG54: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b && E.onBf(s, b.t)) { E.addMinus(s, b.t, 2); E.sba(s); } }),
   FG55: np(40, (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) <= 4); if (b) killIt(s, E, b.t); }),
