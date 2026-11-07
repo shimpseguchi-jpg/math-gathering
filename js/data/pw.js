@@ -6,6 +6,10 @@ import { detain } from './set9.js';
 const TK = {
   vampire: cr('t_vampireF', '吸血鬼（きゅうけつき）', null, 'K', 0, 2, 2, ['vampire'], ['flying']),
   dragon: cr('t_dragonF', 'ドラゴン', null, 'R', 0, 4, 4, ['dragon'], ['flying']),
+  // マイナス能力 だけの プレインズウォーカー（2026-11-07）の トークン
+  wall: cr('t_wall03', '壁（かべ）', null, 'W', 0, 0, 3, ['wall'], ['defender']),
+  devil: cr('t_devil', 'デビル', null, 'R', 0, 1, 1, ['devil'], [], { onDie: (s, p, E) => { const ts = (p.side === 'P' ? s.E.bf : s.P.bf).filter((q) => E.isCreature(q) && !s.floor.untargetable?.(s, q, E)); const t = ts.length ? ts[Math.floor(s.rng() * ts.length)] : null; if (t) { E.L(s, `デビル：${t.def.name} に 1点`); E.damage(s, t, 1, null); E.sba(s); } else if (p.side === 'P') E.hitEnemy(s, 1, null); } }),
+  wolf: cr('t_wolf22', '狼（おおかみ）', null, 'G', 0, 2, 2, ['wolf']),
   // カーン：アーティファクト 1つにつき ＋1/＋1（じぶんも 数える）
   construct: { ...cr('t_construct', '構築物（こうちくぶつ）', null, '', 0, 0, 0, ['construct']), types: ['artifact', 'creature'],
     anthem: (s, q, p) => (q === p ? ((n) => [n, n])(s[q.side].bf.filter((x) => (x.def.types || []).includes('artifact')).length) : null) },
@@ -24,6 +28,30 @@ const tuck3 = (s, E, t) => {
 };
 
 export const SPW = {
+  // ---- マイナス能力 だけの プレインズウォーカー（2026-11-07。アンコモン PW32〜PW36・レア PW37〜PW41。−の のうりょくは 1つ だけ）----
+  PW32: { acts: [pwAbility(-2, '0/3 の かべを 1体', { play: (s, p, E) => ({ score: theirs(s, E).length ? 5 : 3, run: () => undefined }) })] },
+  PW33: { acts: [pwAbility(-2, '2/2 の ひこうの イリュージョンを 1体', { play: () => ({ score: 5, run: () => undefined }) })] },
+  PW34: { acts: [pwAbility(-2, 'てきに −1/−1カウンター 2こ', {
+    play: (s, p, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); return b ? { score: 5 + (E.need(s, b.t) <= 2 ? 3 : 0), run: () => undefined, t: b.t } : null; },
+    tgt: [{ side: 'E', label: '−1/−1カウンターを 2こ おく クリーチャー', n: 2 }], apply: () => undefined,
+  })] },
+  PW35: { acts: [pwAbility(-2, '1/1 の デビルを 1体', { play: () => ({ score: 4, run: () => undefined }) })] },
+  PW36: { acts: [pwAbility(-2, '2/2 の おおかみを 1体', { play: () => ({ score: 5, run: () => undefined }) })] },
+  PW37: { acts: [pwAbility(-2, 'みんなに ＋1/＋1カウンター', { play: (s, p, E) => (mine(s, E).length ? { score: 3 + 2 * mine(s, E).length, run: () => undefined } : null) })] },
+  PW38: { acts: [pwAbility(-2, 'てきの クリーチャーを てふだに もどす', {
+    play: (s, p, E) => { const b = foeBest(s, E); return b && E.power(s, b.t) >= 2 ? { score: 4 + E.power(s, b.t), run: () => undefined, t: b.t } : null; },
+    tgt: [{ side: 'E', label: 'てふだに もどす クリーチャー（てきは やまふだの 上へ）' }], apply: () => undefined,
+  })] },
+  PW39: { acts: [pwAbility(-3, 'てきの クリーチャーを はかい', {
+    play: (s, p, E) => { const b = foeBest(s, E); return b && E.power(s, b.t) >= 2 ? { score: 6 + E.power(s, b.t), run: () => undefined, t: b.t } : null; },
+    tgt: [{ side: 'E', label: 'はかいする クリーチャー' }], apply: () => undefined,
+  })] },
+  PW40: { acts: [pwAbility(-2, 'てきに 3てん', {
+    play: (s, p, E) => { const b = E.burnTarget(s, 3, { mustHit: true }); return b ? { score: 5 + (b.score || 0), run: () => undefined, t: b.t } : null; },
+    tgt: [{ side: 'E', face: true, label: '3点を あたえる 相手', n: 3 }], apply: () => undefined,
+  })] },
+  PW41: { acts: [pwAbility(-3, '3/3 の ビーストを 1体', { play: () => ({ score: 6, run: () => undefined }) })] },
+
   PW01: {
     acts: [
       pwAbility(1, '白の 1/1 の へいしを 2体', { play: () => ({ score: 5, run: () => undefined }) }),
@@ -228,6 +256,16 @@ const FX = {
   PW08: [(s, E, t) => { if (t && E.onBf(s, t)) E.pump(t, 2, 0, ['flying']); }, (s, E) => E.token(s, 'P', TK.dragon)],
   PW09: [(s, E, t) => detain(s, E, t), (s, E, t) => { if (t) hit(s, E, t, 3); }],
   PW10: [(s, E) => E.drawCard(s), (s, E) => E.token(s, 'P', TK.construct)],
+  PW32: [(s, E) => E.token(s, 'P', TK.wall)],
+  PW33: [(s, E) => E.token(s, 'P', T.illusion)],
+  PW34: [(s, E, t) => { if (t && E.onBf(s, t)) { E.target(s, t); E.addMinus(s, t, 2); E.sba(s); } }],
+  PW35: [(s, E) => E.token(s, 'P', TK.devil)],
+  PW36: [(s, E) => E.token(s, 'P', TK.wolf)],
+  PW37: [(s, E) => { for (const q of mine(s, E)) E.addCounters(s, q, 1); }],
+  PW38: [(s, E, t) => { if (t && E.onBf(s, t)) { E.target(s, t); E.bounce(s, t); E.sba(s); } }],
+  PW39: [(s, E, t) => killIt(s, E, t)],
+  PW40: [(s, E, t) => { if (t) hit(s, E, t, 3); }],
+  PW41: [(s, E) => E.token(s, 'P', T.beast)],
   PW31: [
     (s, E) => { const c = digOne(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.exile.push(c); E.L(s, `ほりだした：${c.def.name}`); E.token(s, 'P', T.spiritRW); },
     (s, E) => { const c = gyBiggest(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); E.L(s, `${c.def.name}（パワー ${powOf(c.def)}）が もどった`); },
