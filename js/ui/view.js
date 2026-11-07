@@ -105,10 +105,19 @@ export function info(def) {
 
 export function colorClass(def, enemy = false) {
   if (enemy) return 'c-E';
-  const c = colorsOf(def);
-  if (c.length === 3) return `c-gold c-tri ca-${c[0]} cb-${c[1]} cc-${c[2]}`;
-  if (c.length === 2) return `c-gold c-${c[0]}${c[1]} ca-${c[0]} cb-${c[1]}`;
-  return c.length ? `c-${c[0]}` : 'c-C';
+  const c = colorsOf(def), x = extraClass(def);
+  if (c.length === 3) return `c-gold c-tri ca-${c[0]} cb-${c[1]} cc-${c[2]}${x}`;
+  if (c.length === 2) return `c-gold c-${c[0]}${c[1]} ca-${c[0]} cb-${c[1]}${x}`;
+  return (c.length ? `c-${c[0]}` : 'c-C') + x;
+}
+// 番外編の カード（モブの クリーチャー いがい）：作品ごとの 枠の もよう（2026-11-07。FGO＝金の つる・ゼンゼロ＝黒い ギザギザ・スターレイル＝青い 線路。css の .x-fg など）
+// モブ＝伝説でも キャラの タイプ（サーヴァント・エージェント・運命の行人）でも ない クリーチャー
+const CHARA_SUB = ['servant', 'エージェント', '運命の行人']; // 黄金裔は みんな 運命の行人でも ある
+export function extraClass(def) {
+  const m = /^(FG|SR|ZZ)\d/.exec(def.id || '');
+  if (!m) return '';
+  const mob = (def.types || []).includes('creature') && !def.legend && !(def.sub || []).some((k) => CHARA_SUB.includes(k));
+  return mob ? '' : ` x-${m[1].toLowerCase()}`;
 }
 
 // カードの ならべかた（デッキ構築・やまふだ・ぼち）：色（白・青・緑・赤・2色・無色）→ コスト → ID。きほんカードは さいご

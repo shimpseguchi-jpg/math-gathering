@@ -1499,9 +1499,9 @@ function render() {
       <span class="life ${s.P.life <= 5 ? 'low' : ''} ${s.P.life < pv.life ? 'hit' : s.P.life > pv.life ? 'heal' : ''}" role="status"><small>ライフ</small><b>${s.P.life}</b></span>
       <div class="me-mana">
         <button type="button" class="mana" data-act="mana">マナ <b>${untapped}</b>/${s.P.mana.length}${Object.entries(colors).filter(([, n]) => n).map(([k, n]) => `<i class="pip m-${k}">${n}</i>`).join('')}</button>
-        ${s.P.srDeck ? `<span class="pile sp" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
-        ${s.P.zzDeck ? `<span class="pile sp bon" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><button type="button" class="pile sp brk ${s.P.brkReady && canBreak(s) ? 'ready' : ''}" data-act="brk">${s.P.brkReady ? `ブレイク${canBreak(s) ? ' OK！' : ' まち'}${s.P.brkReady > 1 ? `×${s.P.brkReady}` : ''}` : 'ブレイク'} <b>${s.E.brk || 0}</b>/10</button>` : ''}
-        ${s.P.fgDeck ? `<button type="button" class="pile sp brk ${B.mode === 'main' && s.active === 'P' && !reijuWhy(s, api) ? 'ready' : ''}" data-act="reiju" title="れいじゅ（マスターが いる とき 1ターンに 1回 つかえる）">れいじゅ <b>${s.P.reiju || 0}</b></button>` : ''}
+        ${s.P.srDeck ? `<span class="pile sp x-sr" title="せんぎポイント（みんなで 1つ）">せんぎ ${spDots(B.s)}</span>` : ''}
+        ${s.P.zzDeck ? `<span class="pile sp bon x-zz" title="エネルギー（みんなで 1つ。10まで）">エネルギー <b>${s.P.bon || 0}</b>/10</span><button type="button" class="pile sp brk x-zz ${s.P.brkReady && canBreak(s) ? 'ready' : ''}" data-act="brk">${s.P.brkReady ? `ブレイク${canBreak(s) ? ' OK！' : ' まち'}${s.P.brkReady > 1 ? `×${s.P.brkReady}` : ''}` : 'ブレイク'} <b>${s.E.brk || 0}</b>/10</button>` : ''}
+        ${s.P.fgDeck ? `<button type="button" class="pile sp brk x-fg ${B.mode === 'main' && s.active === 'P' && !reijuWhy(s, api) ? 'ready' : ''}" data-act="reiju" title="れいじゅ（マスターが いる とき 1ターンに 1回 つかえる）">れいじゅ <b>${s.P.reiju || 0}</b></button>` : ''}
         ${s.P.bf.some((p) => p.def.treasure) ? `<span class="pile" title="タップして ぼちに おくと すきな 色の マナ">たからもの ${s.P.bf.filter((p) => p.def.treasure).length}</span>` : ''}
       </div>
       <div class="piles">${deckPile('P')}${gravePile('P')}${cmdPile('P')}</div>
