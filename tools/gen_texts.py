@@ -5,7 +5,7 @@ import re, glob, os, json
 here = os.path.dirname(os.path.abspath(__file__))
 docs = os.path.join(here, '..', 'docs')
 cells = lambda line: [c.strip().replace('**', '') for c in line.strip().strip('|').split('|')]
-plain = lambda t: re.sub(r'（[ぁ-ゖー]+）', '', t).replace(' ', '').replace('　', '')
+plain = lambda t: re.sub(r'（[ぁ-ゖー]+）|《[^《》\n]*》|｜', '', t).replace(' ', '').replace('　', '')
 
 cards, enemies = {}, {}
 for f in sorted(glob.glob(os.path.join(docs, 'cards', '*.md'))):
@@ -30,7 +30,7 @@ SUB = {'人間': 'human', '戦士': 'warrior', '兵士': 'soldier', 'スピリ�
        'ペガサス': 'pegasus', 'サテュロス': 'satyr', 'ビースト': 'beast', 'ワーム': 'wurm', 'ハイドラ': 'hydra', 'エレメンタル': 'elemental', '猫': 'cat', '鳥': 'bird',
        '狼': 'wolf', 'マイア': 'myr', 'クラーケン': 'kraken', '壁': 'wall', 'ニンフ': 'nymph', '半神': 'demigod', 'デーモン': 'demon', '忍者': 'ninja', 'オーラ': 'aura',
        '旗': 'banner', 'アルコン': 'archon', 'ハーピー': 'harpy', 'ラミア': 'lamia', '学習': 'lesson', '祠': 'shrine', '英雄譚': 'saga', '装備品': 'equipment', 'フラクタル': 'fractal', 'エルダー': 'elder', '昆虫': 'insect', 'サーヴァント': 'servant', 'ボンプ': 'bangboo'}
-plainT = lambda t: re.sub(r'（[ぁ-ゖー]+）', '', t)
+plainT = lambda t: re.sub(r'（[ぁ-ゖー]+）|《[^《》\n]*》|｜', '', t)
 skel, sets = {}, {}
 for fname, set_id, *only in DRAFTS:
     head = None
@@ -94,7 +94,7 @@ with open(out, 'w', encoding='utf-8') as w:
     w.write('// 自動生成：python3 tools/gen_texts.py（docs の表から。手で直さない）\n')
     w.write('export const CARD_TEXT = ' + json.dumps(cards, ensure_ascii=False, indent=0) + ';\n')
     w.write('export const ENEMY_TEXT = ' + json.dumps(enemies, ensure_ascii=False, indent=0) + ';\n')
-    w.write("export const plainName = (t) => t.replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '');\n")
+    w.write("export const plainName = (t) => t.replace(/（[ぁ-ゖー]+）|《[^《》\\n]*》|｜/g, '').replace(/[ 　]/g, '');\n")
 print(len(cards), 'cards', len(enemies), 'enemies', len(skel), 'draft cards')
 
 # カードの せりふ（docs/LORE.md → js/data/lore.js）。とき：しゃべる タイミング（js/engine/game.js の SAY_WHEN）

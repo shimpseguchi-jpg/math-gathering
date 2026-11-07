@@ -3,13 +3,13 @@ import { LORE } from '../data/lore.js';
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
 import { colorsOf, pt, basePT as rawPT, hasKw, isCreature, COLOR_JA } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
-import { mapRuby } from './ruby.js';
+import { mapRuby, stripRuby } from './ruby.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // 「漢字（よみ）」をルビにする
 // 送りがなを はさむ ことば（割り振って（わりふって））も まとめて ルビに
-export const ruby = (t) => mapRuby(String(t ?? ''), (b, y) => `<ruby>${esc(b)}<rt>${esc(y)}</rt></ruby>`, esc).replace(/\n/g, '<br>');
-export const noRuby = (t) => String(t ?? '').replace(/（[ぁ-ゖー]+）/g, '');
+export const ruby = (t) => mapRuby(String(t ?? ''), (b, y) => `<ruby>${esc(b)}<rt${/[ァ-ヶ]/.test(y) ? ' class="kr"' : ''}>${esc(y)}</rt></ruby>`, esc).replace(/\n/g, '<br>'); // rt.kr：宝具の カタカナの よみ（大人の 表記でも のこす）
+export const noRuby = (t) => stripRuby(t);
 
 // 文章の中の ことば（キーワード・用語）に 点線を つける。長おし・2回タップで せつめい（それぞれ 最初の1つだけ）
 // alias：同じ ことばでも べつの せつめいを 出す とき（タイプ欄の「学習」は 学習呪文）

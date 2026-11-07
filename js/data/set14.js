@@ -10,9 +10,13 @@ import { S10, np, oc, addNP, servants, isServant, bestServant, detain, biggest, 
 
 // ---- 道具 ----
 const ocNP = (g, fx, x = {}) => np(g, fx, { oc: true, ...x });
-// メルトリリス（FG110）と、それに ついて いる 弁財天五弦琵琶（FG176）
-const MELT = new Set(['FG110']);
-const lute = (s, p) => [...s.P.bf, ...s.E.bf].some((q) => q.attached === p.uid && q.def.meltLute);
+// サラスヴァティー・メルトアウト（FG176）が 装備されて いる がわ（味方は マイナスの 修整を 受けない。game.js の minusGuard）
+const melt1 = (s, E, p) => {
+  const all = [...s.P.bf, ...s.E.bf].filter((q) => E.isCreature(q));
+  E.L(s, `${eqName(p)}：すべての クリーチャー（${all.length}体）を −1/−0`);
+  for (const q of all) E.pump(q, -1, 0);
+};
+const guarded = (s, side) => s[side].bf.some((g) => g.def.minusGuard && g.attached && s[side].bf.some((h) => h.uid === g.attached));
 // ねらえる 敵の クリーチャー（f で しぼる）と、パワーが 大きい じゅん
 const foes = (s, E, f = () => true) => theirs(s, E).filter((t) => !s.floor.untargetable?.(s, t, E) && f(t));
 const byPow = (s, E, list) => [...list].sort((a, b) => E.power(s, b) - E.power(s, a));
@@ -105,7 +109,7 @@ const hostHogu = (f) => ({
   },
 });
 // 装備品の 名前（ログ用。ふりがなと ★を とる）
-const eqName = (q) => q.def.name.replace(/（[ぁ-ゖー]+）/g, '').replace(/^★/, '');
+const eqName = (q) => q.def.name.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '').replace(/^★/, '');
 
 export const S14 = {
   // ---- 白 ----
@@ -155,15 +159,15 @@ export const S14 = {
     for (const q of byPow(s, E, ready.length ? ready : mine(s, E)).slice(0, oc(p, 2))) { q.flags.turn.unblockable = true; E.L(s, `${q.def.name} は この ターン ブロックされない`); }
   }, { npAI: preCombat }),
   // メルトリリス（2026-11-07：U → L・青）：ほかの クリーチャー ぜんぶ（敵も 味方も）−〔1〕/−〔1〕、その 数の ＋1/＋1カウンター。
-  // 2026-11-07（あと）：攻撃するたび メルトウイルス（敵1体に −1/−1カウンター、じぶんに ＋1/＋1カウンター）。弁財天五弦琵琶（FG176）を つけて いれば 宝具は 味方を けずらない
+  // 2026-11-07（あと）：攻撃するたび メルトウイルス（敵1体に −1/−1カウンター、じぶんに ＋1/＋1カウンター）。サラスヴァティー・メルトアウト（FG176）が あると 味方は −〔1〕/−〔1〕を 受けず、その ぶん 装備している クリーチャーが ＋
   FG110: ocNP(40, (s, E, p) => {
-    const n = oc(p, 1), spare = lute(s, p), others = [...s.P.bf, ...s.E.bf].filter((q) => q !== p && E.isCreature(q) && !(spare && q.side === p.side));
+    const n = oc(p, 1), others = [...s.P.bf, ...s.E.bf].filter((q) => q !== p && E.isCreature(q));
     for (const q of others) E.pump(q, -n, -n);
     E.L(s, `${p.def.name}：ほかの クリーチャー ${others.length}体を −${n}/−${n}`);
     E.sba(s);
     if (others.length) E.addCounters(s, p, others.length);
   }, {
-    npAI: (s, p, E) => theirs(s, E).length > 0 && (lute(s, p) || theirs(s, E).length >= mine(s, E).filter((q) => q !== p).length),
+    npAI: (s, p, E) => theirs(s, E).length > 0 && (guarded(s, p.side) || theirs(s, E).length >= mine(s, E).filter((q) => q !== p).length),
     trigTgt: { on: 'attack', label: '−1/−1カウンターを おく てきの クリーチャー' },
     onAttack: (s, p, E) => {
       if (p.side !== 'P') return;
@@ -388,20 +392,20 @@ export const S14 = {
       if (t) { t.tapped = true; E.L(s, `${eqName(q)}：${t.def.name} を タップ`); }
     },
   }),
-  // 弁財天五弦琵琶（メルトリリスの 宝具）：シャドウ召喚 しなければ メルトリリスに つく。メルトリリスに つけると 宝具が 味方を けずらない（FG110 の lute）
+  // サラスヴァティー・メルトアウト（メルトリリスの 宝具。2026-11-07 つくりなおし。ユーザーが きめた）：
+  // 装備されて いる あいだ 味方は マイナスの 修整を 受けず、その ぶん 装備している クリーチャーが プラス（game.js の minusGuard）。
+  // 2：すべての クリーチャー（敵も 味方も）−1/−0。味方の ぶんは 装備している クリーチャーに ＋1/＋0 ずつ
   FG176: phantasm({
-    equip: 1, eqP: 1, meltLute: true,
-    etb: (s, p, E, o) => {
-      if (o?.kicked) return;
-      const m = s[p.side].bf.find((q) => MELT.has(q.def.id) && E.isCreature(q));
-      if (m) { p.attached = m.uid; E.L(s, `そうび：${p.def.name} → ${m.def.name}`); p.def.onEquip?.(s, p, m, E); }
-    },
-    onHostAttack: (s, q, host, E) => {
-      if (q.side !== 'P') return;
-      const t = topFoe(s, E);
-      if (t) pumpOne(s, E, t, -1, 0);
-      pumpOne(s, E, host, 1, 0);
-    },
+    equip: 1, eqP: 1, minusGuard: true,
+    acts: [{
+      cost: 2, when: [1, 2], label: 'すべての クリーチャー −1/−0（ターン終了時まで）',
+      play: (s, p, E, ctx) => {
+        const n = theirs(s, E).filter((q) => E.power(s, q) > 0).length;
+        if (ctx.human) return [...s.P.bf, ...s.E.bf].some((q) => E.isCreature(q)) ? { score: 1, run: () => melt1(s, E, p) } : null; // 人は いつでも（てきの ターンの まども）
+        // AI：装備されて いる とき、戦闘の まえに（てきの パワーが へり、装備している クリーチャーが ＋）
+        return n && guarded(s, p.side) && ctx.phase === 1 ? { score: 2 + n + mine(s, E).length, run: () => melt1(s, E, p) } : null;
+      },
+    }],
   }),
   // 黒：−1/−1カウンター・NP・墓地
   FG177: phantasm({

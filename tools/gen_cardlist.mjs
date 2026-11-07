@@ -167,7 +167,7 @@ if (htmlArg) {
   const extraTint = (r) => {
     const m = /^(FG|SR|ZZ)\d/.exec(r.ID);
     if (!m) return '';
-    const ty = (r['タイプ'] || '').replace(/（[ぁ-ゖー]+）/g, '');
+    const ty = (r['タイプ'] || '').replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '');
     const mob = ty.includes('クリーチャー') && !ty.includes('伝説') && !/サーヴァント|エージェント|運命の行人/.test(ty);
     return mob ? '' : m[1].toLowerCase();
   };

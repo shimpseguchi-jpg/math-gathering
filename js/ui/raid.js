@@ -12,7 +12,7 @@ import { FACTIONS, RIVAL, THEMES, cmdDeck, cmdPool, pickCommander, cmdSetup } fr
 import { deckBuilder } from './app.js';
 import { RAID, WIN_PTS, FINISH_PTS, DEF_PTS, loadRaid, saveRaid, raidOpen, raidFree, raidPoints, sendRaid } from './raidstore.js';
 
-const plain = (t) => t.replace(/（[ぁ-ゖー]+）/g, '');
+const plain = (t) => t.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '');
 const cname = (id) => ruby(info(BY_ID[id]).name);
 const colorText = (d) => colorsOf(d).map((c) => COLOR_NAME[c]).join('・');
 const other = (f) => (f === 'dragon' ? 'human' : 'dragon');

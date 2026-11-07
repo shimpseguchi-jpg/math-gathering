@@ -18,7 +18,7 @@ import { SET_IDS } from '../js/data/skel.js';
 
 const only = process.argv.slice(2);
 const setIds = process.env.SETS ? process.env.SETS.split(',').map(Number) : null;
-const plain = (t) => (t || '').replace(/（[ぁ-ゖー]+）/g, '');
+const plain = (t) => (t || '').replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '');
 const KW = { 飛行: 'flying', 速攻: 'haste', 警戒: 'vigilance', 到達: 'reach', 接死: 'deathtouch', 絆魂: 'lifelink', トランプル: 'trample', 先制攻撃: 'first', 二段攻撃: 'double', 防衛: 'defender', 破壊不能: 'indestructible', 召集: 'convoke', 果敢: 'prowess' };
 const fnKeys = (d) => Object.keys(d).filter((k) => typeof d[k] === 'function' || (Array.isArray(d[k]) && d[k].some((x) => x && typeof x === 'object')) || (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])));
 // 文 → あるはずの うごき（どれか 1つ あれば よい）。見つからなければ「しらべる」に 出す
