@@ -2,6 +2,7 @@
 //   npx http-server -p 8124 -c-1 . &  →  node tools/e2e.mjs
 // 環境変数：URL、OUT（スクリーンショットの保存先）、STEPS、SETS（開発モードで パックに 入れる 弾。例 SETS=3,4,5,6,7）、CHROME（つかう chromium の パス）
 //   PLANE（せかい。例 PLANE=strixhaven SETS=1,2,5）、DIFF（むずかしさ。例 DIFF=easy）：タイトルで えらんでから はじめる
+//   DRAFT=1：カードの あつめかたを ドラフトに（40まいから 15まい・ごほうびは 16まいから 6まい）
 //   THEME（みため：classic・gba・clear。せっていの「みため」と おなじ）
 //   SPIRE=1：次元渡り（大人向けモード。docs/SPIRE.md）を あそぶ。SPIRE_GOD=1 で ライフと 金貨を ふやして 最後まで（SPIRE_FAST=1 で 敵の ライフを 1 に）
 import { chromium } from 'playwright';
@@ -62,6 +63,7 @@ if (process.env.START) {
 } else {
   if (process.env.PLANE) await page.locator(`label:has(#plane-${process.env.PLANE})`).click();
   if (process.env.DIFF) await page.locator(`label:has(#diff-${process.env.DIFF})`).click();
+  if (process.env.DRAFT) await page.locator('label:has(#get-draft)').click();
   await page.click('[data-go=new]');
 }
 let ended = false, battles = 0;
@@ -98,6 +100,13 @@ for (let i = 0; i < STEPS && !ended; i++) {
     continue;
   }
   if (await page.locator('.ending').count()) { await shot('ending'); ended = true; break; }
+  // ドラフト：まだ えらんで いない カードを まえから えらんで「この Nまいに する」
+  if (await page.locator('main.dpick').count()) {
+    await shot(`draft${battles}`);
+    while (!(await page.locator('main.dpick [data-ok]:not([disabled])').count())) await page.locator('main.dpick .pool-item:not(.in)').first().click();
+    await page.click('main.dpick [data-ok]');
+    continue;
+  }
   // 次元渡り：マップ・報酬・お店・カードを えらぶ 画面
   if (await page.locator('.sp-mapscreen').count()) { await shot(`spire_map${battles}`); battles++; const n = page.locator('.sp-node.can'); await n.nth(Math.floor(Math.random() * await n.count())).click(); continue; }
   if (await page.locator('.sp-reward').count()) { await shot('spire_reward'); if (Math.random() < 0.7) await page.locator('.sp-reward [data-pick]').first().click(); else await page.click('[data-a=skip]'); continue; }
