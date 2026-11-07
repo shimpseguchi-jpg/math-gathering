@@ -186,7 +186,9 @@ export const S10 = {
   },
   FG13: np(50, (s, E, p) => { E.pump(p, 0, 0, ['double']); E.L(s, `${p.def.name}：にだんこうげき`); }),
   FG14: np(40, (s, E) => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); }), // 2026-11-05：−2/−2 → −1/−1カウンター 1こずつ（ゴルゴーン FG57 と おなじ）
-  FG15: np(40, (s, E) => { for (const q of servants(s, E)) if (q.def.id !== 'FG15') addNP(s, E, q, 50); }),
+  FG15: np(50, (s, E) => { for (const q of servants(s, E)) if (q.def.id !== 'FG15') addNP(s, E, q, 50); E.gain(s, 4); }, { // 2026-11-07：R → L（伝説）。出たとき なかまの NP ＋20・宝具で 4点 回復
+    etb: (s, p, E) => { if (p.side === 'P') for (const q of servants(s, E)) if (q !== p) addNP(s, E, q, 20); },
+  }),
   // 令呪：3画。1画 つかうと サーヴァント1体の NP ＋100（すぐ 宝具を つかえる）
   FG16: {
     etb: (s, p) => { p.seals = 3; },
@@ -273,7 +275,7 @@ export const S10 = {
   FG67: np(50, (s, E, p) => { const b = foeBest(s, E, E.power(s, p)) || foeBest(s, E); if (b && E.onBf(s, b.t)) E.fight(s, p, b.t); }),
   FG68: { play: (s, E) => (E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) },
   FG69: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }),
-  FG70: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.addCounters(s, q, 1); }),
+  FG70: np(40, (s, E) => { E.gain(s, 3); for (const q of mine(s, E)) E.addCounters(s, q, 1); }), // 2026-11-07：L → R（5点 → 3点、3/4 → 2/4）
   // ---- マスター（FG71〜FG75・エンチャント） ----
   FG71: { ...master, anthem: forServants(0, 1) },
   FG72: { ...master, onOtherEnter: (s, p, q, E) => { if (q.side === p.side && isServant(q)) addNP(s, E, q, 20); } },

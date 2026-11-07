@@ -171,7 +171,7 @@ export const S12 = {
   ZZ03: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 3) E.pump(p, 2, 0); } },
   ZZ04: { brk: 2, ...ninjutsu(1, ['G']) },
   ZZ05: { brk: 3, ...etbFoe('タップする てきの クリーチャー（つぎも おきない）', detain, (s, E) => biggest(s, E, (t) => !t.frozen)), ...ninjutsu(2, ['U']) },
-  ZZ06: { brk: 3, trigTgt: { on: 'attack', label: 'タップする てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side === 'P') detain(s, E, E.takePick(s, p) || biggest(s, E, (t) => !t.frozen && t.def.attacks !== false)); } },
+  ZZ06: { brk: 2, trigTgt: { on: 'attack', label: 'タップする てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p) || biggest(s, E, (q) => !q.tapped && q.def.attacks !== false); if (t && E.onBf(s, t) && !t.tapped) { t.tapped = true; E.L(s, `${t.def.name} を タップ`); } } }, // ライカン（2026-11-07：L → R。3/4・ブレイク 2・タップ だけ）
   ZZ07: { brk: 2, etb: etbBon(2), acts: [bonAct(2, {
     label: 'エネルギー 2：クリーチャー1体 ＋1/＋1',
     play: (s, p, E, ctx) => { if (ctx.phase !== 1) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && canSwing(s, E, t) ? { score: 3, run: () => E.pump(t, 1, 1) } : null; },
@@ -188,13 +188,13 @@ export const S12 = {
   ZZ16: { brk: 2, anthem: lord(null, 1, 0) },
   ZZ17: { brk: 3, trigTgt: { on: 'attack', label: '1点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 1) || foeBest(s, E); if (b) hit(s, E, b.t, 1); } },
   ZZ18: { brk: 3, onAttack: atkBon(1) },
-  ZZ19: { brk: 3, ...ninjutsu(1, ['G']) },
+  ZZ19: { brk: 2, ...ninjutsu(2, ['G']) }, // ジェーン・ドゥ（2026-11-07：L → R。2/2・交代 2・ブレイク 2）
   ZZ20: { brk: 2, etb: etbBon(2), onBlock: (s, p, E) => { if (p.side === 'P') E.gain(s, 2); }, acts: [bonAct(2, {
     label: 'エネルギー 2：つぎの てきの ターン、1体は ダメージを うけない',
     play: (s, p, E) => { const t = foeThreat(s, E) ? E.bestBuffTarget(s, null) : null; return t && t.shieldT !== s.turn + 1 ? { score: 2, run: () => { t.shieldT = s.turn + 1; } } : null; },
     tgt: [{ side: 'P', label: 'まもる クリーチャー' }], apply: (s, E, [[t]]) => { t.shieldT = s.turn + 1; E.L(s, `${t.def.name}：つぎの てきの ターン ダメージ 0`); },
   })] },
-  ZZ21: { brk: 2, anthem: lord('エージェント', 1, 1) }, // 2026-11-06：陣営（カリュドーンの子）の タイプを なくしたので エージェント みんな
+  ZZ21: { brk: 3, anthem: lord('エージェント', 1, 1), grant: (s, q, p) => (p !== q && p.side === q.side && isCre(p) && hasSub(p, 'エージェント') ? ['vigilance'] : null) }, // シーザー（2026-11-07：R → L。4/5・ブレイク 3・ほかの エージェント ＋1/＋1 と 警戒）
   ZZ22: { brk: 3, onAttack: (s, p, E) => { if (p.side !== 'P') return; for (const t of [...theirs(s, E)]) E.damage(s, t, 1, p); E.sba(s); } },
   ZZ23: { brk: 2, onAttack: atkBon(1) },
   ZZ24: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.boar, 2); } },
