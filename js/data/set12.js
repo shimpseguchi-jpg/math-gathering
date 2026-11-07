@@ -50,7 +50,7 @@ export const tappedFoes = (s) => s.E.bf.filter((p) => isCre(p) && p.tapped).leng
 const ULT = { kw: ['convoke'], tapLess: true, costMin: 1, costLess: (s) => tappedFoes(s) };
 const TK = {
   boar: cr('t_boar', 'イノシシ', null, 'R', 0, 1, 1, ['boar']),
-  ethereal: cr('t_ethereal', 'エーテリアス', null, 'K', 0, 1, 1, ['ethereal']),
+  ethereal: cr('t_ethereal', 'ホラー', null, 'K', 0, 1, 1, ['horror']), // 2026-11-06：エーテリアスは MTG の 種族「ホラー」に
   knight: cr('t_knight22', '騎士（きし）', null, 'W', 0, 2, 2, ['knight'], ['vigilance']),
 };
 

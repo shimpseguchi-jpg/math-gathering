@@ -178,6 +178,10 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .b { font-size: 8.5px; padding: 0 3px; border-radius: 4px; font-weight: 700; background: var(--paper-ink); color: var(--paper); }
 .b.ctr { background: var(--good); color: #062b16; }
 .b.ice { background: #8fd3ff; color: #06263a; }
+/* ゼンゼロ 第2弾：属性異常（いじょう）の 色。ちがう 色で なぐると 2ばい（紊乱） */
+.b.anom { border: 2px dashed currentColor; font-weight: 700; }
+.b.anom.an-W { background: #f3ead0; color: #5a4a12; } .b.anom.an-U { background: #cfe3fb; color: #0d3a6e; } .b.anom.an-K { background: #ddd2ee; color: #3a2a5a; }
+.b.anom.an-R { background: #fbd5cc; color: #7a1d0b; } .b.anom.an-G { background: #d2efd9; color: #134d24; }
 .b.stone { background: #9a9a92; color: #1b1b18; }
 .clock-face { width: 46px; height: 46px; align-self: center; margin-top: auto; }
 .clock-face circle { fill: rgba(255, 255, 255, 0.92); stroke: var(--gold); stroke-width: 0.9; }
@@ -1582,3 +1586,8 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .sp-cmd-body small { font-size: 11px; color: var(--ink-dim); }
 .sp-cmdmark { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); font-size: 10px; padding: 1px 6px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); white-space: nowrap; }
 .sp-cmdchip { border-color: var(--gold); }
+
+/* カードを タップした ときの「いまの ようす」（カウンター・異常・ダメージ など。2026-11-06） */
+.perm-state { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--paper-ink) 8%, transparent); border: 1px dashed color-mix(in srgb, var(--paper-ink) 35%, transparent); }
+.perm-state .ps-h { margin: 0 0 4px; font-weight: 700; font-size: 13px; }
+.perm-state ul { margin: 0; padding-left: 1.2em; font-size: 14px; line-height: 1.7; }

@@ -102,7 +102,7 @@ export const S16 = {
     onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = foeBy(s, E, p, (q) => q.anom !== 'K', byPow(s, E)); if (t) { E.target(s, t); E.setAnom(s, t, 'K'); } },
     onDisorder: (s, p, E) => { E.L(s, `${p.def.name}：紊乱（びんらん）で てき ぜんぶに 1点`); for (const t of [...theirs(s, E)]) E.damage(s, t, 1, null); },
   },
-  ZZ92: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 2); }, anthem: (s, q, p) => (p !== q && p.side === q.side && isCre(p) && (hasSub(p, 'ethereal') || hasSub(p, 'エーテリアス')) ? [1, 0] : null) }, // リュシア
+  ZZ92: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.ethereal, 2); }, anthem: (s, q, p) => (p !== q && p.side === q.side && isCre(p) && (hasSub(p, 'horror') || hasSub(p, 'ホラー')) ? [1, 0] : null) }, // リュシア
   ZZ93: { brk: 2, ...ANOM, etb: etbBon(2), acts: [anomAct(2, 'K', 'エネルギー 2：てきに 黒の 異常（いじょう）')] }, // アリア
   ZZ94: { brk: 4 }, // 南宮羽
   // ---- 赤 ----
