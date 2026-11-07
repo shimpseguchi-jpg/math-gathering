@@ -512,7 +512,24 @@ export function useBreak(s, mode, t) {
   return true;
 }
 
-export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) if (ZZ_BLUE.mode === 'minus') zzBreak(CUR, 'U', '青：てきを よわく した'); }
+// サラスヴァティー・メルトアウト（FG176。def.minusGuard）が 装備されて いる がわの クリーチャーは マイナスの 修整（ターン終了時まで の −N）を 受けない。
+// その ぶん 装備している クリーチャーが プラスの 修整を 受ける（2026-11-07。ユーザーが きめた。メルトリリスの 宝具との 相性）
+function minusGuard(p, a, b) {
+  const s = CUR; if (!s || !(a < 0 || b < 0)) return null;
+  const side = s.P.bf.includes(p) ? 'P' : s.E.bf.includes(p) ? 'E' : null;
+  if (!side || !isCreature(p)) return null;
+  for (const g of s[side].bf) {
+    if (!g.def.minusGuard || !g.attached) continue;
+    const host = s[side].bf.find((h) => h.uid === g.attached && isCreature(h));
+    if (!host) continue;
+    const da = -Math.min(0, a), db = -Math.min(0, b);
+    host.mP += da; host.mT += db;
+    L(s, `${foe(s, side)}${g.def.name}：${p.def.name} は −${da}/−${db} を 受けない → ${host.def.name} ＋${da}/＋${db}`);
+    return [Math.max(0, a), Math.max(0, b)];
+  }
+  return null;
+}
+export function pump(p, a, b, kws = []) { const gd = minusGuard(p, a, b); if (gd) [a, b] = gd; p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) if (ZZ_BLUE.mode === 'minus') zzBreak(CUR, 'U', '青：てきを よわく した'); }
 
 // 来世の スピリット（白黒 1/1 飛行）
 const AFTERLIFE = { id: 't_spiritWK', name: 'スピリット', rar: null, color: 'WK', cost: 0, types: ['creature'], pow: 1, tou: 1, sub: ['spirit'], kw: ['flying'] };
@@ -715,7 +732,7 @@ export function fight(s, a, b) {
 // ---- 戦場を離れる ----
 // 伝説の ルール（2026-11-05）：おなじ 名前の 伝説の パーマネントは 1人 1まいだけ。2まい目が 出たら、まえから ある ほうを 墓地に（新しい ほうが のこる）。
 // 画面は 出す まえに ちゅういする（battle.js の doCast）。AI は 2まい目を 出さない（ai.js の permScore）
-const legendKey = (def) => (def?.legend && !(def.types || []).some((t) => t === 'instant' || t === 'sorcery') ? String(def.name || '').replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '') : null);
+const legendKey = (def) => (def?.legend && !(def.types || []).some((t) => t === 'instant' || t === 'sorcery') ? String(def.name || '').replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '').replace(/[ 　]/g, '') : null);
 // s.noLegendRule：tools/cardtest.mjs の せりふの しらべ だけ（おなじ カードを 2まい 出して「なかま」の きっかけを つくる ため）
 export const legendDupe = (s, side, def) => { const k = !s.noLegendRule && legendKey(def); return k ? s[side].bf.find((q) => onBf(s, q) && legendKey(q.def) === k) || null : null; };
 function legendRule(s) {

@@ -28,7 +28,7 @@ const colorText = (d) => colorsOf(d).map((c) => COLOR_NAME[c]).join('・');
 
 // 統率者 ごとの カードプール（2026-10-26）：統率者の 色の カードの うち、その 統率者の とくいな ことに あう もの
 // ＋ 三つの 旗の その 色の カード（龍王の 一族・氏族の 戦士・長の なかま）。POOL_SIZE まで（レアリティの 高い じゅん）
-const txt = (d) => (CARD_TEXT[d.id]?.text || '').replace(/（[ぁ-ゖー]+）/g, '');
+const txt = (d) => (CARD_TEXT[d.id]?.text || '').replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '');
 const kw = (d, k) => (d.kw || []).includes(k);
 const sub = (d, k) => (d.sub || []).includes(k);
 const isSp = (d) => (d.types || []).some((t) => t === 'instant' || t === 'sorcery');
@@ -183,7 +183,7 @@ export async function commanderMenu(back) {
   const go = await sheet(`${detail(me)}<p class="what">あいて：${ruby(FACTIONS[other].name)}の ${ruby(info(foe).name)}（${colorText(foe)}）</p>`,
     [{ label: 'たたかう', value: 1, kind: 'primary' }, { label: 'もどる', value: 0 }], { title: 'この 統率者で たたかう？' });
   if (!go) return commanderMenu(back);
-  const name = `${info(foe).name.replace(/（[ぁ-ゖー]+）/g, '')}（CPU）`;
+  const name = `${info(foe).name.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '')}（CPU）`;
   startBattle({
     deck: cmdDeck(me), ...cmdSetup(me), life: FACTIONS[f].life,
     floor: pvp({ deck: cmdDeck(foe), ...cmdSetup(foe), life: FACTIONS[other].life, name, first: Math.random() < 0.5 ? 'P' : 'E' }), floorName: name, diff: 'normal',

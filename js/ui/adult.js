@@ -56,8 +56,8 @@ function fixText(n) {
 function fix(node) {
   if (node.nodeType === 3) return fixText(node);
   if (node.nodeType !== 1 || node.tagName === 'SCRIPT' || node.tagName === 'STYLE') return;
-  if (node.tagName === 'RT') { node.remove(); return; }
-  for (const rt of node.querySelectorAll('rt')) rt.remove();
+  if (node.tagName === 'RT') { if (!node.classList.contains('kr')) node.remove(); return; } // 宝具の カタカナの よみ（rt.kr）は のこす
+  for (const rt of node.querySelectorAll('rt:not(.kr)')) rt.remove();
   const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
   const list = [];
   while (w.nextNode()) list.push(w.currentNode);

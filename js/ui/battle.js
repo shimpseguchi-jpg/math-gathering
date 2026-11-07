@@ -385,7 +385,7 @@ const targetLabel = (t) => {
 // tgt の並びを 順に えらぶ。やめたら null
 // ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：（たおせる なかで）パワーが いちばん 大きい。game.js の pickOf）は、てきを ねらう ところを 自動で きめる
 const HARM = /ダメージ|破壊|追放|手札に ?もど|持ち主の ?手札|タップ|−[0-9X０-９]|留置|格闘|ブロックできない|つける/;
-const foeSlot = (spec, d) => spec.side === 'E' || (spec.side === 'any' && HARM.test(info(d).text.replace(/（[ぁ-ゖー]+）/g, '')));
+const foeSlot = (spec, d) => spec.side === 'E' || (spec.side === 'any' && HARM.test(info(d).text.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '')));
 async function autoPick(mode, spec, ctx, list) {
   const d = ctx.card;
   const k = spec.divide ? 1 : d.strive ? Math.max(spec.min ?? 1, 1) : Math.min(spec.max ?? 1, list.length);
