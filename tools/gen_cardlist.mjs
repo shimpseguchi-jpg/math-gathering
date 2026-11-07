@@ -163,13 +163,21 @@ if (htmlArg) {
   const BASIC_COLOR = { B01: 'W', B02: 'U', B03: 'G', B04: 'R', B05: 'C', B06: 'K' };
   const RAR_PTS = { C: 1, U: 2, R: 3, L: 4, P: 2 };
   const RAR_NAMES = { ...RAR_NAME, P: 'プロモ' };
+  // 番外編（モブの クリーチャー いがい）：作品ごとの 枠の もよう（ゲームの view.js の extraClass と おなじ きまり。2026-11-07）
+  const extraTint = (r) => {
+    const m = /^(FG|SR|ZZ)\d/.exec(r.ID);
+    if (!m) return '';
+    const ty = (r['タイプ'] || '').replace(/（[ぁ-ゖー]+）/g, '');
+    const mob = ty.includes('クリーチャー') && !ty.includes('伝説') && !/サーヴァント|エージェント|運命の行人/.test(ty);
+    return mob ? '' : m[1].toLowerCase();
+  };
   const card = (r, basic = false) => {
     const set = draftSet[r.ID] || String(setOf(r.ID)), rar = basic ? '' : (r['レアリティ'] || (set === 'P' ? 'P' : ''));
     const extra = prefix(r.ID) === 'LS' ? '学習呪文' : prefix(r.ID) === 'YT' ? '創出だけ' : '';
     const text = r['テキスト'] ?? r['テキスト（案）'] ?? '';
     const motif = r['元のカード'] || (r['手に 入れる'] ? `手に 入れる：${r['手に 入れる']}` : '');
     return {
-      id: r.ID, set, setLabel: SET_LABEL[set], draft: draftSet[r.ID] === 'P', dev: DEV.has(draftSet[r.ID]), extra,
+      id: r.ID, set, setLabel: SET_LABEL[set], draft: draftSet[r.ID] === 'P', dev: DEV.has(draftSet[r.ID]), extra, x: extraTint(r),
       group: basic ? BASIC_COLOR[r.ID] || 'C' : groupOf(r.ID, r['コスト']),
       rar, rarName: rar ? `${RAR_NAMES[rar]}（${RAR_PTS[rar]}点）` : '',
       cost: costHtml(r['コスト']), name: rb(r['名前']), type: rb(r['タイプ']), pt: h(r['P/T'] || ''), text: rb(text),

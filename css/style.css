@@ -1148,6 +1148,23 @@ div.zk-card { cursor: default; }
 .pile.brk { font: inherit; color: inherit; }
 .pile.brk.ready { border-color: var(--gold); background: linear-gradient(#ffd56e, var(--gold)); color: var(--gold-ink); font-weight: 700; animation: ab-big 1.2s ease-in-out infinite; }
 .pile.brk.ready b { color: inherit; } /* 金色の ボタンの 上でも 数が 見える（ブレイク・れいじゅ） */
+
+/* 番外編の カード（モブの クリーチャー いがい。view.js の extraClass）：作品ごとの 枠の もよう（2026-11-07。ユーザーが きめた：色より 枠の デザインで 見わける）
+   FGO＝金の つる・ゼンゼロ＝黒い ギザギザ・スターレイル＝青い 線路。上は 色の 帯の まま、左・右・下に もよう。カードの 中の 色は かえない（読みやすさ そのまま）。
+   ::after を かさねるので、能力が 使える 光（box-shadow）とも ぶつからない */
+.card.x-fg:not(.zk-unknown), .card.x-zz:not(.zk-unknown), .card.x-sr:not(.zk-unknown) { padding-left: 9px; padding-right: 9px; padding-bottom: 9px; }
+:is(.card, .detail):is(.x-fg, .x-zz, .x-sr):not(.zk-unknown)::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+.detail:is(.x-fg, .x-zz, .x-sr) { position: relative; padding-left: 20px; padding-right: 20px; padding-bottom: 18px; }
+:is(.card, .detail).x-fg:not(.zk-unknown)::after { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='14'%3E%3Crect width='7' height='14' fill='%23fff'/%3E%3Cpath d='M3.5 0Q6.6 3.5 3.5 7T3.5 14' fill='none' stroke='%23c9a64a' stroke-width='1.3'/%3E%3Cellipse cx='5.7' cy='3.3' rx='1.3' ry='2' fill='%23c9a64a'/%3E%3Cellipse cx='1.3' cy='10.3' rx='1.3' ry='2' fill='%23c9a64a'/%3E%3C/svg%3E") left top / 7px 14px repeat-y, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='14'%3E%3Crect width='7' height='14' fill='%23fff'/%3E%3Cpath d='M3.5 0Q6.6 3.5 3.5 7T3.5 14' fill='none' stroke='%23c9a64a' stroke-width='1.3'/%3E%3Cellipse cx='5.7' cy='3.3' rx='1.3' ry='2' fill='%23c9a64a'/%3E%3Cellipse cx='1.3' cy='10.3' rx='1.3' ry='2' fill='%23c9a64a'/%3E%3C/svg%3E") right top / 7px 14px repeat-y, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='7'%3E%3Crect width='14' height='7' fill='%23fff'/%3E%3Cpath d='M0 3.5Q3.5 6.6 7 3.5T14 3.5' fill='none' stroke='%23c9a64a' stroke-width='1.3'/%3E%3Cellipse cx='3.3' cy='5.7' rx='2' ry='1.3' fill='%23c9a64a'/%3E%3Cellipse cx='10.3' cy='1.3' rx='2' ry='1.3' fill='%23c9a64a'/%3E%3C/svg%3E") left bottom / 14px 7px repeat-x; }
+:is(.card, .detail).x-zz:not(.zk-unknown)::after { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='8'%3E%3Cpath d='M0 0H3L7 4L3 8H0Z' fill='%2317171c'/%3E%3C/svg%3E") left top / 7px 8px repeat-y, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='8'%3E%3Cpath d='M7 0H4L0 4L4 8H7Z' fill='%2317171c'/%3E%3C/svg%3E") right top / 7px 8px repeat-y, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='7'%3E%3Cpath d='M0 7V4L4 0L8 4V7Z' fill='%2317171c'/%3E%3C/svg%3E") left bottom / 8px 7px repeat-x; }
+:is(.card, .detail).x-sr:not(.zk-unknown)::after { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='5'%3E%3Crect y='1.6' width='7' height='1.8' fill='%238fbaf0'/%3E%3Crect x='1' width='1.2' height='5' fill='%232f6fd0'/%3E%3Crect x='4.8' width='1.2' height='5' fill='%232f6fd0'/%3E%3C/svg%3E") left top / 7px 5px repeat-y, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='5'%3E%3Crect y='1.6' width='7' height='1.8' fill='%238fbaf0'/%3E%3Crect x='1' width='1.2' height='5' fill='%232f6fd0'/%3E%3Crect x='4.8' width='1.2' height='5' fill='%232f6fd0'/%3E%3C/svg%3E") right top / 7px 5px repeat-y, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='7'%3E%3Crect x='1.6' width='1.8' height='7' fill='%238fbaf0'/%3E%3Crect y='1' width='5' height='1.2' fill='%232f6fd0'/%3E%3Crect y='4.8' width='5' height='1.2' fill='%232f6fd0'/%3E%3C/svg%3E") left bottom / 5px 7px repeat-x; }
+/* 作品の ボタン：FGO＝白っぽい（れいじゅ）・ゼンゼロ＝黒っぽい（ブレイク・エネルギー）・スターレイル＝青っぽい（せんぎ） */
+/* ボタンは テーマ（くっきり・ゲームボーイ）でも おなじ 色あい。光って いる（.ready）ときは 金色の まま */
+.me-mana .pile.sp.x-fg:not(.ready) { background: #f3f4fa; color: #1f2433; border-color: #cfd5e6; box-shadow: 0 0 8px rgba(255, 255, 255, 0.45); }
+.me-mana .pile.sp.x-fg:not(.ready) b { color: #8a5a00; }
+.me-mana .pile.sp.x-zz:not(.ready) { background: #18181d; color: #f2f2f5; border-color: #55555f; }
+.me-mana .pile.sp.x-sr:not(.ready) { background: #1f4c80; color: #eaf3ff; border-color: #5f9fe2; }
+.me-mana .pile.sp.x-sr:not(.ready) b, .me-mana .pile.sp.x-zz:not(.ready) b { color: #ffd66e; }
 :root[data-theme="gba"] .pile.brk.ready { background: var(--gold); color: var(--gold-ink); animation: gba-blink-o 0.8s steps(1) infinite; outline: 2px solid #fff8c0; }
 
 /* ---- ドラフト（2026-10-26）：3まいから 1まい ---- */

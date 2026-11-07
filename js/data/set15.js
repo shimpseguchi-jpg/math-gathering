@@ -108,8 +108,8 @@ const medal = (s, E, t) => {
 // 丹恒・騰荒：龍霊（1つだけ）
 const dragonOf = (s, p) => s[p.side].bf.find((q) => q.uid === p.dragonOn && q !== p) || null;
 const setDragon = (s, E, p, t) => { if (!t || !E.onBf(s, t) || t === p) return; E.target(s, t); p.dragonOn = t.uid; E.L(s, `りゅうれい：${t.def.name} に ついた（＋1/＋0・ついかこうげき 1）`); };
-// サンデー：その クリーチャーと つながった 精霊も
-const sunday = (s, E, t) => { if (!t || !E.onBf(s, t)) return; E.target(s, t); E.pump(t, 2, 0); const m = memoOf(s, t); if (m) E.pump(m, 2, 0); };
+// サンデー：その クリーチャーと つながった 精霊に ＋1/＋1カウンター、その あと 増殖（2026-11-07。＋2/＋0 から かえた。ユーザーが きめた）
+const sunday = (s, E, t) => { if (!t || !E.onBf(s, t)) return; E.target(s, t); E.addCounters(s, t, 1); const m = memoOf(s, t); if (m) E.addCounters(s, m, 1); E.proliferate(s); };
 // アナイクス：ランダムな 敵（クリーチャーか 本体）に 1点
 const pingRandom = (s, E, n, src) => {
   const t = pickRand(s, [...alive(s, E), ...(faceOK(s, E, n) ? ['face'] : [])]);
@@ -279,14 +279,14 @@ export const S15 = {
   // ---- キャラ（アンコモン） ----
   SR100: trail15({ ...memoLink, etb: (s, p, E) => { summonMemo(s, E, p, T15.myurion); } }), // 開拓者・記憶：ミュリオン
   SR101: trail15({ skill: { // サンデー
-    label: '＋2/＋0（つながった せいれいも）',
-    play: (s, p, E, ctx) => {
-      if (ctx.phase !== 1) return null;
-      const ok = mine(s, E).filter((q) => q !== p && canSwing(s, E, q));
-      const t = ok.filter((q) => { const m = memoOf(s, q); return m && canSwing(s, E, m); }).sort((a, b) => E.power(s, b) - E.power(s, a))[0] || ok.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
-      return t ? { score: 3 + (memoOf(s, t) ? 2 : 0), run: () => sunday(s, E, t) } : null;
+    label: '＋1/＋1カウンター（つながった せいれいも）→ ぞうしょく',
+    play: (s, p, E) => {
+      // ずっと のこる ので、せいれいが いる クリーチャー、なければ いちばん 大きい クリーチャー
+      const ok = mine(s, E).filter((q) => q !== p);
+      const t = ok.filter((q) => memoOf(s, q)).sort((a, b) => E.power(s, b) - E.power(s, a))[0] || ok.sort((a, b) => E.power(s, b) - E.power(s, a))[0];
+      return t ? { score: 4 + (memoOf(s, t) ? 2 : 0), run: () => sunday(s, E, t) } : null;
     },
-    tgt: [{ side: 'P', label: '＋2/＋0 する クリーチャー（つながった せいれいも）' }],
+    tgt: [{ side: 'P', label: '＋1/＋1カウンターを おく クリーチャー（つながった せいれいも）' }],
     apply: (s, E, [[t]], p) => { if (t !== p) sunday(s, E, t); },
   } }),
   SR102: trail15({ onAttack: (s, p, E) => { if (p.side !== 'P') return; const n = Math.min(3, theirs(s, E).length); if (n) { E.pump(p, n, 0); E.L(s, `えいたつ：${p.def.name} ＋${n}/＋0`); } } }), // アルジェンティ
