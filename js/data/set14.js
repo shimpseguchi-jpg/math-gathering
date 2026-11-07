@@ -151,11 +151,14 @@ export const S14 = {
     const ready = E.readyAttackers(s);
     for (const q of byPow(s, E, ready.length ? ready : mine(s, E)).slice(0, oc(p, 2))) { q.flags.turn.unblockable = true; E.L(s, `${q.def.name} は この ターン ブロックされない`); }
   }, { npAI: preCombat }),
+  // メルトリリス（2026-11-07：U → L・青）：ほかの クリーチャー ぜんぶ（敵も 味方も）−〔1〕/−〔1〕、その 数の ＋1/＋1カウンター
   FG110: ocNP(40, (s, E, p) => {
-    const n = oc(p, 2), t = topFoe(s, E);
-    if (t) { E.target(s, t); pumpOne(s, E, t, -n, 0); }
-    pumpOne(s, E, p, n, 0);
-  }, { npAI: selfSwing }),
+    const n = oc(p, 1), others = [...s.P.bf, ...s.E.bf].filter((q) => q !== p && E.isCreature(q));
+    for (const q of others) E.pump(q, -n, -n);
+    E.L(s, `${p.def.name}：ほかの クリーチャー ${others.length}体を −${n}/−${n}`);
+    E.sba(s);
+    if (others.length) E.addCounters(s, p, others.length);
+  }, { npAI: (s, p, E) => theirs(s, E).length > 0 && theirs(s, E).length >= mine(s, E).filter((q) => q !== p).length }),
   FG111: ocNP(40, (s, E, p) => {
     const n = oc(p, 2), t = topFoe(s, E, (q) => E.stealable(s, q) && !q.def.head && E.power(s, q) <= n);
     if (t && E.onBf(s, t) && t.side === 'E') { E.target(s, t); E.steal(s, t, p); }
@@ -232,7 +235,7 @@ export const S14 = {
     if (t) hit(s, E, t, oc(p, 4));
     E.hitEnemy(s, oc(p, 2), null);
   }, { etb: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 50); } }),
-  FG135: ocNP(40, (s, E, p) => pumpOne(s, E, p, oc(p, 2), 0), { npAI: selfSwing }),
+  FG135: ocNP(50, (s, E, p) => pumpOne(s, E, p, oc(p, 3), 0), { npAI: selfSwing }), // 2026-11-07：R → L（3/3・NP ＋50・＋〔3〕）
   FG136: ocNP(40, (s, E, p) => { const n = oc(p, 3); E.L(s, `三千世界（さんだんうち）：1点 × ${n}回`); for (let i = 0; i < n && !s.over; i++) { const t = randomFoe(s, E); if (t) hit(s, E, t, 1); } }),
   FG137: ocNP(40, (s, E, p) => allFoes(s, E, oc(p, 2)), { npAI: needFoe }),
   FG138: crypter('R', (s, q, p, E) => E.hitEnemy(s, 1, null)),

@@ -69,6 +69,8 @@ const etbFoe = (label, f, pick) => ({
 // 人は 唱える ときに つかうか えらぶ（2026-11-06。つかわない ときは battle.js が s.P.spNo を たてる）。AI は いつも つかう
 const spCutOn = (s) => spOf(s) >= 2 && !s.P.spNo;
 export const spCut = { spCut: 2, costLess: (s) => (spCutOn(s) ? 2 : 0), onPay: (s, E) => { if (spCutOn(s)) { E.L(s, 'せんぎポイントで 2マナ やすく した'); addSP(s, E, -2); } } };
+// ホタルの 戦技の トークン：装備品「サム」（装備している クリーチャーは 飛行・速攻・トランプル。装備 2）
+const SAM = { id: 't_sam', name: 'サム', rar: null, color: 'R', cost: 0, types: ['artifact'], sub: ['equipment'], kw: [], equip: 2, grant: (s, q, p) => (p.uid === q.attached ? ['flying', 'haste', 'trample'] : null) };
 export const S11 = {
   SR01: trail({ skill: selfPump('＋2/＋0 と トランプル', 2, ['trample']) }),
   SR02: trail({ skill: shieldOne, pittari: spPit }),
@@ -94,7 +96,15 @@ export const S11 = {
   SR14: trail({
     skillMax: 3, skill: selfPump('＋2/＋0', 2),
   }),
-  SR15: trail({ pittari: (s, p, E) => E.hitEnemy(s, 3, p) }),
+  // ホタル（2026-11-07）：トランプルを とって、戦技で「サム」（装備品・トークン。飛行・速攻・トランプル）を 出して そうび
+  SR15: trail({
+    pittari: (s, p, E) => E.hitEnemy(s, 3, p),
+    skill: { label: 'サムを 出して そうび', play: (s, p, E) => {
+      const sam = s[p.side].bf.find((q) => q.def.id === SAM.id);
+      if (sam && sam.attached === p.uid) return null;
+      return { score: 7, run: () => { let t = sam; if (!t) [t] = E.token(s, p.side, SAM); if (t && E.onBf(s, t)) { t.attached = p.uid; E.L(s, `サムを ${p.def.name} に そうび（飛行・速攻・トランプル）`); } } };
+    } },
+  }),
   SR16: trail({ spPlus: true, etb: (s, p, E) => { if (p.side === 'P') addSP(s, E, 2); } }),
   SR17: trail({ upkeep: (s, p, E) => { if (p.side === 'P') E.gain(s, E.rollDie(s)); } }),
   SR19: { etb: (s, p, E) => { if (p.side === 'P') addSP(s, E, 3); }, upkeep: (s, p, E) => { if (p.side === 'P') addSP(s, E, 1); } },
@@ -130,9 +140,9 @@ export const S11 = {
     skill: foeSkill('1点（タップして いれば 3点）を あたえる クリーチャー', 1, (s, E, t) => hit(s, E, t, t.tapped ? 3 : 1), { pick: (s, E) => foeBest(s, E, 3, (t) => t.tapped) || foeBest(s, E, 1) }),
     pittari: draw1,
   }),
-  SR34: trail({
-    etb: (s, p, E) => { if (p.side === 'P') addSP(s, E, 1); },
-    skill: { label: 'みんな ＋1/＋0', play: (s, p, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 4, run: () => { for (const q of mine(s, E)) E.pump(q, 1, 0); } } : null) },
+  SR34: trail({ // ロビン（2026-11-07：R → L。3/4・戦技ポイント ＋2・みんな ＋2/＋0）
+    etb: (s, p, E) => { if (p.side === 'P') addSP(s, E, 2); },
+    skill: { label: 'みんな ＋2/＋0', play: (s, p, E, ctx) => (ctx.phase === 1 && mine(s, E).filter((q) => canSwing(s, E, q)).length >= 2 ? { score: 6, run: () => { for (const q of mine(s, E)) E.pump(q, 2, 0); } } : null) },
   }),
   // ---- モブ ----
   SR39: trail({ pittari: spPit }),

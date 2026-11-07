@@ -107,15 +107,28 @@ export const S16 = {
   ZZ94: { brk: 4 }, // 南宮羽
   // ---- 赤 ----
   ZZ95: { brk: 4, etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK2.tiger, 1); }, ...dmgChain() }, // 橘福福
-  ZZ96: { brk: 3, etb: etbBon(2), ...atkZap(3, '3点を あたえる てきの クリーチャー（エネルギー 2 を つかう）', () => true, { can: (s) => bonOf(s) >= 2, run: (s, E) => addBon(s, E, -2) }) }, // オルペウス＆「鬼火」
+  ZZ96: { // オルペウス＆「鬼火」（2026-11-07：R → L。4/4・エネルギー ＋3・3点 ＋ ほかの てき ぜんぶに 1点）
+    brk: 3, etb: etbBon(3), trigTgt: { on: 'attack', label: '3点を あたえる てきの クリーチャー（エネルギー 2 を つかう）' },
+    onAttack: (s, p, E) => {
+      if (p.side !== 'P' || bonOf(s) < 2) return;
+      const t = foeBy(s, E, p, () => true, (list) => foeBest(s, E, 3, (q) => list.includes(q))?.t || byPow(s, E)(list), 3);
+      if (!t) return;
+      addBon(s, E, -2); zap(s, E, p, t, 3);
+      for (const q of [...theirs(s, E)]) if (q !== t) E.damage(s, q, 1, p);
+      E.sba(s);
+    },
+  },
   ZZ97: { brk: 2, acts: [lifeAct(1, 1, 0, 3)] }, // 狛野真斗
   ZZ98: { brk: 3, onBlock: (s, p, E) => { if (p.side !== 'P') return; const t = foeBest(s, E, 2, (q) => q.attacking)?.t || foeBest(s, E, 2)?.t || biggest(s, E, (q) => q.attacking) || biggest(s, E); if (t) zap(s, E, p, t, 2); } }, // 盤岳
   // ---- 緑 ----
   // 葉瞬光（目玉の レジェンド。4マナ 6/5 速攻・トランプル）：出たとき ブレイクカウンター 5こ（交代で 出れば 5 ＋ 5 ＝ 10 で すぐ ブレイク）。連携の あまりは 本体へ
   ZZ99: { brk: 4, etb: (s, p, E) => { if (p.side !== 'P') return; E.L(s, `${p.def.name}：てきに ブレイクカウンター 5こ`); E.addBreak(s, 5); }, ...dmgChain(true) },
   ZZ100: { brk: 2, ...markFoe('G'), onDisorder: (s, p, E, src) => { if (src && E.onBf(s, src) && E.isCreature(src)) { E.L(s, `${p.def.name}：紊乱（びんらん）した ${src.def.name} に ＋1/＋1カウンター`); E.addCounters(s, src, 1); } } }, // 浮波柚葉
-  ZZ101: { brk: 2, ...ANOM, ...atkZap(1, '1点を あたえる 異常（いじょう）の ついた てきの クリーチャー', (s, E, q) => !!q.anom) }, // アリス
-  ZZ102: { brk: 4, costCut: (s, q, d) => (d.tapLess ? 1 : 0) }, // ダイアリン：終結スキルが 1 安い
+  ZZ101: { brk: 3, ...ANOM, ...atkZap(2, '2点を あたえる 異常（いじょう）の ついた てきの クリーチャー', (s, E, q) => !!q.anom), onDisorder: (s, p, E) => { E.drawCard(s, 1); } }, // アリス（2026-11-07：R → L・青。3/3・2点・紊乱で 1まい）
+  ZZ102: { // ダイアリン（2026-11-07：R → L・白黒。4/4・終結スキルを 唱えるたび −1/−1カウンター1こ と 1点 回復）
+    brk: 4, costCut: (s, q, d) => (d.tapLess ? 1 : 0),
+    onCast: (s, q, d, E) => { if (q.side !== 'P' || !d.tapLess) return; const b = foeBest(s, E, 1) || foeBest(s, E); if (b) { E.target(s, b.t); E.addMinus(s, b.t, 1); } E.gain(s, 1); E.sba(s); },
+  },
   ZZ103: { brk: 3, ...dmgChain() }, // プルクラ
   ZZ104: { brk: 2, etb: (s, p, E) => { if (p.side === 'P') food(s, E, 2); } }, // 潘引壺
   ZZ105: { brk: 2, etb: etbBon(1), acts: [bonAct(2, { // 千夏
@@ -319,13 +332,13 @@ export const S16 = {
   },
 };
 // レア・レジェンドの エージェントは みんな 交代を もつ（コスト − 2。2 より 下には しない。柚葉だけ 1）
-const SWAP = { ZZ82: [2, 'W'], ZZ83: [2, 'W'], ZZ84: [2, 'W'], ZZ86: [2, 'U'], ZZ87: [2, 'U'], ZZ88: [2, 'U'], ZZ90: [3, 'K'], ZZ91: [2, 'K'], ZZ92: [2, 'K'], ZZ95: [2, 'R'], ZZ96: [2, 'R'], ZZ98: [3, 'R'], ZZ99: [2, 'G'], ZZ100: [1, 'G'], ZZ101: [2, 'G'], ZZ102: [2, 'G'] };
+const SWAP = { ZZ82: [2, 'W'], ZZ83: [2, 'W'], ZZ84: [2, 'W'], ZZ86: [2, 'U'], ZZ87: [2, 'U'], ZZ88: [2, 'U'], ZZ90: [3, 'K'], ZZ91: [2, 'K'], ZZ92: [2, 'K'], ZZ95: [2, 'R'], ZZ96: [2, 'R'], ZZ98: [3, 'R'], ZZ99: [2, 'G'], ZZ100: [1, 'G'], ZZ101: [2, 'U'], ZZ102: [2, 'K'] };
 for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, [k]); S16[id] = { ...nj, ...S16[id] }; }
 // エージェントは みんな 連携スキルを もつ（2026-11-04。もとから ある 9まい（アンビー・トリガー・照・儀玄・橘福福・葉瞬光・プルクラ・防衛軍・門下生）いがいは 色の かた。set12.js の CHAIN）
 chainAll(S16, {
   W: ['ZZ84', 'ZZ85'],
-  U: ['ZZ86', 'ZZ88', 'ZZ89'],
-  Kc: ['ZZ91', 'ZZ92', 'ZZ93', 'ZZ94'], // 黒は −1/−1カウンター（2026-11-05）
+  U: ['ZZ86', 'ZZ88', 'ZZ89', 'ZZ101'], // アリスは 青に（2026-11-07）
+  Kc: ['ZZ91', 'ZZ92', 'ZZ93', 'ZZ94', 'ZZ102'], // 黒は −1/−1カウンター（2026-11-05）。ダイアリンは 白黒に（2026-11-07）
   R: ['ZZ96', 'ZZ97', 'ZZ98'],
-  G: ['ZZ100', 'ZZ101', 'ZZ102', 'ZZ104', 'ZZ105', 'ZZ106'],
+  G: ['ZZ100', 'ZZ104', 'ZZ105', 'ZZ106'],
 });

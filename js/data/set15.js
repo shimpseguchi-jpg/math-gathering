@@ -26,6 +26,8 @@ const faceHit = (s, E, n, src = null) => { if (faceOK(s, E, n)) E.hitTarget(s, '
 const zap = (s, E, t, n, src) => { if (!t || !E.onBf(s, t)) return; E.target(s, t); E.damage(s, t, n, src); E.sba(s); };
 const allFoes = (s, E, n, src) => { for (const t of [...theirs(s, E)]) E.damage(s, t, n, src); E.sba(s); };
 
+// ヘルタ（SR161）の トークン：おなじ 名前の「ヘルタ」（青の 1/1 の 構築物。伝説では ない ので 伝説の ルールに かからない）
+const HERTA = cr('t_herta', 'ヘルタ', null, 'U', 0, 1, 1, ['construct']);
 // ---- 戦技（set11.js の skillAct ＋ sk.can・sk.cantWhy。run の けっか（占術の Promise）を かえす） ----
 const skill = (sk, max = 1) => ({
   cost: 0, spUse: true, when: [1, 2], label: `せんぎ：${sk.label}`,
@@ -193,7 +195,15 @@ export const S15 = {
     skill: { label: 'おうごんえいと せいれいの 数だけ ライフ', play: (s, p, E, ctx) => { const n = s[p.side].bf.filter((q) => isCrP(q) && (isGolden(q) || isMemo(q))).length; return ctx.human || s.P.life <= 16 ? { score: s.P.life <= 12 ? 3 : 1, run: () => { E.L(s, `おうごんえいと せいれい ${n}`); E.gain(s, n); } } : null; } },
   }),
   // ---- キャラ（レア） ----
-  SR88: chara({ onHurt: (s, p, n, src, E) => { if (E.onBf(s, p)) { E.L(s, `ふしの おうじ：${p.def.name} に ＋1/＋1カウンター`); E.addCounters(s, p, 1); } } }), // モーディス
+  SR88: chara({ // モーディス（2026-11-07：R → L。4/5・戦技で 格闘）
+    onHurt: (s, p, n, src, E) => { if (E.onBf(s, p)) { E.L(s, `ふしの おうじ：${p.def.name} に ＋1/＋1カウンター`); E.addCounters(s, p, 1); } },
+    skill: {
+      label: '格闘（かくとう）する てきの クリーチャー',
+      play: (s, p, E) => { const P = E.power(s, p); const t = theirs(s, E).filter((q) => !s.floor.untargetable?.(s, q, E) && E.need(s, q) <= P).sort((a, b) => E.power(s, b) - E.power(s, a))[0]; return t ? { score: 4 + Math.min(4, E.power(s, t)), run: () => { E.target(s, t); E.fight(s, p, t); E.sba(s); } } : null; },
+      tgt: [{ side: 'E', label: '格闘（かくとう）する てきの クリーチャー' }],
+      apply: (s, E, [[t]], p) => { if (t && E.onBf(s, t) && E.onBf(s, p)) { E.target(s, t); E.fight(s, p, t); E.sba(s); } },
+    },
+  }),
   SR89: chara({ // アナイクス
     pittari: spPit,
     skill: { label: 'ランダムな てきに 1点を 3回', play: (s, p, E) => (alive(s, E).length || faceOK(s, E, 1) ? { score: 4, run: () => { for (let i = 0; i < 3 && !s.over; i++) pingRandom(s, E, 1, p); } } : null) },
@@ -449,6 +459,10 @@ export const S15 = {
   SR159: ult('SR99', 1, { // 彩雲の如く巡る霞（Heroic Intervention）
     play: (s, E, ctx) => { if (ctx.human) return { score: 1, run: () => saveAll(s, E) }; if (ctx.phase !== 1) return null; const n = E.readyAttackers(s).length; const bl = theirs(s, E).filter((t) => !t.tapped && E.power(s, t) > 0).length; return n >= 2 && bl >= 2 ? { score: 2 + n, run: () => saveAll(s, E) } : null; },
     react: (s, E, ctx) => { let n = 0; for (const a of ctx.attackers || []) { const b = ctx.blocks?.get(a.uid); if (b && E.onBf(s, b) && E.onBf(s, a) && E.power(s, a) >= leftOf(s, E, b)) n++; } return n ? { score: 2 + 3 * n, run: () => saveAll(s, E) } : null; },
+  }),
+  SR161: trail15({ // ヘルタ（2026-11-07 追加。青の アンコモン）：出たときと 戦技で、伝説で ない 同じ 名前の トークン「ヘルタ」
+    etb: (s, p, E) => { E.token(s, p.side, HERTA); },
+    skill: { label: 'ヘルタ トークンを 出す', play: (s, p, E) => ({ score: 4, run: () => { E.token(s, p.side, HERTA); } }) },
   }),
   SR160: ult('SR91', 2, { play: (s, E, ctx) => { const has = s.P.gy.some((c) => isCr(c.def)); return has || ctx.human || s.P.life <= 14 ? { score: 2 + (has ? 4 : 0) + (s.P.life <= 14 ? 3 : 0), run: () => { regrow(s, E, isCr); E.gain(s, 6); } } : null; } }), // 晨昏に飛び込むわたしたち（Pulse of Murasa）
 };
