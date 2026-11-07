@@ -27,7 +27,6 @@ import { PATHS, PATH_BY_ID, blessText, blessChoices, blessFx, endlessBuff, endle
 import { QUIZ_SECONDS } from '../data/quiz.js';
 import { loadFilter, filterPanel, applyFilter, onFilterClick, onFilterInput, filterCount, saveFilter } from './deckfilter.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info, COLOR_NAME, initTerms, toast, byColorCost, pickMany } from './view.js';
-import { BANNERS } from '../data/emblems.js';
 import { gacha } from './gacha.js';
 import { constructMenu } from './construct.js';
 import { kihonMenu } from './kihon.js';
@@ -57,32 +56,13 @@ const DIFFS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'む�
 const RULES = [['normal', 'ふつう'], ['cmd', '統率者（とうそつしゃ）戦（せん）']];
 // カードの あつめかた：パック（ぜんぶ もらう）か ドラフト（2026-10-26。パック 1つの かわりに「3まいから 1まい」を 7回）
 const GETS = [['pack', 'パック'], ['draft', 'ドラフト']];
-const DRAFT_PER_PACK = 7, DRAFT_SHOW = 3; // 7回：5回だと カードが たりず 勝率が 9ポイント 下がった（AI ドラフト 30回）
+// ドラフト（2026-11-07。ユーザーが きめた）：まとめて 出た カードから えらぶ。はじめは 40まいから 15まい、階を のぼった ごほうびは 16まいから 6まい。色は えらばない
+// AI の 冒険 150回（テーロス・ふつう）：パック 57%・まえの ドラフト（色を えらぶ → 3まいから 1まい ×7）72%・この ドラフト 64%（ごほうび 16から 4まい なら 57%・24から 8まい なら 63%）
+const DRAFT_START = [40, 15], DRAFT_REWARD = [16, 6];
 const cmdDef = () => (A?.cmd ? BY_ID[A.cmd] : null);
 const cmdIdent = () => (A?.cmd ? colorsOf(BY_ID[A.cmd]) : null);
-// ドラフトの 色（2026-10-27：デュエプレの ドラフトの ように）。2色か、旗の ある 3色を えらぶと、その 色の カード だけが 出る
-// 3色を えらぶと その 3色の 旗を 1まい もらう（デッキが 3色に できる）。統率者戦では 統率者の 色。階を のぼる ときに かえられる
-const draftCols = () => (A?.cmd ? cmdIdent() : A?.draftCols || (college() ? [...college().cols] : null));
-const colsText = (cs) => ['W', 'U', 'K', 'R', 'G'].filter((c) => cs.includes(c)).map((c) => COLOR_NAME[c]).join('・'); // いつもの じゅん（白・青・黒・赤・緑）
-// デュエプレの ように：2色か 3色（旗つき）の くみあわせが ランダムに 3つ 出て、そこから 1つ えらぶ
-const PAIRS = ['WU', 'UK', 'KR', 'RG', 'GW', 'WK', 'UR', 'KG', 'RW', 'GU'];
-function draftOffers() {
-  const all = [...PAIRS.map((p) => ({ cols: [...p] })), ...BANNERS.map((d) => ({ cols: [...d.banner], banner: d.id }))].filter((o) => o.cols.join() !== (A.draftCols || []).join());
-  for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
-  return all.slice(0, 3);
-}
-async function chooseDraftColors(back) {
-  const offers = draftOffers();
-  const v = await sheet(`<p>${ruby('ドラフトで つかう 色の くみあわせを 1つ えらぼう。えらんだ 色の カード だけが 出るよ。')}</p>`, [
-    ...offers.map((o, k) => ({ label: `<span>${o.banner ? '3しょく' : '2しょく'}：${colsText(o.cols)}</span>`, value: k + 1, kind: 'primary', note: o.banner ? ruby(`${info(BY_ID[o.banner]).name}つき（デッキを 3色に できる）`) : '' })),
-    ...(back ? [{ label: `かえない（${colsText(A.draftCols || [])}）`, value: 0 }] : []),
-  ], { title: 'ドラフトの 色', dismiss: false });
-  if (!v) return false;
-  const o = offers[v - 1];
-  if (o.banner && !A.pool.includes(o.banner)) A.pool.push(o.banner);
-  A.draftCols = ['W', 'U', 'K', 'R', 'G'].filter((c) => o.cols.includes(c)); save();
-  return true;
-}
+// ドラフトで 出る カードの 色：統率者戦は 統率者の 色、ストリクスヘイヴンは 寮の 2色。ほかは ぜんぶの 色
+const draftCols = () => (A?.cmd ? cmdIdent() : college() ? [...college().cols] : null);
 
 let A = null; // いまの冒険
 const app = () => document.getElementById('app');
@@ -314,8 +294,7 @@ function packs() {
   const inCollege = (c) => !college() || college().cols.includes(c);
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])].filter(inCollege), unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
   const rare = !!A.rarePack; // むげんの とうに さんせんした ごほうびの レアパック
-  if (A.draft && !draftCols()) return chooseDraftColors().then(() => packs()); // ドラフト：さいしょに 色を えらぶ
-  const only = A.draft || college() ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ。ストリクスヘイヴンは 寮の 2色だけ
+  const only = (A.draft && A.cmd) || college() ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトの 統率者戦は 統率者の 色だけ（ほかの ドラフトは ぜんぶの 色）。 ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ。ストリクスヘイヴンは 寮の 2色だけ
   // ストリクスヘイヴン：ファウンデーションズ ＋ 第5弾。パックの もんしょうの サブセット・番外編も まざる（寮の 2色の カードだけ。2026-11-03）
   const sets = withExtra(college() ? STRIX.sets : enabledSets(), pk?.extra);
   const roll = () => openPack(Math.random, { cleared, favor, sets, em, rare, only });
@@ -338,37 +317,57 @@ function packs() {
     },
   });
 }
-// ---- ドラフト：パックから 3まい 見せて 1まい えらぶ。パック 1つぶんで 7回（A.pick に とちゅうを のこす） ----
+// ---- ドラフト：まとめて 出た カードから えらぶ（はじめ 40まいから 15まい・ごほうび 16まいから 6まい）。A.pick に とちゅうを のこす ----
+// タップで えらぶ・はずす、長おしで せつめい。roll()：いまの パックの なかみ（ごほうびの 出やすさ・統率者や 寮の 色は packs() と おなじ）
 function draftPick(roll) {
-  if (!A.pick) A.pick = { n: 0, opts: null };
-  if (!A.pick.opts) {
-    const ids = [...new Set(roll().map((d) => d.id))];
-    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
-    A.pick.opts = ids.slice(0, DRAFT_SHOW); save();
+  const first = A.opened === 0;
+  const [show, take] = first ? DRAFT_START : DRAFT_REWARD;
+  if (!A.pick?.offer) { // まえの 版の とちゅう（3まいから 1まい）は つくりなおす
+    const ids = [];
+    while (ids.length < show) ids.push(...roll().map((d) => d.id));
+    A.pick = { offer: ids.slice(0, show).sort((a, b) => byColorCost(BY_ID[a], BY_ID[b])), sel: [] }; save();
   }
-  const opts = A.pick.opts, st = deckStats(A.pool.map((_, i) => i));
-  const have = (id) => A.pool.filter((x) => x === id).length;
-  app().innerHTML = `<main class="draft">
-    <div class="pk-top"><p class="eyebrow">ドラフト　パック ${A.opened + 1}${A.idx === 0 ? ' / 3' : ''}　えらぶ ${A.pick.n + 1} / ${DRAFT_PER_PACK}</p>
-      <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>
-    <h2>${DRAFT_SHOW}まいから 1まい えらぼう</h2>
-    <p class="dr-cols">${ruby(`ドラフトの 色：${colsText(draftCols() || [])}`)}${!A.cmd && !college() && A.idx > 0 && A.pick.n === 0 ? ' <button type="button" class="btn" data-dcol="1">色を かえる</button>' : ''}</p>
-    <div class="draft-row">${opts.map((id) => `<button type="button" class="draft-card" data-pick="${id}">${fullCard(BY_ID[id])}${have(id) ? `<span class="dr-have">もって いる ${have(id)}まい</span>` : ''}</button>`).join('')}</div>
-    <p class="hint">タップで せつめい → えらぶ。${A.cmd ? ruby(`統率者（とうそつしゃ）の 色：${cmdIdent().map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}。`) : ''}いま もって いる カード ${A.pool.length}まい（${st.colors.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '−'}）</p>
-  </main>`;
+  const P = A.pick, have = (id) => A.pool.filter((x) => x === id).length;
+  const what = first ? 'はじめの カード' : A.rarePack ? 'さんせんの レアパック' : `${A.endless ? A.endless.floor - 1 : A.idx}階 クリアの ごほうび`;
+  const draw = () => {
+    app().innerHTML = `<main class="draft dpick">
+      <div class="pk-top"><p class="eyebrow">ドラフト　${what}</p>
+        <button type="button" class="snd" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button></div>
+      <h2>${show}まいから ${take}まい えらぼう</h2>
+      <p class="hint">タップで えらぶ・はずす。長おしで せつめい。${A.cmd ? ruby(`統率者（とうそつしゃ）の 色：${cmdIdent().map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}。`) : college() ? ruby(`${college().name}の 2色。`) : ruby('デッキは 2色まで（はたが あれば 3色）。')}${A.pool.length ? `いま もって いる カード ${A.pool.length}まい。` : ''}</p>
+      <div class="pool quick dp">${P.offer.map((id, i) => `<button type="button" class="pool-item ${P.sel.includes(i) ? 'in' : ''}" data-i="${i}" aria-pressed="${P.sel.includes(i)}">${cardFace(BY_ID[id])}${have(id) ? `<span class="dp-have">もって いる ${have(id)}</span>` : ''}</button>`).join('')}</div>
+      <div class="actions"><b class="dp-n">えらんだ ${P.sel.length} / ${take}</b><button type="button" class="btn primary" data-ok="1" ${P.sel.length === take ? '' : 'disabled'}>この ${take}まいに する</button></div>
+    </main>`;
+  };
+  draw();
+  // 長おしで せつめい（点線の ことばの 長おしは ことばの せつめいに まかせる）
+  let press = null, pressed = false;
+  app().onpointerdown = (e) => {
+    clearTimeout(press); pressed = false;
+    const el = e.target.closest('.pool-item[data-i]');
+    if (!el || e.target.closest('[data-term]')) return;
+    press = setTimeout(() => { pressed = true; sheet(detail(BY_ID[P.offer[+el.dataset.i]]), [{ label: 'とじる', value: 0, kind: 'primary' }]); }, 450);
+  };
+  app().onpointerup = app().onpointercancel = () => clearTimeout(press);
   app().onclick = async (e) => {
-    if (e.target.closest('[data-snd]')) { setSound(!soundOn()); return draftPick(roll); }
-    // 階を のぼった あとの さいしょの 1まいの まえ：ドラフトの 色を かえられる（この パックから）
-    if (e.target.closest('[data-dcol]')) { if (await chooseDraftColors(true)) A.pick.opts = null; return packs(); }
-    const b = e.target.closest('[data-pick]'); if (!b) return;
-    const d = BY_ID[b.dataset.pick];
-    const v = await sheet(detail(d), [{ label: 'これに する', value: 1, kind: 'primary' }, { label: 'もどる', value: 0 }]);
-    if (!v) return;
-    sfx.tap();
-    A.pool.push(d.id); zukanPack([d]);
-    A.pick.n++; A.pick.opts = null;
-    if (A.pick.n >= DRAFT_PER_PACK) { A.pick = null; A.toOpen--; A.opened++; A.rarePack = 0; save(); return A.toOpen > 0 ? packs() : deckBuilder(); }
-    save(); return draftPick(roll);
+    if (e.target.closest('[data-snd]')) { setSound(!soundOn()); return draw(); }
+    if (e.target.closest('[data-ok]')) {
+      if (P.sel.length !== take) return;
+      sfx.tap();
+      const got = P.sel.map((i) => BY_ID[P.offer[i]]);
+      A.pool.push(...got.map((d) => d.id)); zukanPack(got);
+      A.pick = null; A.rarePack = 0;
+      if (first) { A.opened += A.toOpen; A.toOpen = 0; } else { A.toOpen--; A.opened++; } // はじめの 40まいは 3パックぶん
+      app().onpointerdown = app().onpointerup = app().onpointercancel = null;
+      save(); return A.toOpen > 0 ? packs() : deckBuilder();
+    }
+    const b = e.target.closest('.pool-item[data-i]'); if (!b) return;
+    if (pressed) { pressed = false; return; } // 長おしで せつめいを 出した あとの タップ
+    const i = +b.dataset.i;
+    if (P.sel.includes(i)) P.sel = P.sel.filter((k) => k !== i);
+    else if (P.sel.length >= take) { toast(`${take}まいまで。ほかの カードを はずしてから えらぼう`); return; }
+    else { P.sel.push(i); sfx.tap(); }
+    save(); draw();
   };
 }
 

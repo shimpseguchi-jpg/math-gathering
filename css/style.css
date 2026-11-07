@@ -1184,6 +1184,14 @@ div.zk-card { cursor: default; }
 .draft-card .fcard { font-size: clamp(8px, 2.2vw, 12px); }
 .dr-have { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--table-3); color: var(--ink); }
 .draft .hint { text-align: center; }
+/* ドラフト（2026-11-07）：まとめて 出た カードから えらぶ。えらんだ カードは 金の わく ＋ ✓、もって いる まい数 */
+.dpick .pool { width: 100%; max-width: 760px; padding-bottom: 12px; }
+.pool.dp .pool-item { opacity: 1; }
+.pool.dp .pool-item.in::after { content: '✓'; position: absolute; top: -6px; right: -4px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); font-weight: 700; font-size: 14px; }
+.dp-have { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--table-3); color: var(--ink); }
+.dpick .actions { align-self: stretch; align-items: center; }
+.dpick .actions .btn { flex: 0 1 auto; }
+.dp-n { flex: 1 1 auto; font-size: 15px; }
 /* スマホ：3まいを よこに スワイプして 見る（大きさは パックの カードと おなじ くらい） */
 @media (max-width: 639px) {
   .draft-row { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; padding: 6px 12% 14px; box-sizing: border-box; }
