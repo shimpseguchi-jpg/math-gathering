@@ -274,16 +274,38 @@ export function rampTop(s) {
 }
 
 // やまふだから きほんカードを n まい さがして、タップ状態で マナゾーンに（MTG の「基本土地を さがす」。強い カードを マナに しない）
-export function rampBasic(s, n = 1) {
-  let k = 0;
-  for (; k < n; k++) {
-    const i = s.P.lib.findIndex((c) => c.def.basic);
-    if (i < 0) break;
-    const [c] = s.P.lib.splice(i, 1);
-    s.P.mana.push({ ...c, tapped: true });
+// 2026-11-07：「デッキから さがす」か「そとから 持って くる（デッキの まいすうは かわらない）」を えらべる。
+// s.P.rampSrc＝{ from: 'lib'|'out', col }（人が 唱える ときに 画面で きめる。battle.js）。きめて いなければ
+// さいごに えらんだ ほう（s.P.rampPref）、なければ デッキ。デッキに のこって いなければ そとから（いつでも こうかが ある）
+let BASIC_DEFS = {};
+export const setBasics = (b) => { BASIC_DEFS = b; };
+export const basicCol = (d) => d.color || 'C';
+// デッキの 色（WUKRG の じゅん）。なければ 無色
+export function deckCols(s) {
+  const has = s.P.cols || new Set([...s.P.lib, ...s.P.hand, ...s.P.mana].flatMap((c) => colorsOf(c.def)));
+  const cs = COLORS.filter((c) => has.has(c));
+  return cs.length ? cs : ['C'];
+}
+// そとから 持って くる 色：デッキの 色で、マナゾーンに いちばん すくない 色
+const outCol = (s) => { const n = (c) => s.P.mana.filter((m) => basicCol(m.def) === c || colorsOf(m.def).includes(c)).length; return deckCols(s).reduce((a, c) => (n(c) < n(a) ? c : a)); };
+// col：「白の きほんカード」の ように 色が きまって いる とき（メレティスの 誕生）
+export function rampBasic(s, n = 1, col = null) {
+  const o = { ...(s.P.rampSrc || { from: s.P.rampPref || 'lib' }), ...(col ? { col } : {}) };
+  let fromLib = 0, fromOut = 0;
+  for (let k = 0; k < n; k++) {
+    if (o.from !== 'out') {
+      let i = o.col ? s.P.lib.findIndex((c) => c.def.basic && basicCol(c.def) === o.col) : -1;
+      if (i < 0 && !col) i = s.P.lib.findIndex((c) => c.def.basic);
+      if (i >= 0) { const [c] = s.P.lib.splice(i, 1); s.P.mana.push({ ...c, tapped: true }); fromLib++; continue; }
+    }
+    const def = BASIC_DEFS[o.col] || BASIC_DEFS[outCol(s)];
+    if (!def) break;
+    s.P.mana.push({ ...card(def), tapped: true, outside: true }); fromOut++;
   }
-  if (k) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}きほんカードを ${k}まい さがして マナゾーンへ`); manaIn(s, k); }
-  return k;
+  if (fromLib) { s.P.lib = shuffle(s.rng, s.P.lib); L(s, `${foe(s, 'P')}デッキから きほんカードを ${fromLib}まい さがして マナゾーンへ`); }
+  if (fromOut) L(s, `${foe(s, 'P')}そとから きほんカードを ${fromOut}まい 持って きて マナゾーンへ（デッキの カードの 数は そのまま）`);
+  if (fromLib + fromOut) manaIn(s, fromLib + fromOut);
+  return fromLib + fromOut;
 }
 export const basicsInLib = (s) => s.P.lib.filter((c) => c.def.basic).length;
 
@@ -1050,7 +1072,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  L, drawCard, rampTop, rampBasic, basicsInLib, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  L, drawCard, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,

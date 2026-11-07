@@ -227,7 +227,7 @@ export const S12 = {
   ZZ45: { etb: etbBon(2), acts: [bonAct(4, { label: 'エネルギー 4：てきに ブレイクカウンター 2こ', play: (s, p, E) => ({ score: s.floor.face ? 5 : 3, run: () => E.addBreak(s, 2) }) })] },
   ZZ46: { etb: etbBon(1), acts: [bonAct(2, selfPump('エネルギー 2：＋2/＋2', 2, 2))] },
   ZZ47: { onAttack: atkBon(1) },
-  ZZ48: { etb: etbBon(1, (s, p, E) => { if (E.basicsInLib(s)) E.rampBasic(s, 1); }) },
+  ZZ48: { etb: etbBon(1, (s, p, E) => { E.rampBasic(s, 1); }) },
   ZZ49: { acts: [bonAct(3, {
     label: 'エネルギー 3：てきの クリーチャーに 3点',
     play: (s, p, E) => { const b = foeBest(s, E, 3); return b ? { score: 3 + b.score, run: () => hit(s, E, b.t, 3) } : null; },

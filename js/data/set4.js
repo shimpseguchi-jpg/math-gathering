@@ -163,7 +163,7 @@ export const S4 = {
   G51: { upkeep: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', T.shard, shrines(s)); } },
   G52: {
     pow: (s, p) => s[p.side].mana?.length ?? 5, tou: (s, p) => s[p.side].mana?.length ?? 5,
-    ...adventure('実（みの）りの 足あと', 3, ['G'], 'sorcery', { play: (s, E, ctx) => (ctx.phase === 1 && E.basicsInLib(s) ? { score: 5, run: () => E.rampBasic(s, 1) } : null) }),
+    ...adventure('実（みの）りの 足あと', 3, ['G'], 'sorcery', { play: (s, E, ctx) => (ctx.phase === 1 ? { score: 5, run: () => E.rampBasic(s, 1) } : null) }),
   },
   G53: aura('P', 'つける 自分の クリーチャー（つけたら てきと 格闘（かくとう））', {
     t: 2,

@@ -246,7 +246,7 @@ export const S5 = {
   LS02: { noPack: true, play: (s, E) => ({ score: 4, run: () => E.token(s, 'P', T.spirit, 1) }) }, // Spirit Summoning
   LS03: { noPack: true, play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.pest, 2) }) },
   LS04: { noPack: true, play: (s, E, ctx) => ({ score: 4 + 2 * ctx.xMax, x: ctx.xMax, run: (x) => fractal(s, E, x) }) },
-  LS05: { noPack: true, play: (s, E) => ({ score: E.basicsInLib(s) ? 4 : 1, run: () => { E.rampBasic(s, 1); E.gain(s, 2); } }) },
+  LS05: { noPack: true, play: (s, E) => ({ score: 4, run: () => { E.rampBasic(s, 1); E.gain(s, 2); } }) },
   LS06: {
     noPack: true, play: (s, E) => { const t = E.bestBuffTarget(s, null); return t ? { score: 5, run: () => { E.target(s, t); E.addCounters(s, t, 2); E.pump(t, 0, 0, ['vigilance']); } } : null; },
     tgt: [{ side: 'P', label: '＋1/＋1カウンターを 2こ おく クリーチャー' }], apply: (s, E, [[t]]) => { E.target(s, t); E.addCounters(s, t, 2); E.pump(t, 0, 0, ['vigilance']); },
