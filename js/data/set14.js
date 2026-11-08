@@ -108,7 +108,7 @@ const hostHogu = (f) => ({
     E.sba(s);
   },
 });
-// 装備品の 名前（ログ用。ふりがなと ★を とる）
+// 装備品の 名前（ログ用。ふりがなを とる。★は 2026-11-08 に 名前から なくした）
 const eqName = (q) => q.def.name.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '').replace(/^★/, '');
 
 export const S14 = {
@@ -219,7 +219,7 @@ export const S14 = {
   FG121: ocNP(40, (s, E, p) => {
     allFoes(s, E, oc(p, 2));
     const c = bestIn(s.P.gy, (x) => isCr(x.def));
-    if (c && !s.over) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.L(s, `めいかいから ${c.def.name} が もどって きた`); E.enter(s, 'P', c.def, { card: c.def }); }
+    if (c && !s.over) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.L(s, `めいかいから ${c.def.name} が もどって きた`); E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); }
   }, {
     npAI: (s, p, E) => needFoe(s, p, E) || s.P.gy.some((c) => isCr(c.def)),
     onOtherLeave: (s, q, p, E, o) => { if (o?.died && p.side !== q.side && E.isCreature(p) && E.onBf(s, q)) addNP(s, E, q, 20, `${p.def.name} が たおれた`); },
@@ -239,7 +239,7 @@ export const S14 = {
     if (!c) { E.L(s, `ぼちに コスト ${n} いかの クリーチャーが ない`); return; }
     s.P.gy.splice(s.P.gy.indexOf(c), 1);
     E.L(s, `ぼちから せんじょうへ：${c.def.name}（コスト ${c.def.cost} ≦ ${n}）`);
-    E.enter(s, 'P', c.def, { card: c.def });
+    E.enter(s, 'P', c.def, { card: c.def, fromGy: true });
   }, { npAI: (s, p, E, ctx, k) => p.side === 'P' && s.P.gy.some((x) => isCr(x.def) && x.def.cost <= ocN(s, p, k, 2)) }),
   FG128: np(50, (s, E, p) => {
     const t = topFoe(s, E, canKill(s, E));
@@ -382,19 +382,35 @@ export const S14 = {
       E.L(s, `${eqName(q)}：サーヴァント ${list.length}体の NP ＋20（20 × ${list.length} ＝ ${20 * list.length}）`);
       for (const x of list) addNP(s, E, x, 20);
     },
+    // 持ち主（アルトリア・キャスター）と 相性（2026-11-08）：装備している サーヴァントが 宝具を つかうたび、ほかの サーヴァントの NP ＋20
+    ...hostHogu((s, q, p, E) => { for (const x of servants(s, E)) if (x !== p && x.def.npFx) addNP(s, E, x, 20, `${eqName(q)}`); }),
   }),
-  FG172: phantasm({ equip: 1, eqP: 1, grant: gives('first'), ...hostHogu((s, q, p, E, k) => { E.L(s, `${eqName(q)}：NP 100 が ${k}つ → ＋2 × ${k} ＝ ＋${2 * k}`); pumpOne(s, E, p, 2 * k, 0); }) }),
+  // 剣を摂れ、銀色の腕（ベディヴィエール）：装備している クリーチャーが 死亡したら、サーヴァント1体の NP ＋50 して、これを その サーヴァントに つけかえる
+  FG172: phantasm({ equip: 1, eqP: 1, grant: gives('first'), ...hostHogu((s, q, p, E, k) => { E.L(s, `${eqName(q)}：NP 100 が ${k}つ → ＋2 × ${k} ＝ ＋${2 * k}`); pumpOne(s, E, p, 2 * k, 0); }),
+    onOtherLeave: (s, q, p, E, o) => {
+      if (q.side !== 'P' || q.lastHost !== p.uid || !o?.died || !E.onBf(s, q)) return;
+      const sv = bestServant(s, E);
+      if (!sv) return;
+      addNP(s, E, sv, 50, `${p.def.name} の うで`);
+      q.attached = sv.uid; E.L(s, `${eqName(q)} → ${sv.def.name} に たくした`); q.def.onEquip?.(s, q, sv, E);
+    } }),
+  // 約束されざる守護の車輪（ブーディカ）：あなたの クリーチャーが ブロックするたび（1ターンに 1回）、装備している サーヴァントの NP ＋20
   FG173: phantasm({
     equip: 1, anthem: allWhile(0, 1),
+    onAllyBlock: (s, q, b, E) => { const h = hostOf(s, q); if (q.side === 'P' && npHost(h) && q.blockT !== s.turn) { q.blockT = s.turn; addNP(s, E, h, 20, 'ブロック'); } },
     ...hostHogu((s, q, p, E) => { for (const x of mine(s, E)) E.pump(x, 0, 0, ['indestructible']); E.L(s, `${eqName(q)}：この ターン みんな 破壊不能（はかいふのう）`); }),
   }),
   // 青：飛行・タップ・パワーを うばう
   FG174: phantasm({
     equip: 1, eqP: 1, eqT: 1, grant: gives('flying'),
     upkeep: (s, q, E) => { if (q.side !== 'P') return; const h = hostOf(s, q); if (npHost(h) && E.onBf(s, h)) addNP(s, E, h, 30); },
+    // 持ち主（スカディ）と 相性：装備している サーヴァントが ほかの サーヴァントの NP を ふやすとき、＋20 さらに（set10.js の addNP の npGive）
+    npGive: (s, q, giver, to, n, E) => { if (q.side !== 'P') return n; E.L(s, `${eqName(q)}：くばる NP ${n} ＋ 20 ＝ ${n + 20}`); return n + 20; },
   }),
+  // 疾走・精霊眼球（アナスタシア）：タップして いる 敵の クリーチャーは −1/−0（foeAnthem）
   FG175: phantasm({
     equip: 1, eqP: 1, eqT: 1,
+    foeAnthem: (s, q, p) => (p.tapped ? [-1, 0] : null),
     onHostAttack: (s, q, host, E) => {
       if (q.side !== 'P') return;
       const t = topFoe(s, E, (x) => !x.tapped);
@@ -417,7 +433,9 @@ export const S14 = {
     }],
   }),
   // 黒：−1/−1カウンター・NP・墓地
+  // 痛幻の哭奏（妖精騎士トリスタン）：−1/−1カウンターの のった 敵が 死亡するたび、装備している サーヴァントの NP ＋20
   FG177: phantasm({
+    onOtherLeave: (s, q, p, E, o) => { const h = hostOf(s, q); if (q.side === 'P' && o?.died && p.side !== q.side && (p.mctr || 0) > 0 && npHost(h)) addNP(s, E, h, 20, `${p.def.name} が たおれた`); },
     equip: 1, eqP: 2, grant: gives('lifelink'), // 絆魂は 2026-11-05 の シミュレーションで 足した（第1弾の 死告天使より 弱かった。バーヴァン・シーは 血を すう 妖精）
     hostTrig: { spec: { side: 'E', label: '−1/−1カウンターを おく 敵（てき）の クリーチャー' } }, // 人は 攻撃の ときに えらぶ（battle.js の preTrig）。AI は パワーが いちばん 大きい もの
     onHostAttack: (s, q, host, E) => {
@@ -428,11 +446,20 @@ export const S14 = {
       E.target(s, t); E.addMinus(s, t, 1); E.sba(s);
     },
   }),
-  FG178: phantasm({ equip: 1, eqP: 1, eqT: 1, grant: gives('haste'), onHostAttack: (s, q, host, E) => { if (q.side === 'P' && npHost(host)) addNP(s, E, host, 20); } }),
-  FG179: phantasm({ equip: 1, eqP: 1, eqT: 1, ...hostHogu((s, q, p, E) => { if (!regrow(s, E, isCr)) E.L(s, `${eqName(q)}：ぼちに クリーチャーが ない`); }) }),
+  // 虎よ、煌々と燃え盛れ（巌窟王）：装備している サーヴァントが ダメージを うけたら、あたえた クリーチャーに おなじ だけ かえす（復讐）
+  FG178: phantasm({ equip: 1, eqP: 1, eqT: 1, grant: gives('haste'), onHostAttack: (s, q, host, E) => { if (q.side === 'P' && npHost(host)) addNP(s, E, host, 20); },
+    onHostHurt: (s, q, host, n, src, E) => {
+      if (s.revenge || !npHost(host) || !src || !E.onBf(s, src) || !E.isCreature(src) || src.side === host.side) return;
+      s.revenge = true;
+      try { E.L(s, `${host.def.name}：ふくしゅう！ ${src.def.name} に ${n}点`); E.damage(s, src, n, host); } finally { s.revenge = false; }
+    } }),
+  // 霊峰踏抱く冥府の鞴（エレシュキガル）：墓地から 戦場に 出た あなたの クリーチャーに ＋1/＋1カウンター（game.js の onReanimate）
+  FG179: phantasm({ equip: 1, eqP: 1, eqT: 1, onReanimate: (s, q, p, E) => { if (q.side === 'P' && E.isCreature(p)) { E.L(s, `${eqName(q)}：めいかいから もどった ${p.def.name} に ＋1/＋1カウンター`); E.addCounters(s, p, 1); } }, ...hostHogu((s, q, p, E) => { if (!regrow(s, E, isCr)) E.L(s, `${eqName(q)}：ぼちに クリーチャーが ない`); }) }),
   // 赤：パワー・ダメージ
+  // 日輪よ、死に随え（カルナ）：装備したとき、その サーヴァントの NP ＋50
   FG180: phantasm({
     equip: 2, eqP: 3,
+    onEquip: (s, q, host, E) => { if (q.side === 'P' && npHost(host)) addNP(s, E, host, 50, '鎧（よろい）を ささげて'); },
     ...hostHogu((s, q, p, E, k) => { E.L(s, `${eqName(q)}：NP 100 が ${k}つ → てきの クリーチャー みんなに 1点 × ${k}回`); for (let i = 0; i < k && !s.over; i++) allFoes(s, E, 1); }),
   }),
   FG181: phantasm({
@@ -442,12 +469,17 @@ export const S14 = {
       if (!t || n <= 0) return;
       E.L(s, `${eqName(q)}：${p.def.name} の パワー ${n} → ${n}点`);
       hit(s, E, t, n);
+      // 持ち主（宮本武蔵）と 相性（2026-11-08）：二段攻撃を もつ サーヴァントなら もう 1回
+      if (E.onBf(s, p) && E.hasKw(s, p, 'double') && !s.over) { const t2 = killTop(s, E, n); if (t2) { E.L(s, `${eqName(q)}：二段攻撃（にだんこうげき）で もう 1回 ${n}点`); hit(s, E, t2, n); } }
     }),
   }),
-  FG182: phantasm({ equip: 1, grant: gives('trample'), eqPT: (s, q, p, E) => [s[q.side].bf.filter((x) => isServant(x) && E.isCreature(x)).length, 0] }),
+  // 凱旋を高らかに告げる虹弓（ナポレオン）：装備している サーヴァントの 宝具の ダメージは、あなたの サーヴァント 1体 につき ＋1（set10.js の fireNP の hoguPlus）
+  FG182: phantasm({ equip: 1, grant: gives('trample'), eqPT: (s, q, p, E) => [s[q.side].bf.filter((x) => isServant(x) && E.isCreature(x)).length, 0], hoguPlus: (s, q) => s[q.side].bf.filter((x) => isServant(x) && (x.def.types || []).includes('creature')).length }),
   // 緑：大きな からだ・＋1/＋1カウンター・NP
+  // 帰滅を裁定せし廻剣（アルジュナ〔オルタ〕）：装備されて いる あいだ、敵の クリーチャーは −0/−1（foeAnthem）
   FG183: phantasm({
     equip: 2, eqP: 2, eqT: 2, grant: gives('trample'),
+    foeAnthem: (s, q) => (q.attached ? [0, -1] : null),
     ...hostHogu((s, q, p, E, k) => {
       for (let i = 0; i < k; i++) {
         const t = topFoe(s, E, (x) => E.pt(s, x)[1] <= 2 && canKill(s, E)(x));
@@ -457,9 +489,11 @@ export const S14 = {
       }
     }),
   }),
-  FG184: phantasm({ equip: 1, eqP: 1, eqT: 1, onHostAttack: (s, q, host, E) => { if (q.side === 'P') counters(s, E, host, 1); } }),
+  // 今は知らず、無垢なる湖光（妖精騎士ランスロット）：＋1/＋1カウンターが 4個 いじょう あれば 二段攻撃（竜の すがた）
+  FG184: phantasm({ equip: 1, eqP: 1, eqT: 1, onHostAttack: (s, q, host, E) => { if (q.side === 'P') counters(s, E, host, 1); }, grant: (s, q, p) => (p.uid === q.attached && (p.ctr || 0) >= 4 ? ['double'] : null) }),
+  // 彼方とおちる夢の瞳（オベロン）：タップして いる 敵が いれば、装備している サーヴァントは 夢の おわりでも ねむらない（game.js の dreamWake）
   FG185: phantasm({
-    equip: 2, eqP: 1, eqT: 1,
+    equip: 2, eqP: 1, eqT: 1, dreamWake: true,
     onEquip: (s, q, host, E) => {
       if (!npHost(host) || !E.onBf(s, host)) return;
       addNP(s, E, host, 100);

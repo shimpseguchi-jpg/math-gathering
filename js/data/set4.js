@@ -114,7 +114,7 @@ export const S4 = {
     costLess: (s) => 2 * gyCount(s, 'creature'), ownDeadToBottom: true,
     acts: [{
       cost: 3, req: ['K'], tap: true, when: [1], label: 'ぼちの クリーチャーを 戦場（せんじょう）に（2点 うしなう）', can: (s) => gyCount(s, 'creature') > 0,
-      play: (s, p, E) => { const c = [...s.P.gy].filter((x) => isCr(x.def)).sort((a, b) => b.def.cost - a.def.cost)[0]; return c && s.P.life > 6 ? { score: 6 + c.def.cost, run: () => { E.hurt(s, 2); s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); } } : null; },
+      play: (s, p, E) => { const c = [...s.P.gy].filter((x) => isCr(x.def)).sort((a, b) => b.def.cost - a.def.cost)[0]; return c && s.P.life > 6 ? { score: 6 + c.def.cost, run: () => { E.hurt(s, 2); s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); } } : null; },
     }],
   },
   // ---- 赤 ----
@@ -272,7 +272,7 @@ Object.assign(S4, {
     onDie: (s, p, E) => {
       if (p.side !== 'P') return;
       const c = bestIn(s.P.gy, (x) => isEnch(x.def) && x.uid !== p.uid); if (!c) return;
-      s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def });
+      s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def, fromGy: true });
     },
   },
   W98: { onAttacks: (s, q, atk, E) => { if (q.side !== 'P') return; const n = atk.filter((a) => (a.p.def.color || '').includes('W')).length; if (n) E.gain(s, n); } },
@@ -349,7 +349,7 @@ Object.assign(S4, {
       if (p.side !== 'P' || foods(s).length < 3) return;
       const i = s.P.gy.findIndex((c) => c.uid === p.uid); if (i < 0) return;
       for (const f of foods(s).slice(0, 3)) E.leave(s, f, 'gy');
-      const [c] = s.P.gy.splice(i, 1); E.L(s, `食物（しょくもつ） 3つで もどった：${c.def.name}`); E.enter(s, 'P', c.def, { card: c.def });
+      const [c] = s.P.gy.splice(i, 1); E.L(s, `食物（しょくもつ） 3つで もどった：${c.def.name}`); E.enter(s, 'P', c.def, { card: c.def, fromGy: true });
     },
   },
   WG09: {

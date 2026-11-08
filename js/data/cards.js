@@ -404,7 +404,7 @@ const R = [
     gyCombatStart: (s, c, E) => {
       if (!ferocious(s, E)) return;
       const pl = E.plan(s, 1, ['R']); if (!pl) return;
-      E.pay(s, pl); s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def);
+      E.pay(s, pl); s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { fromGy: true });
     },
   }),
   cr('R26', '嵐息吹（あらしいぶき）の ドラゴン', 'L', 'R', 5, 4, 4, ['dragon'], ['flying', 'haste'], {
@@ -576,7 +576,7 @@ const W2 = [
       },
     },
     { run: (s, E) => E.bolster(s, 2) },
-    { run: (s, E) => { const c = bestIn(s.P.gy, (c) => c.def.types.includes('creature') && !c.def.x); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def); } } },
+    { run: (s, E) => { const c = bestIn(s.P.gy, (c) => c.def.types.includes('creature') && !c.def.x); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { fromGy: true }); } } },
   ]) }),
   pm('W36', '栄光（えいこう）の 賛歌（さんか）', 'R', 'W', 3, ['enchantment'], {
     anthem: (s, q, p, E) => (p.side === q.side && E.isCreature(p) ? [1, 1] : null),

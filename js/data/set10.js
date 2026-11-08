@@ -11,6 +11,9 @@ export const NP_MAX = 300;
 // why：ログの おしまいに 出す わけ（「ダメージを うけた」など）
 export function addNP(s, E, p, n, why) {
   if (!p || !E.onBf(s, p) || !p.def.npFx) return;
+  // ほかの サーヴァントに NP を くばる とき（くばる がわ＝いま うごいて いる カード s.srcDef の サーヴァント）：その サーヴァントの 装備品の npGive（玉藻・スカディの 宝具。2026-11-08）
+  const giver = n > 0 && s.srcDef && s.srcDef !== p.def ? s[p.side].bf.find((q) => q.def === s.srcDef && isServant(q)) : null;
+  if (giver) for (const q of [...s[p.side].bf]) if (q.attached === giver.uid && q.def.npGive && E.onBf(s, q)) n = q.def.npGive(s, q, giver, p, n, E) ?? n;
   const was = p.np || 0;
   p.np = Math.min(NP_MAX, was + n);
   E.L(s, `${p.def.name}：NP ${was} ＋ ${n} ＝ ${p.np}${was + n > NP_MAX ? `（さいだい ${NP_MAX}）` : ''}${why ? `（${why}）` : ''}`);
@@ -34,7 +37,15 @@ export function fireNP(s, E, p, t, k = 1) {
   }
   p.ocK = lv;
   E.L(s, `ほうぐ！ ${p.def.name}（NP ${was} − ${use} ＝ ${p.np}）${p.def.oc ? `オーバーチャージ ×${lv}${lv > k ? `（${k} ＋ ${lv - k}）` : ''}` : ''}`);
-  p.def.npFx(s, E, p, t, lv); // t：レアの 宝具で 人が えらんだ あいて（npTgt）。lv：〔 〕の 倍
+  // 宝具の 装備品（2026-11-08）：宝具の ダメージ ＋N（hoguPlus）・本体への ダメージ 倍（hoguFaceMul）。s.hogu.src は「宝具で たおした」の ため（game.js）
+  const eqs = s[p.side].bf.filter((q) => q.attached === p.uid);
+  const plus = p.side === 'P' ? eqs.reduce((a, q) => a + (q.def.hoguPlus?.(s, q, p, E) || 0), 0) : 0;
+  const faceMul = p.side === 'P' ? eqs.reduce((a, q) => a * (q.def.hoguFaceMul || 1), 1) : 1;
+  if (plus) E.L(s, `宝具（ほうぐ）の ダメージ ＋${plus}`);
+  const aim = eqs.some((q) => q.def.hoguAim), wasM = s.pickMode;
+  if (aim && s.pickMode === 'rand') { s.pickMode = 'most'; E.L(s, '宝具（ほうぐ）：ランダムでは なく、いちばん 大きい てきを ねらう'); }
+  const wasH = s.hogu; s.hogu = { src: p, plus, faceMul };
+  try { p.def.npFx(s, E, p, t, lv); } finally { s.hogu = wasH; s.pickMode = wasM; } // t：レアの 宝具で 人が えらんだ あいて（npTgt）。lv：〔 〕の 倍
   p.ocK = 1;
   for (const q of [...s[p.side].bf]) if (q.def.onHogu && E.onBf(s, q)) q.def.onHogu(s, q, p, E, k); // クリプター（第2弾の マスター）：つかった NP 100 に つき
   E.sba(s);
@@ -147,6 +158,10 @@ export const phantasm = (x) => ({
     x.etb?.(s, p, E, o);
   },
 });
+// 装備している サーヴァント（NP の ある）。宝具の 装備品の「その サーヴァント」の こうか
+const npHostOf = (s, q) => { const h = hostOf(s, q); return h && isServant(h) && h.def.npFx ? h : null; };
+// 装備している サーヴァントが 宝具を つかうたび（fireNP が onHogu を よぶ）
+const hoguHost = (f) => ({ onHogu: (s, q, p, E, k) => { if (q.side === 'P' && q.attached === p.uid && E.onBf(s, q)) { f(s, q, p, E, k); E.sba(s); } } });
 export const hostOf = (s, q) => (q.attached ? [...s.P.bf, ...s.E.bf].find((p) => p.uid === q.attached) : null);
 // 装備されている あいだ、あなたの クリーチャー すべてに ＋a/＋b
 export const allWhile = (a, b) => (s, q, p, E) => (q.attached && p.side === q.side && E.isCreature(p) ? [a, b] : null);
@@ -173,7 +188,7 @@ export const S10 = {
       s.P.flags[k] = true;
       const [c] = s.P.gy.splice(i, 1);
       E.L(s, `せんとうぞっこう：${p.def.name} が もどった`);
-      E.enter(s, 'P', c.def, { card: c.def });
+      E.enter(s, 'P', c.def, { card: c.def, fromGy: true });
     },
   }),
   FG08: np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b) killIt(s, E, b.t); E.drawCard(s); }, { npTgt: { side: 'E', label: 'はかいする クリーチャー' } }), // レア：人は えらべる
@@ -286,34 +301,47 @@ export const S10 = {
   FG75: { ...master, onOtherLeave: (s, p, q, E, o) => { if (!o?.died || q.side !== p.side || !isServant(q) || p.side !== 'P') return; E.hitEnemy(s, 1, null); E.gain(s, 1); } },
   // ---- 宝具 ----
   // 白：ぜんたいを つよく する
-  FG76: phantasm({ equip: 2, anthem: allWhile(1, 1), acts: [{
+  // 2026-11-08：持ち主の サーヴァントと 相性（しくみで かみあう。名指し しない）。単体の こうかは そのまま
+  // 約束された勝利の剣（アルトリア）：宝具を つかうたび NP ＋50
+  FG76: phantasm({ equip: 2, anthem: allWhile(1, 1), ...hoguHost((s, q, p, E) => addNP(s, E, p, 50, '聖剣（せいけん）が また ひかる')), acts: [{
     cost: 5, req: ['W'], when: [1, 2], label: '敵（てき）の クリーチャー1体に 4点（1ターンに1回）', can: (s, p) => !p.flags.turn.used, cantWhy: 'この ターンは もう つかった',
     play: (s, p, E) => { const b = foeBest(s, E, 4); return b ? { score: 5 + b.score, run: () => { p.flags.turn.used = true; hit(s, E, b.t, 4); } } : null; },
     tgt: [{ side: 'E', label: '4点を あたえる クリーチャー' }], apply: (s, E, [[t]], x, p) => { p.flags.turn.used = true; hit(s, E, t, 4); },
   }] }),
-  FG77: phantasm({ equip: 2, anthem: allWhile(1, 1) }),
-  FG78: phantasm({ equip: 1, anthem: allWhile(0, 2), onEquip: (s, p, host, E) => { for (const q of mine(s, E)) E.pump(q, 0, 0, ['indestructible']); E.L(s, 'わが神は ここに ありて：この ターン みんな 破壊不能（はかいふのう）'); } }),
+  // いまは遥か理想の城（マシュ）：装備している サーヴァントが ブロックするたび NP ＋20
+  FG77: phantasm({ equip: 2, anthem: allWhile(1, 1), onAllyBlock: (s, q, b, E) => { if (q.attached === b.uid && npHostOf(s, q)) addNP(s, E, b, 20, 'ブロック'); } }),
+  // 我が神はここにありて（ジャンヌ）：ライフを 得るたび（1ターンに 1回）装備している サーヴァントの NP ＋20
+  FG78: phantasm({ equip: 1, anthem: allWhile(0, 2), onGain: (s, q, E) => { const h = npHostOf(s, q); if (h && q.side === 'P' && q.gainT !== s.turn) { q.gainT = s.turn; addNP(s, E, h, 20, 'ライフを えた'); } }, onEquip: (s, p, host, E) => { for (const q of mine(s, E)) E.pump(q, 0, 0, ['indestructible']); E.L(s, 'わが神は ここに ありて：この ターン みんな 破壊不能（はかいふのう）'); } }),
   // 青：キーワード（飛行・二段攻撃・呪禁）
-  FG79: phantasm({ equip: 1, eqP: 2, grant: gives('flying'), acts: [{
+  // 貫き穿つ死翔の槍（スカサハ）：装備している クリーチャーが 敵を たおすたび（宝具でも）、サーヴァントなら NP ＋30
+  FG79: phantasm({ equip: 1, eqP: 2, grant: gives('flying'), onHostKill: (s, q, h, E) => { if (q.side === 'P' && npHostOf(s, q) === h) addNP(s, E, h, 30, 'たおした'); }, acts: [{
     cost: 0, when: [1], label: 'はずして 二段攻撃（にだんこうげき）（この ターン）', can: (s, p) => !!p.attached, cantWhy: 'どの クリーチャーにも ついて いない',
     play: (s, p, E, ctx) => { const h = hostOf(s, p); if (!h || !ctx.human) return null; return { score: 1, run: () => { p.attached = null; E.pump(h, 0, 0, ['double']); E.L(s, `${h.def.name}：死翔（しかけ）の 槍（やり）を はずして 二段攻撃（にだんこうげき）`); } }; },
   }] }),
-  FG80: phantasm({ equip: 1, eqT: 2, grant: gives('hexproof') }),
-  FG81: phantasm({ equip: 1, eqP: 2, grant: gives('hexproof') }),
+  // 石兵八陣（孔明）：装備されて いる あいだ、敵の クリーチャーが タップされるたび、あなたの サーヴァント すべての NP ＋10
+  FG80: phantasm({ equip: 1, eqT: 2, grant: gives('hexproof'), onFoeTap: (s, q, t, E) => { if (q.side !== 'P' || !q.attached) return; for (const sv of servants(s, E)) if (sv.def.npFx) addNP(s, E, sv, 10, `${t.def.name} が タップ`); } }),
+  // 光輝の大複合神殿（オジマンディアス）：タップして いる 敵の クリーチャー 1体 につき ＋1/＋0
+  FG81: phantasm({ equip: 1, eqP: 2, grant: gives('hexproof'), eqPT: (s, q) => [s[q.side === 'P' ? 'E' : 'P'].bf.filter((x) => (x.def.types || []).includes('creature') && x.tapped).length, 0] }),
   // 赤：こうげきの 力・火力
-  FG82: phantasm({ equip: 2, eqP: 3,
+  // 天地乖離す開闢の星（ギルガメッシュ）：装備している サーヴァントは ターンの はじめに NP ＋20（黄金律）
+  FG82: phantasm({ equip: 2, eqP: 3, upkeep: (s, q, E) => { const h = npHostOf(s, q); if (h && q.side === 'P') addNP(s, E, h, 20, '黄金律（おうごんりつ）'); },
     hostTrig: { pay: 2, label: '2マナ はらって 敵（てき）の パーマネント1つを 追放（ついほう）する？', spec: { side: 'E', perm: true, label: '追放（ついほう）する 敵（てき）の パーマネント', filter: (s, E, p) => !p.def.factory && !s.floor.cantLeave?.(s, p, E) },
       pick: (s, E) => s.E.bf.filter((p) => !p.def.factory && !s.floor.cantLeave?.(s, p, E) && !s.floor.untargetable?.(s, p, E)).sort((a, b) => (b.def.cost || 0) - (a.def.cost || 0) || E.power(s, b) - E.power(s, a))[0] },
     onHostAttack: (s, q, host, E) => { const tp = q.trigPick; q.trigPick = null; if (tp && tp !== 'skip' && tp.paid && E.onBf(s, tp.t)) { E.L(s, `天地乖離（てんちかいり）す 開闢（かいびゃく）の 星：${tp.t.def.name} を 追放（ついほう）`); E.target(s, tp.t); E.exile(s, tp.t); E.sba(s); } } }),
-  FG83: phantasm({ equip: 1, eqPT: (s, q) => [s[q.side].bf.filter((x) => (x.def.types || []).includes('artifact')).length, 0] }),
-  FG84: phantasm({ equip: 1, eqP: 1, onHostAttack: (s, q, host, E) => { if (q.side !== 'P') return; const t = randomFoe(s, E); if (t) hit(s, E, t, 2); } }),
+  // 無限の剣製（エミヤ）：装備している サーヴァントの 宝具の ダメージは、あなたの アーティファクト 1つ につき ＋1点（fireNP の hoguPlus）
+  FG83: phantasm({ equip: 1, eqPT: (s, q) => [s[q.side].bf.filter((x) => (x.def.types || []).includes('artifact')).length, 0], hoguPlus: (s, q) => s[q.side].bf.filter((x) => (x.def.types || []).includes('artifact')).length }),
+  // 我が麗しき父への叛逆（モードレッド）：装備している サーヴァントの 宝具が 敵の 本体に あたえる ダメージは 2倍
+  FG84: phantasm({ equip: 1, eqP: 1, hoguFaceMul: 2, onHostAttack: (s, q, host, E) => { if (q.side !== 'P') return; const t = randomFoe(s, E); if (t) hit(s, E, t, 2); } }),
   // 緑：大きな クリーチャー
-  FG85: phantasm({ equip: 1,
+  // 水天日光天照八野鎮石（玉藻）：装備している サーヴァントが ほかの サーヴァントの NP を ふやしたとき、カードを1枚引く（1ターンに 1回。addNP の npGive）
+  FG85: phantasm({ equip: 1, npGive: (s, q, giver, to, n, E) => { if (q.side === 'P' && q.giveT !== s.turn) { q.giveT = s.turn; E.L(s, `${giver.def.name}：NP を くばった → カードを 1まい 引く`); E.drawCard(s); } return n; },
     grant: (s, q, p, E) => (q.attached && p.side === q.side && E.isCreature(p) ? ['trample'] : null),
     onOtherEnter: (s, q, p, E) => { if (q.attached && q.side === 'P' && p.side === 'P' && E.isCreature(p) && E.power(s, p) >= 4) E.drawCard(s); },
     onEquip: (s, q, host, E) => { if (q.side === 'P' && mine(s, E).some((p) => E.power(s, p) >= 4)) E.drawCard(s); } }),
-  FG86: phantasm({ equip: 1, eqP: 4, onHostAttack: (s, q, host, E) => { host.frozen = true; E.L(s, `${host.def.name} は 麻痺（まひ）した（つぎの ターン おきない）`); } }),
-  FG87: phantasm({ equip: 1,
+  // 射殺す百頭（ヘラクレス）：装備している クリーチャーが 死亡を ふせいだら、麻痺から さめて アンタップする
+  FG86: phantasm({ equip: 1, eqP: 4, onHostAttack: (s, q, host, E) => { host.frozen = true; E.L(s, `${host.def.name} は 麻痺（まひ）した（つぎの ターン おきない）`); }, onHostSaved: (s, q, h, E) => { h.frozen = false; h.tapped = false; E.L(s, `${h.def.name}：たおれなかった → まひから さめて おきあがる`); } }),
+  // 我はすべて毒あるもの害あるものを絶つ（ナイチンゲール）：宝具を つかうたび、あなたの クリーチャー すべてに 盾カウンター（1体に 1個まで）
+  FG87: phantasm({ equip: 1, ...hoguHost((s, q, p, E) => { let k = 0; for (const x of mine(s, E)) if (!x.shieldCtr) { x.shieldCtr = 1; k++; } E.L(s, `${p.def.name}：みんなに 盾（たて）カウンター（${k}体）`); }),
     hostTrig: { spec: { side: 'P', label: '盾（たて）カウンターを おく クリーチャー', filter: (s, E, p) => !p.shieldCtr } },
     onHostAttack: (s, q, host, E) => {
       const tp = q.trigPick; q.trigPick = null;
@@ -321,7 +349,10 @@ export const S10 = {
       if (t && !t.shieldCtr) { t.shieldCtr = 1; E.L(s, `${t.def.name} に 盾（たて）カウンター`); }
     } }),
   // 黒：接死・絆魂・−1/−1
-  FG88: phantasm({ equip: 1, eqP: 2, grant: gives('deathtouch', 'lifelink') }),
-  FG89: phantasm({ equip: 1, eqP: 1, grant: gives('flying', 'lifelink') }),
-  FG90: phantasm({ equip: 1, eqP: 1, grant: gives('wither') }),
+  // 死告天使（山の翁）：攻撃するたび、パワーが いちばん 大きい 敵の クリーチャーは できるなら これを ブロックする（game.js の enemyBlocks）
+  FG88: phantasm({ equip: 1, eqP: 2, grant: gives('deathtouch', 'lifelink'), onHostAttack: (s, q, host, E) => { if (q.side === 'P') { host.lureT = s.turn; E.L(s, `${host.def.name}：かねの 音が ひびく……`); } } }),
+  // 騎英の手綱（メドゥーサ）：タップして いる 敵の クリーチャーを 攻撃するとき ＋2/＋0（反撃されない あいてを たおす）
+  FG89: phantasm({ equip: 1, eqP: 1, grant: gives('flying', 'lifelink'), onHostAttack: (s, q, host, E, a) => { if (q.side === 'P' && a?.t && a.t !== 'face' && a.t.tapped && E.isCreature(a.t)) { E.pump(host, 2, 0); E.L(s, `${host.def.name}：ねて いる ${a.t.def.name} に とつげき ＋2/＋0`); } } }),
+  // 妄想心音（呪腕の ハサン）：装備している サーヴァントの 宝具は ランダムでは なく、パワーが いちばん 大きい ものを ねらう（fireNP の hoguAim）
+  FG90: phantasm({ equip: 1, eqP: 1, grant: gives('wither'), hoguAim: true }),
 };

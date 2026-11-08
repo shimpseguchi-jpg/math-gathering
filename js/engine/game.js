@@ -161,6 +161,7 @@ export function beginPlayerTurn(s) {
   P.flags.enteredLastTurn = P.flags.enteredThisTurn; P.flags.enteredThisTurn = false;
   P.flags.cast = 0; P.flags.charged = false; P.flags.attacked = false;
   for (const c of P.hand) c.locked = false;
+  for (const q of P.bf) if (q.def.dreamWake && q.attached && s.E.bf.some((x) => isCreature(x) && x.tapped)) { const h = P.bf.find((x) => x.uid === q.attached); if (h?.frozen) { h.frozen = false; L(s, `${h.def.name}：ねむって いる てきが いるので、ゆめの おわりでも おきる`); } }
   for (const p of P.bf) { untap(s, p); p.sick = false; p.flags.turn = {}; }
   for (const m of P.mana) m.tapped = false;
   // ヴァンガード（もんしょう）：ターンの はじめに てきに 1点・こぶ1
@@ -353,6 +354,7 @@ export function enter(s, side, def, o = {}) {
   const p = makePerm(side, def, o);
   s[side].bf.push(p);
   L(s, `${foe(s, side)}${def.name} が せんじょうに 出た`);
+  if (o.fromGy) for (const q of [...s[side].bf]) if (q !== p && q.def.onReanimate && onBf(s, q)) q.def.onReanimate(s, q, p, api); // 墓地から 戦場に 出たとき（霊峰踏抱く冥府の鞴）
   if (def.etb) def.etb(s, p, api, o);
   if (!onBf(s, p)) return p;
   if (isCreature(p)) {
@@ -398,6 +400,7 @@ export function pt(s, p) {
   P += p.ctr - (p.mctr || 0) + p.mP; T += p.ctr - (p.mctr || 0) + p.mT;
   if (p.side === 'E' && s.E.buff && isCreature(p)) { P += s.E.buff; T += s.E.buff; } // むげんの とう：しゅうかいごとに つよく なる
   for (const q of s[p.side].bf) if (q.def.anthem) { const r = q.def.anthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } }
+  for (const q of s[p.side === 'P' ? 'E' : 'P'].bf) if (q.def.foeAnthem && isCreature(p)) { const r = q.def.foeAnthem(s, q, p, api); if (r) { P += r[0]; T += r[1]; } } // あいての クリーチャーへの 修整（宝具の 装備品）
   // 装備品・オーラ（あいての オーラも）
   for (const q of [...s.P.bf, ...s.E.bf]) if (q.attached === p.uid) {
     P += q.def.eqP || 0; T += q.def.eqT || 0;
@@ -621,6 +624,7 @@ export function shielded(s, p) { return p.side === 'E' && (!!p.def.hexproof?.(s,
 // o.spell：呪文の ぴったり（{ pittari() }）
 // あなたの カードが あたえる ダメージ（炎の 解放は 3倍、トーブランは 赤なら ＋2）
 export function boostDmg(s, n, src, enemy) {
+  if (s.hogu && enemy && n > 0 && s.hogu.plus) n += s.hogu.plus; // 宝具の 装備品（FG83・FG182）：宝具の ダメージ ＋N
   const mine = src ? src.side === 'P' : s.resolving === 'P';
   if (!mine || n <= 0 || s.swapped) return n;
   if (!src && s.P.flags.boonDmg) { s.P.flags.boonDmg--; n += 2; L(s, 'おんけい：＋2'); } // 恩恵（YR04）：つぎの 呪文の ダメージ ＋2
@@ -664,6 +668,7 @@ export function damage(s, p, n, src, o = {}) {
   if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: p, n });
   if (s.combat && src && isCreature(p)) src.def.onDamageCreature?.(s, src, p, api);
   if (isCreature(p) && !p.def.dmgToCounters) p.def.onHurt?.(s, p, n, src, api); // ダメージを うけたとき（スターレイルの エネルギー・クラーラ）
+  if (isCreature(p)) for (const q of [...s[p.side].bf]) if (q.attached === p.uid && q.def.onHostHurt && onBf(s, q)) q.def.onHostHurt(s, q, p, n, src, api); // 装備品：装備している クリーチャーが ダメージを うけたとき
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
@@ -714,6 +719,7 @@ export function hitTarget(s, t, n, src, combat = false) {
   if (t === 'player') { if (src && hasKw(s, src, 'lifelink')) s[src.side].life += n; return hurt(s, n, src); }
   if (t === 'face') {
     n = boostDmg(s, n, src, true);
+    if (s.hogu?.faceMul > 1) { L(s, `宝具（ほうぐ）：本体への ダメージ ${n} × ${s.hogu.faceMul}`); n *= s.hogu.faceMul; } // 我が麗しき父への叛逆（FG84）
     noteDmg(s, n);
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
     L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
@@ -761,6 +767,10 @@ function legendRule(s) {
 }
 
 export function sba(s) {
+  if (!s.swapped) for (const p of s.E.bf) { // 敵の クリーチャーが タップされたとき（def.onFoeTap。石兵八陣）
+    if (!isCreature(p)) continue;
+    if (p.tapped && !p.tapSeen) { p.tapSeen = true; for (const q of [...s.P.bf]) if (q.def.onFoeTap && onBf(s, q)) q.def.onFoeTap(s, q, p, api); } else if (!p.tapped) p.tapSeen = false;
+  }
   for (let loop = 0; loop < 50 && !s.over; loop++) {
     let changed = legendRule(s);
     for (const side of ['P', 'E']) for (const p of [...s[side].bf]) {
@@ -782,7 +792,7 @@ const isExact = (s, p) => p.side === 'E' && isCreature(p) && !p.dt && p.dmg > 0 
 export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
-  if (o.died && p.def.saveDeath?.(s, p, api)) return false; // 死亡の かわりに（ヘラクレスの 十二の試練）
+  if (o.died && p.def.saveDeath?.(s, p, api)) { for (const q of [...s[p.side].bf]) if (q.attached === p.uid && q.def.onHostSaved) q.def.onHostSaved(s, q, p, api); return false; } // 死亡の かわりに（ヘラクレスの 十二の試練）。装備品は onHostSaved
   // 死亡の かわりに：アナフェンザ（てきは 追放）・墓の タイタン など（ライブラリーの 一番下）
   if (o.died && to === 'gy' && !p.token) {
     if ((p.side === 'E' && s.P.bf.some((q) => q.def.exileEnemyDead)) || p.exileT === s.turn) to = 'exile';
@@ -804,7 +814,7 @@ export function leave(s, p, to = 'gy', o = {}) {
   // ついていた オーラ・装備品：授与は クリーチャーに もどる、オーラは 墓地へ、装備品は はずれる
   for (const q of [...s.P.bf, ...s.E.bf]) {
     if (q.attached !== p.uid) continue;
-    q.attached = null;
+    q.attached = null; q.lastHost = p.uid; // 装備品：さいごに ついて いた クリーチャー（FG172 が 死亡を 見る）
     if (q.def.bestowBase) { q.def = q.def.bestowBase; q.card = q.def; L(s, `${q.def.name} が クリーチャーに もどった`); }
     else if (q.def.aura) leave(s, q, 'gy');
   }
@@ -833,6 +843,7 @@ export function leave(s, p, to = 'gy', o = {}) {
   }
   // このターンに ダメージを あたえた クリーチャーが 死んだら（マラキールの 血・ズルゴ）
   if (o.died && isCreature(p)) for (const by of new Set(p.dmgBy)) if (by?.def?.onKill && onBf(s, by)) by.def.onKill(s, by, api, p);
+  if (o.died && isCreature(p)) for (const by of new Set([...p.dmgBy, ...(s.hogu?.src && s.hogu.src.side !== p.side ? [s.hogu.src] : [])])) if (by?.uid && onBf(s, by)) for (const q of [...s[by.side].bf]) if (q.attached === by.uid && q.def.onHostKill && onBf(s, q)) q.def.onHostKill(s, q, by, api, p); // 装備品：装備している クリーチャーが たおした とき
   p.def.onLeaveSelf?.(s, p, api);
   if (p.def.reward) p.def.reward(s, p, api);
   for (const q of [...s.P.bf, ...s.E.bf]) if (q.def.onOtherLeave) q.def.onOtherLeave(s, q, p, api, o);
@@ -938,7 +949,13 @@ export function enemyBlocks(s, atk) {
   const targeted = new Set(atk.filter(atCreature).map((a) => a.t)); // 攻撃されて いる クリーチャーは ほかの ブロックに 出ない
   const avail = s.E.bf.filter((b) => isCreature(b) && !b.tapped && !b.def.noBlock && !targeted.has(b));
   const order = [...atk].filter((a) => !atCreature(a)).sort((x, y) => power(s, y.p) - power(s, x.p));
+  for (const a of order) { // 死告天使（FG88）：できるなら いちばん 大きい 敵が ブロックしなければ ならない
+    if (a.p.lureT !== s.turn) continue;
+    const b = avail.filter((x) => canBlock(s, x, a.p)).sort((x, y) => power(s, y) - power(s, x))[0];
+    if (b) { blocks.set(a.p.uid, b); avail.splice(avail.indexOf(b), 1); L(s, `${b.def.name} は ${a.p.def.name} を ブロック しなければ ならない`); }
+  }
   for (const a of order) {
+    if (blocks.has(a.p.uid)) continue;
     let best = null, bv = 0;
     for (const b of avail) {
       if (!canBlock(s, b, a.p)) continue;
@@ -1037,6 +1054,7 @@ export async function enemyAttack(s, attackers) {
   const blocks = await s.ai.blocks(s, attackers);
   await s.ai.duringBlocks(s, attackers, blocks);
   for (const b of new Set(blocks.values())) if (b && onBf(s, b)) b.def.onBlock?.(s, b, api); // ブロックするたび（ゼンゼロ：セス）
+  for (const b of new Set(blocks.values())) if (b && onBf(s, b)) for (const q of [...s[b.side].bf]) if (q.def.onAllyBlock && onBf(s, q)) q.def.onAllyBlock(s, q, b, api); // 味方が ブロックするたび（宝具の 装備品）
   attackers = attackers.filter((p) => onBf(s, p));
   resolveCombat(s, pwTargets(s, attackers, blocks), blocks);
 }
