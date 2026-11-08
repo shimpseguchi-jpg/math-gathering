@@ -9,6 +9,20 @@ import {
   ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain, chainAll,
 } from './set12.js';
 
+// パエトーンの うら「イアス」（2026-11-08）：伝説の アーティファクト・クリーチャー 4/4。伝説の クリーチャーが 3体 いじょう いると うらがえる
+// （ユーザー：エージェント では なく 伝説の クリーチャー。作品を またいで つかえる）
+const isLegCre = (q) => isCre(q) && !!q.def.legend;
+const PHAETHON_ACT = bonAct(5, { label: 'エネルギー 5：てきに ブレイクカウンター 5こ', play: (s, p, E) => ({ score: 6, run: () => E.addBreak(s, 5) }) });
+const IASU = cr('ZZ107B', 'イアス', 'L', '', 2, 4, 4, ['プロキシ'], ['vigilance'], {
+  types: ['artifact', 'creature'], legend: true,
+  typeOver: '伝説（でんせつ）のアーティファクト・クリーチャー — ボンプ（パエトーンの うら）',
+  textOver: '警戒（けいかい）。あなたの ほかの 伝説（でんせつ）の クリーチャーは ＋2/＋2 の修整（しゅうせい）を受（う）ける。あなたの 伝説（でんせつ）の クリーチャーが 戦場（せんじょう）に出るたび、エネルギー ＋1。あなたが ブレイクを つかうたび、カードを1枚（まい）引く。エネルギー 5：敵（てき）に ブレイクカウンターを 5個（こ）置（お）く。',
+  anthem: (s, q, p) => (p !== q && p.side === q.side && isLegCre(p) ? [2, 2] : null),
+  onOtherEnter: (s, q, p, E) => { if (q.side === 'P' && p.side === 'P' && isCre(p) && p.def.legend) addBon(s, E, 1); },
+  onBreakUse: (s, p, E) => { if (p.side === 'P') { E.L(s, `${p.def.name}：ブレイク！ カードを 1まい 引く`); E.drawCard(s); } },
+  acts: [PHAETHON_ACT],
+});
+const phaethonFlip = (s, p, E) => { if (p.side === 'P' && E.onBf(s, p) && p.def.flip && s.P.bf.filter((q) => q !== p && isLegCre(q)).length >= 3) E.transform(s, p, p.def.flip); };
 PICK_FREE.add('ZZ149'); // 格闘（狸の 七変化）：コモンでも あいては じぶんで えらぶ（ランダムだと つよい てきに あたって そんする）
 // 2026-11-06（docs/REMOVAL.md 4.1）：1点・−1/−1 1こ・留置・1体を タップ も じぶんで えらぶ。ふたまたの 火花（ZZ146）は 2点を じぶんで 割り振る（算数）
 for (const id of ['ZZ109', 'ZZ114', 'ZZ115', 'ZZ120', 'ZZ124', 'ZZ139', 'ZZ146', 'ZZ148']) PICK_FREE.add(id);
@@ -122,6 +136,7 @@ export const S16 = {
   ZZ98: { brk: 3, onBlock: (s, p, E) => { if (p.side !== 'P') return; const t = foeBest(s, E, 2, (q) => q.attacking)?.t || foeBest(s, E, 2)?.t || biggest(s, E, (q) => q.attacking) || biggest(s, E); if (t) zap(s, E, p, t, 2); } }, // 盤岳
   // ---- 緑 ----
   // 葉瞬光（目玉の レジェンド。4マナ 6/5 速攻・トランプル）：出たとき ブレイクカウンター 5こ（交代で 出れば 5 ＋ 5 ＝ 10 で すぐ ブレイク）。連携の あまりは 本体へ
+  // 葉瞬光（推しサイクル 緑。いまの つよさの まま）
   ZZ99: { brk: 4, etb: (s, p, E) => { if (p.side !== 'P') return; E.L(s, `${p.def.name}：てきに ブレイクカウンター 5こ`); E.addBreak(s, 5); }, ...dmgChain(true) },
   ZZ100: { brk: 2, ...markFoe('G'), onDisorder: (s, p, E, src) => { if (src && E.onBf(s, src) && E.isCreature(src)) { E.L(s, `${p.def.name}：紊乱（びんらん）した ${src.def.name} に ＋1/＋1カウンター`); E.addCounters(s, src, 1); } } }, // 浮波柚葉
   ZZ101: { brk: 3, ...ANOM, ...atkZap(2, '2点を あたえる 異常（いじょう）の ついた てきの クリーチャー', (s, E, q) => !!q.anom), onDisorder: (s, p, E) => { E.drawCard(s, 1); } }, // アリス（2026-11-07：R → L・青。3/3・2点・紊乱で 1まい）
@@ -138,10 +153,12 @@ export const S16 = {
   })] },
   ZZ106: { brk: 2, acts: [lifeAct(2, 2, 2)] }, // スターライト・ビリー
   // パエトーン：出たとき エネルギー ＋2・エージェントが 出るたび ＋1（2まいめは かさならない）。エネルギー 5：ブレイクカウンター 5こ（2回で 10）
+  // 推しサイクル 無色（2026-11-08。ユーザーが きめた）：伝説の クリーチャーが 3体 そろうと うらがえって イアス（4/4 警戒・ほかの 伝説の クリーチャー ＋2/＋2・ブレイクで 1まい 引く）
   ZZ107: {
-    etb: etbBon(2),
-    onOtherEnter: (s, q, p, E) => { if (q.side === 'P' && p.side === 'P' && isCre(p) && p.def.legend && s.P.bf.find((x) => x.def.id === q.def.id) === q) addBon(s, E, 1); },
-    acts: [bonAct(5, { label: 'エネルギー 5：てきに ブレイクカウンター 5こ', play: (s, p, E) => ({ score: 6, run: () => E.addBreak(s, 5) }) })],
+    etb: (s, p, E, o) => { etbBon(2)(s, p, E, o); phaethonFlip(s, p, E); },
+    onOtherEnter: (s, q, p, E) => { if (q.side === 'P' && p.side === 'P' && isCre(p) && p.def.legend && s.P.bf.find((x) => x.def.id === q.def.id) === q) { addBon(s, E, 1); phaethonFlip(s, q, E); } },
+    acts: [PHAETHON_ACT],
+    flip: IASU,
   },
   // ---- モブ ----
   ZZ108: { ...lifeChain }, // 防衛軍の 兵士

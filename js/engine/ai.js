@@ -816,6 +816,7 @@ Object.assign(api, {
   scry: (s, n) => {
     if (ZZ_BLUE.mode === 'scry' && n > 0) zzBreak(s, 'U', '青：占術（せんじゅつ）');
     L(s, `せんじゅつ ${n}`);
+    if (n > 0) for (const q of [...s.P.bf]) if (q.def.onScry && api.onBf(s, q)) q.def.onScry(s, q, n, api); // 占術するたび（フィン・マックール）
     if (s.ai.scry) return s.ai.scry(s, n);
     const top = s.P.lib.splice(0, n);
     const keepL = [], bottom = [];

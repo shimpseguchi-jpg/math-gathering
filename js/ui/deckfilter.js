@@ -13,7 +13,7 @@ export function saveFilter(F) { try { localStorage.setItem(F.key || KEY, JSON.st
 // 弾の みじかい なまえ（サブセット・番外編は「」の 中）
 const setLabel = (x) => (x.sub || x.extra ? (/「(.*)」/.exec(x.name)?.[1] || x.name) : x.name.replace(/「.*$/, ''));
 
-const plain = (s) => s.replace(/（[ぁ-ゖー]+）/g, '').trim();
+const plain = (s) => s.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '').trim();
 // さがす：空白で 区切った ことばが ぜんぶ ふくまれる。漢字（「1枚 引く」）でも ふりがな（「1まい 引く」）でも まぜても あたる。全角・半角（＋1/＋1 と +1/+1）は 同じに
 const norm = (s) => String(s || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
 const words = (q) => String(q || '').split(/[\s　]+/).map(norm).filter(Boolean);

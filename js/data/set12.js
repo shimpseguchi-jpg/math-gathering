@@ -182,6 +182,7 @@ export const S12 = {
   ZZ10: { brk: 2, etb: prolif },
   ZZ11: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
   ZZ12: { brk: 2, allyDmgLess: 1 },
+  // 星見雅（推しサイクル 青。いまの つよさの まま）
   ZZ13: { brk: 4, trigTgt: { on: 'attack', label: '2点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
   ZZ14: { brk: 2, ...ninjutsu(1, ['W']) },
   ZZ15: { brk: 3, etb: prolif },

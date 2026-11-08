@@ -179,7 +179,7 @@ export const S15 = {
     skill: { label: 'ながよを 出す（いれば ＋1/＋1カウンター）', play: (s, p, E) => ({ score: 3, run: () => summonMemo(s, E, p, T15.nagayo) }) },
   }),
   SR84: chara({ ...fu(2, 2), pittari: spPit }), // 飛霄：追加攻撃 2（2回まで）
-  SR85: chara({ // ファイノン：火種 6こで カスライナ
+  SR85: chara({ // ファイノン：火種 6こで カスライナ（推しサイクル 赤。いまの つよさの まま）
     upkeep: (s, p, E) => { if (p.side !== 'P') return; const was = p.fire || 0; p.fire = Math.min(12, was + FIRE); E.L(s, `ひだね ${was} ＋ ${FIRE} ＝ ${p.fire}`); },
     skill: {
       label: 'ひだね 6こで ＋6/＋6 と トランプル（カスライナ）', can: (s, p) => (p.fire || 0) >= 6, cantWhy: 'せんぎポイントが ない か、ひだねが 6こ ない',

@@ -316,6 +316,15 @@ export function manaIn(s, n) {
   for (let i = 0; i < n; i++) for (const q of [...s.P.bf]) if (q.def.landfall && onBf(s, q)) { L(s, `じょうりく：${q.def.name}`); q.def.landfall(s, q, api); }
 }
 export const landfallNow = (s) => s.P.flags.manaInT === s.turn;
+// うらがえす（2026-11-08。パエトーン → イアス）：場の パーマネントの すがたを うら（back）に かえる。場を はなれると おもて（p.card）に もどる
+export function transform(s, p, back) {
+  if (!onBf(s, p) || !back || p.def === back) return false;
+  const was = p.def.name;
+  p.def = back; p.flipped = true;
+  L(s, `${foe(s, p.side)}${was} が うらがえった → ${back.name}`);
+  sba(s);
+  return true;
+}
 export const manaInNow = (s) => (s.P.flags.manaInT === s.turn ? s.P.flags.manaInN : 0);
 export const gainedNow = (s) => (s.P.flags.gainedT === s.turn ? s.P.flags.gainedN : 0);
 
@@ -507,12 +516,30 @@ export function useBreak(s, mode, t) {
   else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
   // 連携スキル（ゼンゼロ。def.chain は data/set12.js の chainSkill。2026-11-04 から エージェント みんな）：ブレイクの あと。inBreak の あいだ なので ブレイクは たまらない
   for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.chain && !s.over) q.def.chain(s, q, api);
+  for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onBreakUse && !s.over) q.def.onBreakUse(s, q, api); // ブレイクを つかうたび（イアス）
   s.inBreak = false;
   sba(s);
   return true;
 }
 
-export function pump(p, a, b, kws = []) { p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) if (ZZ_BLUE.mode === 'minus') zzBreak(CUR, 'U', '青：てきを よわく した'); }
+// サラスヴァティー・メルトアウト（FG176。def.minusGuard）が 装備されて いる がわの クリーチャーは マイナスの 修整（ターン終了時まで の −N）を 受けない。
+// その ぶん 装備している クリーチャーが プラスの 修整を 受ける（2026-11-07。ユーザーが きめた。メルトリリスの 宝具との 相性）
+function minusGuard(p, a, b) {
+  const s = CUR; if (!s || !(a < 0 || b < 0)) return null;
+  const side = s.P.bf.includes(p) ? 'P' : s.E.bf.includes(p) ? 'E' : null;
+  if (!side || !isCreature(p)) return null;
+  for (const g of s[side].bf) {
+    if (!g.def.minusGuard || !g.attached) continue;
+    const host = s[side].bf.find((h) => h.uid === g.attached && isCreature(h));
+    if (!host) continue;
+    const da = -Math.min(0, a), db = -Math.min(0, b);
+    host.mP += da; host.mT += db;
+    L(s, `${foe(s, side)}${g.def.name}：${p.def.name} は −${da}/−${db} を 受けない → ${host.def.name} ＋${da}/＋${db}`);
+    return [Math.max(0, a), Math.max(0, b)];
+  }
+  return null;
+}
+export function pump(p, a, b, kws = []) { const gd = minusGuard(p, a, b); if (gd) [a, b] = gd; p.mP += a; p.mT += b; for (const k of kws) p.kwT.add(k); if ((a < 0 || b < 0) && p.side === 'E' && CUR?.E.bf.includes(p)) if (ZZ_BLUE.mode === 'minus') zzBreak(CUR, 'U', '青：てきを よわく した'); }
 
 // 来世の スピリット（白黒 1/1 飛行）
 const AFTERLIFE = { id: 't_spiritWK', name: 'スピリット', rar: null, color: 'WK', cost: 0, types: ['creature'], pow: 1, tou: 1, sub: ['spirit'], kw: ['flying'] };
@@ -715,7 +742,7 @@ export function fight(s, a, b) {
 // ---- 戦場を離れる ----
 // 伝説の ルール（2026-11-05）：おなじ 名前の 伝説の パーマネントは 1人 1まいだけ。2まい目が 出たら、まえから ある ほうを 墓地に（新しい ほうが のこる）。
 // 画面は 出す まえに ちゅういする（battle.js の doCast）。AI は 2まい目を 出さない（ai.js の permScore）
-const legendKey = (def) => (def?.legend && !(def.types || []).some((t) => t === 'instant' || t === 'sorcery') ? String(def.name || '').replace(/（[ぁ-ゖー]+）/g, '').replace(/[ 　]/g, '') : null);
+const legendKey = (def) => (def?.legend && !(def.types || []).some((t) => t === 'instant' || t === 'sorcery') ? String(def.name || '').replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '').replace(/[ 　]/g, '') : null);
 // s.noLegendRule：tools/cardtest.mjs の せりふの しらべ だけ（おなじ カードを 2まい 出して「なかま」の きっかけを つくる ため）
 export const legendDupe = (s, side, def) => { const k = !s.noLegendRule && legendKey(def); return k ? s[side].bf.find((q) => onBf(s, q) && legendKey(q.def) === k) || null : null; };
 function legendRule(s) {
@@ -1072,7 +1099,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  L, drawCard, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  transform, L, drawCard, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,

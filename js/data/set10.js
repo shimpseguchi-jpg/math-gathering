@@ -158,7 +158,8 @@ export function randomFoe(s, E) {
 }
 export const S10 = {
   FG01: np(40, (s, E) => { for (const q of mine(s, E)) q.shieldT = s.turn; E.L(s, 'いまは 遥（はる）か 理想（りそう）の 城（しろ）：ダメージ 0'); }),
-  FG02: np(50, (s, E) => allFoes(s, E, 4)),
+  // アルトリア・ペンドラゴン（推しサイクル 白。2026-11-08 つよく）：警戒・出たとき NP ＋50・宝具で 敵の クリーチャー すべてと 本体に 4点
+  FG02: np(50, (s, E, p) => { allFoes(s, E, 4); if (!s.over) E.hitEnemy(s, 4, p); }, { etb: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 50, '出た'); } }),
   FG03: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.pump(q, 0, 0, ['indestructible']); }),
   FG04: np(40, (s, E) => { const b = foeBest(s, E, 4) || foeBest(s, E); if (b) hit(s, E, b.t, 4); }),
   FG05: np(30, (s, E) => { E.hitEnemy(s, 3, null); allFoes(s, E, 3); }, { upkeep: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 20); } }),
@@ -256,7 +257,8 @@ export const S10 = {
   FG50: np(40, (s, E) => { for (const t of theirs(s, E)) detain(s, E, t); }),
   FG51: np(50, (s, E) => E.hitEnemy(s, 2, null), { onAttack: (s, p) => { p.flags.turn.unblockable = true; } }),
   // フィン・マックール（2026-10-27：ネモと いれかえ）：出たとき 占術2。宝具で 敵1体を 手札へ ＋ 1まい 引く
-  FG52: { etb: (s, p, E) => { if (p.side === 'P') E.scry(s, 2); }, ...np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b && E.onBf(s, b.t)) { E.bounce(s, b.t); E.sba(s); } E.drawCard(s); }, { npTgt: { side: 'E', label: '手札（てふだ）に もどす クリーチャー' } }) },
+  // フィン・マックール：占術するたび NP ＋（占術の 数 × 10）（2026-11-07。ユーザーが きめた）
+  FG52: { etb: (s, p, E) => { if (p.side === 'P') E.scry(s, 2); }, onScry: (s, p, n, E) => { if (p.side === 'P') addNP(s, E, p, 10 * n, `せんじゅつ ${n}`); }, ...np(40, (s, E, p, t) => { const b = t ? { t } : foeBest(s, E); if (b && E.onBf(s, b.t)) { E.bounce(s, b.t); E.sba(s); } E.drawCard(s); }, { npTgt: { side: 'E', label: '手札（てふだ）に もどす クリーチャー' } }) },
   FG53: { etb: (s, p, E) => { if (p.side === 'P') E.token(s, 'P', TK.assassin, 2); } },
   FG54: np(50, (s, E) => { const b = foeBest(s, E, 2) || foeBest(s, E); if (b && E.onBf(s, b.t)) { E.addMinus(s, b.t, 2); E.sba(s); } }),
   FG55: np(40, (s, E) => { const b = foeBest(s, E, 99, (p) => E.power(s, p) <= 4); if (b) killIt(s, E, b.t); }),

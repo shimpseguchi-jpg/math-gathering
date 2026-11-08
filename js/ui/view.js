@@ -3,13 +3,13 @@ import { LORE } from '../data/lore.js';
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
 import { colorsOf, pt, basePT as rawPT, hasKw, isCreature, COLOR_JA } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
-import { mapRuby } from './ruby.js';
+import { mapRuby, stripRuby } from './ruby.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // 「漢字（よみ）」をルビにする
 // 送りがなを はさむ ことば（割り振って（わりふって））も まとめて ルビに
-export const ruby = (t) => mapRuby(String(t ?? ''), (b, y) => `<ruby>${esc(b)}<rt>${esc(y)}</rt></ruby>`, esc).replace(/\n/g, '<br>');
-export const noRuby = (t) => String(t ?? '').replace(/（[ぁ-ゖー]+）/g, '');
+export const ruby = (t) => mapRuby(String(t ?? ''), (b, y) => `<ruby>${esc(b)}<rt${/[ァ-ヶ]/.test(y) ? ' class="kr"' : ''}>${esc(y)}</rt></ruby>`, esc).replace(/\n/g, '<br>'); // rt.kr：宝具の カタカナの よみ（大人の 表記でも のこす）
+export const noRuby = (t) => stripRuby(t);
 
 // 文章の中の ことば（キーワード・用語）に 点線を つける。長おし・2回タップで せつめい（それぞれ 最初の1つだけ）
 // alias：同じ ことばでも べつの せつめいを 出す とき（タイプ欄の「学習」は 学習呪文）
@@ -173,7 +173,7 @@ export function fullCard(def) {
       ${i.reward && i.reward !== '−' ? `<p>${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
       ${i.math && i.math !== '−' ? `<p class="fc-math">算数：${ruby(i.math.replace(/\*\*/g, ''))}</p>` : ''}
     </div>
-    <div class="fc-foot"><small>${esc(RAR[def.rar] || '')}${i.motif && i.motif !== '−' ? ` ・ ${esc(i.motif)}` : ''}</small>${pts ? `<b class="fc-pt">${pts}</b>` : ''}</div>
+    <div class="fc-foot"><small>${esc(RAR[def.rar] || '')}${i.motif && i.motif !== '−' ? ` ・ ${ruby(i.motif)}` : ''}</small>${pts ? `<b class="fc-pt">${pts}</b>` : ''}</div>
   </div>`;
 }
 
@@ -253,6 +253,11 @@ function colorRow(def) {
   return `<p class="detail-colors"><span class="dc-label">色</span>${chips}${flag}</p>`;
 }
 
+// うらの すがた（パエトーン → イアス。2026-11-08）
+function flipHtml(b) {
+  const j = info(b);
+  return `<div class="detail-flip"><p class="detail-flip-h">${ruby('うら：')}${ruby(j.name)}　${richType(j.type)} ${b.types?.includes('creature') ? `<b>${basePT(b)}</b>` : ''}</p><p>${richText(j.text)}</p></div>`;
+}
 export function detail(def, o = {}) {
   const i = info(def);
   const enemy = o.enemy;
@@ -265,10 +270,11 @@ export function detail(def, o = {}) {
     ${enemy ? '' : colorRow(def)}
     <div class="detail-type">${richType(i.type)} ${pts}</div>
     <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
+    ${def.flip ? flipHtml(def.flip) : ''}
     ${loreHtml(def)}
     ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
     ${i.math && i.math !== '−' ? `<p class="detail-sub">算数：${ruby(i.math)}</p>` : ''}
-    <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
+    <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${ruby(i.motif)}` : ''}</p>
     <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>
   </div>`;
 }
