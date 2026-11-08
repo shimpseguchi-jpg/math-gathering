@@ -82,7 +82,8 @@ const spirit = (id, name, color, pow, tou, kw = []) => ({ ...cr(id, name, null, 
 const legends = (s, side) => s[side].bf.filter((q) => q.def.legend && isCrP(q)).length;
 const T15 = {
   raftra: spirit('t_raftra', 'ラフトラ', 'W', (s, p) => spOn(s, p.side) + 1, 3, ['flying']), // X ＝ 戦技ポイント ＋ 1
-  shiryu: spirit('t_shiryu', '死竜（しりゅう）', 'K', 5, 5, ['flying']),
+  // 死竜（2026-11-08。ユーザーが きめた）：場を はなれるとき ライフ ＋5（キャストリスが はなれて きえる ときも）
+  shiryu: { ...spirit('t_shiryu', '死竜（しりゅう）', 'K', 5, 5, ['flying']), textOver: '飛行（ひこう）。これが 場（ば）を はなれるとき、あなたは 5点の ライフを 得（え）る。', onLeaveSelf: (s, p, E) => { if (p.side !== 'P') return; E.L(s, 'しりゅうが はなれた → ライフ ＋5'); E.gain(s, 5); } },
   ikarun: spirit('t_ikarun', 'イカルン', 'G', 1, 1, ['flying']),
   myurion: spirit('t_myurion', 'ミュリオン', 'U', (s, p) => legends(s, p.side) + 1, (s, p) => legends(s, p.side) + 1), // X ＝ 伝説の クリーチャー ＋ 1
   nagayo: spirit('t_nagayo', '長夜（ながよ）', 'U', (s, p) => 2 * memoCount(s, p.side), (s, p) => 2 * memoCount(s, p.side), ['flying']), // X ＝ 精霊の 数 × 2
@@ -171,7 +172,8 @@ export const S15 = {
       E.L(s, `しんらい ${was} ＋ ${n} ＝ ${p.bud}`);
       while (p.bud >= BUD && E.onBf(s, p) && !s.over) { p.bud -= BUD; E.L(s, `しんらい ${BUD}こ → しりゅう（のこり ${p.bud}）`); summonMemo(s, E, p, T15.shiryu); }
     },
-    skill: { label: '2点の ライフを うしなう（しんらい ＋2）', play: (s, p, E, ctx) => { const b = (p.bud || 0) % BUD; return ctx.human || (s.P.life >= 8 && (b + 2 >= BUD || s.P.life >= 15)) ? { score: b + 2 >= BUD ? 4 : 1, run: () => E.hurt(s, 2) } : null; } },
+    // 戦技（2026-11-08。ユーザーが きめた：よわかった）：2点の ライフを うしなって 戦技ポイント ＋2（つかう 1 と あわせて ＋1）。しんらいも ＋2
+    skill: { label: '2点の ライフを うしなって せんぎポイント ＋2（しんらい ＋2）', play: (s, p, E, ctx) => { const b = (p.bud || 0) % BUD; return ctx.human || s.P.life >= 8 ? { score: b + 2 >= BUD ? 5 : 3, run: () => { E.hurt(s, 2); addSP(s, E, 2); } } : null; } },
   }),
   SR83: chara({ // 長夜月：長夜（X/X。X ＝ 精霊の 数 × 2）
     ...memoLink,
