@@ -11,7 +11,9 @@ const weakest = (s, E) => pc(s, E).sort((a, b) => E.pt(s, a)[1] - E.pt(s, b)[1])
 const DIFF = (s, easy, normal, hard) => ({ easy, normal, hard })[s.diff];
 const build = (list) => list.flatMap(([n, d]) => Array.from({ length: n }, () => d));
 const toLib = (s, E, defs) => shuffle(s.rng, defs.map((d) => E.card(d)));
-const attackers = (s, E, f) => s.E.bf.filter((p) => E.isCreature(p) && !p.tapped && (!p.sick || E.hasKw(s, p, 'haste')) && f(p));
+// attacks: 'trio'（3体 そろったら）：こうげき できる ものが 3体 いじょう いる ときだけ、いっせいに こうげき（セレズニアの 苗木。2026-11-08）
+const trio = (list) => (list.filter((p) => p.def.attacks === 'trio').length >= 3 ? list : list.filter((p) => p.def.attacks !== 'trio'));
+const attackers = (s, E, f) => trio(s.E.bf.filter((p) => E.isCreature(p) && !p.tapped && (!p.sick || E.hasKw(s, p, 'haste')) && f(p)));
 const sumPow = (s, E, list) => list.reduce((t, p) => t + Math.max(0, E.power(s, p)), 0);
 
 // ===== 1階：ハイドラとの対峙 =====
@@ -915,7 +917,7 @@ function ghostBegin(s, E) {
 
 export const FLOORS = { hydra, horde, factory, slime, xenagos, erebos, clock, dragon, twins, gorgon, tutorial };
 // ほかの 次元の 塔（ラヴニカ：data/ravnica.js）が 使う 部品
-export const KIT = { ecr, esp, eart, pc, biggest, weakest, DIFF, build, toLib, attackers, sumPow };
+export const KIT = { ecr, esp, eart, pc, biggest, weakest, DIFF, build, toLib, attackers, trio, sumPow };
 // 冒険の 5つの 階：それぞれ この 中から ランダムに 1つ
 export const SLOTS = [['hydra', 'clock'], ['horde', 'dragon'], ['factory', 'slime', 'twins'], ['xenagos', 'gorgon'], ['erebos']];
 export const pickFloors = (rng) => SLOTS.map((ids) => ids[Math.floor(rng() * ids.length)]);

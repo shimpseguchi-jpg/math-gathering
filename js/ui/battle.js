@@ -1314,6 +1314,7 @@ function willAttack(p) {
   if (s.floor.id === 'erebos' && s.phase === 3 && p.def.erebos) return !s.E.flags.erebosRest;
   if (p.def.dragon) return !!s.E.flags.awake;
   if (p.def.twin) return p.def.twin === s.E.flags.nextTwin;
+  if (p.def.attacks === 'trio') return s.E.bf.filter((q) => isCreature(q) && q.def.attacks === 'trio' && !q.frozen).length >= 3; // 苗木：3体 そろうと
   return !!(p.def.attacks || p.flags.mustAttack);
 }
 function intent() {

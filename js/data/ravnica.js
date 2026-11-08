@@ -2,10 +2,15 @@
 // ニコル・ボーラスは とっておく（いつか レイドバトルの ボス）
 import { FLOORS, KIT } from './enemies.js';
 
-const { ecr, esp, pc, biggest, weakest, DIFF, build, toLib, attackers, sumPow } = KIT;
+const { ecr, esp, pc, biggest, weakest, DIFF, build, toLib, attackers, trio, sumPow } = KIT;
 const att = (name, pow, tou, kw = [], x = {}) => ecr(name, pow, tou, [], kw, { attacks: true, ...x });
 const wall = (name, pow, tou, kw = [], x = {}) => ecr(name, pow, tou, [], kw, { attacks: false, ...x });
-const sap = ecr('苗木（なえぎ）', 1, 1, ['saproling'], [], { attacks: false, sapling: true });
+// 苗木（2026-11-08。ユーザーが きめた）：トロスターニは 三つ子なので、こうげき できる 苗木が 3体 そろうと いっせいに こうげき（attacks: 'trio'）。
+// まえは こうげき しなかった（セレズニアの 勝率：見本デッキ 99%・3パックの デッキ 91%）。いつも こうげき すると 76%・77% →
+// ターンの はじめに ふえる ぶんを 3体までに、ケンタウルス 4→3・ドライアド 4→5 で 96%・82%（ボロス 94%・88%、シミック 93%・81%）。冒険 300回：90% → 74%（シミック 74%）
+const sap = ecr('苗木（なえぎ）', 1, 1, ['saproling'], [], { attacks: 'trio', sapling: true });
+const saps = (s) => s.E.bf.filter((p) => p.def.sapling).length;
+const growSap = (s, E, n) => { const k = Math.max(0, Math.min(n, 3 - saps(s))); if (k) E.token(s, 'E', sap, k); }; // 3体まで
 
 // ---- セリフ（バトルの すすみぐあいで かわる。画面の ふきだしに 出る）----
 // s.E.say ＝ いまの セリフ。おなじ ものは 1かいだけ（s.E.said）
@@ -50,7 +55,7 @@ function lifeFloor(c) {
       if (!s.over) pinch(s, E, c.says);
     },
     revealN,
-    intent: (s, E) => (c.intent ? [c.intent(s, E)] : []),
+    intent: (s, E) => (c.intent ? [c.intent(s, E)].flat() : []),
     face(s, n, E) { s.E.life -= n; check(s, E); },
     faceValue: (s, n) => n * 1.5,
     check,
@@ -60,7 +65,7 @@ function lifeFloor(c) {
       const big = E.creatures(s, 'E').filter((p) => E.power(s, p) >= 3 || p.def.prio);
       return E.assignKill(s, atkers, E.killTargets(s, big), 'face');
     },
-    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks); return { damage: sumPow(s, E, a) + (c.extra || 0), attackers: a.length }; },
+    threat(s, E) { const a = trio(E.creatures(s, 'E').filter((p) => p.def.attacks)); return { damage: sumPow(s, E, a) + (c.extra || 0), attackers: a.length }; },
     anyTarget() { return 'face'; },
     castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
     status: (s) => `<span class="chip hot">${c.leader}の ライフ ${s.E.life}</span>`,
@@ -121,16 +126,16 @@ const boros = lifeFloor({
 });
 const selesnya = lifeFloor({
   id: 'selesnya', name: '1階 セレズニアの 森（もり）', leader: 'トロスターニ', life: [8, 10, 13],
-  intent: (s) => `なえぎが 1体 ふえて、ライフ ＋${Math.min(3, s.E.bf.filter((p) => p.def.sapling).length + 1)}`,
+  intent: (s) => [saps(s) < 3 ? `なえぎが 1体 ふえて、ライフ ＋${saps(s) + 1}` : 'ライフ ＋3', `なえぎが 3体 そろうと いっせいに こうげき（いま ${saps(s)}体）`],
   says: { mid: '森（もり）の いのちは つきません', low: 'あなたの ちからも、森の ように つよい……', win: 'あなたと わたしたちは ひとつ。とおりなさい', lose: 'やすみなさい。森は また まっています' },
   line: '森の みんなが わたしを まもる。なえぎの かずだけ いやされるのです',
-  goal: 'トロスターニの ライフを 0に する。てきの ターンの はじめに 苗木（なえぎ）が 1体 ふえて、なえぎの かずだけ ライフが ふえる（3まで）。',
+  goal: 'トロスターニの ライフを 0に する。てきの ターンの はじめに 苗木（なえぎ）が 1体 ふえて（3体まで）、なえぎの かずだけ ライフが ふえる（3まで）。トロスターニは 三つ子（みつご）。なえぎも 3体 そろうと いっせいに こうげきして くる。',
   setup(s, E) { E.token(s, 'E', sap); },
-  deck: [[4, wall('ドライアド', 1, 3)], [4, att('セレズニアの ケンタウルス', 3, 3)], [2, att('森の エルフ', 2, 2)],
+  deck: [[5, wall('ドライアド', 1, 3)], [3, att('セレズニアの ケンタウルス', 3, 3)], [2, att('森の エルフ', 2, 2)],
     [3, esp('苗木（なえぎ）の めばえ', (s, E) => E.token(s, 'E', sap, 2), { danger: 2 })], [2, esp('いやしの 歌', (s) => { s.E.life += 3; }, { danger: 1 })]],
   turnStart(s, E) {
-    E.token(s, 'E', sap);
-    const n = Math.min(3, s.E.bf.filter((p) => p.def.sapling).length);
+    growSap(s, E, 1);
+    const n = Math.min(3, saps(s));
     s.E.life += n; E.L(s, `トロスターニ：なえぎで ライフ ＋${n}（のこり ${s.E.life}）`);
   },
   hooks: { priority(s, p, E) { return p.def.sapling ? 6 : E.power(s, p) * 2 + 1; } },
@@ -260,7 +265,7 @@ const n12 = (p) => (p < 3 ? 1 : 2);
 const JACE_POWERS = [
   { id: 'azorius', g: 'アゾリウス', text: () => 'きみの カードは コスト ＋1', tax: true },
   { id: 'boros', g: 'ボロス', text: (p) => `2/1 の 兵士（へいし）が ${n12(p)}体（たい） 出る`, turn: (s, E, p) => E.token(s, 'E', att('ボロスの 兵士（へいし）', 2, 1), n12(p)) },
-  { id: 'selesnya', g: 'セレズニア', text: (p) => `苗木（なえぎ）が ${p}体 出て、ジェイスの ライフ ＋${p}`, turn: (s, E, p) => { E.token(s, 'E', sap, p); s.E.life += p; E.L(s, `ジェイスの ライフ ＋${p}（${s.E.life}）`); } },
+  { id: 'selesnya', g: 'セレズニア', text: (p) => `苗木（なえぎ）が ${p}体 出て（3体まで）、ジェイスの ライフ ＋${p}`, turn: (s, E, p) => { growSap(s, E, p); s.E.life += p; E.L(s, `ジェイスの ライフ ＋${p}（${s.E.life}）`); } },
   { id: 'simic', late: true, g: 'シミック', text: (p) => `てきの クリーチャー すべてに ＋1/＋1カウンター ${n12(p)}こ`, turn: (s, E, p) => { for (const q of E.creatures(s, 'E')) E.addCounters(s, q, n12(p)); } },
   { id: 'izzet', late: true, g: 'イゼット', text: (p) => `きみの いちばん つよい クリーチャーに ${p + 1}点`, turn: (s, E, p) => { const t = biggest(s, E); if (t) E.damage(s, t, p + 1, null); else E.hurt(s, p + 1); E.sba(s); } },
   { id: 'golgari', g: 'ゴルガリ', text: (p) => `ぼちの クリーチャーが ${n12(p)}体 もどる`, turn: (s, E, p) => { for (let i = 0; i < n12(p); i++) { const k = s.E.gy.findIndex((c) => c.def.types.includes('creature')); if (k < 0) return; const [c] = s.E.gy.splice(k, 1); E.enter(s, 'E', c.def); } } },
@@ -323,7 +328,7 @@ function jace(o = {}) {
       if (sumPow(s, E, atkers) >= s.E.life) return atkers.map((p) => ({ p, t: 'face' }));
       return E.assignKill(s, atkers, E.killTargets(s, E.creatures(s, 'E').filter((p) => E.power(s, p) >= 3)), 'face');
     },
-    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks), x = power(s); return { damage: sumPow(s, E, a) + (x?.hit?.(s.phase) || 0), attackers: a.length + (x?.id === 'boros' ? n12(s.phase) : 0) }; },
+    threat(s, E) { const a = trio(E.creatures(s, 'E').filter((p) => p.def.attacks)), x = power(s); return { damage: sumPow(s, E, a) + (x?.hit?.(s.phase) || 0), attackers: a.length + (x?.id === 'boros' ? n12(s.phase) : 0) }; },
     anyTarget() { return 'face'; },
     castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
     status: (s) => `<span class="chip">だんかい ${s.phase}/3${power(s) ? `・${power(s).g}` : ''}</span><span class="chip hot">ジェイスの ライフ ${s.E.life}</span>`,
