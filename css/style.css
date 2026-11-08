@@ -550,6 +550,24 @@ span.pile { cursor: default; }
 
 /* ---- スワイプ ---- */
 .perm.drag { touch-action: none; }
+/* オーラ・装備品（2026-11-08）：ついて いる クリーチャーの 下に、右下へ 少し ずらして かさねる（battle.js の .pstack）。はしを タップで その カード */
+.pstack { position: relative; padding-bottom: calc(var(--n) * 9px); transition: transform 0.15s; }
+.pstack > .perm.host { position: relative; z-index: 4; }
+.pstack > .perm.att { position: absolute; left: 0; top: 0; width: 100%; z-index: calc(4 - var(--k)); transform: translate(calc(var(--k) * 9px), calc(var(--k) * 9px)); filter: brightness(0.88); }
+.pstack.tapped { transform: rotate(7deg) scale(0.94); }
+.pstack > .perm.host.tapped { transform: none; }
+.pstack > .perm.att.tapped { transform: translate(calc(var(--k) * 9px), calc(var(--k) * 9px)); }
+/* 装備品・オーラ・こうかで ついた 能力は 赤（view.js の kwChip） */
+.card-kw span.mod { background: #ffe0e0; color: #c92a2a; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(201, 42, 42, 0.45); }
+/* くわしい せつめい：右から 左へ スワイプで ついて いる カード */
+.swipe { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.swipe::-webkit-scrollbar { display: none; }
+.swipe-pg { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; }
+.swipe-hint { margin: 0 0 6px; font-size: 12.5px; opacity: 0.85; text-align: right; }
+.swipe-dots { display: flex; justify-content: center; gap: 6px; margin: 6px 0 2px; }
+.swipe-dots i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.3; }
+.swipe-dots i.on { opacity: 0.9; }
+.swipe-open { margin-top: 8px; width: 100%; }
 .perm.drop-ok { outline: 4px solid var(--gold); transform: scale(1.06); }
 #arrow { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 15; pointer-events: none; }
 #arrow line { stroke: var(--ink-dim); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 10; }

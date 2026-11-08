@@ -125,7 +125,7 @@ for (let i = 0; i < STEPS && !ended; i++) {
     await shot(`battle${battles}`);
     if (await page.locator('[data-act=blockauto]').count()) {
       // スワイプで ブロック（自分の クリーチャー → 攻撃してくる 敵）
-      const me = page.locator('.zone.mine .perm.drag'), at = page.locator('.zone.enemy .perm.attacking');
+      const me = page.locator('.zone.mine .perm.drag:not(.att)'), at = page.locator('.zone.enemy .perm.attacking:not(.att)');
       if (await me.count() && await at.count()) { await swipe(me.first(), at.first()); await shot(`block${battles}`); await page.waitForTimeout(400); } // スワイプの すぐあとの タップは むしされる
       // 「ブロック けってい」の あとも、こうげきの 演出（fx.lunge）が おわるまで ボタンが のこる。2どおし しないよう、きえるまで まつ
       if (await tap('[data-act=blockdone]')) await page.locator('[data-act=blockdone]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
@@ -133,13 +133,13 @@ for (let i = 0; i < STEPS && !ended; i++) {
     }
     if (await page.locator('[data-act=auto]').count()) { if (await tap('[data-act=auto]')) await tap('[data-act=declare]'); continue; }
     // スワイプで 攻撃（自分の クリーチャー → 敵）
-    const dr = page.locator('.zone.mine .perm.drag'), en = page.locator('.zone.enemy .perm');
+    const dr = page.locator('.zone.mine .perm.drag:not(.att)'), en = page.locator('.zone.enemy .perm:not(.att)'); // .att：クリーチャーの 下に かさなった オーラ・装備品（まんなかは かくれて おせない）
     if (await dr.count() && await en.count() && Math.random() < 0.5) { await swipe(dr.first(), en.first()); continue; }
     // てきの ターンの インスタント（defend・eot の まど）：光っている カードが あれば ときどき 使う、なければ つぎへ
     if (await page.locator('[data-act=pass]').count()) { // てきの ターンの まど：光っている 手札か クリーチャーの 能力を 使う。なければ つぎへ
       const r = Math.random();
       if (r < 0.5 && await page.locator('.hand-slot.ok').count()) await tap('.hand-slot.ok');
-      else if (r < 0.75 && await page.locator('.zone.mine .perm.ab, .zone.mine .perm.ab-big').count()) await tap('.zone.mine .perm.ab, .zone.mine .perm.ab-big');
+      else if (r < 0.75 && await page.locator('.zone.mine .perm.ab:not(.att), .zone.mine .perm.ab-big:not(.att)').count()) await tap('.zone.mine .perm.ab:not(.att), .zone.mine .perm.ab-big:not(.att)');
       else await tap('[data-act=pass]');
       continue;
     }

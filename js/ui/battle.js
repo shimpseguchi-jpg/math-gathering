@@ -1131,7 +1131,21 @@ async function tapPerm_(p) {
   }
   if (p.side === 'P' && (B.mode === 'tricks' || B.mode === 'defend')) for (const a of p.def.acts || []) if (a.pumpP) choices.push({ label: `パワー ＋${a.pumpP}（${a.cost}マナ・赤）`, value: { a, pump: true }, kind: 'primary', disabled: !plan(s, a.cost, a.req || []) || !(B.mode === 'defend' ? blockersNow().includes(p) : p.attacking) }); // こうげき中 か ブロック中の クリーチャーだけ
   choices.push({ label: 'とじる', value: null });
-  const v = await sheet(`${detail(p.def, { enemy: p.side === 'E' })}${permState(s, p)}${p.def.npFx && p.def.np ? `<p class="what">${esc(npNote(p))}</p>` : ''}`, choices);
+  const main = `${detail(p.def, { enemy: p.side === 'E' })}${permState(s, p)}${p.def.npFx && p.def.np ? `<p class="what">${esc(npNote(p))}</p>` : ''}`;
+  // ついて いる オーラ・装備品（2026-11-08）：右から 左へ スワイプで 見られる。「この カードを ひらく」で その カードの シート（能力・そうびの つけかえ）
+  const atts = isCreature(p) ? [...s.P.bf, ...s.E.bf].filter((q) => q !== p && q.attached === p.uid) : [];
+  const html = atts.length ? `<p class="swipe-hint">${ruby(`← スワイプで ついている カード（${atts.length}まい）を 見る`)}</p><div class="swipe">
+      <div class="swipe-pg">${main}</div>
+      ${atts.map((q, k) => `<div class="swipe-pg">${detail(q.def, { enemy: q.side === 'E' })}${permState(s, q)}${q.side === 'P' ? `<button type="button" class="btn swipe-open" data-sv="${k}">この カードを ひらく</button>` : ''}</div>`).join('')}
+    </div><div class="swipe-dots">${[0, ...atts.map((_, k) => k + 1)].map((k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : main;
+  const v = await sheet(html, choices, atts.length ? {
+    values: atts.map((q) => ({ open: q })),
+    onOpen: () => {
+      const sw = document.querySelector('#sheet .swipe'), dots = [...document.querySelectorAll('#sheet .swipe-dots i')];
+      sw?.addEventListener('scroll', () => { const k = Math.round(sw.scrollLeft / Math.max(1, sw.clientWidth)); dots.forEach((d, i) => d.classList.toggle('on', i === k)); }, { passive: true });
+    },
+  } : {});
+  if (v?.open) return tapPerm_(v.open);
   if (!v) return;
   if (win) return windowCast(() => runAct(p, v)); // まどの 中：使い終わったら つづきが あるか 見る
   return runAct(p, v);
@@ -1459,10 +1473,20 @@ function render() {
   B.tut?.update(s, B);
   const ready = B.mode === 'attack' ? readyAttackers(s) : [];
   const isNewPerm = (p) => B.prev?.perms && !B.prev.perms.has(p.uid);
-  const perms = (side) => s[side].bf.map((p) => permFace(s, p, {
+  // オーラ・装備品（2026-11-08）：ついて いる クリーチャーの 下に、右下へ 少し ずらして かさねる（.pstack）。タップで その カードの シート
+  const allBf = [...s.P.bf, ...s.E.bf];
+  const hostOfUid = (q) => (q.attached ? allBf.find((h) => h.uid === q.attached && isCreature(h)) : null);
+  const attOf = (h) => allBf.filter((q) => q !== h && q.attached === h.uid);
+  const perms = (side) => s[side].bf.filter((p) => !hostOfUid(p)).map((p) => {
+    const at = isCreature(p) ? attOf(p) : [];
+    if (!at.length) return face1(side, p);
+    return `<div class="pstack ${p.tapped ? 'tapped' : ''}" style="--n:${at.length}">${at.map((q, k) => face1(side, q, 'att', `--k:${k + 1}`)).join('')}${face1(side, p, 'host')}</div>`;
+  }).join('') || '<p class="empty">（なにも いない）</p>';
+  const face1 = (side, p, extra = '', style = '') => permFace(s, p, {
+    style,
     label: permLabel(p),
-    cls: [isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', (B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p)) || (B.mode === 'defend' && side === 'E' && B.winCtx?.attackers.includes(p)) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : '', side === 'P' ? abilityMark(s, p) : ''].join(' '),
-  })).join('') || '<p class="empty">（なにも いない）</p>';
+    cls: [extra, isNewPerm(p) ? 'enter' : '', B.mode === 'attack' && ready.includes(p) ? 'can' : '', B.sel.has(p.uid) && B.mode === 'attack' ? 'sel' : '', (B.mode === 'block' && side === 'E' && B.blockAttackers.includes(p)) || (B.mode === 'defend' && side === 'E' && B.winCtx?.attackers.includes(p)) ? 'attacking' : '', side === 'P' && canDrag(p) ? 'drag' : '', side === 'P' ? abilityMark(s, p) : ''].join(' '),
+  });
   const face = attackFace() ? `<div class="perm face-tile" data-face="1"><span>${esc(s.floor.id === 'pvp' ? s.floor.name : ravFace() ? s.floor.faceLabel : s.floor.id === 'dragon' ? 'たからの 山' : faceName())}</span><b>${s.floor.id === 'horde' ? `やまふだ ${s.E.lib.length}` : s.floor.id === 'dragon' ? `きんか ${s.E.gold}/${s.E.goal}` : `ライフ ${s.E.life}`}</b></div>` : '';
   const untapped = s.P.mana.filter((m) => !m.tapped).length;
   const colors = { W: 0, U: 0, G: 0, R: 0, C: 0 };
