@@ -179,12 +179,11 @@ export const S15 = {
     skill: { label: 'ながよを 出す（いれば ＋1/＋1カウンター）', play: (s, p, E) => ({ score: 3, run: () => summonMemo(s, E, p, T15.nagayo) }) },
   }),
   SR84: chara({ ...fu(2, 2), pittari: spPit }), // 飛霄：追加攻撃 2（2回まで）
-  SR85: chara({ // ファイノン：火種 6こで カスライナ（推しサイクル 赤。2026-11-08 つよく：出たとき 火種 6・カスライナで 速攻も）
-    etb: (s, p, E) => { if (p.side !== 'P') return; p.fire = 6; E.L(s, `${p.def.name}：ひだね 6`); },
+  SR85: chara({ // ファイノン：火種 6こで カスライナ（推しサイクル 赤。いまの つよさの まま）
     upkeep: (s, p, E) => { if (p.side !== 'P') return; const was = p.fire || 0; p.fire = Math.min(12, was + FIRE); E.L(s, `ひだね ${was} ＋ ${FIRE} ＝ ${p.fire}`); },
     skill: {
-      label: 'ひだね 6こで ＋6/＋6 と トランプル・速攻（カスライナ）', can: (s, p) => (p.fire || 0) >= 6, cantWhy: 'せんぎポイントが ない か、ひだねが 6こ ない',
-      play: (s, p, E, ctx) => ((p.fire || 0) >= 6 && (ctx.human || (ctx.phase === 1 && !p.tapped)) ? { score: 9, run: () => { p.fire -= 6; E.L(s, `ひだね ${p.fire + 6} − 6 ＝ ${p.fire}：カスライナ！`); E.pump(p, 6, 6, ['trample', 'haste']); } } : null), // 速攻：出た ターンでも こうげき できる
+      label: 'ひだね 6こで ＋6/＋6 と トランプル（カスライナ）', can: (s, p) => (p.fire || 0) >= 6, cantWhy: 'せんぎポイントが ない か、ひだねが 6こ ない',
+      play: (s, p, E, ctx) => ((p.fire || 0) >= 6 && (ctx.human || (ctx.phase === 1 && canSwing(s, E, p))) ? { score: 9, run: () => { p.fire -= 6; E.L(s, `ひだね ${p.fire + 6} − 6 ＝ ${p.fire}：カスライナ！`); E.pump(p, 6, 6, ['trample']); } } : null),
     },
   }),
   SR86: chara({ // トリビー：トリアン・トリノン。必殺技で 敵 みんなに 1点

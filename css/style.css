@@ -307,6 +307,9 @@ span.pile { cursor: default; }
 .pick3 { display: flex; flex-direction: column; gap: 8px; }
 .pick3 .detail-hint { display: none; }
 .detail h2 { font-size: 19px; line-height: 1.6; }
+.detail-flip { margin: 6px 0; padding: 6px 10px; border-radius: 8px; border: 1px dashed currentColor; opacity: 0.92; } /* うらの すがた（パエトーン → イアス） */
+.detail-flip p { margin: 2px 0; }
+.detail-flip-h { font-weight: 700; }
 .detail-type { font-size: 13px; opacity: 0.75; margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pt-big { font-family: var(--display); font-size: 17px; opacity: 1; }
 .detail-text { font-size: 15px; line-height: 2; margin: 8px 0; }

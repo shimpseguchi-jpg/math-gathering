@@ -214,7 +214,16 @@ export const S14 = {
     const n = oc(p, 2), b = t ? { t } : (foeBest(s, E, n) || foeBest(s, E));
     if (b && E.onBf(s, b.t)) { E.target(s, b.t); E.addMinus(s, b.t, n); E.sba(s); }
   }, { npAI: needFoe, npTgt: { side: 'E', label: '−1/−1カウンターを おく クリーチャー' } }),
-  FG121: ocNP(40, (s, E, p) => { allFoes(s, E, oc(p, 1)); regrow(s, E, isCr); }, { npAI: (s, p, E) => needFoe(s, p, E) || s.P.gy.some((c) => isCr(c.def)) }),
+  // エレシュキガル（推しサイクル 黒。2026-11-08：R → L・4/5。ユーザーが きめた）：敵の クリーチャーが 死亡するたび NP ＋20。
+  // 宝具：敵の クリーチャー すべてに 〔2〕点、その あと 墓地の クリーチャー・カード1まいを 戦場に
+  FG121: ocNP(40, (s, E, p) => {
+    allFoes(s, E, oc(p, 2));
+    const c = bestIn(s.P.gy, (x) => isCr(x.def));
+    if (c && !s.over) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.L(s, `めいかいから ${c.def.name} が もどって きた`); E.enter(s, 'P', c.def, { card: c.def }); }
+  }, {
+    npAI: (s, p, E) => needFoe(s, p, E) || s.P.gy.some((c) => isCr(c.def)),
+    onOtherLeave: (s, q, p, E, o) => { if (o?.died && p.side !== q.side && E.isCreature(p) && E.onBf(s, q)) addNP(s, E, q, 20, `${p.def.name} が たおれた`); },
+  }),
   FG122: ocNP(50, (s, E, p) => { const n = oc(p, 1); allFoes(s, E, n); if (E.onBf(s, p)) { E.damage(s, p, n, null); E.sba(s); } }, { npAI: needFoe, onDie: S10.FG07.onDie }),
   FG123: crypter('K', (s, q, p, E) => minusRandom(s, E, q.side)),
   FG124: ocNP(40, (s, E, p) => { const n = oc(p, 2), t = killTop(s, E, n); if (t) { E.target(s, t); E.L(s, `${t.def.name}：${ptMsg(-n, -n)}`); shrink(s, E, t, n, n); } }, {

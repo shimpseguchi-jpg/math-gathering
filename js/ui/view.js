@@ -173,7 +173,7 @@ export function fullCard(def) {
       ${i.reward && i.reward !== '−' ? `<p>${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
       ${i.math && i.math !== '−' ? `<p class="fc-math">算数：${ruby(i.math.replace(/\*\*/g, ''))}</p>` : ''}
     </div>
-    <div class="fc-foot"><small>${esc(RAR[def.rar] || '')}${i.motif && i.motif !== '−' ? ` ・ ${esc(i.motif)}` : ''}</small>${pts ? `<b class="fc-pt">${pts}</b>` : ''}</div>
+    <div class="fc-foot"><small>${esc(RAR[def.rar] || '')}${i.motif && i.motif !== '−' ? ` ・ ${ruby(i.motif)}` : ''}</small>${pts ? `<b class="fc-pt">${pts}</b>` : ''}</div>
   </div>`;
 }
 
@@ -253,6 +253,11 @@ function colorRow(def) {
   return `<p class="detail-colors"><span class="dc-label">色</span>${chips}${flag}</p>`;
 }
 
+// うらの すがた（パエトーン → イアス。2026-11-08）
+function flipHtml(b) {
+  const j = info(b);
+  return `<div class="detail-flip"><p class="detail-flip-h">${ruby('うら：')}${ruby(j.name)}　${richType(j.type)} ${b.types?.includes('creature') ? `<b>${basePT(b)}</b>` : ''}</p><p>${richText(j.text)}</p></div>`;
+}
 export function detail(def, o = {}) {
   const i = info(def);
   const enemy = o.enemy;
@@ -265,10 +270,11 @@ export function detail(def, o = {}) {
     ${enemy ? '' : colorRow(def)}
     <div class="detail-type">${richType(i.type)} ${pts}</div>
     <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
+    ${def.flip ? flipHtml(def.flip) : ''}
     ${loreHtml(def)}
     ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
     ${i.math && i.math !== '−' ? `<p class="detail-sub">算数：${ruby(i.math)}</p>` : ''}
-    <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${esc(i.motif)}` : ''}</p>
+    <p class="detail-meta">${def.rar ? esc(RAR[def.rar] || '') : ''}${i.motif && i.motif !== '−' ? `　元のカード：${ruby(i.motif)}` : ''}</p>
     <p class="detail-hint">点線の ことばは 長おし か 2回タップで せつめいが 出るよ</p>
   </div>`;
 }

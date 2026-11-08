@@ -316,6 +316,15 @@ export function manaIn(s, n) {
   for (let i = 0; i < n; i++) for (const q of [...s.P.bf]) if (q.def.landfall && onBf(s, q)) { L(s, `じょうりく：${q.def.name}`); q.def.landfall(s, q, api); }
 }
 export const landfallNow = (s) => s.P.flags.manaInT === s.turn;
+// うらがえす（2026-11-08。パエトーン → イアス）：場の パーマネントの すがたを うら（back）に かえる。場を はなれると おもて（p.card）に もどる
+export function transform(s, p, back) {
+  if (!onBf(s, p) || !back || p.def === back) return false;
+  const was = p.def.name;
+  p.def = back; p.flipped = true;
+  L(s, `${foe(s, p.side)}${was} が うらがえった → ${back.name}`);
+  sba(s);
+  return true;
+}
 export const manaInNow = (s) => (s.P.flags.manaInT === s.turn ? s.P.flags.manaInN : 0);
 export const gainedNow = (s) => (s.P.flags.gainedT === s.turn ? s.P.flags.gainedN : 0);
 
@@ -507,6 +516,7 @@ export function useBreak(s, mode, t) {
   else { const i = s.P.mana.indexOf(t); if (i >= 0) { s.P.mana.splice(i, 1); t.tapped = false; s.P.hand.push(t); L(s, `ブレイク！ マナゾーンの ${t.def.name} を てふだに`); } }
   // 連携スキル（ゼンゼロ。def.chain は data/set12.js の chainSkill。2026-11-04 から エージェント みんな）：ブレイクの あと。inBreak の あいだ なので ブレイクは たまらない
   for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.chain && !s.over) q.def.chain(s, q, api);
+  for (const q of [...s.P.bf]) if (onBf(s, q) && q.def.onBreakUse && !s.over) q.def.onBreakUse(s, q, api); // ブレイクを つかうたび（イアス）
   s.inBreak = false;
   sba(s);
   return true;
@@ -1089,7 +1099,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  L, drawCard, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  transform, L, drawCard, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
