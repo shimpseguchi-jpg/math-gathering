@@ -66,9 +66,10 @@ export function initTerms() {
   document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('[data-term]')) e.preventDefault(); });
 }
 // キーワードの 札：習わない 漢字には ふりがな（カードの 文章と おなじ）
-const kwChip = (k) => {
+// mod：装備品・オーラ・こうかで ついた 能力（もとの カードには ない）は 赤く する（2026-11-08）
+const kwChip = (k, mod = false) => {
   const yomi = TERM[KW_TERM[k]]?.yomi;
-  return `<span ${KW_TERM[k] ? `data-term="${esc(KW_TERM[k])}"` : ''}>${yomi && /[一-龯]/.test(k) ? ruby(`${k}（${yomi}）`) : esc(k)}</span>`;
+  return `<span ${mod ? 'class="mod" ' : ''}${KW_TERM[k] ? `data-term="${esc(KW_TERM[k])}"` : ''}>${yomi && /[一-龯]/.test(k) ? ruby(`${k}（${yomi}）`) : esc(k)}</span>`;
 };
 
 export const COLOR_NAME = { W: '白', U: '青', K: '黒', G: '緑', R: '赤' };
@@ -211,7 +212,8 @@ export function permFace(s, p, o = {}) {
   else if (p.def.clock) ptHtml = `${clockFace(s.E.hour)}<div class="card-pt key">${s.E.hour}時</div>`;
   else ptHtml = `<div class="card-type">${esc(typeShort(p.def))}</div>`;
   if (p.def.medusa) ptHtml = `<div class="card-pt key">ライフ ${s.E.life}</div>`;
-  const kws = Object.keys(KW).filter((k) => hasKw(s, p, k) && k !== 'convoke').map((k) => KW[k]);
+  const baseKw = new Set(p.def.kw || []);
+  const kwk = Object.keys(KW).filter((k) => hasKw(s, p, k) && k !== 'convoke').sort((a, b) => baseKw.has(a) - baseKw.has(b)); // ついた 能力を さきに（3つまで しか 出ない ので）
   const head = p.def.headDmg ? `<span class="cost dmg">${p.def.headDmg}</span>` : (enemy ? '' : `<span class="cost">${esc(costLabel(p.def))}</span>`);
   const badges = [
     p.ctr ? `<span class="b ctr">+${p.ctr}</span>` : '', // カウンターの くわしい ことは タップした ときの「いまの ようす」（permState）
@@ -234,10 +236,10 @@ export function permFace(s, p, o = {}) {
     p.def.dragon && !s.E.flags.awake ? '<span class="b zz">ねている</span>' : '',
     p.token ? '<span class="b tok">トークン</span>' : '',
   ].join('');
-  return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${(p.def.npFx && (p.np || 0) >= 100) ? 'hogu' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}">
+  return `<button type="button" class="card perm ${colorClass(p.def, enemy)} ${p.tapped ? 'tapped' : ''} ${(p.def.npFx && (p.np || 0) >= 100) ? 'hogu' : ''} ${o.cls || ''}" data-uid="${p.uid}" data-card="${esc(p.def.id || '')}"${o.style ? ` style="${o.style}"` : ''}>
     <div class="card-top">${head}<span class="badges">${badges}</span></div>
     <div class="card-name">${ruby(i.name)}</div>
-    <div class="card-kw">${kws.slice(0, 3).map(kwChip).join('')}</div>
+    <div class="card-kw">${kwk.slice(0, 3).map((k) => kwChip(KW[k], !baseKw.has(k))).join('')}</div>
     ${ptHtml}
     ${o.label ? `<div class="card-label ${o.label[0] === '!' ? 'warn' : ''}">${ruby(o.label.replace(/^!/, ''))}</div>` : ''}
   </button>`;
