@@ -268,7 +268,7 @@ const FX = {
   PW41: [(s, E) => E.token(s, 'P', T.beast)],
   PW31: [
     (s, E) => { const c = digOne(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); s.P.exile.push(c); E.L(s, `ほりだした：${c.def.name}`); E.token(s, 'P', T.spiritRW); },
-    (s, E) => { const c = gyBiggest(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); E.L(s, `${c.def.name}（パワー ${powOf(c.def)}）が もどった`); },
+    (s, E) => { const c = gyBiggest(s); if (!c) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); E.L(s, `${c.def.name}（パワー ${powOf(c.def)}）が もどった`); },
   ],
 };
 for (const [id, fx] of Object.entries(FX)) {

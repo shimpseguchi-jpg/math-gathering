@@ -444,7 +444,7 @@ export const S15 = {
     },
     react: (s, E, ctx) => { const pw = (ctx.attackers || []).filter((t) => E.onBf(s, t)).reduce((a, t) => a + Math.max(0, E.power(s, t) - 1), 0); return pw >= 5 ? { score: pw, run: () => { for (const t of [...theirs(s, E)]) frog(s, E, t); E.sba(s); } } : null; },
   }),
-  SR155: ult('SR82', 2, { play: (s, E) => { const c = bestIn(s.P.gy, (x) => isCr(x.def) && !x.def.x); return c ? { score: 6 + c.def.cost, run: () => { if (!s.P.gy.includes(c)) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.L(s, `ぼちから せんじょうへ：${c.def.name}`); E.enter(s, 'P', c.def, { card: c.def }); } } : null; } }), // 亡者の怒哮、蘇生の鐘（Zombify）
+  SR155: ult('SR82', 2, { play: (s, E) => { const c = bestIn(s.P.gy, (x) => isCr(x.def) && !x.def.x); return c ? { score: 6 + c.def.cost, run: () => { if (!s.P.gy.includes(c)) return; s.P.gy.splice(s.P.gy.indexOf(c), 1); E.L(s, `ぼちから せんじょうへ：${c.def.name}`); E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); } } : null; } }), // 亡者の怒哮、蘇生の鐘（Zombify）
   SR156: ult('SR105', 2, { play: (s, E, ctx) => { const ts = theirs(s, E); const k = ts.filter((t) => E.need(s, t) <= 1).length; const v = k * 4 + ts.length; return ts.length && (v >= 2 || ctx.human) ? { score: v, run: () => { for (const t of [...theirs(s, E)]) E.addMinus(s, t, 1); E.sba(s); } } : null; } }), // 絶海の渦潮、呑魂の舞曲（Cower in Fear。2026-11-05：−1/−1 → −1/−1カウンター。コスト 3 → 5。のこる ので メイン2でも）
   SR157: ult('SR85', 2, { // 永劫の焼世、背負うべき未来（Unleash Fury）
     play: (s, E, ctx) => { if (ctx.phase !== 1 && !ctx.human) return null; const t = E.bestBuffTarget(s, null, { ready: true }); return t && (ctx.human || (canSwing(s, E, t) && E.power(s, t) >= 3)) ? { score: 2 + E.power(s, t), run: () => fury(s, E, t) } : null; },

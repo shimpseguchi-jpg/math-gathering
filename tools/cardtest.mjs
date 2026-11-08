@@ -25,7 +25,7 @@ const fnKeys = (d) => Object.keys(d).filter((k) => typeof d[k] === 'function' ||
 const HOOKS = [
   [/戦場に ?出たとき|戦場に ?出るたび|出たとき/, ['etb', 'onEnter', 'onOtherEnter', 'etbFoe', 'trigTgt', 'ninjutsu', 'bestow', 'adv', 'saga', 'chapters', 'acts', 'np', 'onCast']],
   [/攻撃するたび|攻撃したとき/, ['onAttack', 'onAttacks', 'trigTgt', 'np', 'onAnyAttack', 'onHostAttack']],
-  [/死亡|墓地に置かれたとき|墓地に ?いったとき/, ['onDie', 'onAnyDie', 'onOtherDie', 'onLeave', 'onDies', 'onKill', 'onOtherLeave', 'onLeaveSelf', 'saveDeath', 'doubleDeath', 'dieToBottom', 'ownDeadToBottom', 'exileEnemyDead', 'play']],
+  [/死亡|墓地に置かれたとき|墓地に ?いったとき/, ['onDie', 'onAnyDie', 'onOtherDie', 'onLeave', 'onDies', 'onKill', 'onOtherLeave', 'onLeaveSelf', 'saveDeath', 'onHostSaved', 'onHostKill', 'doubleDeath', 'dieToBottom', 'ownDeadToBottom', 'exileEnemyDead', 'play']],
   [/(?<!次の ?)ターンの ?はじめに(?! ?アンタップしない)|アップキープ/, ['upkeep', 'onUpkeep', 'onTurn', 'growUp']],
   [/ターンの おわりに|終了ステップ/, ['endStep', 'onEnd', 'endTurn']],
   [/唱えるたび/, ['onCast', 'onAnyCast', 'magecraft', 'onSpell', 'copyAll', 'extort']],

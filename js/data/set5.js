@@ -39,7 +39,7 @@ export const S5 = {
   W63: { play: (s, E) => { const d = theirs(s, E).length - mine(s, E).length; return d > 0 ? { score: 3 + 3 * d, run: () => E.token(s, 'P', T.soldier, Math.max(0, theirs(s, E).length - mine(s, E).length)) } : null; } },
   W64: { etb: (s, p, E) => { if (p.side === 'P') learn(s, E); } },
   W65: { tokenMult: 2 },
-  W66: titan((s, p, E) => { const c = bestIn(s.P.gy, (x) => !isSpellDef(x.def) && x.def.cost <= 3); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); } }),
+  W66: titan((s, p, E) => { const c = bestIn(s.P.gy, (x) => !isSpellDef(x.def) && x.def.cost <= 3); if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); } }),
   W67: { play: (s, E, ctx) => ({ score: 10, run: () => E.token(s, 'P', T.human, upTo(5)(s, E, ctx)) }), ...fb(9, ['W']) },
   W68: {
     play: (s, E, ctx) => ({ score: 8 + 3 * ctx.xMax, x: ctx.xMax, run: () => {} }),
@@ -286,7 +286,7 @@ function tutor(s, E) {
 }
 function reanimate(s, E, f) {
   const c = bestIn(s.P.gy, (x) => f(x.def));
-  if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def }); }
+  if (c) { s.P.gy.splice(s.P.gy.indexOf(c), 1); E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); }
 }
 
 // ---- 120種に する 追加（SET5.md 4.10・2026-10-28） ----
@@ -417,7 +417,7 @@ const backFromGy = (s, E, n, why) => {
   if (!c) return null;
   s.P.gy.splice(s.P.gy.indexOf(c), 1);
   E.L(s, `${why}：コスト ${c.def.cost || 0}（${n} いか）の ${c.def.name} が もどった`);
-  E.enter(s, 'P', c.def, { card: c.def }); E.sba(s);
+  E.enter(s, 'P', c.def, { card: c.def, fromGy: true }); E.sba(s);
   return c;
 };
 // 呪文の 生徒（先生の 手びき U109）
