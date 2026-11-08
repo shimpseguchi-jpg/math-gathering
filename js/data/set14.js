@@ -108,7 +108,7 @@ const hostHogu = (f) => ({
     E.sba(s);
   },
 });
-// 装備品の 名前（ログ用。ふりがなと ★を とる）
+// 装備品の 名前（ログ用。ふりがなを とる。★は 2026-11-08 に 名前から なくした）
 const eqName = (q) => q.def.name.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '').replace(/^★/, '');
 
 export const S14 = {
