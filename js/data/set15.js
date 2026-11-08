@@ -82,7 +82,8 @@ const spirit = (id, name, color, pow, tou, kw = []) => ({ ...cr(id, name, null, 
 const legends = (s, side) => s[side].bf.filter((q) => q.def.legend && isCrP(q)).length;
 const T15 = {
   raftra: spirit('t_raftra', 'ラフトラ', 'W', (s, p) => spOn(s, p.side) + 1, 3, ['flying']), // X ＝ 戦技ポイント ＋ 1
-  shiryu: spirit('t_shiryu', '死竜（しりゅう）', 'K', 5, 5, ['flying']),
+  // 死竜（2026-11-08。ユーザーが きめた）：場を はなれるとき ライフ ＋5（キャストリスが はなれて きえる ときも）
+  shiryu: { ...spirit('t_shiryu', '死竜（しりゅう）', 'K', 5, 5, ['flying']), textOver: '飛行（ひこう）。これが 場（ば）を はなれるとき、あなたは 5点の ライフを 得（え）る。', onLeaveSelf: (s, p, E) => { if (p.side !== 'P') return; E.L(s, 'しりゅうが はなれた → ライフ ＋5'); E.gain(s, 5); } },
   ikarun: spirit('t_ikarun', 'イカルン', 'G', 1, 1, ['flying']),
   myurion: spirit('t_myurion', 'ミュリオン', 'U', (s, p) => legends(s, p.side) + 1, (s, p) => legends(s, p.side) + 1), // X ＝ 伝説の クリーチャー ＋ 1
   nagayo: spirit('t_nagayo', '長夜（ながよ）', 'U', (s, p) => 2 * memoCount(s, p.side), (s, p) => 2 * memoCount(s, p.side), ['flying']), // X ＝ 精霊の 数 × 2
