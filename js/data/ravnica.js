@@ -257,7 +257,9 @@ const GUARDS = ['ボロス', 'セレズニア', 'シミック', 'イゼット', 
 const JACE_DECK = [[4, att('ジェイスの 幻影（げんえい）', 2, 2)], [3, att('思考（しこう）の 飛行機械（ひこうきかい）', 1, 1, ['flying'])], [2, wall('ギルドの 門番（もんばん）', 0, 5)],
   [2, esp('心（こころ）の ゆさぶり', (s, E) => { const t = weakest(s, E); if (t) { t.tapped = true; t.frozen = true; } }, { danger: 2 })],
   [2, esp('ギルドパクトの いかずち', (s, E) => { const t = biggest(s, E); if (t) E.damage(s, t, 4, null); E.sba(s); }, { danger: 4 })]];
-function jace() {
+// o.tax：1だんかいで きみの カードが コスト ＋1（ふつうの 塔は いつも あり。次元渡りは なし：たたかいが 長く なった ため 2026-11-08）
+function jace(o = {}) {
+  const tax = o.tax ?? true;
   const say = (s, E, k) => speak(s, E, k, JACE_LINES[k]);
   const phaseOf = (s) => (s.E.life > (s.E.lifeMax * 2) / 3 ? 1 : s.E.life > s.E.lifeMax / 3 ? 2 : 3);
   const talk = (s, E) => {
@@ -268,7 +270,7 @@ function jace() {
   };
   return {
     id: 'jace', name: '5階 ギルドパクトの ジェイス', rav: true, faceUnit: 1.5, faceLabel: 'ジェイス', speaker: 'ジェイス', lines: JACE_LINES,
-    goal: () => `ジェイス「${JACE_LINES.start}」\n3つの だんかいを こえて、ジェイスの ライフを 0に する。1だんかい：きみの カードは コスト ＋1。2だんかい：ギルドの まもり手が 毎ターン 出る。3だんかい：毎ターン、きみの いちばん つよい クリーチャーを てふだに もどして、きみに 3点。`,
+    goal: () => `ジェイス「${JACE_LINES.start}」\n3つの だんかいを こえて、ジェイスの ライフを 0に する。${tax ? '1だんかい：きみの カードは コスト ＋1。' : ''}2だんかい：ギルドの まもり手が 毎ターン 出る。3だんかい：毎ターン、きみの いちばん つよい クリーチャーを てふだに もどして、きみに 3点。`,
     setup(s, E) {
       s.E.life = DIFF(s, 30, 38, 45); s.E.lifeMax = s.E.life;
       s.phase = 1; s.stats.phase = 1;
@@ -284,8 +286,8 @@ function jace() {
       await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
       talk(s, E);
     },
-    intent: (s) => [['きみの カードは コスト ＋1', 'ギルドの まもり手（3/3）が 出る', 'いちばん つよい クリーチャーを てふだに もどして きみに 3点'][s.phase - 1]],
-    costTax: (s, d) => (s.phase === 1 && !d.basic && d.cost ? 1 : 0),
+    intent: (s) => [[tax ? 'きみの カードは コスト ＋1' : 'ライフが のこり 2/3 に なると ギルドの まもり手が 出はじめる', 'ギルドの まもり手（3/3）が 出る', 'いちばん つよい クリーチャーを てふだに もどして きみに 3点'][s.phase - 1]],
+    costTax: (s, d) => (tax && s.phase === 1 && !d.basic && d.cost ? 1 : 0),
     face(s, n, E) { s.E.life -= n; if (s.E.life <= 0) s.over = 'win'; else talk(s, E); },
     faceValue: (s, n) => n * 2,
     check(s, E) {

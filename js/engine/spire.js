@@ -199,7 +199,7 @@ export function battleSetup(R, kind, rng) {
   let floor, diff = 'normal', buff = act.buff || 0;
   if (kind === 'fight') floor = monsterFloor(key, { lifeMul: (act.lifeMul || 1) * (asc(R, 2) ? 1.2 : 1), reveal: asc(R, 7) ? 1.25 : 1 });
   else {
-    floor = scaleLife(FLOORS[key](), act.lifeMul || 1);
+    floor = scaleLife(act.floorOpt?.[key] ? FLOORS[key](act.floorOpt[key]) : FLOORS[key](), act.lifeMulOf?.[key] ?? (act.lifeMul || 1));
     const up = (d) => (d === 'easy' ? 'normal' : 'hard');
     diff = kind === 'boss' ? (asc(R, 4) ? up(act.bossDiff || 'normal') : act.bossDiff || 'normal') : asc(R, 8) ? 'hard' : 'normal';
     if (kind === 'elite') buff += SPIRE.eliteBuff + (asc(R, 3) ? 1 : 0);
