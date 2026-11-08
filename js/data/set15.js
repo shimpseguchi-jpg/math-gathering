@@ -171,7 +171,8 @@ export const S15 = {
       E.L(s, `しんらい ${was} ＋ ${n} ＝ ${p.bud}`);
       while (p.bud >= BUD && E.onBf(s, p) && !s.over) { p.bud -= BUD; E.L(s, `しんらい ${BUD}こ → しりゅう（のこり ${p.bud}）`); summonMemo(s, E, p, T15.shiryu); }
     },
-    skill: { label: '2点の ライフを うしなう（しんらい ＋2）', play: (s, p, E, ctx) => { const b = (p.bud || 0) % BUD; return ctx.human || (s.P.life >= 8 && (b + 2 >= BUD || s.P.life >= 15)) ? { score: b + 2 >= BUD ? 4 : 1, run: () => E.hurt(s, 2) } : null; } },
+    // 戦技（2026-11-08。ユーザーが きめた：よわかった）：2点の ライフを うしなって 戦技ポイント ＋2（つかう 1 と あわせて ＋1）。しんらいも ＋2
+    skill: { label: '2点の ライフを うしなって せんぎポイント ＋2（しんらい ＋2）', play: (s, p, E, ctx) => { const b = (p.bud || 0) % BUD; return ctx.human || s.P.life >= 8 ? { score: b + 2 >= BUD ? 5 : 3, run: () => { E.hurt(s, 2); addSP(s, E, 2); } } : null; } },
   }),
   SR83: chara({ // 長夜月：長夜（X/X。X ＝ 精霊の 数 × 2）
     ...memoLink,
