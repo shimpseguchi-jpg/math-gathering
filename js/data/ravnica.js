@@ -2,10 +2,15 @@
 // ニコル・ボーラスは とっておく（いつか レイドバトルの ボス）
 import { FLOORS, KIT } from './enemies.js';
 
-const { ecr, esp, pc, biggest, weakest, DIFF, build, toLib, attackers, sumPow } = KIT;
+const { ecr, esp, pc, biggest, weakest, DIFF, build, toLib, attackers, trio, sumPow } = KIT;
 const att = (name, pow, tou, kw = [], x = {}) => ecr(name, pow, tou, [], kw, { attacks: true, ...x });
 const wall = (name, pow, tou, kw = [], x = {}) => ecr(name, pow, tou, [], kw, { attacks: false, ...x });
-const sap = ecr('苗木（なえぎ）', 1, 1, ['saproling'], [], { attacks: false, sapling: true });
+// 苗木（2026-11-08。ユーザーが きめた）：トロスターニは 三つ子なので、こうげき できる 苗木が 3体 そろうと いっせいに こうげき（attacks: 'trio'）。
+// まえは こうげき しなかった（セレズニアの 勝率：見本デッキ 99%・3パックの デッキ 91%）。いつも こうげき すると 76%・77% →
+// ターンの はじめに ふえる ぶんを 3体までに、ケンタウルス 4→3・ドライアド 4→5 で 96%・82%（ボロス 94%・88%、シミック 93%・81%）。冒険 300回：90% → 74%（シミック 74%）
+const sap = ecr('苗木（なえぎ）', 1, 1, ['saproling'], [], { attacks: 'trio', sapling: true });
+const saps = (s) => s.E.bf.filter((p) => p.def.sapling).length;
+const growSap = (s, E, n) => { const k = Math.max(0, Math.min(n, 3 - saps(s))); if (k) E.token(s, 'E', sap, k); }; // 3体まで
 
 // ---- セリフ（バトルの すすみぐあいで かわる。画面の ふきだしに 出る）----
 // s.E.say ＝ いまの セリフ。おなじ ものは 1かいだけ（s.E.said）
@@ -50,7 +55,7 @@ function lifeFloor(c) {
       if (!s.over) pinch(s, E, c.says);
     },
     revealN,
-    intent: (s, E) => (c.intent ? [c.intent(s, E)] : []),
+    intent: (s, E) => (c.intent ? [c.intent(s, E)].flat() : []),
     face(s, n, E) { s.E.life -= n; check(s, E); },
     faceValue: (s, n) => n * 1.5,
     check,
@@ -60,7 +65,7 @@ function lifeFloor(c) {
       const big = E.creatures(s, 'E').filter((p) => E.power(s, p) >= 3 || p.def.prio);
       return E.assignKill(s, atkers, E.killTargets(s, big), 'face');
     },
-    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks); return { damage: sumPow(s, E, a) + (c.extra || 0), attackers: a.length }; },
+    threat(s, E) { const a = trio(E.creatures(s, 'E').filter((p) => p.def.attacks)); return { damage: sumPow(s, E, a) + (c.extra || 0), attackers: a.length }; },
     anyTarget() { return 'face'; },
     castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
     status: (s) => `<span class="chip hot">${c.leader}の ライフ ${s.E.life}</span>`,
@@ -121,16 +126,16 @@ const boros = lifeFloor({
 });
 const selesnya = lifeFloor({
   id: 'selesnya', name: '1階 セレズニアの 森（もり）', leader: 'トロスターニ', life: [8, 10, 13],
-  intent: (s) => `なえぎが 1体 ふえて、ライフ ＋${Math.min(3, s.E.bf.filter((p) => p.def.sapling).length + 1)}`,
+  intent: (s) => [saps(s) < 3 ? `なえぎが 1体 ふえて、ライフ ＋${saps(s) + 1}` : 'ライフ ＋3', `なえぎが 3体 そろうと いっせいに こうげき（いま ${saps(s)}体）`],
   says: { mid: '森（もり）の いのちは つきません', low: 'あなたの ちからも、森の ように つよい……', win: 'あなたと わたしたちは ひとつ。とおりなさい', lose: 'やすみなさい。森は また まっています' },
   line: '森の みんなが わたしを まもる。なえぎの かずだけ いやされるのです',
-  goal: 'トロスターニの ライフを 0に する。てきの ターンの はじめに 苗木（なえぎ）が 1体 ふえて、なえぎの かずだけ ライフが ふえる（3まで）。',
+  goal: 'トロスターニの ライフを 0に する。てきの ターンの はじめに 苗木（なえぎ）が 1体 ふえて（3体まで）、なえぎの かずだけ ライフが ふえる（3まで）。トロスターニは 三つ子（みつご）。なえぎも 3体 そろうと いっせいに こうげきして くる。',
   setup(s, E) { E.token(s, 'E', sap); },
-  deck: [[4, wall('ドライアド', 1, 3)], [4, att('セレズニアの ケンタウルス', 3, 3)], [2, att('森の エルフ', 2, 2)],
+  deck: [[5, wall('ドライアド', 1, 3)], [3, att('セレズニアの ケンタウルス', 3, 3)], [2, att('森の エルフ', 2, 2)],
     [3, esp('苗木（なえぎ）の めばえ', (s, E) => E.token(s, 'E', sap, 2), { danger: 2 })], [2, esp('いやしの 歌', (s) => { s.E.life += 3; }, { danger: 1 })]],
   turnStart(s, E) {
-    E.token(s, 'E', sap);
-    const n = Math.min(3, s.E.bf.filter((p) => p.def.sapling).length);
+    growSap(s, E, 1);
+    const n = Math.min(3, saps(s));
     s.E.life += n; E.L(s, `トロスターニ：なえぎで ライフ ＋${n}（のこり ${s.E.life}）`);
   },
   hooks: { priority(s, p, E) { return p.def.sapling ? 6 : E.power(s, p) * 2 + 1; } },
@@ -253,11 +258,32 @@ const JACE_LINES = {
   win: 'きみの かちだ。ラヴニカの ギルドは きみを みとめた',
   lose: 'また いつでも おいで。ラヴニカは にげない',
 };
-const GUARDS = ['ボロス', 'セレズニア', 'シミック', 'イゼット', 'ゴルガリ', 'アゾリウス', 'ラクドス', 'オルゾフ', 'グルール', 'ディミーア'];
+// だんかいごとの ギルドの ちから（2026-11-08。ユーザーが きめた：毎回 ランダム）。たたかいの はじめに 10ギルドから 3つ えらぶ（おなじ ギルドは 1回だけ）
+// p：だんかい（1〜3）。上の だんかいほど つよい。turn：てきの ターンの はじめ。tax：きみの カードは コスト ＋1（アゾリウス。次元渡りでは 出ない）。hit：AI の よみ（あと どれだけ ダメージが くるか）
+// late：つよいので 2だんかいから（1だんかいから 出すと 勝率が 82% → 75% に さがった。毎ターン てふだに もどす・カウンター・ダメージ）
+const n12 = (p) => (p < 3 ? 1 : 2);
+const JACE_POWERS = [
+  { id: 'azorius', g: 'アゾリウス', text: () => 'きみの カードは コスト ＋1', tax: true },
+  { id: 'boros', g: 'ボロス', text: (p) => `2/1 の 兵士（へいし）が ${n12(p)}体（たい） 出る`, turn: (s, E, p) => E.token(s, 'E', att('ボロスの 兵士（へいし）', 2, 1), n12(p)) },
+  { id: 'selesnya', g: 'セレズニア', text: (p) => `苗木（なえぎ）が ${p}体 出て（3体まで）、ジェイスの ライフ ＋${p}`, turn: (s, E, p) => { growSap(s, E, p); s.E.life += p; E.L(s, `ジェイスの ライフ ＋${p}（${s.E.life}）`); } },
+  { id: 'simic', late: true, g: 'シミック', text: (p) => `てきの クリーチャー すべてに ＋1/＋1カウンター ${n12(p)}こ`, turn: (s, E, p) => { for (const q of E.creatures(s, 'E')) E.addCounters(s, q, n12(p)); } },
+  { id: 'izzet', late: true, g: 'イゼット', text: (p) => `きみの いちばん つよい クリーチャーに ${p + 1}点`, turn: (s, E, p) => { const t = biggest(s, E); if (t) E.damage(s, t, p + 1, null); else E.hurt(s, p + 1); E.sba(s); } },
+  { id: 'golgari', g: 'ゴルガリ', text: (p) => `ぼちの クリーチャーが ${n12(p)}体 もどる`, turn: (s, E, p) => { for (let i = 0; i < n12(p); i++) { const k = s.E.gy.findIndex((c) => c.def.types.includes('creature')); if (k < 0) return; const [c] = s.E.gy.splice(k, 1); E.enter(s, 'E', c.def); } } },
+  { id: 'rakdos', g: 'ラクドス', text: (p) => `きみに ${p}点`, turn: (s, E, p) => E.hurt(s, p), hit: (p) => p },
+  { id: 'orzhov', g: 'オルゾフ', text: (p) => `きみに ${p}点、ジェイスの ライフ ＋${p}`, turn: (s, E, p) => { E.hurt(s, p); s.E.life += p; E.L(s, `ジェイスの ライフ ＋${p}（${s.E.life}）`); }, hit: (p) => p },
+  { id: 'gruul', late: true, g: 'グルール', text: (p) => `てきの クリーチャー すべて ＋${n12(p)}/＋0（その ターン）`, turn: (s, E, p) => { for (const q of E.creatures(s, 'E')) E.pump(q, n12(p), 0); } },
+  { id: 'dimir', late: true, g: 'ディミーア', text: () => 'きみの いちばん つよい クリーチャーを てふだに もどす', turn: (s, E) => { const t = biggest(s, E); if (t) { E.L(s, `ジェイス：${t.def.name} を てふだに`); E.bounce(s, t); E.sba(s); } } },
+];
+const POWER_BY_ID = Object.fromEntries(JACE_POWERS.map((x) => [x.id, x]));
 const JACE_DECK = [[4, att('ジェイスの 幻影（げんえい）', 2, 2)], [3, att('思考（しこう）の 飛行機械（ひこうきかい）', 1, 1, ['flying'])], [2, wall('ギルドの 門番（もんばん）', 0, 5)],
   [2, esp('心（こころ）の ゆさぶり', (s, E) => { const t = weakest(s, E); if (t) { t.tapped = true; t.frozen = true; } }, { danger: 2 })],
   [2, esp('ギルドパクトの いかずち', (s, E) => { const t = biggest(s, E); if (t) E.damage(s, t, 4, null); E.sba(s); }, { danger: 4 })]];
-function jace() {
+// o.tax：アゾリウスの ちから（きみの カードは コスト ＋1）を つかうか（ふつうの 塔は あり。次元渡りは なし：たたかいが 長く なった ため 2026-11-08）
+function jace(o = {}) {
+  const tax = o.tax ?? true;
+  // いまの だんかいの ギルドの ちから（s.E.guilds：たたかいの はじめに えらんだ 3つ）
+  const power = (s, ph = s.phase) => POWER_BY_ID[s.E.guilds?.[ph - 1]] || null;
+  const line = (s, ph) => { const x = power(s, ph); return x ? `${x.g}：${x.text(ph)}` : ''; };
   const say = (s, E, k) => speak(s, E, k, JACE_LINES[k]);
   const phaseOf = (s) => (s.E.life > (s.E.lifeMax * 2) / 3 ? 1 : s.E.life > s.E.lifeMax / 3 ? 2 : 3);
   const talk = (s, E) => {
@@ -268,24 +294,29 @@ function jace() {
   };
   return {
     id: 'jace', name: '5階 ギルドパクトの ジェイス', rav: true, faceUnit: 1.5, faceLabel: 'ジェイス', speaker: 'ジェイス', lines: JACE_LINES,
-    goal: () => `ジェイス「${JACE_LINES.start}」\n3つの だんかいを こえて、ジェイスの ライフを 0に する。1だんかい：きみの カードは コスト ＋1。2だんかい：ギルドの まもり手が 毎ターン 出る。3だんかい：毎ターン、きみの いちばん つよい クリーチャーを てふだに もどして、きみに 3点。`,
+    goal: (s) => `ジェイス「${JACE_LINES.start}」\n3つの だんかいを こえて、ジェイスの ライフを 0に する。だんかいごとに、10の ギルドの ちからを 1つずつ つかう（毎回 ちがう）。${s?.E?.guilds ? [1, 2, 3].map((ph) => `${ph}だんかい：${line(s, ph)}${power(s, ph).tax ? '' : '（毎ターン）'}。`).join('') : ''}`,
     setup(s, E) {
       s.E.life = DIFF(s, 30, 38, 45); s.E.lifeMax = s.E.life;
       s.phase = 1; s.stats.phase = 1;
       s.E.say = JACE_LINES.start;
       s.E.lib = toLib(s, E, build(JACE_DECK));
+      // だんかいごとの ギルド：10から 3つ（次元渡りは アゾリウスを のぞく）。1だんかいは つよすぎない もの（late で ない もの）から
+      const pool = JACE_POWERS.filter((x) => tax || !x.tax);
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(s.rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      const first = pool.find((x) => !x.late);
+      s.E.guilds = [first, ...pool.filter((x) => x !== first).slice(0, 2)].map((x) => x.id);
     },
     async enemyTurn(s, E) {
-      if (s.phase === 2) E.token(s, 'E', att(`${GUARDS[Math.floor(s.rng() * GUARDS.length)]}の まもり手`, 3, 3));
-      if (s.phase === 3) { const t = biggest(s, E); if (t) { E.L(s, `ジェイス：${t.def.name} を てふだに`); E.bounce(s, t); E.sba(s); } E.hurt(s, DIFF(s, 2, 3, 3)); }
+      const x = power(s);
+      if (x?.turn) { E.L(s, `ジェイス（${x.g}）：${x.text(s.phase)}`); x.turn(s, E, s.phase); }
       if (s.over) return;
       await E.reveal(s, 1);
       if (s.over) return;
       await E.enemyAttack(s, attackers(s, E, (p) => p.def.attacks));
       talk(s, E);
     },
-    intent: (s) => [['きみの カードは コスト ＋1', 'ギルドの まもり手（3/3）が 出る', 'いちばん つよい クリーチャーを てふだに もどして きみに 3点'][s.phase - 1]],
-    costTax: (s, d) => (s.phase === 1 && !d.basic && d.cost ? 1 : 0),
+    intent: (s) => [power(s)?.tax ? line(s, s.phase) : `毎ターン ${line(s, s.phase)}`, ...(s.phase < 3 ? [`つぎの だんかい：${line(s, s.phase + 1)}`] : [])],
+    costTax: (s, d) => (power(s)?.tax && !d.basic && d.cost ? 1 : 0),
     face(s, n, E) { s.E.life -= n; if (s.E.life <= 0) s.over = 'win'; else talk(s, E); },
     faceValue: (s, n) => n * 2,
     check(s, E) {
@@ -297,10 +328,10 @@ function jace() {
       if (sumPow(s, E, atkers) >= s.E.life) return atkers.map((p) => ({ p, t: 'face' }));
       return E.assignKill(s, atkers, E.killTargets(s, E.creatures(s, 'E').filter((p) => E.power(s, p) >= 3)), 'face');
     },
-    threat(s, E) { const a = E.creatures(s, 'E').filter((p) => p.def.attacks); return { damage: sumPow(s, E, a) + (s.phase === 3 ? 2 : 0), attackers: a.length + (s.phase === 2 ? 1 : 0) }; },
+    threat(s, E) { const a = trio(E.creatures(s, 'E').filter((p) => p.def.attacks)), x = power(s); return { damage: sumPow(s, E, a) + (x?.hit?.(s.phase) || 0), attackers: a.length + (x?.id === 'boros' ? n12(s.phase) : 0) }; },
     anyTarget() { return 'face'; },
     castThreat(s, d) { return d.types.includes('creature') ? d.pow + 1 : d.danger ?? 2; },
-    status: (s) => `<span class="chip">だんかい ${s.phase}/3</span><span class="chip hot">ジェイスの ライフ ${s.E.life}</span>`,
+    status: (s) => `<span class="chip">だんかい ${s.phase}/3${power(s) ? `・${power(s).g}` : ''}</span><span class="chip hot">ジェイスの ライフ ${s.E.life}</span>`,
   };
 }
 

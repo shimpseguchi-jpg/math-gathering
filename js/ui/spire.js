@@ -1,7 +1,7 @@
 // 次元渡り（大人向けモード。docs/SPIRE.md）：画面
 // 冒険のすすめかたは engine/spire.js の runLoop。ここは io（マップ・報酬・お店・選択・戦闘）を画面で答える
 // 文字は大人向けのふつうの日本語（ふりがななし。tools/kanji.mjs の対象外）
-import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOSS_ROW, commanderOffers, cmdInZone, colsOf, actBoss, actBossName } from '../engine/spire.js';
+import { newRun, runLoop, cardDef, defOf, potionSlots, removePrice, scoreOf, BOSS_ROW, commanderOffers, cmdInZone, colsOf, actBoss, actBossName, POOL_SETS } from '../engine/spire.js';
 import { SPIRE, ACTS, ASC, RELIC_BY_ID, POTION_BY_ID, bossBlurb } from '../data/spire.js';
 import { grown } from '../data/strixhaven.js';
 import { startBattle } from './battle.js';
@@ -32,8 +32,14 @@ export function spireMenu(appFn, back) {
   APP = appFn; BACK = back;
   adultOn(); // 次元渡りのあいだは、共通の画面（カード・バトル）も大人向けの表記に
   const old = load(), r = rec();
-  let asc = Math.min(r.maxAsc, r.lastAsc ?? 0), pool = r.pool || 'all';
-  let offers = commanderOffers(Math.random, pool), cmd = offers[0];
+  let asc = Math.min(r.maxAsc, r.lastAsc ?? 0);
+  // カード：全部（すべての弾）か、選ぶ（えらんだ弾だけ。2026-11-08。まえの「公開中の弾」は 選ぶ の はじめの 選択に）
+  let mode = r.pool && r.pool !== 'all' ? 'pick' : 'all';
+  let picked = (Array.isArray(r.picked) ? r.picked : POOL_SETS.released).filter((id) => POOL_SETS.all.includes(id));
+  if (!picked.length) picked = [...POOL_SETS.released];
+  const pool = () => (mode === 'all' ? 'all' : picked);
+  let offers = commanderOffers(Math.random, pool()), cmd = offers[0];
+  const reoffer = () => { offers = commanderOffers(Math.random, pool()); cmd = offers[0]; };
   // 統率者の候補：カードの絵（小）と、名前・色・コスト・P/T・能力の文を ならべて 見せる（タップしなくても 読める）
   const offerCard = (id) => {
     const d = BY_ID[id], i = info(d), pt = typeof d.pow === 'number' ? `${d.pow}/${d.tou}` : '';
@@ -51,14 +57,16 @@ export function spireMenu(appFn, back) {
       ${old && !old.over ? `<button type="button" class="btn primary sp-cont" data-a="cont">つづきから<small>${old.cmd ? `${esc(nameOf(old.cmd))}・` : ''}第${old.act + 1}幕 ${ACTS[old.act].name}・${old.floor}マス・ライフ ${old.life}/${old.maxLife}・A${old.asc}</small></button>` : ''}
       <section class="sp-box"><h3>統率者</h3>
         <p class="sp-note">選んだ統率者の色のカードだけが出る。カードの弾は、統率者の弾とランダムな弾 2つ。統率者ははじめデッキに入り、ボスのレリック「統率の冠」で統率領域に置ける。</p>
-        <div class="sp-cmds">${offers.map(offerCard).join('')}</div>
+        <div class="sp-cmds">${offers.length ? offers.map(offerCard).join('') : '<p class="sp-note">選んだ弾には、統率者になれるカード（色のある伝説のクリーチャー）がない。ほかの弾も選んでください。</p>'}</div>
         <div class="row-btns"><button type="button" class="btn small" data-a="reroll">ほかの 3枚</button><button type="button" class="btn small" data-a="look">くわしく見る</button></div></section>
       <section class="sp-box"><h3>アセンション</h3>
         <div class="sp-asc">${Array.from({ length: SPIRE.maxAsc + 1 }, (_, k) => `<button type="button" class="sp-n ${k === asc ? 'on' : ''}" data-asc="${k}" ${k > r.maxAsc ? 'disabled' : ''}>${k}</button>`).join('')}</div>
         <p class="sp-note">${asc ? ASC.slice(1, asc + 1).map((t, k) => `${k + 1}. ${esc(t)}`).join('<br>') : 'きまりの追加なし。クリアすると次の段がひらく。'}</p></section>
       <section class="sp-box"><h3>カード</h3>
-        <div class="sp-seg"><button type="button" class="${pool === 'all' ? 'on' : ''}" data-pool="all">すべての弾<small>開発中・番外編もふくむ</small></button><button type="button" class="${pool === 'released' ? 'on' : ''}" data-pool="released">公開中の弾<small>第1・2・5弾</small></button></div></section>
-      <div class="row-btns"><button type="button" class="btn primary" data-a="new">旅に出る</button><button type="button" class="btn" data-a="back">タイトルへ</button></div>
+        <div class="sp-seg"><button type="button" class="${mode === 'all' ? 'on' : ''}" data-pool="all">全部<small>すべての弾（開発中・番外編もふくむ）</small></button><button type="button" class="${mode === 'pick' ? 'on' : ''}" data-pool="pick">選ぶ<small>${mode === 'pick' ? `${picked.length}つの弾` : '使う弾を選ぶ'}</small></button></div>
+        ${mode === 'pick' ? `<div class="sp-sets">${POOL_SETS.all.map((id) => `<button type="button" class="sp-set ${picked.includes(id) ? 'on' : ''}" data-set="${id}" aria-pressed="${picked.includes(id)}">${esc(setName(id))}</button>`).join('')}</div>
+        <p class="sp-note">統率者の候補とカードは、選んだ弾から出る（統率者の弾 ＋ ランダムな弾 2つ）。1つは選んでおく。</p>` : ''}</section>
+      <div class="row-btns"><button type="button" class="btn primary" data-a="new" ${offers.length ? '' : 'disabled'}>旅に出る</button><button type="button" class="btn" data-a="back">タイトルへ</button></div>
       <p class="sp-note">きろく：${r.runs}回・クリア ${r.wins}回${Object.keys(r.best).length ? '・ベスト ' + Object.entries(r.best).map(([a, s]) => `A${a} ${s}点`).join('　') : ''}</p>
     </main>`;
   };
@@ -67,19 +75,26 @@ export function spireMenu(appFn, back) {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.cmd) { cmd = b.dataset.cmd; return draw(); }
     if (b.dataset.asc) { asc = +b.dataset.asc; return draw(); }
-    if (b.dataset.pool) { pool = b.dataset.pool; offers = commanderOffers(Math.random, pool); cmd = offers[0]; return draw(); }
+    if (b.dataset.pool) { mode = b.dataset.pool; reoffer(); return draw(); }
+    if (b.dataset.set) {
+      const id = +b.dataset.set, on = picked.includes(id);
+      if (on && picked.length === 1) return; // 1つは のこす
+      picked = on ? picked.filter((x) => x !== id) : POOL_SETS.all.filter((x) => x === id || picked.includes(x));
+      reoffer(); return draw();
+    }
     const a = b.dataset.a;
     if (a === 'back') { adultOff(); return BACK(); }
     if (a === 'cont') return play(old);
-    if (a === 'reroll') { offers = commanderOffers(Math.random, pool); cmd = offers[0]; return draw(); }
-    if (a === 'look') return sheet(detail(BY_ID[cmd]), [{ label: '閉じる', value: 0 }]);
+    if (a === 'reroll') { reoffer(); return draw(); }
+    if (a === 'look') return cmd && sheet(detail(BY_ID[cmd]), [{ label: '閉じる', value: 0 }]);
     if (a === 'new') {
       if (old && !old.over) {
         const v = await sheet('<p>つづきの旅は消える。新しく旅に出る？</p>', [{ label: '新しく旅に出る', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: '新しい旅' });
         if (!v) return;
       }
-      const R = newRun({ cmd, asc, pool, rng: Math.random });
-      const rr = rec(); rr.runs++; rr.lastAsc = asc; rr.pool = pool; saveRec(rr);
+      if (!cmd) return;
+      const R = newRun({ cmd, asc, pool: pool(), rng: Math.random });
+      const rr = rec(); rr.runs++; rr.lastAsc = asc; rr.pool = mode; rr.picked = picked; saveRec(rr);
       save(R);
       sfx.tap?.();
       await sheet(`<p class="sp-body">統率者：${esc(nameOf(R.cmd))}<br>色：${[...R.cols].map((c) => COLOR_NAME[c]).join('・')}<br>カードの弾：${esc(setsLine(R))}</p>`, [{ label: '出発する', value: 1, kind: 'primary' }], { title: '旅のはじまり', dismiss: false });

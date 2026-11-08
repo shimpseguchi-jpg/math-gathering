@@ -5,7 +5,7 @@ import {
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
-import { FLOORS, nyxLoss, PVP_TURNS, STONE } from '../data/enemies.js';
+import { FLOORS, nyxLoss, PVP_TURNS, STONE, guardGoes } from '../data/enemies.js';
 import { npNote, reijuWhy, useReiju, isServant } from '../data/set10.js';
 import { spOf, spMax } from '../data/set11.js';
 // せんぎポイント ●●●○○（花火が いると 7こ）
@@ -1314,6 +1314,8 @@ function willAttack(p) {
   if (s.floor.id === 'erebos' && s.phase === 3 && p.def.erebos) return !s.E.flags.erebosRest;
   if (p.def.dragon) return !!s.E.flags.awake;
   if (p.def.twin) return p.def.twin === s.E.flags.nextTwin;
+  if (p.def.attacks === 'trio') return s.E.bf.filter((q) => isCreature(q) && q.def.attacks === 'trio' && !q.frozen).length >= 3; // 苗木：3体 そろうと
+  if (p.def.attacks === false && !p.flags.mustAttack) return guardGoes(s, api, p); // まもり役：きみに ブロック できる クリーチャーが いないと
   return !!(p.def.attacks || p.flags.mustAttack);
 }
 function intent() {
@@ -1338,6 +1340,8 @@ function intent() {
   if (s.floor.intent) out.push(...s.floor.intent(s, api)); // ラヴニカの 塔：階の ルール
   const atk = cr.filter(willAttack).filter((p) => !p.frozen);
   if (atk.length) out.push(`${atk.length}体で こうげき（パワー ${atk.map((p) => Math.max(0, power(s, p))).join('・')}）`);
+  // まもり役（パワー 1 いじょう）が いて、いまは こうげき しない とき：すきを 見せると こうげき して くる
+  if (s.floor.id !== 'tutorial' && cr.some((p) => p.def.attacks === false && !p.frozen && power(s, p) >= 1 && !hasKw(s, p, 'defender') && !atk.includes(p))) out.push('まもりの クリーチャーも、きみに ブロック できる クリーチャーが いないと こうげき');
   if (s.floor.id === 'slime' && !s.E.flags.started) out.push('さいしょの ターンは こうげきしない');
   if (s.floor.id === 'xenagos') out.push('ゼナゴスは ふえふききが 出たときだけ こうげき');
   const n = { horde: { easy: 1, normal: 1, hard: 2 }, xenagos: 1 }[s.floor.id];
