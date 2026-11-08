@@ -230,6 +230,7 @@ for (const k of Object.keys(MONSTERS)) FLOORS[k] = () => monsterFloor(k);
 
 // ---- 3つの幕 ----
 // buff：その幕の敵クリーチャーは ＋buff/＋buff（bossBuff：ボスだけさらに）。lifeMul：ライフを持つ敵（ふつうの敵・ラヴニカのギルド・寮・ボス）のライフの倍率
+// lifeMulOf：その敵だけ べつの 倍率、floorOpt：その階を つくる ときの オプション（どちらも 次元渡りだけ。ふつうの 塔は かわらない）
 // bossDiff：ボスの難しさ（アセンション 4 で 1段上がる）
 export const ACTS = [
   // invaders：侵略者の ボス（幕の はじめに、boss と はんぶんずつ。侵略者の 中は ランダム）。手下は weak・strong・elites に まぜる
@@ -238,6 +239,9 @@ export const ACTS = [
     invaders: ['sp_norn', 'sp_jin', 'sp_sheol', 'sp_ura', 'sp_vori'] },
   { id: 'ravnica', name: 'ラヴニカ', weak: ['sp_jesters', 'sp_rotters', 'sp_weirds', 'sp_dread'], strong: ['sp_raiders', 'sp_tithe', 'sp_krasis', 'sp_eternal'],
     elites: ['boros', 'selesnya', 'simic', 'izzet', 'golgari', 'azorius', 'rakdos', 'orzhov', 'gruul', 'dimir', 'sp_oketra'], boss: 'jace', bossName: 'ギルドパクトのジェイス', buff: 1, lifeMul: 1.7,
+    // ジェイスは たたかいが 長かった（AI で 12.8ターン。ほかの ボスは 7〜10）。次元渡りでは 1段階の コスト ＋1 を なくし、ライフを ×1.3 に（10.2ターン・勝ち 88%。2026-11-08）
+    // floorOpt：その 階を つくる ときに わたす もの（次元渡りだけ）
+    lifeMulOf: { jace: 1.3 }, floorOpt: { jace: { tax: false } },
     invaders: ['sp_bolas'] },
   { id: 'strixhaven', name: 'ストリクスヘイヴン', weak: ['sp_brooms', 'sp_pests', 'sp_inklings', 'sp_spawn'], strong: ['sp_fractals', 'sp_elementals', 'sp_spirits', 'sp_scions'],
     elites: ['sx_silverquill', 'sx_prismari', 'sx_witherbloom', 'sx_lorehold', 'sx_quandrix', 'sp_breaker'], boss: 'sx_extus', bossName: '卒業試験（オリークのエクタス）', buff: 2, lifeMul: 2.4,
