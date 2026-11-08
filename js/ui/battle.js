@@ -1138,13 +1138,7 @@ async function tapPerm_(p) {
       <div class="swipe-pg">${main}</div>
       ${atts.map((q, k) => `<div class="swipe-pg">${detail(q.def, { enemy: q.side === 'E' })}${permState(s, q)}${q.side === 'P' ? `<button type="button" class="btn swipe-open" data-sv="${k}">この カードを ひらく</button>` : ''}</div>`).join('')}
     </div><div class="swipe-dots">${[0, ...atts.map((_, k) => k + 1)].map((k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>` : main;
-  const v = await sheet(html, choices, atts.length ? {
-    values: atts.map((q) => ({ open: q })),
-    onOpen: () => {
-      const sw = document.querySelector('#sheet .swipe'), dots = [...document.querySelectorAll('#sheet .swipe-dots i')];
-      sw?.addEventListener('scroll', () => { const k = Math.round(sw.scrollLeft / Math.max(1, sw.clientWidth)); dots.forEach((d, i) => d.classList.toggle('on', i === k)); }, { passive: true });
-    },
-  } : {});
+  const v = await sheet(html, choices, atts.length ? { values: atts.map((q) => ({ open: q })) } : {}); // ページの 点は view.js が うごかす
   if (v?.open) return tapPerm_(v.open);
   if (!v) return;
   if (win) return windowCast(() => runAct(p, v)); // まどの 中：使い終わったら つづきが あるか 見る

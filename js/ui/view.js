@@ -255,24 +255,27 @@ function colorRow(def) {
   return `<p class="detail-colors"><span class="dc-label">色</span>${chips}${flag}</p>`;
 }
 
-// うらの すがた（パエトーン → イアス。2026-11-08）
-function flipHtml(b) {
-  const j = info(b);
-  return `<div class="detail-flip"><p class="detail-flip-h">${ruby('うら：')}${ruby(j.name)}　${richType(j.type)} ${b.types?.includes('creature') ? `<b>${basePT(b)}</b>` : ''}</p><p>${richText(j.text)}</p></div>`;
-}
+// うらの ある カード（パエトーン → イアス。2026-11-08）：オーラ・装備品と おなじ ように、右から 左へ スワイプで うらの せつめい
 export function detail(def, o = {}) {
+  if (!def.flip) return detailOne(def, o);
+  const b = info(def.flip).name;
+  return `<p class="swipe-hint">${ruby(`← スワイプで うら「${b}」を 見る`)}</p><div class="swipe">
+      <div class="swipe-pg">${detailOne(def, o)}</div>
+      <div class="swipe-pg">${detailOne(def.flip, { ...o, back: true })}</div>
+    </div><div class="swipe-dots"><i class="on"></i><i></i></div>`;
+}
+function detailOne(def, o = {}) {
   const i = info(def);
   const enemy = o.enemy;
   const pts = def.types?.includes('creature') ? `<span class="pt-big">${basePT(def)}</span>` : '';
   return `<div class="detail ${colorClass(def, enemy)}">
     <div class="detail-head">
-      <h2>${ruby(i.name)}</h2>
-      ${enemy ? '' : `<span class="cost big">${esc(costLabel(def))}</span>`}
+      <h2>${o.back ? `<small class="detail-back">${ruby('うら')}</small>` : ''}${ruby(i.name)}</h2>
+      ${enemy || o.back ? '' : `<span class="cost big">${esc(costLabel(def))}</span>`}
     </div>
     ${enemy ? '' : colorRow(def)}
     <div class="detail-type">${richType(i.type)} ${pts}</div>
     <p class="detail-text">${richText(i.text) || '（とくべつなのうりょくはない）'}</p>
-    ${def.flip ? flipHtml(def.flip) : ''}
     ${loreHtml(def)}
     ${i.reward && i.reward !== '−' ? `<p class="detail-sub">${richText('えいゆうのほうしゅう')}：${richText(i.reward)}</p>` : ''}
     ${i.math && i.math !== '−' ? `<p class="detail-sub">算数：${ruby(i.math)}</p>` : ''}
@@ -316,17 +319,31 @@ export function permState(s, p) {
 // とくべつな ルールの カード：せりふ と しくみ（data/lore.js）
 export function loreHtml(def) {
   const l = LORE[def?.id];
-  return l ? `<div class="lore"><p class="lore-say">「${ruby(l.say)}」</p>${l.rule ? `<p class="lore-rule"><b>しくみ</b> ${ruby(l.rule)}</p>` : ''}</div>` : '';
+  return l ? `<div class="lore">${sayParts(l.say).map((x) => `<p class="lore-say">${x.who ? `${ruby(x.who)}：` : ''}「${ruby(x.line)}」</p>`).join('')}${l.rule ? `<p class="lore-rule"><b>しくみ</b> ${ruby(l.rule)}</p>` : ''}</div>` : '';
+}
+// ふたり いっしょの カード（パエトーン：アキラと リン）：「名前：せりふ／名前：せりふ」を ひとりずつに わける
+export function sayParts(say, name = '') {
+  const parts = say.split('／').map((x) => x.match(/^([^：]{1,12})：(.+)$/));
+  return parts.length > 1 && parts.every(Boolean) ? parts.map((m) => ({ who: m[1].trim(), line: m[2].trim() })) : [{ who: name, line: say }];
 }
 
 // キャラクターの ふきだし（場に 出た とき）。たたかいは とめない。じゅんばんに 1つずつ、タップで けせる
 const SAY_MS = 3800;
 let sayQ = [], sayOn = false;
 export function speak(name, line, enemy = false) {
-  if (sayQ.length >= 3) return; // たくさん 出た ときは あふれた ぶんを すてる
-  sayQ.push({ name, line, enemy });
+  const ps = sayParts(line, name); // ふたり いっしょの カードは ひとりずつ（あふれても すてない）
+  if (sayQ.length >= 3 && ps.length < 2) return; // たくさん 出た ときは あふれた ぶんを すてる
+  for (const x of ps) sayQ.push({ name: x.who, line: x.line, enemy });
   if (!sayOn) nextSay();
 }
+// スワイプの ページの 点（.swipe の すぐ あとの .swipe-dots）。シートの 中の どの スワイプでも うごく
+if (typeof document !== 'undefined') document.addEventListener('scroll', (e) => {
+  const sw = e.target;
+  if (!sw?.classList?.contains('swipe')) return;
+  const k = Math.round(sw.scrollLeft / Math.max(1, sw.clientWidth));
+  const dots = sw.nextElementSibling?.classList.contains('swipe-dots') ? [...sw.nextElementSibling.children] : [];
+  dots.forEach((d, i) => d.classList.toggle('on', i === k));
+}, { capture: true, passive: true });
 function nextSay() {
   const it = sayQ.shift();
   let el = document.getElementById('say');
