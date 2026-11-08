@@ -122,7 +122,8 @@ export const S16 = {
   ZZ98: { brk: 3, onBlock: (s, p, E) => { if (p.side !== 'P') return; const t = foeBest(s, E, 2, (q) => q.attacking)?.t || foeBest(s, E, 2)?.t || biggest(s, E, (q) => q.attacking) || biggest(s, E); if (t) zap(s, E, p, t, 2); } }, // 盤岳
   // ---- 緑 ----
   // 葉瞬光（目玉の レジェンド。4マナ 6/5 速攻・トランプル）：出たとき ブレイクカウンター 5こ（交代で 出れば 5 ＋ 5 ＝ 10 で すぐ ブレイク）。連携の あまりは 本体へ
-  ZZ99: { brk: 4, etb: (s, p, E) => { if (p.side !== 'P') return; E.L(s, `${p.def.name}：てきに ブレイクカウンター 5こ`); E.addBreak(s, 5); }, ...dmgChain(true) },
+  // 葉瞬光（推しサイクル 緑。2026-11-08 つよく：7/6・出たとき ブレイクカウンター 10＝すぐ ブレイク）
+  ZZ99: { brk: 4, etb: (s, p, E) => { if (p.side !== 'P') return; E.L(s, `${p.def.name}：てきに ブレイクカウンター 10こ`); E.addBreak(s, 10); }, ...dmgChain(true) },
   ZZ100: { brk: 2, ...markFoe('G'), onDisorder: (s, p, E, src) => { if (src && E.onBf(s, src) && E.isCreature(src)) { E.L(s, `${p.def.name}：紊乱（びんらん）した ${src.def.name} に ＋1/＋1カウンター`); E.addCounters(s, src, 1); } } }, // 浮波柚葉
   ZZ101: { brk: 3, ...ANOM, ...atkZap(2, '2点を あたえる 異常（いじょう）の ついた てきの クリーチャー', (s, E, q) => !!q.anom), onDisorder: (s, p, E) => { E.drawCard(s, 1); } }, // アリス（2026-11-07：R → L・青。3/3・2点・紊乱で 1まい）
   ZZ102: { // ダイアリン（2026-11-07：R → L・白黒。4/4・終結スキルを 唱えるたび −1/−1カウンター1こ と 1点 回復）

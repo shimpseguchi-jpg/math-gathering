@@ -182,7 +182,8 @@ export const S12 = {
   ZZ10: { brk: 2, etb: prolif },
   ZZ11: { brk: 2, onAttack: (s, p, E) => { if (p.side === 'P' && bonOf(s) >= 4) E.pump(p, 0, 0, ['double']); } },
   ZZ12: { brk: 2, allyDmgLess: 1 },
-  ZZ13: { brk: 4, trigTgt: { on: 'attack', label: '2点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 2) || foeBest(s, E); if (b) hit(s, E, b.t, 2); } },
+  // 星見雅（推しサイクル 青。2026-11-08 つよく：6/5・攻撃で 3点・交代 2 U）
+  ZZ13: { brk: 4, trigTgt: { on: 'attack', label: '3点を あたえる てきの クリーチャー' }, onAttack: (s, p, E) => { if (p.side !== 'P') return; const t = E.takePick(s, p); const b = t ? { t } : foeBest(s, E, 3) || foeBest(s, E); if (b) hit(s, E, b.t, 3); } },
   ZZ14: { brk: 2, ...ninjutsu(1, ['W']) },
   ZZ15: { brk: 3, etb: prolif },
   ZZ16: { brk: 2, anthem: lord(null, 1, 0) },
@@ -322,7 +323,7 @@ export const S12 = {
   },
 };
 // レア・レジェンドの エージェントは みんな 交代を もつ（コスト − 2。2より 下には ならない）。統率者なら 統率領域からも 交代できる
-const SWAP = { ZZ01: [2, 'W'], ZZ02: [2, 'K'], ZZ03: [2, 'G'], ZZ06: [2, 'U'], ZZ09: [2, 'R'], ZZ13: [3, 'U'], ZZ15: [2, 'W'], ZZ17: [2, 'K'], ZZ18: [2, 'W'], ZZ20: [2, 'W'], ZZ21: [2, 'G'], ZZ22: [2, 'R'], ZZ28: [2, 'R'] };
+const SWAP = { ZZ01: [2, 'W'], ZZ02: [2, 'K'], ZZ03: [2, 'G'], ZZ06: [2, 'U'], ZZ09: [2, 'R'], ZZ13: [2, 'U'], ZZ15: [2, 'W'], ZZ17: [2, 'K'], ZZ18: [2, 'W'], ZZ20: [2, 'W'], ZZ21: [2, 'G'], ZZ22: [2, 'R'], ZZ28: [2, 'R'] };
 for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, [k]); S12[id] = { ...nj, ...S12[id] }; } // AI は ふつうに 出せる なら ふつうに 出す（マナが たりない ときに 交代）
 // エージェントは みんな 連携スキルを もつ（2026-11-04。色の かた CHAIN。第2弾の set16.js も おなじ）
 export const chainAll = (S, byColor) => { for (const [c, ids] of Object.entries(byColor)) for (const id of ids) S[id] = { ...S[id], ...CHAIN[c] }; };

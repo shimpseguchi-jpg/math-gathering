@@ -158,7 +158,8 @@ export function randomFoe(s, E) {
 }
 export const S10 = {
   FG01: np(40, (s, E) => { for (const q of mine(s, E)) q.shieldT = s.turn; E.L(s, 'いまは 遥（はる）か 理想（りそう）の 城（しろ）：ダメージ 0'); }),
-  FG02: np(50, (s, E) => allFoes(s, E, 4)),
+  // アルトリア・ペンドラゴン（推しサイクル 白。2026-11-08 つよく）：警戒・出たとき NP ＋50・宝具で 敵の クリーチャー すべてと 本体に 4点
+  FG02: np(50, (s, E, p) => { allFoes(s, E, 4); if (!s.over) E.hitEnemy(s, 4, p); }, { etb: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 50, '出た'); } }),
   FG03: np(40, (s, E) => { E.gain(s, 5); for (const q of mine(s, E)) E.pump(q, 0, 0, ['indestructible']); }),
   FG04: np(40, (s, E) => { const b = foeBest(s, E, 4) || foeBest(s, E); if (b) hit(s, E, b.t, 4); }),
   FG05: np(30, (s, E) => { E.hitEnemy(s, 3, null); allFoes(s, E, 3); }, { upkeep: (s, p, E) => { if (p.side === 'P') addNP(s, E, p, 20); } }),
