@@ -36,9 +36,11 @@ export function canUp(e) {
 const POOLS = new Map();
 // all：番外編（FGO・スターレイル・ゼンゼロ）も ふくむ（2026-10-31）。番外編の統率者なら、その番外編が 1つめの弾になる
 export const POOL_SETS = { all: SETS.filter((x) => !x.raid).map((x) => x.id), released: SETS.filter((x) => x.released).map((x) => x.id) };
+// pool：'all'（全部）か、旅のはじめに選んだ弾の id の 配列（2026-11-08。むかしのセーブ・きろくは 'released' も）
+export const poolSets = (pool) => (Array.isArray(pool) ? pool.filter((id) => POOL_SETS.all.includes(id)) : POOL_SETS[pool] || POOL_SETS.all);
 const okFor = (cols, not) => (d) => !d.token && !d.basic && !d.banner && !d.noPack && d.id !== not && colorsOf(d).every((c) => cols.includes(c));
 export function cardPool(R) {
-  const sets = R.sets || POOL_SETS[R.pool] || POOL_SETS.all;
+  const sets = R.sets || poolSets(R.pool);
   const key = `${R.cols}:${sets.join(',')}:${R.cmd || ''}`;
   if (!POOLS.has(key)) {
     const P = packPool(sets), ok = okFor(R.cols, R.cmd);
@@ -52,7 +54,7 @@ export const colsOf = (d) => colorsOf(d).sort((a, b) => WUKRG.indexOf(a) - WUKRG
 // 統率者になれる：伝説のクリーチャーで色がある（無色はデッキが組めない）
 export const canCommand = (d) => d && d.rar === 'L' && (d.types || []).includes('creature') && !d.noPack && colorsOf(d).length > 0;
 export function commanderOffers(rng, pool = 'all', n = 3) {
-  const list = shuffle(rng, SETS.filter((st) => (POOL_SETS[pool] || POOL_SETS.all).includes(st.id)).flatMap((st) => st.cards).filter(canCommand));
+  const list = shuffle(rng, SETS.filter((st) => poolSets(pool).includes(st.id)).flatMap((st) => st.cards).filter(canCommand));
   const out = [];
   for (const d of list) if (out.length < n && !out.some((o) => colsOf(o) === colsOf(d))) out.push(d); // 色がかさならないように
   for (const d of list) if (out.length < n && !out.includes(d)) out.push(d);
@@ -63,7 +65,7 @@ const SETS_PICK = 2, SET_MIN = 12;
 export function runSets(rng, cmd, pool = 'all') {
   const d = BY_ID[cmd], own = SET_OF[cmd], ok = okFor(colsOf(d), cmd);
   const cnt = (id) => SETS.find((st) => st.id === id).cards.filter(ok).length;
-  const rest = shuffle(rng, (POOL_SETS[pool] || POOL_SETS.all).filter((id) => id !== own && cnt(id) >= SET_MIN));
+  const rest = shuffle(rng, poolSets(pool).filter((id) => id !== own && cnt(id) >= SET_MIN));
   return [own, ...rest.slice(0, SETS_PICK)];
 }
 

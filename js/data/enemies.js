@@ -13,7 +13,10 @@ const build = (list) => list.flatMap(([n, d]) => Array.from({ length: n }, () =>
 const toLib = (s, E, defs) => shuffle(s.rng, defs.map((d) => E.card(d)));
 // attacks: 'trio'（3体 そろったら）：こうげき できる ものが 3体 いじょう いる ときだけ、いっせいに こうげき（セレズニアの 苗木。2026-11-08）
 const trio = (list) => (list.filter((p) => p.def.attacks === 'trio').length >= 3 ? list : list.filter((p) => p.def.attacks !== 'trio'));
-const attackers = (s, E, f) => trio(s.E.bf.filter((p) => E.isCreature(p) && !p.tapped && (!p.sick || E.hasKw(s, p, 'haste')) && f(p)));
+// まもり役（attacks: false）：ふだんは こうげき しない。パワーが 1 いじょうで、きみに ブロック できる クリーチャーが いない ときは こうげき
+// （すきを つく。2026-11-08。ユーザーが きめた。まえは いちども こうげき しなかった）。battle.js の willAttack も おなじ きまり
+export const guardGoes = (s, E, p) => p.def.attacks === false && E.power(s, p) >= 1 && !E.hasKw(s, p, 'defender') && !s.P.bf.some((b) => E.isCreature(b) && !b.tapped && E.canBlock(s, b, p));
+const attackers = (s, E, f) => trio(s.E.bf.filter((p) => E.isCreature(p) && !p.tapped && (!p.sick || E.hasKw(s, p, 'haste')) && (f(p) || guardGoes(s, E, p))));
 const sumPow = (s, E, list) => list.reduce((t, p) => t + Math.max(0, E.power(s, p)), 0);
 
 // ===== 1階：ハイドラとの対峙 =====
