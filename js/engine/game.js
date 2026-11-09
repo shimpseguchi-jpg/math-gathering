@@ -638,9 +638,11 @@ export function boostDmg(s, n, src, enemy) {
 
 // 異常（いじょう）を つける（ゼンゼロ 第2弾）：敵の クリーチャーに 色 c（1体に 1つ。あたらしい 色で 上書き。場に いる あいだ のこる）
 export const COLOR_JA = { W: '白', U: '青', K: '黒', R: '赤', G: '緑' };
+// 異常の 色の 名前。L ＝ 流明（りゅうめい）（レミエール。2026-11-09）：どの 色とも ちがう ので、色の ある クリーチャーなら だれでも 紊乱を おこせる
+export const ANOM_JA = { ...COLOR_JA, L: '流明（りゅうめい）' };
 export function setAnom(s, t, c) {
   if (!c || !t || t === 'face' || t.side !== 'E' || !onBf(s, t) || !isCreature(t) || t.anom === c) return;
-  t.anom = c; L(s, `${t.def.name}に ${COLOR_JA[c]}の 異常（いじょう）`);
+  t.anom = c; L(s, `${t.def.name}に ${ANOM_JA[c]}の 異常（いじょう）`);
   zzBreak(s, c, `${COLOR_JA[c]}：異常（いじょう）を つけた`); // 異常も その 色の 属性ブレイクの きっかけ（第2弾。ゼンゼロの クリーチャーが その 色なら 2こ）
 }
 
@@ -651,7 +653,8 @@ export function damage(s, p, n, src, o = {}) {
   if (p.shieldT === s.turn) return 0; // ダメージは 0 に なる（ニンフの 犬）
   if (!isPW(p) && isCreature(p) && useShield(s, p)) return 0;
   // 紊乱（びんらん）（ゼンゼロ 第2弾）：異常（p.anom）の ついた 敵の クリーチャーに、ちがう 色を もつ あなたの クリーチャーが ダメージ → 2倍。異常は きえる
-  const dis = !!(src?.side === 'P' && p.side === 'E' && p.anom && isCreature(p) && colorsOf(src.def).some((c) => c !== p.anom));
+  // 流明（src.def.lumen。レミエール）：色が なくても 紊乱を おこせる
+  const dis = !!(src?.side === 'P' && p.side === 'E' && p.anom && isCreature(p) && (src.def.lumen || colorsOf(src.def).some((c) => c !== p.anom)));
   if (dis) { L(s, `紊乱（びんらん）！ ${n} × 2 ＝ ${n * 2}`); n *= 2; p.anom = null; s.stats.dis = (s.stats.dis || 0) + 1; }
   // 妄想心音（FGO）：ダメージの かわりに −1/−1カウンター（破壊不能でも タフネスが へる）
   if (src && isCreature(p) && hasKw(s, src, 'wither')) { L(s, `${src.def.name} → ${foe(s, p.side)}${p.def.name} に −1/−1カウンター ${n}こ`); addMinus(s, p, n, src.side); return n; }
@@ -1125,5 +1128,5 @@ Object.assign(api, {
   swapSides, attackTriggers, combatStart,
   creatures: (s, side) => s[side].bf.filter(isCreature),
   gain: (s, n) => gainLife(s, n),
-  addMinus, addBreak, zzBreak, setAnom, COLOR_JA, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
+  addMinus, addBreak, zzBreak, setAnom, COLOR_JA, ANOM_JA, devotion, domain, delirium, boostDmg, cant, costOf, dmgThisTurn, mill, gyCast, landfallNow, manaIn, manaInNow, gainedNow, attach, steal, unsteal, auraFlag,
 });

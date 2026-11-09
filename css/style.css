@@ -182,6 +182,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .b.anom { border: 2px dashed currentColor; font-weight: 700; }
 .b.anom.an-W { background: #f3ead0; color: #5a4a12; } .b.anom.an-U { background: #cfe3fb; color: #0d3a6e; } .b.anom.an-K { background: #ddd2ee; color: #3a2a5a; }
 .b.anom.an-R { background: #fbd5cc; color: #7a1d0b; } .b.anom.an-G { background: #d2efd9; color: #134d24; }
+.b.anom.an-L { background: linear-gradient(90deg, #fff3c4, #d8f3ff, #f1dcff); color: #4a3a00; } /* 流明（りゅうめい）の 異常（レミエール）：にじ色の ひかり */
 .b.stone { background: #9a9a92; color: #1b1b18; }
 .clock-face { width: 46px; height: 46px; align-self: center; margin-top: auto; }
 .clock-face circle { fill: rgba(255, 255, 255, 0.92); stroke: var(--gold); stroke-width: 0.9; }

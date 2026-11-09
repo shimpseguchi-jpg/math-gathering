@@ -1,7 +1,7 @@
 // 画面の部品：カードの見た目・ルビ・下から出るシート
 import { LORE } from '../data/lore.js';
 import { CARD_TEXT, ENEMY_TEXT, plainName } from '../data/texts.js';
-import { colorsOf, pt, basePT as rawPT, hasKw, isCreature, COLOR_JA } from '../engine/game.js';
+import { colorsOf, pt, basePT as rawPT, hasKw, isCreature, COLOR_JA, ANOM_JA } from '../engine/game.js';
 import { TERM, TERM_RE, termAt, KW_TERM } from './glossary.js';
 import { mapRuby, stripRuby } from './ruby.js';
 
@@ -231,7 +231,7 @@ export function permFace(s, p, o = {}) {
     p.tapped ? '<span class="b tap">タップ</span>' : '',
     p.sick && !enemy && isCreature(p) && !hasKw(s, p, 'haste') ? '<span class="b zz">zz</span>' : '',
     p.frozen ? '<span class="b ice">こおり</span>' : '',
-    p.anom ? `<span class="b anom an-${p.anom}" title="ちがう 色の クリーチャーで ダメージを あたえると 2ばい（びんらん）">${ruby(`${COLOR_JA[p.anom]}の 異常（いじょう）`)}</span>` : '', // ゼンゼロ 第2弾：属性異常（どの 色か 見える ように。2026-11-06）
+    p.anom ? `<span class="b anom an-${p.anom}" title="${p.anom === 'L' ? 'どの 色の クリーチャーで ダメージを あたえても' : 'ちがう 色の クリーチャーで ダメージを あたえると'} 2ばい（びんらん）">${ruby(`${ANOM_JA[p.anom]}の 異常（いじょう）`)}</span>` : '', // ゼンゼロ 第2弾：属性異常（どの 色か 見える ように。2026-11-06）
     p.stone ? '<span class="b stone">石</span>' : '',
     p.def.dragon && !s.E.flags.awake ? '<span class="b zz">ねている</span>' : '',
     p.token ? '<span class="b tok">トークン</span>' : '',
@@ -297,7 +297,7 @@ export function permState(s, p) {
   if (p.ctr) rows.push(`＋1/＋1カウンター：${p.ctr}こ`);
   if (p.mctr) rows.push(`−1/−1カウンター：${p.mctr}こ`);
   if (p.shieldCtr) rows.push(`盾（たて）カウンター：${p.shieldCtr}こ`);
-  if (p.anom) rows.push(`${COLOR_JA[p.anom]}の 異常（いじょう）：${COLOR_JA[p.anom]} いがいの 色の クリーチャーで ダメージを あたえると 2ばい（紊乱（びんらん））`);
+  if (p.anom) rows.push(`${ANOM_JA[p.anom]}の 異常（いじょう）：${p.anom === 'L' ? 'どの 色の クリーチャーで ダメージを あたえても' : `${COLOR_JA[p.anom]} いがいの 色の クリーチャーで ダメージを あたえると`} 2ばい（紊乱（びんらん））`);
   if (p.def.vanishing) rows.push(`じかんカウンター：${p.time || 0}こ（0に なると 墓地（ぼち）へ）`);
   if (p.marks) rows.push(`しるし：${p.marks}こ`);
   if (p.fire) rows.push(`ひだね：${p.fire}こ`);
