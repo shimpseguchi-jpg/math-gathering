@@ -336,4 +336,4 @@ chainAll(S12, {
 });
 // 第2弾（set16.js）でも つかう 道具
 export { ninjutsu, canSwing, biggest, detain, foeThreat, isCre, hasSub, bonAct, etbBon, atkBon, selfPump, etbFoe, lord, wipeValue, left, pair, ULT, TK };
-export { ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain };
+export { ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain, chainSkill };

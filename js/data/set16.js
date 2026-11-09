@@ -6,7 +6,7 @@ import { mine, theirs, hit, foeBest, cr, foe1, killIt, exileIt, dig, food, aura,
 import { PICK_FREE } from '../engine/game.js';
 import {
   bonOf, addBon, ninjutsu, canSwing, biggest, detain, isCre, hasSub, bonAct, etbBon, selfPump, etbFoe, left, pair, ULT, TK,
-  ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain, chainAll,
+  ok, zap, faceHit, foeBy, byPow, dmgChain, lifeChain, tapChain, killChain, chainAll, chainSkill,
 } from './set12.js';
 
 // パエトーンの うら「イアス」（2026-11-08）：伝説の アーティファクト・クリーチャー 4/4。伝説の クリーチャーが 3体 いじょう いると うらがえる
@@ -159,6 +159,18 @@ export const S16 = {
     onOtherEnter: (s, q, p, E) => { if (q.side === 'P' && p.side === 'P' && isCre(p) && p.def.legend && s.P.bf.find((x) => x.def.id === q.def.id) === q) { addBon(s, E, 1); phaethonFlip(s, q, E); } },
     acts: [PHAETHON_ACT],
     flip: IASU,
+  },
+  // レミエール（推しサイクル 流明（りゅうめい）。2026-11-09。ユーザーが きめた）：無色 4マナ 4/4。チームの 属性を きりかえる → 流明の 異常（どの 色とも ちがう）
+  //   流明（def.lumen）：色が なくても 紊乱を おこせる（game.js の damage）。出たとき 敵の クリーチャー ぜんぶに 流明の 異常
+  //   連携：流明の 異常を つけてから 連携の 数の ダメージ（紊乱で 2ばい。かけ算）
+  ZZ162: {
+    brk: 3, lumen: true,
+    etb: (s, p, E) => { if (p.side !== 'P') return; const ts = theirs(s, E); if (!ts.length) return; E.L(s, `${p.def.name}：てきの クリーチャー ぜんぶに りゅうめいの 異常（いじょう）`); for (const t of ts) E.setAnom(s, t, 'L'); },
+    ...chainSkill((s, q, E, n) => {
+      const t = foeBy(s, E, q, () => true, (list) => foeBest(s, E, n * 2, (x) => list.includes(x))?.t || byPow(s, E)(list), n * 2);
+      if (!t) return;
+      E.setAnom(s, t, 'L'); zap(s, E, q, t, n);
+    }, () => ({ side: 'E', label: 'りゅうめいの 異常を つけて れんけいの 数の ダメージ（2ばい）を あたえる てきの クリーチャー' })),
   },
   // ---- モブ ----
   ZZ108: { ...lifeChain }, // 防衛軍の 兵士
@@ -349,8 +361,8 @@ export const S16 = {
   },
 };
 // レア・レジェンドの エージェントは みんな 交代を もつ（コスト − 2。2 より 下には しない。柚葉だけ 1）
-const SWAP = { ZZ82: [2, 'W'], ZZ83: [2, 'W'], ZZ84: [2, 'W'], ZZ86: [2, 'U'], ZZ87: [2, 'U'], ZZ88: [2, 'U'], ZZ90: [3, 'K'], ZZ91: [2, 'K'], ZZ92: [2, 'K'], ZZ95: [2, 'R'], ZZ96: [2, 'R'], ZZ98: [3, 'R'], ZZ99: [2, 'G'], ZZ100: [1, 'G'], ZZ101: [2, 'U'], ZZ102: [2, 'K'] };
-for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, [k]); S16[id] = { ...nj, ...S16[id] }; }
+const SWAP = { ZZ82: [2, 'W'], ZZ83: [2, 'W'], ZZ84: [2, 'W'], ZZ86: [2, 'U'], ZZ87: [2, 'U'], ZZ88: [2, 'U'], ZZ90: [3, 'K'], ZZ91: [2, 'K'], ZZ92: [2, 'K'], ZZ95: [2, 'R'], ZZ96: [2, 'R'], ZZ98: [3, 'R'], ZZ99: [2, 'G'], ZZ100: [1, 'G'], ZZ101: [2, 'U'], ZZ102: [2, 'K'], ZZ162: [2, ''] }; // レミエールは 無色（交代 2）
+for (const [id, [n, k]] of Object.entries(SWAP)) { const { permScore, ...nj } = ninjutsu(n, k ? [k] : []); S16[id] = { ...nj, ...S16[id] }; }
 // エージェントは みんな 連携スキルを もつ（2026-11-04。もとから ある 9まい（アンビー・トリガー・照・儀玄・橘福福・葉瞬光・プルクラ・防衛軍・門下生）いがいは 色の かた。set12.js の CHAIN）
 chainAll(S16, {
   W: ['ZZ84', 'ZZ85'],
