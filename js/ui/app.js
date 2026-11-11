@@ -14,6 +14,7 @@ import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, storyTotal } from './story.js';
 import { tsumeMenu, tsumeCount, tsumeTotal, tsumeDailyDone } from './tsume.js';
 import { dailyMenu, dailyResult, dailyDone } from './daily.js';
+import { koboMenu, koboCount } from './kobo.js';
 import { dailyOf, dateStr, dateLabel, DAILY_RULE, hashStr } from '../data/daily.js';
 import { seeded } from '../engine/rng.js';
 import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
@@ -102,6 +103,7 @@ const T_ICON = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>',
   daily: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13l1.2 2.4 2.6.4-1.9 1.8.5 2.6L12 19l-2.4 1.2.5-2.6-1.9-1.8 2.6-.4z" fill="currentColor" stroke="none"/>',
+  kobo: '<path d="M14 4l6 6-2 2-2-2-9 9-3 1 1-3 9-9-2-2z"/><path d="M4 8h4M6 6v4"/>',
   tsume: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
 };
 const tIcon = (k) => `<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${T_ICON[k]}</svg>`;
@@ -171,6 +173,7 @@ export function title() {
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, step === 'kihon' ? ruby('課題（かだい）を 3つ クリアすると とうへ') : 'はじめての ぼうけん', tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
       ${tile('tsume', 'つめマス', `この ターンで かて・${tsumeCount()} / ${tsumeTotal()}問`, tIcon('tsume'), tsumeDailyDone() ? '' : 'daily')}
       ${tile('daily', 'きょうの ぼうけん', loadDaily() ? 'つづきから' : dailyDone() ? 'きょうは おわり・みんなの けっか' : ruby(dailyOf().rule.name), tIcon('daily'), dailyDone() ? '' : 'today')}
+      ${tile('kobo', ruby('カード工房（こうぼう）'), koboCount() ? `つくった カード ${koboCount()}まい` : 'じぶんの カードを つくる', tIcon('kobo'))}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
@@ -209,6 +212,7 @@ export function title() {
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
     if (b.dataset.go === 'tsume') return tsumeMenu(title);
+    if (b.dataset.go === 'kobo') return koboMenu(app, title);
     if (b.dataset.go === 'daily') return dailyMenu(app, title, dailyHooks());
     if (b.dataset.go === 'kihon') return kihonMenu(title);
     if (b.dataset.go === 'admin') return adminScreen(app, title);

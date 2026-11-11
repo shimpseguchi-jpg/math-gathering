@@ -1276,6 +1276,32 @@ div.zk-card { cursor: default; }
 .dy-top b, .dy-past b { font-family: var(--display); font-weight: 400; color: var(--gold-text); }
 .dy-top em, .dy-past em { font-style: normal; color: var(--ink-dim); white-space: nowrap; }
 .ending.daily { gap: 12px; } .ending.daily .st-ch { width: 100%; box-sizing: border-box; text-align: left; }
+/* カード工房（2026-11-11。js/ui/kobo.js）：つくった カードの ならび・つくる 画面（よさんの 式） */
+.kb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.kb-card { display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 4px; border-radius: 12px; border: 2px solid transparent; background: none; color: inherit; cursor: pointer; text-align: center; }
+.kb-card small { font-size: 10.5px; color: var(--ink-dim); }
+.kb-card.on { border-color: var(--gold); background: var(--table-2); }
+.kb-new { min-height: 120px; justify-content: center; align-items: center; border: 2px dashed var(--line); }
+.kb-new b { font-family: var(--display); font-weight: 400; font-size: 32px; color: var(--gold-text); }
+.kb-top { display: grid; grid-template-columns: 112px 1fr; gap: 12px; align-items: start; position: sticky; top: 0; z-index: 2; padding: 8px 0; background: var(--bg); }
+.kb-prev .card { width: 112px; }
+.kb-budget { background: var(--table-2); border-radius: 12px; padding: 8px 10px; font-size: 13px; line-height: 1.7; border: 2px solid var(--line); }
+.kb-budget p { margin: 0; } .kb-budget p span { display: inline-block; margin-right: 0.6em; font-weight: 700; color: var(--gold-text); }
+.kb-budget b { font-family: var(--display); font-weight: 400; font-size: 15px; }
+.kb-budget.over { border-color: var(--bad); } .kb-budget.over .kb-left { color: var(--bad); font-weight: 700; }
+.kb-parts { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: var(--ink-dim); }
+.kb-name { display: flex; align-items: center; gap: 10px; }
+.kb-name input { flex: 1; min-width: 0; font: inherit; font-weight: 700; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); background: var(--table); color: var(--ink); }
+.kb-l { font-size: 13px; font-weight: 700; min-width: 7.5em; }
+.kb-step { display: flex; align-items: center; gap: 10px; }
+.kb-step .btn { min-width: 46px; padding: 6px 0; font-size: 18px; }
+.kb-step b { font-family: var(--display); font-weight: 400; font-size: 22px; min-width: 1.6em; text-align: center; }
+.kb-kws { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.kb-kw { display: grid; grid-template-columns: 1fr auto; gap: 0 6px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--table); color: inherit; cursor: pointer; }
+.kb-kw b { font-size: 13px; } .kb-kw em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--gold-text); white-space: nowrap; }
+.kb-kw small { grid-column: 1 / -1; font-size: 10.5px; color: var(--ink-dim); line-height: 1.5; }
+.kb-kw.on { border-color: var(--gold); background: var(--table-2); }
+.kobo .chip small { color: var(--ink-dim); font-weight: 500; margin-left: 4px; } .kobo .chip.on small { color: inherit; }
 /* きほんセットの 課題：ボタンで ない 行（おせない） */
 div.st-ep { box-sizing: border-box; cursor: default; }
 .coach.story { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 2px; padding: 5px 10px; font-size: 13px; line-height: 1.6; border-radius: 10px; }
