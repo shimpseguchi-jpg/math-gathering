@@ -255,8 +255,10 @@ export function refill(s) {
   const size = s.P.flags.refill7 === s.stats.playerTurns ? 7 : (s.P.handSize || HAND_SIZE); // ヴァンガードで 4〜6まい
   const n = size - s.P.hand.filter((c) => !c.advDone && !c.def.potion).length; // 出来事を つかった カード・次元渡りの ポーションは かぞえない
   if (n <= 0) return;
+  const had = s.P.hand.length;
   drawCard(s, n);
-  L(s, `${foe(s, 'P')}てふだを ${size}まいに した（${n}まい 引いた）`);
+  const got = s.P.hand.length - had; // 山札も 墓地も ない ときは 引けない（つめマス）
+  if (got > 0) L(s, `${foe(s, 'P')}てふだを ${had + got}まいに した（${got}まい 引いた）`);
 }
 
 // 手札を 捨てる（怪物化などの コスト）。捨てた カードは 墓地へ
@@ -418,6 +420,18 @@ export function mostOrder(s, list, n) {
   const cr = list.filter((t) => t !== 'face');
   const k = n != null && n < KILL_N ? cr.filter((p) => need(s, p) <= n) : [];
   return { order: [...byP(k), ...byP(cr.filter((p) => !k.includes(p)))], kill: k.length > 0 };
+}
+
+// ねらいかたが きまって いる カード（コモン：ランダム、アンコモン：（たおせる なかで）パワーが いちばん 大きい）が えらぶ 相手（2026-11-11。battle.js の autoPick と つめマスの 探索が つかう）
+// list：てきの 候補（'face' も）。かえす もの：{ chosen, order, kill, random（ランダムで きまった：候補が えらぶ 数より 多い） }
+export function autoTargets(s, mode, spec, ctx, list, E) {
+  const d = ctx.card;
+  const k = spec.divide ? 1 : d.strive ? Math.max(spec.min ?? 1, 1) : Math.min(spec.max ?? 1, list.length);
+  // アンコモン：n 点（−n/−n）で たおせる なかで パワーが いちばん 大きい てき（spec.n。いなければ いちばん 大きい）。本体は さいご
+  const m = mode === 'rand' ? null : mostOrder(s, list, typeof spec.n === 'function' ? spec.n(s, E, ctx) : spec.n === 'x' ? ctx.x : spec.n);
+  const random = !m && list.length > k;
+  const order = m ? [...m.order, ...list.filter((t) => t === 'face')] : random ? [...list].sort(() => s.rng() - 0.5) : [...list];
+  return { chosen: order.slice(0, k), order, kill: !!m?.kill, random };
 }
 
 export function hasKw(s, p, k) {

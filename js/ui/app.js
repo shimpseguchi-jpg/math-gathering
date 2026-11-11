@@ -12,6 +12,7 @@ import { onlineMenu, saveGhost, hasServer } from './online.js';
 import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, storyTotal } from './story.js';
+import { tsumeMenu, tsumeCount, tsumeTotal, tsumeDailyDone } from './tsume.js';
 import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
 import { RAID, raidOpen, raidShown, raidFree, applyRaid } from './raidstore.js';
 import { CONF, loadConf } from './server.js';
@@ -86,6 +87,7 @@ const T_ICON = {
   zukan: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>',
+  tsume: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
 };
 const tIcon = (k) => `<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${T_ICON[k]}</svg>`;
 // メニューの タイル：絵・名前・みじかい しらせ（data-go は これまでと おなじ）
@@ -152,6 +154,7 @@ export function title() {
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
       ${tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, step === 'kihon' ? ruby('課題（かだい）を 3つ クリアすると とうへ') : 'はじめての ぼうけん', tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
+      ${tile('tsume', 'つめマス', `この ターンで かて・${tsumeCount()} / ${tsumeTotal()}問`, tIcon('tsume'), tsumeDailyDone() ? '' : 'daily')}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
@@ -189,6 +192,7 @@ export function title() {
     if (b.dataset.go === 'online') return onlineMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
+    if (b.dataset.go === 'tsume') return tsumeMenu(title);
     if (b.dataset.go === 'kihon') return kihonMenu(title);
     if (b.dataset.go === 'admin') return adminScreen(app, title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title, { activeIds: activeIds() });
