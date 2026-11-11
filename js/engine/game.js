@@ -437,6 +437,7 @@ export function autoTargets(s, mode, spec, ctx, list, E) {
 export function hasKw(s, p, k) {
   if (p.def.kw?.includes(k) || p.kwT.has(k) || levelRow(p)?.kw?.includes(k)) return true;
   if (p.def.kwFn?.(s, p, api)?.includes(k)) return true;
+  if (p.side === 'P' && !s.swapped && s.P.emblem?.kwAll?.includes(k) && isCreature(p)) return true; // きょうの ぼうけんの ルール（はやての 日・そらの 日。data/daily.js）
   for (const q of s[p.side].bf) if (q.def.grant) { const g = q.def.grant(s, q, p, api); if (g && g.includes(k)) return true; }
   for (const q of s[p.side === 'P' ? 'E' : 'P'].bf) if (q.attached === p.uid && q.def.grant) { const g = q.def.grant(s, q, p, api); if (g && g.includes(k)) return true; }
   return false;

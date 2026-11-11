@@ -104,6 +104,23 @@ throws(() => G.mtgRaidAdd({ id: 'tarkir-1', f: 'human', c: 'AB02', w: 1 }), '出
 G.mtgAdminSave({ conf: { 'レイドを出す': '出す' } });
 ok(G.mtgConfig().raid?.id === 'tarkir-1' && G.mtgRaidState({ id: 'tarkir-1' }).f.human === 18, 'また 出すと つづきから');
 
+// ---- きょうの ぼうけん ----
+{ const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  setUser('taro@school.ed.jp');
+  const b1 = G.mtgDailySubmit({ d: today, f: 3, e: 2, t: 21, n: [1, 2] });
+  ok(b1.n === 1 && b1.rank === 1 && b1.hist[3] === 1 && b1.top[0].me === 1, 'きょうの ぼうけん：けっかを おくる');
+  const b2 = G.mtgDailySubmit({ d: today, f: 5, e: 9, t: 10, n: [1, 2] });
+  ok(b2.n === 1 && b2.top[0].f === 3, 'きょうの ぼうけん：おなじ 人の 2回めは かぞえない');
+  setUser('jiro@school.ed.jp');
+  const b3 = G.mtgDailySubmit({ d: today, f: 5, e: 1, t: 30, n: [3, 4] });
+  ok(b3.n === 2 && b3.rank === 1 && b3.top[1].f === 3 && b3.hist[5] === 1, 'きょうの ぼうけん：のぼった 階の 多い じゅん');
+  setUser('');
+  const b4 = G.mtgDailySubmit({ d: today, f: 9, e: -3, t: 5, n: [0, 0], g: '0123456789ab' });
+  ok(b4.n === 3 && b4.top.some((x) => x.me && x.f === 5 && x.e === 0), 'きょうの ぼうけん：アカウントが なくても 端末の 番号で（数は はんいに おさめる）');
+  ok(G.mtgDailyBoard({ d: today, g: '0123456789ab' }).rank > 0 && G.mtgDailyBoard({ d: today }).rank === 0, 'きょうの ぼうけん：みんなの けっか');
+  throws(() => G.mtgDailySubmit({ d: '2020-01-01', f: 1, e: 0, t: 1, n: [0, 0], g: '0123456789ab' }), 'きょうで ない 日づけは だめ');
+  throws(() => G.mtgDailySubmit({ d: today, f: 1, e: 0, t: 1, n: [0, 0] }), 'アカウントも 番号も ない ときは だめ'); }
+
 // ---- あいことば ----
 setUser('taro@school.ed.jp');
 ok(G.mtgRedeem({ w: [0, 1, 2] }).card === 'W01', 'あいことばで カード');

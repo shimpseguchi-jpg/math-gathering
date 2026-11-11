@@ -13,6 +13,9 @@ import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, storyTotal } from './story.js';
 import { tsumeMenu, tsumeCount, tsumeTotal, tsumeDailyDone } from './tsume.js';
+import { dailyMenu, dailyResult, dailyDone } from './daily.js';
+import { dailyOf, dateStr, dateLabel, DAILY_RULE, hashStr } from '../data/daily.js';
+import { seeded } from '../engine/rng.js';
 import { applyMat, awardMat, matName, TOWER_MAT } from './mats.js';
 import { RAID, raidOpen, raidShown, raidFree, applyRaid } from './raidstore.js';
 import { CONF, loadConf } from './server.js';
@@ -68,8 +71,19 @@ const draftCols = () => (A?.cmd ? cmdIdent() : college() ? [...college().cols] :
 let A = null; // いまの冒険
 const app = () => document.getElementById('app');
 const load = () => { try { return JSON.parse(localStorage.getItem(SAVE) || 'null'); } catch { return null; } };
-const save = () => { try { localStorage.setItem(SAVE, JSON.stringify(A)); } catch { /* 保存できない環境でも遊べる */ } };
-const clearSave = () => { try { localStorage.removeItem(SAVE); } catch { /* なし */ } };
+// きょうの ぼうけん（A.daily。docs/DAILY.md）は べつの セーブ（いつもの ぼうけんの つづきを けさない）
+const SAVE_DAILY = 'mtg-daily-run';
+const saveKey = () => (A?.daily ? SAVE_DAILY : SAVE);
+const save = () => { try { localStorage.setItem(saveKey(), JSON.stringify(A)); } catch { /* 保存できない環境でも遊べる */ } };
+const clearSave = () => { try { localStorage.removeItem(saveKey()); } catch { /* なし */ } };
+// きょうの とちゅうの ぼうけん（日づけが かわって いたら なし）
+const loadDaily = () => { try { const a = JSON.parse(localStorage.getItem(SAVE_DAILY) || 'null'); return a && a.daily?.date === dateStr() && !a.over ? a : null; } catch { return null; } };
+// きょうの ぼうけんは もんしょうを つかわない：きょうの ルールだけ（data/daily.js の fx・buff）
+const dailyRule = () => (A?.daily ? DAILY_RULE[A.daily.rule] : null);
+const fxNow = () => (A?.daily ? { ...dailyRule().fx } : activeEffects());
+const fxLine = () => (A?.daily ? `きょうの ルール「${dailyRule().name}」${dailyRule().line}` : emblemLine());
+// パックの 乱数：きょうの ぼうけんは 日づけと 何こめの パックかで きまる（みんな おなじ なかみ）
+const packRng = () => (A?.daily ? seeded(hashStr(`${A.daily.date}:pack:${A.opened}`)) : Math.random);
 const defs = (ids) => ids.map((id) => BY_ID[id]);
 
 // ---- タイトル ----
@@ -87,6 +101,7 @@ const T_ICON = {
   zukan: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>',
+  daily: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13l1.2 2.4 2.6.4-1.9 1.8.5 2.6L12 19l-2.4 1.2.5-2.6-1.9-1.8 2.6-.4z" fill="currentColor" stroke="none"/>',
   tsume: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
 };
 const tIcon = (k) => `<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${T_ICON[k]}</svg>`;
@@ -155,6 +170,7 @@ export function title() {
       ${tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, step === 'kihon' ? ruby('課題（かだい）を 3つ クリアすると とうへ') : 'はじめての ぼうけん', tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
       ${tile('tsume', 'つめマス', `この ターンで かて・${tsumeCount()} / ${tsumeTotal()}問`, tIcon('tsume'), tsumeDailyDone() ? '' : 'daily')}
+      ${tile('daily', 'きょうの ぼうけん', loadDaily() ? 'つづきから' : dailyDone() ? 'きょうは おわり・みんなの けっか' : ruby(dailyOf().rule.name), tIcon('daily'), dailyDone() ? '' : 'today')}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
       ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
@@ -193,6 +209,7 @@ export function title() {
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
     if (b.dataset.go === 'tsume') return tsumeMenu(title);
+    if (b.dataset.go === 'daily') return dailyMenu(app, title, dailyHooks());
     if (b.dataset.go === 'kihon') return kihonMenu(title);
     if (b.dataset.go === 'admin') return adminScreen(app, title);
     if (b.dataset.go === 'settings') return settingsScreen(app, title, { activeIds: activeIds() });
@@ -250,7 +267,7 @@ function emblemPackNote(em) {
   if (em.ident) out.push(`<span>${ruby(`統率者（とうそつしゃ）${info(cmdDef()).name}の 色`)}（${em.ident.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ') || 'むしょく'}）の カード${A.opened === 0 && em.ident.length ? 'だけが 出る（さいしょの パック）' : 'が 出やすい'}</span>`);
   if (em.colors.length) out.push(`<span>${[...new Set(em.colors)].map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join(' ')} の カードが 出やすい（もんしょう${A.luck ? '・きまぐれな いろ' : ''}）</span>`);
   if (em.unc) out.push('<span>アンコモンが 1まい ふえて 9まい いり（もんしょう）</span>');
-  for (const x of activeEffects()?.pack?.extra || []) out.push(`<span>${ruby(`${SETS.find((z) => z.id === x)?.name || ''} の カードも 出る（もんしょう${college() ? `。${college().name}の 2色の カードだけ` : ''}）`)}</span>`);
+  for (const x of fxNow()?.pack?.extra || []) out.push(`<span>${ruby(`${SETS.find((z) => z.id === x)?.name || ''} の カードも 出る（もんしょう${college() ? `。${college().name}の 2色の カードだけ` : ''}）`)}</span>`);
   if (em.leg) out.push(`<span>レジェンドが 出る かくりつ <b>${Math.round(legendChance(A.idx, em) * 100)}%</b>（もんしょう）</span>`);
   return out.join('');
 }
@@ -292,8 +309,8 @@ function packs() {
   // ごほうびパック：登った階が 多いほど レア以上が 出やすく、デッキで いちばん使う色が 出やすい
   const cleared = A.idx;
   const favor = cleared > 0 && A.deck ? favorColor(deckStats(A.deck).ds) : null;
-  // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ
-  const pk = activeEffects()?.pack;
+  // パックの もんしょう（いまの もの）と、ぼうけんの はじめに きまった きまぐれな いろ。きょうの ぼうけんは なし
+  const pk = fxNow()?.pack;
   // ストリクスヘイヴン：寮の 2色だけ 出るので、いろの もんしょう・きまぐれな いろも 寮の 色の ものだけ
   const inCollege = (c) => !college() || college().cols.includes(c);
   const em = { colors: [...(pk?.colors || []), ...(A.luck ? [A.luck] : [])].filter(inCollege), unc: pk?.unc || 0, leg: pk?.leg || 0, extra: pk?.extra || [], ident: cmdIdent() };
@@ -301,7 +318,7 @@ function packs() {
   const only = (A.draft && A.cmd) || college() ? draftCols() : A.cmd && A.opened === 0 ? cmdIdent() : null; // ドラフトの 統率者戦は 統率者の 色だけ（ほかの ドラフトは ぜんぶの 色）。 ドラフトは えらんだ 色だけ。統率者戦の さいしょの パックは 統率者の 色の カードだけ。ストリクスヘイヴンは 寮の 2色だけ
   // ストリクスヘイヴン：ファウンデーションズ ＋ 第5弾。パックの もんしょうの サブセット・番外編も まざる（寮の 2色の カードだけ。2026-11-03）
   const sets = withExtra(college() ? STRIX.sets : enabledSets(), pk?.extra);
-  const roll = () => openPack(Math.random, { cleared, favor, sets, em, rare, only });
+  const roll = () => openPack(packRng(), { cleared, favor, sets, em, rare, only });
   if (A.draft) return draftPick(roll);
   const cards = roll();
   const bonus = rare ? `<div class="bonus"><p class="bonus-title">むげんの とう さんせんの レアパック</p>
@@ -671,13 +688,13 @@ function tower() {
   const st = deckStats(A.deck);
   const done = (i) => (strix() && A.report?.[i] ? `クリア ${starText(A.report[i].stars)}` : 'クリア');
   app().innerHTML = `<main class="tower">
-    <p class="eyebrow">${DIFFS.find(([k]) => k === A.diff)[1]}　コンティニュー のこり ${A.continues}回</p>
+    <p class="eyebrow">${A.daily ? `きょうの ぼうけん ${dateLabel(A.daily.date)}　コンティニュー なし` : `${DIFFS.find(([k]) => k === A.diff)[1]}　コンティニュー のこり ${A.continues}回`}</p>
     <h2>${ruby(TOWER_TITLE[A.plane || 'theros'])}</h2>
     <ol class="floors">${A.floors.map((f, i) => `<li class="${i < A.idx ? 'done' : i === A.idx ? 'now' : ''}"><span>${ruby(floorLabel(i))}</span><em>${i < A.idx ? done(i) : i === A.idx ? 'いま ここ' : ''}</em></li>`).reverse().join('')}</ol>
     ${strix() ? `<p class="deckline">${ruby(`${college().name}の 寮（りょう）`)}　ライフ <b>${A.life}</b> / ${A.cap}</p>${grownLine()}` : ''}
     ${A.cmd ? `<p class="deckline">${ruby(`統率者（とうそつしゃ）：${info(cmdDef()).name}`)}（${cmdColorText(cmdDef()) || 'むしょく'}）</p>` : ''}
     <p class="deckline">デッキ：${st.colors.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${st.points}点 / ${advCap()}点　カード${st.count}まい＋きほん${DECK_SIZE - st.count}まい</p>
-    ${emblemLine() ? `<p class="em-line">もんしょう：${esc(emblemLine())}</p>` : ''}
+    ${fxLine() ? `<p class="em-line">${A.daily ? ruby(fxLine()) : `もんしょう：${esc(fxLine())}`}</p>` : ''}
     <div class="row-btns"><button type="button" class="btn" data-a="deck">デッキを なおす</button><button type="button" class="btn primary" data-a="go">${ruby(floorLabel(A.idx))}へ</button></div>
     <button type="button" class="btn ghost" data-a="quit">タイトルへ（つづきは のこる）</button>
   </main>`;
@@ -693,14 +710,15 @@ export const CMD_BUFF_FROM = 2; // 0 から かぞえる：2 ＝ 3階（こう�
 function fight() {
   const f = A.floors[A.idx], start = A.life;
   startBattle({
-    deck: finalDeck(), floorId: f, diff: A.diff, floorName: floorLabel(A.idx), emblem: activeEffects(), emblemNote: emblemLine(), cmd: cmdDef(),
+    deck: finalDeck(), floorId: f, diff: A.diff, floorName: floorLabel(A.idx), emblem: fxNow(), emblemNote: A.daily ? '' : emblemLine(), cmd: cmdDef(),
     life: strix() ? A.life : null, // ストリクスヘイヴン：ライフを ひきつぐ
     // 統率者モード：3階から 上は てきの クリーチャーが ＋1/＋1（統率者が いると つよすぎた。docs/REQUIREMENTS.md 8.5）
-    buff: A.cmd && A.idx >= CMD_BUFF_FROM ? 1 : 0,
-    extraNote: strix() ? `ライフ ${A.life} から はじまる。のこった ライフで つぎの 階へ すすむ。` : A.cmd && A.idx >= CMD_BUFF_FROM ? '統率者（とうそつしゃ）が いるので、てきも 本気（ほんき）！ てきの クリーチャーは ＋1/＋1' : '',
+    buff: A.daily ? dailyRule().buff || 0 : A.cmd && A.idx >= CMD_BUFF_FROM ? 1 : 0,
+    extraNote: A.daily ? `${fxLine()}。${dailyRule().text}` : strix() ? `ライフ ${A.life} から はじまる。のこった ライフで つぎの 階へ すすむ。` : A.cmd && A.idx >= CMD_BUFF_FROM ? '統率者（とうそつしゃ）が いるので、てきも 本気（ほんき）！ てきの クリーチャーは ＋1/＋1' : '',
     quit: { label: 'タイトルへ もどる', note: 'ぼうけんの つづきは のこる。この 階は「つづきから」で はじめから やりなおしに なるよ。', go: title },
     onEnd: async (r) => {
       A.exact = (A.exact || 0) + r.exact;
+      A.turns = (A.turns || 0) + (r.turns || 0); // きょうの ぼうけんの きろく
       onBattle(r, { advExact: A.exact, floorIdx: A.idx, points: deckStats(A.deck).points });
       zukanBattle(r);
       if (r.win) {
@@ -709,13 +727,13 @@ function fight() {
           A.life = Math.min(A.cap, Math.max(1, r.life));
         }
         A.idx++;
-        if (A.idx >= A.floors.length) { if (!strix()) return askEndless(); A.over = 'clear'; save(); return ending(true); } // ストリクスヘイヴンは 通知表で おわり
+        if (A.idx >= A.floors.length) { if (!strix() && !A.daily) return askEndless(); A.over = 'clear'; save(); return ending(true); } // ストリクスヘイヴンは 通知表で おわり。きょうの ぼうけんは むげんの とう なし
         if (strix()) { A.recess = true; save(); return recess(); }
         A.toOpen = 1; save();
         await sheet('<p>パックを 1つ あけて、デッキを くみなおせる。</p>', [{ label: 'パックを あける', value: 1, kind: 'primary' }], { title: 'ごほうび', dismiss: false });
         return packs();
       }
-      await emblemIntro();
+      if (!A.daily) await emblemIntro();
       if (A.continues > 0) {
         const v = await sheet(`<p>コンティニューすると、${ruby(floorLabel(A.idx))}の はじめから やりなおせる（${strix() ? `ライフは ${Math.min(A.cap, STRIX.cont)}` : 'ライフは はじめの 数に もどる'}）。デッキを なおしてから いどんでも いい。</p>${emblemHint()}`,
           [{ label: 'コンティニュー（のこり1回）', value: 'c', kind: 'primary' }, { label: 'あきらめる', value: 'x' }], { title: 'まけてしまった', dismiss: false });
@@ -755,6 +773,7 @@ function payTower(a = A, quiet = true) {
 }
 const ticketLine = (n) => (n ? `<p class="what tk-get"><b>パックけん ＋${n}まい</b><span>タイトルの「こうちく」の ショップで パックと ひきかえられる</span></p>` : '');
 function ending(win) {
+  if (A.daily) return dailyEnding(win);
   const reached = win ? A.floors.length : A.idx + 1;
   if (!A.recorded) recordRun(win);
   const got = payTower();
@@ -781,6 +800,21 @@ function ending(win) {
   const plane = A.plane;
   app().onclick = (e) => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'more') moreStudy(app, plane, title); else title(); };
 }
+
+// ---- きょうの ぼうけん（docs/DAILY.md）----
+// はじめる：テーロス・ふつう・パック・コンティニュー なし。てきの ならびは 日づけで きまる。とうの きろく（ずかん・かいほう）には かぞえない
+function startDaily(d) {
+  A = { daily: { date: d.date, rule: d.rule.id }, diff: 'normal', plane: 'theros', luck: null, pool: [], deck: null, floors: pickFloors(seeded(d.seed)), idx: 0, continues: 0, toOpen: 3, opened: 0, exact: 0, turns: 0, cmd: null, draft: false, recorded: true };
+  save();
+  packs();
+}
+function dailyEnding(win) {
+  const res = { date: A.daily.date, rule: A.daily.rule, f: Math.min(A.idx, A.floors.length), e: A.exact || 0, t: A.turns || 0, win };
+  const tickets = payTower();
+  clearSave();
+  dailyResult(app, title, res, { tickets });
+}
+const dailyHooks = () => ({ running: !!loadDaily(), start: startDaily, resume: () => { A = loadDaily(); if (A) resume(); else title(); } });
 
 // ---- むげんの とう（docs/ENDLESS.md）：とうを クリアした あと、まけるまで のぼる ----
 function endlessBest() { try { return JSON.parse(localStorage.getItem(ENDLESS_BEST) || 'null'); } catch { return null; } }
