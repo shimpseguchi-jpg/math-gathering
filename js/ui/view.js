@@ -96,7 +96,7 @@ export function shownMotif(m) {
 }
 
 export function info(def) {
-  const t = CARD_TEXT[def.id] || ENEMY_TEXT[plainName(def.name || '')];
+  const t = CARD_TEXT[def.id] || (def.custom ? null : ENEMY_TEXT[plainName(def.name || '')]); // カード工房の カード（custom）は 名前が てきと おなじでも べつの もの
   // textOver・typeOver：もんしょうで かわった きほんカード・もんしょうの カード（data/cards.js の boostBasic・SUN_RING）
   return {
     name: t?.name || def.name, type: def.typeOver || t?.type || (def.types || []).join('・'), text: def.textOver || (t?.text && t.text !== '−' ? t.text : ''), motif: shownMotif(t?.motif),

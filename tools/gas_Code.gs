@@ -51,6 +51,7 @@ var SHEETS = {
   raidg: ['レイドゴースト', ['レイドID', '陣営', 'ID', '統率者', 'デッキ', 'なまえ1', 'なまえ2', '日時', 'まもった', 'いる']],
   code: ['あいことば', ['ことば', 'カードID', 'はじまり', 'おわり', 'のこり', 'メモ']],
   used: ['あいことばの記録', ['ことば', 'ひと', '日時']],
+  daily: ['きょうのぼうけん', ['日づけ', 'ひと', 'なまえ1', 'なまえ2', '階', 'ぴったり', 'ターン', '日時']],
   save: ['ひきつぎ', ['ひと', '日時', 'おおきさ', 'データ']],
   game: ['ゲーム本体', ['index', 'cards']] // GitHub から とった ゲーム本体と カードの 一覧（45000字ずつ 下へ）。さわらない
 };
@@ -428,6 +429,43 @@ function mtgRaidGhost(q) {
   if (!list.length) return null;
   var r = list[Math.floor(Math.random() * list.length)];
   return { i: String(r[2]), c: String(r[3]), d: JSON.parse(r[4] || '[]'), n: [num_(r[5]), num_(r[6])], u: ms_(r[7]) };
+}
+
+// ───── きょうの ぼうけん（js/ui/daily.js・docs/DAILY.md）─────
+// 日づけごとに、1人 1回の けっか（のぼった 階・ぴったり・ターン）。さいしょに とどいた ものを のこす。DAILY_KEEP 日より 古い 行は けす
+var DAILY_KEEP = 14, DAILY_TOP = 20, DAILY_FLOORS = 5;
+function dailyDate_(q) {
+  var d = String(q && q.d);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error('日づけが おかしい');
+  if (Math.abs(Date.now() - (ms_(d) + 12 * 3600 * 1000)) > 36 * 3600 * 1000) throw new Error('きょうの 日づけでは ない');
+  return d;
+}
+// だれか：学校アカウント（読めない 番号）。なければ 端末の 番号（12けた）
+function dailyWho_(q) { var me = who_(); if (me) return me; var g = raidGid_(q && q.g); if (!g) throw new Error('番号が ない'); return 'g:' + g; }
+function dailyBoard_(d, me) {
+  var list = rows_('daily').filter(function (r) { return String(r[0]) === d; }).map(function (r) { return { w: String(r[1]), n: [num_(r[2]), num_(r[3])], f: num_(r[4]), e: num_(r[5]), t: num_(r[6]) }; });
+  list.sort(function (a, b) { return b.f - a.f || b.e - a.e || a.t - b.t; });
+  var hist = []; for (var i = 0; i <= DAILY_FLOORS; i++) hist.push(0);
+  list.forEach(function (x) { hist[Math.max(0, Math.min(DAILY_FLOORS, x.f))]++; });
+  var rank = 0; list.forEach(function (x, i) { if (!rank && x.w === me) rank = i + 1; });
+  return { d: d, n: list.length, hist: hist, rank: rank, top: list.slice(0, DAILY_TOP).map(function (x) { return { n: x.n, f: x.f, e: x.e, t: x.t, me: x.w === me ? 1 : 0 }; }) };
+}
+// けっかを おくる：{ d: '2026-11-11', f: のぼった 階（0〜5）, e: ぴったり, t: ターン, n: [なまえ], g: 端末の 番号 } → みんなの けっか（mtgDailyBoard と おなじ）
+function mtgDailySubmit(q) {
+  var d = dailyDate_(q), me = dailyWho_(q), n = checkName_(q.n);
+  var f = Math.max(0, Math.min(DAILY_FLOORS, Math.floor(Number(q.f) || 0))), e = Math.max(0, Math.min(999, Math.floor(Number(q.e) || 0))), t = Math.max(0, Math.min(9999, Math.floor(Number(q.t) || 0)));
+  return withLock_(function () {
+    var list = rows_('daily'), old = [], has = false, keepFrom = Date.now() - DAILY_KEEP * 86400000;
+    list.forEach(function (r, i) { if (String(r[0]) === d && String(r[1]) === me) has = true; if (ms_(String(r[0])) < keepFrom) old.push(i); });
+    if (old.length) del_('daily', old);
+    if (!has) add_('daily', [d, me, n[0], n[1], f, e, t, time_(Date.now())]);
+    return dailyBoard_(d, me);
+  });
+}
+// みんなの けっか：{ d, g } → { d, n: 人数, hist: [0階〜5階の 人数], rank: じぶんの じゅんい（まだなら 0）, top: [{ n, f, e, t, me }] }
+function mtgDailyBoard(q) {
+  var d = dailyDate_(q), me = who_() || (raidGid_(q && q.g) ? 'g:' + raidGid_(q.g) : '');
+  return dailyBoard_(d, me);
 }
 
 // ───── ひきつぎ（セーブの バックアップ）─────

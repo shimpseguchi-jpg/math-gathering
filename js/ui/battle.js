@@ -1,7 +1,7 @@
 // たたかいの画面。ルールは engine/game.js、プレイヤーの判断はタップで、敵のターン中の質問は await で待つ
 import {
   api, newGame, beginPlayerTurn, endPlayerTurn, enemyTurn, combatStart, declareAttack, finishCombat, LOW_LIBRARY, reshuffleCost,
-  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe, mostOrder, deckCols, basicCol,
+  isCreature, onBf, hasKw, pt, power, colorsOf, canBlock, sba, tapPerm, discard, costOf, gyCast, mulligan, cmdTax, cmdCost, useBreak, canBreak, silenced, uncounterable, equipCost, BREAK_AT, BREAK_HEAL, BREAK_ONE, BREAK_FACE, pickOf, legendDupe, autoTargets, deckCols, basicCol,
 } from '../engine/game.js';
 import { AI, plan, castCard, pay, readyAttackers, suspendCard, levelUp, manaCount, castAdventure, castBestow, LIFE_PIP, escapeMin, njCost, njPlan, njCards } from '../engine/ai.js';
 import { fitsDeck } from '../data/kit.js';
@@ -41,7 +41,7 @@ export function startBattle(o) {
   app().onclick = onClick;
   initSwipe();
   const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
-  if (!floor.goal || o.tutorial) return go();
+  if (!floor.goal || o.tutorial || o.skipGoal) return go(); // skipGoal：つめマスの やりなおし（かちかたは もう 見た）
   render();
   sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}${o.extraNote ? `<p class="em-line">${ruby(o.extraNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${ruby(o.floorName)}：かちかた`, dismiss: false }).then(go);
 }
@@ -387,12 +387,9 @@ const targetLabel = (t) => {
 const HARM = /ダメージ|破壊|追放|手札に ?もど|持ち主の ?手札|タップ|−[0-9X０-９]|留置|格闘|ブロックできない|つける/;
 const foeSlot = (spec, d) => spec.side === 'E' || (spec.side === 'any' && HARM.test(info(d).text.replace(/（[ぁ-ゖー]+）|《[^《》\n]*》|｜/g, '')));
 async function autoPick(mode, spec, ctx, list) {
-  const d = ctx.card;
-  const k = spec.divide ? 1 : d.strive ? Math.max(spec.min ?? 1, 1) : Math.min(spec.max ?? 1, list.length);
-  // アンコモン：n 点（−n/−n）で たおせる なかで パワーが いちばん 大きい てき（spec.n。いなければ いちばん 大きい。game.js の mostOrder）。本体は さいご
-  const m = mode === 'rand' ? null : mostOrder(B.s, list, typeof spec.n === 'function' ? spec.n(B.s, api, ctx) : spec.n === 'x' ? ctx.x : spec.n);
-  const order = m ? [...m.order, ...list.filter((t) => t === 'face')] : [...list].sort(() => B.s.rng() - 0.5);
-  const chosen = order.slice(0, k);
+  // えらびかたは game.js の autoTargets（つめマスの 探索も おなじ ものを つかう）
+  const { chosen, order, kill } = autoTargets(B.s, mode, spec, ctx, list, api);
+  const m = mode === 'rand' ? null : { kill };
   // 見せる：ランダムは 候補を じゅんばんに 光らせてから とまる
   const el = (t) => (t === 'face' ? app().querySelector('[data-face]') : app().querySelector(`.perm[data-uid="${t.uid}"]`));
   render();
@@ -1395,7 +1392,7 @@ const band = (d) => { const c = colorsOf(d); const a = c[0] || 'C'; return `b1-$
 function deckPile(side) {
   const s = B.s, n = s[side].lib.length;
   const th = n >= 15 ? 4 : n >= 8 ? 3 : n >= 3 ? 2 : n ? 1 : 0;
-  const low = side === 'P' && n < LOW_LIBRARY;
+  const low = side === 'P' && n < LOW_LIBRARY && s.floor.id !== 'tsume'; // つめマスは 山札を つかわない
   return `<button type="button" class="pile2 deck ${side === 'E' ? 'foe' : ''} ${low ? 'low' : ''}" data-act="${side === 'P' ? 'lib' : 'elib'}" aria-label="${side === 'P' ? '' : 'てきの '}やまふだ ${n}まい">
     <span class="cb th${th} ${n ? '' : 'none'}"><b>${n}</b></span>
     <small>${low && reshuffleCost(s.P, true) ? `まぜると −${reshuffleCost(s.P, true)}` : 'やまふだ'}</small></button>`;
