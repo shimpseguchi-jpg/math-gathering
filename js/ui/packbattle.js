@@ -19,18 +19,22 @@ import { MAX_COPY } from './collection.js';
 import { studyScreen } from './study.js';
 import { zukanPack } from './zukan.js';
 import { applyTheme } from './settings.js';
+import { isSolo } from './solo.js';
+import { soundOn, setSound } from './sfx.js';
 import { nextStep as titleStep, unlockSheet } from './unlock.js';
 import { sheet, esc, ruby, COLOR_NAME } from './view.js';
 
-const KEY = 'mtg-packbattle-v1';
-const FILTER_KEY = 'mtg-build-filter-pb'; // デッキの「こまかく」（ぼうけん・こうちくとは べつに のこす）
+// 単体版（パック＆バトル だけの ゲーム）は べつの セーブ（本編の パック＆バトルと まざらない）。セーブの 中にも solo の しるし
+const SOLO = isSolo();
+const KEY = SOLO ? 'mtg-packbattle-solo-v1' : 'mtg-packbattle-v1';
+const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; // デッキの「こまかく」（ぼうけん・こうちくとは べつに のこす）
 // { pts：ポイント, cards：{ id: もって いる まい数 }, decks：[{ id, name, cards: [id…] }], active：つかう デッキの id, wins：たおした てきの 数, seed：てきを きめる 数,
 //   quiz：{ n：といた 数, ok：せいかい, sessions }, cats：もんだいの しゅるい, opened：あけた パック, earned：ためた ポイントの 合計, lost：さいごの たたかいで まけた,
 //   starter：きそデッキを もらった, fresh：デッキに まだ 入れて いない あたらしい カードが ある,
 //   open：ショップと デッキが あいた（きそデッキで てきを 1たい たおすと あく。いちど あいたら ずっと） }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 2, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0 });
+const fresh = () => ({ v: 2, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -113,7 +117,7 @@ export function pbSummary() { S = load(); return `${S.pts}P・てき ${S.wins}�
 // ---- ショップと デッキは、チュートリアルを おえて、きそデッキで てきを 1たい たおすと あく（いちど あいたら ずっと） ----
 const STARTER_ID = 'd0';
 const starter = () => S.decks.find((d) => d.id === STARTER_ID) || null;
-const tutorialOk = () => titleStep() !== 'tutorial'; // タイトルの タイルが 出る ときと おなじ
+const tutorialOk = () => SOLO || titleStep() !== 'tutorial'; // タイトルの タイルが 出る ときと おなじ。単体版は チュートリアルが ない
 const LOCK_NOTE = `${PB_STARTER.name}で てきを 1たい たおすと あくよ`;
 // あく まえは きそデッキで たたかう。まえの セーブで きそデッキが ない・つかえない ときは つまらない ように あける
 function checkOpen() {
@@ -182,11 +186,19 @@ function home() {
       ${row('battle', 4, 'バトル', `つぎの てき：${stageLabel(st)}　${st.tierName}`, ok ? 'いどめる' : 'デッキが まだ')}
     </ol>
     <p class="zk-note">ポイントが なくなっても、もんだいを とけば いつでも ためなおせる。たたかいに まけても、ポイントと カードは なくならない。</p>
-    <button type="button" class="btn ghost" data-back="1">タイトルへ もどる</button>
+    ${SOLO ? `<div class="row-btns pb-solo"><button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button><button type="button" class="btn ghost" data-reset="1">はじめから やりなおす</button></div>`
+    : '<button type="button" class="btn ghost" data-back="1">タイトルへ もどる</button>'}
   </main>`;
-  app().onclick = (e) => {
+  app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.back) return leave();
+    if (b.dataset.snd) { setSound(!soundOn()); return home(); }
+    // 単体版（ためしに あそぶ 用）：つぎの 人の ために はじめから
+    if (b.dataset.reset) {
+      const v = await sheet('<p>ポイント・カード・デッキ・たおした てきの 数を ぜんぶ けして、はじめから やりなおす？ もとに もどせない。</p>', [{ label: 'やりなおす', value: 1 }, { label: 'やめる', value: 0, kind: 'primary' }], { title: 'はじめから やりなおす' });
+      if (v) { S = fresh(); save(); }
+      return home();
+    }
     if (b.dataset.go === 'quiz') return quiz();
     if (b.dataset.go === 'shop') return shop();
     if (b.dataset.go === 'deck') return deckList();
@@ -266,7 +278,7 @@ async function buy(p) {
   S.pts -= PB.pack; S.opened++; S.lost = 0; S.fresh = 1;
   for (const d of cards) S.cards[d.id] = (S.cards[d.id] || 0) + 1;
   save();
-  zukanPack(cards);
+  if (!SOLO) zukanPack(cards); // 単体版に ずかんは ない
   gacha(APP, cards, {
     eyebrow: `${PB_NAME}　${ruby(p.name)}`, owned: new Set(Object.keys(before)), doneLabel: 'ショップへ',
     bonus: `<div class="bonus"><p class="bonus-title">${ruby(p.name)}</p><span>のこり ${S.pts}P</span></div>`,

@@ -40,6 +40,7 @@ import { addTickets, tickets, ENDLESS_PER } from './collection.js';
 import { spireMenu, spireTile } from './spire.js';
 import { pbMenu, pbSummary } from './packbattle.js';
 import { PB_NAME } from '../data/packbattle.js';
+import { isSolo } from './solo.js';
 import './fullscreen.js'; // iPad の Safari：タップで ぜんがめん（せっていで かえられる）
 
 const SAVE = 'mtg-adventure-v1';
@@ -965,8 +966,9 @@ function endlessEnd() {
 applyTheme();
 applyMat();
 initTerms();
+// 単体版（パック＆バトル だけ。standalone.js）は タイトルを 出さない：入口が じぶんで ホームを ひらく
 // GAS 版：さいしょに 先生の せってい（パックの 弾・レイド）と、先生か どうかを もらう
-if (hasServer()) {
+if (isSolo()) { /* なにも しない */ } else if (hasServer()) {
   app().innerHTML = `<main class="title">${loading()}</main>`;
   loadConf().then(() => { applyConf(); applyRaid(); title(); });
 } else title();
