@@ -175,7 +175,7 @@ await shot('9_builder');
 check('デッキを くむ 画面に 在庫が 出る（もち・ほか・あと）', await page.locator('.pool-item .stk.used').count() > 0, (await page.locator('.pool-item .stk.used').first().innerText()));
 // ほかの デッキで ぜんぶ つかって いる カードは 入れられない（わけが 出る）
 await page.click('[data-mode=quick]');
-const lockedTile = page.locator('.pool-item.no:has(.stk.used)').first();
+const lockedTile = page.locator('.pool-item.no:has(.stk.used)').filter({ hasText: 'あと0' }).first(); // ぜんぶ ほかの デッキに 入って いる カード
 const before2 = (await state()).decks[1].cards.length;
 await lockedTile.click();
 await page.waitForTimeout(200);
@@ -233,7 +233,7 @@ await page.click('[data-go=pb]');
 const again = await state();
 check('よみこみなおしても つづきから', (await page.textContent('#pb-pts')) === String(s.pts) && again.wins === 1 && count(again) === count(s) && again.decks.length === s.decks.length && again.active === s.active);
 const other = await page.evaluate(() => [localStorage.getItem('mtg-adventure-v1'), JSON.parse(localStorage.getItem('mtg-collection') || 'null')]);
-check('ぼうけん・こうちくの セーブは そのまま', other[0] === null && (!other[1] || (other[1].tickets === 0 && !Object.keys(other[1].cards).length)));
+check('ぼうけん・こうちくの セーブは そのまま', other[0] === null && (!other[1] || (other[1].tickets === 0 && !Object.keys(other[1].cards).length)), JSON.stringify(other[1]));
 
 // ---- まえの 形の セーブ（デッキが 1つ・きそデッキ なし）：デッキは のこって、きそデッキと その カードが ふえる ----
 await page.evaluate(() => localStorage.setItem('mtg-packbattle-v1', JSON.stringify({ v: 1, pts: 30, cards: { U01: 2, U02: 2, R01: 3, C01: 1 }, deck: ['U01', 'U01', 'U02', 'U02', 'R01', 'R01', 'R01', 'C01'], wins: 4, seed: 7, quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0 })));

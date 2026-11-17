@@ -17,7 +17,6 @@ import { deckBuilder, FLOOR_NAMES } from './app.js';
 import { autoCards } from './construct.js';
 import { MAX_COPY } from './collection.js';
 import { studyScreen } from './study.js';
-import { onPack } from './trophies.js';
 import { zukanPack } from './zukan.js';
 import { applyTheme } from './settings.js';
 import { nextStep as titleStep, unlockSheet } from './unlock.js';
@@ -271,7 +270,7 @@ async function buy(p) {
   gacha(APP, cards, {
     eyebrow: `${PB_NAME}　${ruby(p.name)}`, owned: new Set(Object.keys(before)), doneLabel: 'ショップへ',
     bonus: `<div class="bonus"><p class="bonus-title">${ruby(p.name)}</p><span>のこり ${S.pts}P</span></div>`,
-    done: () => { onPack(cards); shop(); }, // トロフィー（めくりおわってから）
+    done: shop, // トロフィーは つけない（トロフィーで こうちくの パックけんが ふえて しまう。この モードの ものは この モードの 中だけ）
   });
 }
 
