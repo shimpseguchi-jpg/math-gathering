@@ -20,16 +20,18 @@ import { studyScreen } from './study.js';
 import { onPack } from './trophies.js';
 import { zukanPack } from './zukan.js';
 import { applyTheme } from './settings.js';
+import { nextStep as titleStep, unlockSheet } from './unlock.js';
 import { sheet, esc, ruby, COLOR_NAME } from './view.js';
 
 const KEY = 'mtg-packbattle-v1';
 const FILTER_KEY = 'mtg-build-filter-pb'; // デッキの「こまかく」（ぼうけん・こうちくとは べつに のこす）
 // { pts：ポイント, cards：{ id: もって いる まい数 }, decks：[{ id, name, cards: [id…] }], active：つかう デッキの id, wins：たおした てきの 数, seed：てきを きめる 数,
 //   quiz：{ n：といた 数, ok：せいかい, sessions }, cats：もんだいの しゅるい, opened：あけた パック, earned：ためた ポイントの 合計, lost：さいごの たたかいで まけた,
-//   starter：きそデッキを もらった, fresh：デッキに まだ 入れて いない あたらしい カードが ある, dot：0 なら せっていの みための まま }
+//   starter：きそデッキを もらった, fresh：デッキに まだ 入れて いない あたらしい カードが ある,
+//   open：ショップと デッキが あいた（きそデッキで てきを 1たい たおすと あく。いちど あいたら ずっと） }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 2, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, dot: 1 });
+const fresh = () => ({ v: 2, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0 });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -42,6 +44,8 @@ function load() {
         s.cards = { ...v.cards }; for (const id of PB_STARTER.cards) s.cards[id] = (s.cards[id] || 0) + 1;
         s.decks = [starterDeck(), ...s.decks]; s.active = s.active || 'd0'; s.starter = 1;
       }
+      delete s.dot; // みための きりかえは なくした（いつも ドット）
+      if (s.wins >= 1) s.open = 1; // もう てきを たおして いる セーブは あいて いる
       s.v = 2;
       return s;
     }
@@ -54,9 +58,9 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch
 let APP = null, BACK = null;
 const app = () => APP();
 
-// ---- みため：この モードは ドット（GBA ふう）が きまり。せっていの みためは かえない（タイトルに もどる ときに もどす） ----
+// ---- みため：この モードは いつも ドット（GBA ふう）。せっていの みためは かえない（タイトルに もどる ときに もどす） ----
 // pb-on：この モードの あいだだけ（もんだいの 画面も ドットの わく・ボタンに する。css の :root.pb-on[data-theme="gba"]）
-const look = () => { const r = document.documentElement; r.classList.add('pb-on'); if (S.dot !== 0) r.dataset.theme = 'gba'; else applyTheme(); };
+const look = () => { const r = document.documentElement; r.classList.add('pb-on'); r.dataset.theme = 'gba'; };
 const leave = () => { document.documentElement.classList.remove('pb-on'); applyTheme(); BACK(); };
 // ドットの 絵（9×9 の ます）：X の ところを ぬる
 const pix = (rows) => `<svg class="pb-ico" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true">${rows.flatMap((r, y) => [...r].map((c, x) => (c === 'X' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : ''))).join('')}</svg>`;
@@ -107,8 +111,21 @@ const canBuild = () => { const d = activeDeck(); const { pool, real } = poolFor(
 // タイトルの タイルに 出す ひとこと
 export function pbSummary() { S = load(); return `${S.pts}P・てき ${S.wins}たい`; }
 
-// ---- つぎに する こと：はじめては もんだい → ショップ → デッキ → バトル ----
+// ---- ショップと デッキは、チュートリアルを おえて、きそデッキで てきを 1たい たおすと あく（いちど あいたら ずっと） ----
+const STARTER_ID = 'd0';
+const starter = () => S.decks.find((d) => d.id === STARTER_ID) || null;
+const tutorialOk = () => titleStep() !== 'tutorial'; // タイトルの タイルが 出る ときと おなじ
+const LOCK_NOTE = `${PB_STARTER.name}で てきを 1たい たおすと あくよ`;
+// あく まえは きそデッキで たたかう。まえの セーブで きそデッキが ない・つかえない ときは つまらない ように あける
+function checkOpen() {
+  if (S.open) return;
+  if (S.wins >= 1 || !starter() || !deckOk(starter())) S.open = 1; else S.active = STARTER_ID;
+  save();
+}
+
+// ---- つぎに する こと：はじめは バトル（きそデッキで 1かち）→ ショップと デッキが あく → もんだい → ショップ → デッキ → バトル ----
 function nextStep() {
+  if (!S.open) return 'battle';
   if (!S.quiz.n && !S.opened) return 'quiz'; // はじめて
   const afford = S.pts >= PB.pack;
   if (S.lost) return afford ? 'shop' : 'quiz'; // まけた あと：カードを ふやして つよく する
@@ -124,10 +141,12 @@ const GUIDE = {
   deck: 'あたらしい カードが 入った。「デッキ」で たたかう カードを えらぼう。',
   deckFix: '「デッキ」で つかう デッキを なおそう。いまの ままだと バトルに 出られない。',
   battle: 'じゅんびが できた！「バトル」で つぎの てきに いどもう。',
+  locked: `まずは「バトル」で、${PB_STARTER.name}を つかって てきを 1たい たおそう。かつと ショップと デッキが あくよ。`,
+  lockedLost: `まけても だいじょうぶ。もう いちど「バトル」に いどもう。${PB_STARTER.name}で 1たい たおすと、ショップと デッキが あくよ。`,
   lostShop: 'まけても だいじょうぶ。「ショップ」で パックを あけて、デッキを つよく しよう。',
   lostQuiz: 'まけても だいじょうぶ。「もんだい」で ポイントを ためて、パックを あけよう。',
 };
-const guideText = (step) => (step === 'quiz' && !S.quiz.n && !S.opened ? GUIDE.quiz0 : S.lost ? (step === 'shop' ? GUIDE.lostShop : GUIDE.lostQuiz) : step === 'deck' && deckInfo().problems.length ? GUIDE.deckFix : GUIDE[step]);
+const guideText = (step) => (!S.open ? (S.lost ? GUIDE.lockedLost : GUIDE.locked) : step === 'quiz' && !S.quiz.n && !S.opened ? GUIDE.quiz0 : S.lost ? (step === 'shop' ? GUIDE.lostShop : GUIDE.lostQuiz) : step === 'deck' && deckInfo().problems.length ? GUIDE.deckFix : GUIDE[step]);
 
 // ---- てきの なまえ ----
 const stageNow = () => stageAt(S.wins, S.seed);
@@ -138,14 +157,15 @@ const rewardLine = (st) => `かつと ＋${battleGain(st).base}P${st.boss ? '（
 // ---- ホーム ----
 export function pbMenu(appFn, back) {
   APP = appFn || APP; BACK = back || BACK;
-  S = load(); save(); // まえの 形の セーブは ここで あたらしい 形に
+  S = load(); checkOpen(); save(); // まえの 形の セーブは ここで あたらしい 形に
   home();
 }
 function home() {
   look();
   const A = activeDeck(), D = deckInfo(), step = nextStep(), st = stageNow();
   const ok = !D.problems.length;
-  const row = (go, no, name, sub, em) => `<li><button type="button" class="st-ep ${step === go ? 'next' : ''}" data-go="${go}"><b><i class="pb-num">${no}</i>${ICON[go]}</b><span><i class="st-title">${name}</i><small>${ruby(sub)}</small></span><em>${em}</em></button></li>`;
+  const lock = (go) => !S.open && (go === 'shop' || go === 'deck');
+  const row = (go, no, name, sub, em) => `<li><button type="button" class="st-ep ${step === go ? 'next' : ''} ${lock(go) ? 'lock' : ''}" data-go="${go}" ${lock(go) ? 'disabled' : ''}><b><i class="pb-num">${no}</i>${ICON[go]}</b><span><i class="st-title">${name}</i><small>${lock(go) ? LOCK_NOTE : ruby(sub)}</small></span><em>${lock(go) ? 'まだ あかない' : em}</em></button></li>`;
   app().innerHTML = `<main class="zukan construct pb">
     <p class="eyebrow">もんだいで ためて、パックを あけて、てきを たおそう</p>
     <h2>${PB_NAME}</h2>
@@ -163,13 +183,11 @@ function home() {
       ${row('battle', 4, 'バトル', `つぎの てき：${stageLabel(st)}　${st.tierName}`, ok ? 'いどめる' : 'デッキが まだ')}
     </ol>
     <p class="zk-note">ポイントが なくなっても、もんだいを とけば いつでも ためなおせる。たたかいに まけても、ポイントと カードは なくならない。</p>
-    <p class="zk-note"><button type="button" class="fine" data-look="1">みため：${S.dot !== 0 ? 'ドット（この モードの きまり）' : 'せっていの みための まま'}　タップで かえる</button></p>
     <button type="button" class="btn ghost" data-back="1">タイトルへ もどる</button>
   </main>`;
   app().onclick = (e) => {
-    const b = e.target.closest('button'); if (!b) return;
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.back) return leave();
-    if (b.dataset.look) { S.dot = S.dot !== 0 ? 0 : 1; save(); return home(); }
     if (b.dataset.go === 'quiz') return quiz();
     if (b.dataset.go === 'shop') return shop();
     if (b.dataset.go === 'deck') return deckList();
@@ -208,6 +226,7 @@ function quiz() {
 // ---- ② ショップ：ポイントで パックを あける。4まい もって いる カードは 出ない（こうちくモードと おなじ） ----
 const packCards = (p) => p.ids.filter((id) => BY_ID[id]);
 function shop() {
+  if (!S.open) return home();
   const afford = S.pts >= PB.pack;
   const rows = PB_PACKS.map((p) => {
     const list = packCards(p);
@@ -261,6 +280,7 @@ async function buy(p) {
 const needList = (problems) => `<ul class="pb-list">${problems.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
 const pips = (cols) => cols.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</i>`).join('') || '<i class="pip">むしょく</i>';
 function deckList() {
+  if (!S.open) return home();
   S.fresh = 0; save();
   const full = S.decks.length >= PB.deckMax;
   const rows = S.decks.map((d) => {
@@ -361,7 +381,8 @@ function arena() {
     </section>
     ${ok ? `<p class="deckline">つかう デッキ：${esc(activeDeck().name)}　${deckLine(D)}</p>`
     : `<div class="pb-need"><p><b>つかう デッキが まだ できて いない</b>ので、バトルに 出られない。</p>${needList(D.problems)}</div>`}
-    <div class="row-btns"><button type="button" class="btn primary" data-go="fight" ${ok ? '' : 'disabled'}>たたかう</button><button type="button" class="btn" data-go="deck">${ok ? 'デッキを かえる' : 'デッキを なおす'}</button></div>
+    <div class="row-btns"><button type="button" class="btn primary" data-go="fight" ${ok ? '' : 'disabled'}>たたかう</button>${S.open ? `<button type="button" class="btn" data-go="deck">${ok ? 'デッキを かえる' : 'デッキを なおす'}</button>` : ''}</div>
+    ${S.open ? '' : `<p class="pb-guide">${esc(`${PB_STARTER.name}で この てきを たおすと、ショップと デッキが あくよ。`)}</p>`}
     <section class="st-ch">
       <h3>てきの じゅんばん<small class="st-guide">ぜんぶで ${PB_TOTAL}たい。すすむほど つよく なる</small></h3>
       <ol>${PB_TIERS.map(tierRow).join('')}${st.lap ? `<li><div class="st-ep open"><b>∞</b><span><i class="st-title">むげんの たたかい</i><small>${ruby(`${st.lap}しゅうめ：てきの クリーチャーは ＋${st.buff}/＋${st.buff}`)}</small></span><em>いま ここ</em></div></li>` : ''}</ol>
@@ -391,13 +412,15 @@ function fight(st) {
       }
       // かち：さきに のこす（まどを とじる まえに ブラウザを とじても なくならない）
       const g = battleGain(st, r.exact), before = S.pts;
-      S.wins = Math.max(S.wins, st.n + 1); S.pts += g.total; S.earned += g.total; S.lost = 0; save();
+      const opened = !S.open && tutorialOk() && S.active === STARTER_ID; // きそデッキで 1たい たおした：ショップと デッキが あく
+      S.wins = Math.max(S.wins, st.n + 1); S.pts += g.total; S.earned += g.total; S.lost = 0; if (opened) S.open = 1; save();
       const all = st.n + 1 === PB_TOTAL;
       const v = await sheet(`<p><b>${ruby(stageLabel(st))}</b>を たおした！</p>
         <p class="what">${st.boss ? 'ボスを たおした' : 'かった'} ＋${g.base}P${g.exact ? `　ぴったり ${Math.min(PB.exactMax, r.exact)}回 ＋${g.exact}P` : ''}</p>
         <p class="cs-math">${before}P ＋ ${g.total}P ＝ <b>${S.pts}</b>P</p>
         ${st.boss && !st.lap ? `<p class="what">${ruby(all ? `${PB_TOTAL}たい ぜんぶ たおした！ ここからは「むげんの たたかい」。てきは 1しゅう ごとに つよく なる。` : `「${st.tierName}」を クリア！ つぎは「${stageNow().tierName}」。`)}</p>` : ''}`,
-        [{ label: 'つぎの てきへ', value: 'next', kind: 'primary' }, { label: 'ホームへ', value: 0 }], { title: 'かった！', dismiss: false });
+        opened ? [{ label: 'つぎへ', value: 0, kind: 'primary' }] : [{ label: 'つぎの てきへ', value: 'next', kind: 'primary' }, { label: 'ホームへ', value: 0 }], { title: 'かった！', dismiss: false });
+      if (opened) await unlockSheet('pbOpen'); // 「あたらしく ショップと デッキが かいほう された！」（かぎが ひらく 演出と おと）
       return v === 'next' ? arena() : home();
     },
   });
