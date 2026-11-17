@@ -3,7 +3,7 @@
 //   できた 1つの ファイルを file:// で じかに ひらいて、ロボットが あそぶ（サーバーは いらない）
 //   ① ひらくと すぐ パック＆バトルの ホーム ② ほかの モードへの 入口が ない ③ あく まえは ショップ・デッキに 入れない
 //   ④ きそデッキで 1たい たおすと あく・よみこみなおしても あいた まま ⑤ もんだい → ポイント → ショップ → デッキ → バトル
-//   そとへの 通信が 1つも ない ことも しらべる
+//   アンティ（かつと カード 1まい）・せいちょう・まえの 形の セーブも。そとへの 通信が 1つも ない ことも しらべる
 // 環境変数：FILE（しらべる HTML）、OUT（スクリーンショットの保存先）、TRIES（1たいめに いどむ 回数。ロボットは でたらめに あそぶ）、CHROME
 import { chromium } from 'playwright';
 import { existsSync } from 'fs';
@@ -39,7 +39,7 @@ async function noRoutes(where) {
     go: [...document.querySelectorAll('[data-go]')].map((b) => b.dataset.go),
     title: document.querySelectorAll('main.title .t-menu, .tile, [data-back="1"].btn.ghost[data-title]').length,
   }));
-  const bad = [...(r.text.match(OTHER) || []), ...r.go.filter((g) => !['quiz', 'shop', 'deck', 'battle', 'fight'].includes(g)), ...(r.title ? ['title'] : [])];
+  const bad = [...(r.text.match(OTHER) || []), ...r.go.filter((g) => !['quiz', 'shop', 'deck', 'battle', 'grow'].includes(g)), ...(r.title ? ['title'] : [])];
   seen.push(where);
   if (bad.length) { console.log(`FAIL ほかの モードへの 入口が ある：${where}（${bad.join('・')}）`); fails.push(`routes:${where}`); }
 }
@@ -115,7 +115,8 @@ async function battle(passive) {
     if (!passive) {
       if (await page.locator('[data-act=auto]').count()) { if (await tap('[data-act=auto]')) await tap('[data-act=declare]'); continue; }
       const hand = page.locator('.hand-slot');
-      if (await hand.count() && Math.random() < 0.7) { await tap(hand.nth(Math.floor(Math.random() * await hand.count()))); continue; }
+      if (await hand.count() && Math.random() < 0.92) // 手札を たくさん つかってから こうげき（かちやすく）
+        { await tap(hand.nth(Math.floor(Math.random() * await hand.count()))); continue; }
       if (await page.locator('[data-act=attack]').count()) { await tap('[data-act=attack]'); continue; }
     }
     if (await page.locator('[data-act=end]').count()) { await tap('[data-act=end]'); continue; }
@@ -124,9 +125,9 @@ async function battle(passive) {
 
 await page.click('.pb-steps [data-go=battle]');
 await noRoutes('バトルの 画面');
-check('きそデッキで さいしょから「たたかう」が おせる（デッキは かえられない）', await page.locator('[data-go=fight]:not([disabled])').count() === 1 && await page.locator('[data-go=deck]').count() === 0);
+check('きそデッキで さいしょから ステージ 1 の あいて（4たい）を えらべる（デッキは かえられない・ステージ 2〜 は まだ）', await page.locator('[data-foe]:not([disabled])').count() === 4 && await page.locator('[data-go=deck]').count() === 0 && await page.locator('.pb-stages [data-stage]:disabled').count() === 5);
 // たたかいの メニュー：ホームへ もどる だけ
-await page.click('[data-go=fight]');
+await page.locator('[data-foe]').first().click();
 await page.waitForTimeout(400);
 if (await page.locator('#sheet:not([hidden]) button:has-text("はじめる")').count()) await sheetClick('はじめる');
 await page.locator('.battle').waitFor();
@@ -141,13 +142,19 @@ let tries = 0;
 for (; tries < TRIES && (await state()).wins === 0; tries++) {
   if (tries) { await sheetClick('ホームへ'); if (tries === 1) check('まけても まだ あかない（ポイントと カードは そのまま）', (await state()).open !== 1 && (await state()).pts === 270 && await page.locator('.pb-steps [data-go=shop]:disabled').count() === 1); }
   await page.click('.pb-steps [data-go=battle]');
-  await page.click('[data-go=fight]');
+  await page.locator('[data-foe]').first().click();
   await page.waitForTimeout(500);
   await battle(false);
 }
 await shot('4_win');
 s = await state();
-check(`④ きそデッキで 1たい たおした（${tries}回め）：ポイントが 入って、ショップと デッキが あく`, s.wins === 1 && s.open === 1 && s.pts >= 270 + 50, `${s.pts}P`);
+check(`④ きそデッキで 1たい たおした（${tries}回め）：ポイントが 入って、ショップと デッキが あく`, s.wins === 1 && s.open === 1 && s.pts >= 270 + 50 && s.gp === 1, `${s.pts}P`);
+await sheetClick('つぎへ');
+await page.waitForTimeout(400);
+const anteText = (await page.locator('#sheet .sheet-body').innerText()).replace(/\s+/g, ' ');
+await shot('4b_ante');
+check('アンティ：かつと カードを 1まい もらう（「〇〇を てに いれた！」）', /アンティ/.test(await sheetTitle()) && /を てに いれた！/.test(anteText) && count(s) === 15, anteText.slice(0, 50));
+await noRoutes('アンティの まど');
 await sheetClick('つぎへ');
 await page.waitForTimeout(400);
 const news = await sheetTitle();
@@ -187,7 +194,7 @@ await page.click('[data-new]');
 await page.locator('.builder').waitFor();
 await noRoutes('デッキを くむ 画面');
 await shot('7_builder');
-check('⑤ デッキ：在庫が 出る（もち・ほか・あと）', await page.locator('.pool-item .stk.used').count() > 0);
+check('⑤ デッキ：カードの ならびに 在庫が 出る（もち・ほか・あと）・えらんだ カードの せつめい', await page.locator('.bp-row .stk.used').count() > 0 && await page.locator('.bp-detail .detail').count() === 1);
 await page.click('[data-a=ok]');
 await page.waitForTimeout(200);
 if (await page.locator('#sheet:not([hidden]) button:has-text("デッキの いちらんへ")').count()) await sheetClick('デッキの いちらんへ');
@@ -199,8 +206,8 @@ await page.click('[data-back]');
 
 // ---- ⑤ バトル：くんだ デッキで 2たいめに 出られる ----
 await page.click('.pb-steps [data-go=battle]');
-check('⑤ バトル：つぎの てきは 2たいめ・くんだ デッキで「たたかう」が おせる', (await page.locator('.pb-foe b').innerText()).startsWith('2たいめ') && await page.locator('[data-go=fight]:not([disabled])').count() === 1 && (await page.locator('.deckline').innerText()).includes(s.decks[1].name));
-await page.click('[data-go=fight]');
+check('⑤ バトル：くんだ デッキで あいてを えらべる（1たいめには かった 回数が つく）', await page.locator('[data-foe]:not([disabled])').count() === 4 && /★☆/.test(await page.locator('[data-foe]').first().innerText()) && (await page.locator('.deckline').innerText()).includes(s.decks[1].name));
+await page.locator('[data-foe]').nth(1).click();
 await page.waitForTimeout(400);
 if (await page.locator('#sheet:not([hidden]) button:has-text("はじめる")').count()) await sheetClick('はじめる');
 await page.locator('.battle').waitFor();
@@ -209,10 +216,32 @@ check('⑤ バトル：たたかいが はじまる', await page.locator('.battl
 await page.waitForTimeout(1500);
 await page.click('[data-act=menu]'); await sheetClick('ホームへ もどる');
 
+// ---- せいちょう：せいちょうポイントで デッキの わくを ふやす ----
+const edit = async (v) => { await page.evaluate(([k, x]) => { const st = typeof x === 'string' ? Object.assign(JSON.parse(localStorage.getItem(k)), JSON.parse(x)) : x; localStorage.setItem(k, JSON.stringify(st)); }, [KEY, v]); await page.reload(); await page.locator('.pb-steps').waitFor(); return state(); };
+await edit('{"gp":10}');
+await page.click('.pb-steps [data-go=grow]');
+await noRoutes('せいちょう');
+await shot('9_grow');
+await page.click('.em-node[data-b=deck][data-i="0"]'); await noRoutes('せいちょうの まど'); await sheetClick('とる');
+s = await state();
+check('せいちょう：せいちょうポイントで できる ことが ふえる（デッキの わく 3 → 4）', s.gp === 7 && s.tree.deck === 1);
+await page.click('[data-back]'); await page.click('.pb-steps [data-go=deck]');
+check('デッキの わくが 4こに なって いる', (await page.locator('[data-new]').innerText()).includes('2 / 4こ'));
+await page.click('[data-back]');
+
+// ---- まえの 形の セーブ（単体版・28たいを じゅんばんに）：3たい たおして いた → ステージ 2 が ひらいて いる ----
+const keepSave = await state();
+let m = await edit({ v: 2, solo: 1, pts: 120, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2 }, decks: [{ id: 'd0', name: 'きそデッキ', cards: ['W10', 'W10', 'W02', 'W02', 'W03', 'W31', 'W101', 'G01', 'G01', 'G09', 'G11', 'G11', 'C18', 'C18'] }], active: 'd0', wins: 3, seed: 9, quiz: { n: 4, ok: 4, sessions: 1 }, opened: 0, earned: 0, lost: 0, starter: 1, open: 1 });
+check('まえの 形の セーブを うつす：ステージ 2 が ひらいて いる・せいちょうポイントも もらう', m.stage === 1 && m.gp === 3 + 3 && m.pts === 120 && m.wins === 3 && Object.values(m.beat).filter((n) => n >= 2).length === 4 && m.open === 1, `ステージ ${m.stage + 1}・せいちょう ${m.gp}`);
+await page.click('.pb-steps [data-go=battle]');
+check('まえの セーブ：ステージ 2 の あいてを えらべる', (await page.locator('.pb-stages .chip.on').innerText()).trim() === '2' && await page.locator('[data-foe]:not([disabled])').count() === 5);
+await page.click('[data-back]');
+await edit(keepSave);
+
 // ---- はじめから やりなおす（ためしに あそぶ 用）----
 await page.click('[data-reset]'); await noRoutes('やりなおす まど'); await sheetClick('やりなおす');
 s = await state();
-check('はじめから やりなおす：はじめの じょうたいに もどる', s.pts === 200 && s.wins === 0 && s.open !== 1 && s.decks.length === 1 && await page.locator('.pb-steps [data-go=shop]:disabled').count() === 1);
+check('はじめから やりなおす：はじめの じょうたいに もどる', s.pts === 200 && s.wins === 0 && s.open !== 1 && s.decks.length === 1 && s.gp === 0 && !Object.keys(s.beat).length && !Object.keys(s.tree).length && await page.locator('.pb-steps [data-go=shop]:disabled').count() === 1);
 
 check(`② ほかの モードへの 入口が ない（${seen.length}の 画面：${seen.join('・')}）`, !fails.some((f) => f.startsWith('routes:')));
 check('そとへの 通信が ない（この ファイル 1つだけ）', outside.length === 0, outside.slice(0, 3).join(' '));

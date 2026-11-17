@@ -7,10 +7,14 @@
 import { BY_ID, BASICS } from '../data/cards.js';
 import { CATS, QUIZ_SECONDS } from '../data/quiz.js';
 import { kihonFloor } from '../data/kihon.js';
-import { PB, PB_NAME, PB_PACKS, PB_TIERS, PB_TOTAL, PB_STARTER, quizGain, battleGain, stageAt, deckProblems } from '../data/packbattle.js';
+import {
+  PB, PB_NAME, PB_STAGES, PB_STARTER, PB_TREE, quizGain, battleGain, deckProblems,
+  foesOf, topStage, endlessAt, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
+} from '../data/packbattle.js';
+import { HARD_TIERS, hardSession } from '../data/quiz2.js';
 import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
-import { openPack, DECK_SIZE, CAPACITY } from '../engine/run.js';
+import { openPack, DECK_SIZE } from '../engine/run.js';
 import { startBattle } from './battle.js';
 import { gacha } from './gacha.js';
 import { deckBuilder, FLOOR_NAMES } from './app.js';
@@ -21,8 +25,8 @@ import { zukanPack } from './zukan.js';
 import { applyTheme } from './settings.js';
 import { isSolo } from './solo.js';
 import { soundOn, setSound } from './sfx.js';
-import { nextStep as titleStep, unlockSheet } from './unlock.js';
-import { sheet, esc, ruby, COLOR_NAME } from './view.js';
+import { nextStep as titleStep, unlockSheet, NEWS_TEXT } from './unlock.js';
+import { sheet, esc, ruby, info, fullCard, toast, COLOR_NAME } from './view.js';
 
 // 単体版（パック＆バトル だけの ゲーム）は べつの セーブ（本編の パック＆バトルと まざらない）。セーブの 中にも solo の しるし
 const SOLO = isSolo();
@@ -31,10 +35,12 @@ const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; //
 // { pts：ポイント, cards：{ id: もって いる まい数 }, decks：[{ id, name, cards: [id…] }], active：つかう デッキの id, wins：たおした てきの 数, seed：てきを きめる 数,
 //   quiz：{ n：といた 数, ok：せいかい, sessions }, cats：もんだいの しゅるい, opened：あけた パック, earned：ためた ポイントの 合計, lost：さいごの たたかいで まけた,
 //   starter：きそデッキを もらった, fresh：デッキに まだ 入れて いない あたらしい カードが ある,
-//   open：ショップと デッキが あいた（きそデッキで てきを 1たい たおすと あく。いちど あいたら ずっと） }
+//   open：ショップと デッキが あいた（きそデッキで てきを 1たい たおすと あく。いちど あいたら ずっと）,
+//   beat：{ あいての key: かった 回数 }, stage：ひらいた いちばん 上の ステージ, endless：むげんの たたかいで かった 数,
+//   gp：せいちょうポイント, tree：{ 枝の id: とった 数 } }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 2, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
+const fresh = () => ({ v: 3, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -49,7 +55,9 @@ function load() {
       }
       delete s.dot; // みための きりかえは なくした（いつも ドット）
       if (s.wins >= 1) s.open = 1; // もう てきを たおして いる セーブは あいて いる
-      s.v = 2;
+      // まえの 形（28たいを じゅんばんに。wins だけ）：とどいて いた ところまでの ステージ・かった 回数・せいちょうポイントに うつす
+      if (!v.beat) Object.assign(s, migrateProgress(s.wins, s.seed), { tree: {} });
+      s.v = 3;
       return s;
     }
   } catch { /* こわれていたら はじめから */ }
@@ -71,6 +79,7 @@ const ICON = {
   quiz: pix(['..XXXXX..', '.XX...XX.', '.XX...XX.', '.....XX..', '....XX...', '...XX....', '...XX....', '.........', '...XX....']),
   shop: pix(['.XXXXXXX.', '.X.X.X.X.', '.XXXXXXX.', '.X.....X.', '.X..X..X.', '.X.XXX.X.', '.X..X..X.', '.X.....X.', '.XXXXXXX.']),
   deck: pix(['..XXXXXX.', '..X....X.', 'XXXXXX.X.', 'X....X.X.', 'X....X.X.', 'X....XXX.', 'X....X...', 'X....X...', 'XXXXXX...']),
+  grow: pix(['....X....', '...XXX...', '..XXXXX..', '.XXXXXXX.', '...XXX...', '...XXX...', '.X.XXX.X.', '.XXXXXXX.', '..XXXXX..']),
   battle: pix(['.......XX', '......XXX', '.....XXX.', '....XXX..', 'X..XXX...', '.XXXX....', '..XX.....', '.XXXX....', 'XX..X....']),
 };
 
@@ -88,6 +97,7 @@ function poolFor(deck) {
   for (const id of kinds()) if (usedOther(deck, id) > 0) { phantom.add(pool.length); pool.push(id); }
   return { pool, real, phantom };
 }
+const capNow = () => capOf(S.tree), deckMax = () => deckMaxOf(S.tree);
 const activeDeck = () => S.decks.find((d) => d.id === S.active) || null;
 // デッキの ようす（つかえる カード だけ かぞえる）
 function deckInfo(deck = activeDeck()) {
@@ -95,7 +105,7 @@ function deckInfo(deck = activeDeck()) {
   for (const id of deck?.cards || []) { if (!(id in left)) left[id] = availFor(deck, id); if (left[id]-- > 0 && BY_ID[id]) ds.push(BY_ID[id]); else missing++; }
   const cols = [...new Set(ds.flatMap(colorsOf))];
   const st = { ds, cols, count: ds.length, points: ds.reduce((t, d) => t + ptsOf(d), 0), colors: cols.length, missing };
-  return { ...st, problems: deck ? deckProblems(st, { size: DECK_SIZE, cap: CAPACITY }) : ['つかう デッキが ない。「デッキ」で デッキを えらぼう'] };
+  return { ...st, problems: deck ? deckProblems(st, { size: DECK_SIZE, cap: capNow() }) : ['つかう デッキが ない。「デッキ」で デッキを えらぼう'] };
 }
 const deckOk = (d) => !deckInfo(d).problems.length;
 const deckLine = (D) => `${D.cols.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}　${D.count}まい ＋ きほん ${DECK_SIZE - D.count}まい・${D.points}点`;
@@ -109,7 +119,7 @@ function playDeck() {
   return deck;
 }
 // つかう デッキが まだの とき：いまの カードで なおせるか（おまかせで きまりの 数に とどくか）
-const canBuild = () => { const d = activeDeck(); const { pool, real } = poolFor(d); return real >= PB.minCards && autoCards(pool.slice(0, real), 'normal', null).length >= PB.minCards; };
+const canBuild = () => { const d = activeDeck(); const { pool, real } = poolFor(d); return real >= PB.minCards && autoCards(pool.slice(0, real), 'normal', null, capNow()).length >= PB.minCards; };
 
 // タイトルの タイルに 出す ひとこと
 export function pbSummary() { S = load(); return `${S.pts}P・てき ${S.wins}たい`; }
@@ -151,23 +161,24 @@ const GUIDE = {
 };
 const guideText = (step) => (!S.open ? (S.lost ? GUIDE.lockedLost : GUIDE.locked) : step === 'quiz' && !S.quiz.n && !S.opened ? GUIDE.quiz0 : S.lost ? (step === 'shop' ? GUIDE.lostShop : GUIDE.lostQuiz) : step === 'deck' && deckInfo().problems.length ? GUIDE.deckFix : GUIDE[step]);
 
-// ---- てきの なまえ ----
-const stageNow = () => stageAt(S.wins, S.seed);
-const foeName = (st) => (st.kihon ? st.kihon.name : FLOOR_NAMES[st.floorId] || st.floorId).replace(/^\d階 /, '');
-const stageLabel = (st) => `${st.n + 1}たいめ ${foeName(st)}`;
-const rewardLine = (st) => `かつと ＋${battleGain(st).base}P${st.boss ? '（ボス）' : ''}。ぴったり 1回ごとに ＋${PB.exact}P（${PB.exactMax}回まで）`;
+// ---- ステージと あいて ----
+const top = () => topStage(S.beat, S.seed); // ひらいて いる いちばん 上（PB_STAGES.length ＝ ぜんぶ クリア：むげんの たたかい）
+const foeName = (f) => (f.kihon ? f.kihon.name : FLOOR_NAMES[f.floorId] || f.floorId).replace(/^\d階 /, '');
+const beatOf = (f) => S.beat[f.key] || 0;
+const stageLeft = (si) => foesOf(si, S.seed).reduce((t, f) => t + Math.max(0, PB.need - beatOf(f)), 0); // つぎが ひらくまでの かち数
+const stageNote = () => { const t = top(); return t >= PB_STAGES.length ? 'むげんの たたかい' : `ステージ ${t + 1}：${PB_STAGES[t].name}`; };
 
 // ---- ホーム ----
 export function pbMenu(appFn, back) {
   APP = appFn || APP; BACK = back || BACK;
-  S = load(); checkOpen(); save(); // まえの 形の セーブは ここで あたらしい 形に
+  S = load(); VIEW = null; checkOpen(); save(); // まえの 形の セーブは ここで あたらしい 形に
   home();
 }
 function home() {
   look();
-  const A = activeDeck(), D = deckInfo(), step = nextStep(), st = stageNow();
+  const A = activeDeck(), D = deckInfo(), step = nextStep();
   const ok = !D.problems.length;
-  const lock = (go) => !S.open && (go === 'shop' || go === 'deck');
+  const lock = (go) => !S.open && (go === 'shop' || go === 'deck' || go === 'grow');
   const row = (go, no, name, sub, em) => `<li><button type="button" class="st-ep ${step === go ? 'next' : ''} ${lock(go) ? 'lock' : ''}" data-go="${go}" ${lock(go) ? 'disabled' : ''}><b><i class="pb-num">${no}</i>${ICON[go]}</b><span><i class="st-title">${name}</i><small>${lock(go) ? LOCK_NOTE : ruby(sub)}</small></span><em>${lock(go) ? 'まだ あかない' : em}</em></button></li>`;
   app().innerHTML = `<main class="zukan construct pb">
     <p class="eyebrow">もんだいで ためて、パックを あけて、てきを たおそう</p>
@@ -183,7 +194,8 @@ function home() {
       ${row('quiz', 1, 'もんだい', `1もん せいかいで ＋${PB.quiz}P。${PB.streakEvery}もん れんぞくで ボーナス ＋${PB.streakBonus}P`, 'ポイントを ためる')}
       ${row('shop', 2, 'ショップ', `パック 1つ ${PB.pack}P（カード 8まい）`, S.pts >= PB.pack ? `${Math.floor(S.pts / PB.pack)}つ あけられる` : `あと ${PB.pack - S.pts}P`)}
       ${row('deck', 3, 'デッキ', ok ? `${A.name}：${deckLine(D)}` : D.problems[0], `ぜんぶで ${S.decks.length}こ`)}
-      ${row('battle', 4, 'バトル', `つぎの てき：${stageLabel(st)}　${st.tierName}`, ok ? 'いどめる' : 'デッキが まだ')}
+      ${row('battle', 4, 'バトル', `${stageNote()}。あいてを えらんで たたかう`, ok ? 'いどめる' : 'デッキが まだ')}
+      ${row('grow', 5, 'せいちょう', 'せいちょうポイントで、できる ことを ふやす', `${S.gp}ポイント`)}
     </ol>
     <p class="zk-note">ポイントが なくなっても、もんだいを とけば いつでも ためなおせる。たたかいに まけても、ポイントと カードは なくならない。</p>
     ${SOLO ? `<div class="row-btns pb-solo"><button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button><button type="button" class="btn ghost" data-reset="1">はじめから やりなおす</button></div>`
@@ -196,31 +208,46 @@ function home() {
     // 単体版（ためしに あそぶ 用）：つぎの 人の ために はじめから
     if (b.dataset.reset) {
       const v = await sheet('<p>ポイント・カード・デッキ・たおした てきの 数を ぜんぶ けして、はじめから やりなおす？ もとに もどせない。</p>', [{ label: 'やりなおす', value: 1 }, { label: 'やめる', value: 0, kind: 'primary' }], { title: 'はじめから やりなおす' });
-      if (v) { S = fresh(); save(); }
+      if (v) { S = fresh(); VIEW = null; save(); }
       return home();
     }
     if (b.dataset.go === 'quiz') return quiz();
     if (b.dataset.go === 'shop') return shop();
     if (b.dataset.go === 'deck') return deckList();
     if (b.dataset.go === 'battle') return arena();
+    if (b.dataset.go === 'grow') return grow();
   };
 }
 
 // ---- ① もんだい：しゅぎょうと おなじ 問題。せいかいの たびに ポイントが ふえて、すぐ のこる ----
-function quiz() {
+// むずかしさ：せいちょうの「もんだい」の 枝で ふえる。むずかしい ほど 1もんの ポイントが 多い
+async function quiz() {
+  const lv = S.tree.quiz || 0;
+  if (!lv) return runQuiz(0);
+  const v = await sheet('<p>むずかしい もんだいほど、もらえる ポイントが 多い。</p>',
+    [...Array.from({ length: lv + 1 }, (_, t) => ({ label: `${t ? HARD_TIERS[t].name : 'ふつう'}（1もん ${PB.quizTier[t]}P）`, value: t, kind: t === (S.quizTier ?? 0) ? 'primary' : '' })), { label: 'やめる', value: null }], { title: 'もんだいの むずかしさ' });
+  if (v == null) return home();
+  S.quizTier = v; save();
+  return runQuiz(v);
+}
+function runQuiz(tier) {
   let streak = 0, gain = 0, bonus = 0;
+  const per = PB.quizTier[tier], T = tier ? HARD_TIERS[tier] : null, defs = T ? T.defs : CATS;
+  const saved = (tier ? S.cats2?.[tier] : S.cats) || [];
   studyScreen(APP, {
-    cats: S.cats?.length ? S.cats.filter((c) => CATS[c]) : Object.keys(CATS), setCats: (c) => { S.cats = c; save(); },
-    eyebrow: `${PB_NAME}　もんだい`,
+    ...(T ? { defs, session: (rng, cats) => hardSession(rng, tier, cats) } : {}),
+    cats: saved.filter((c) => defs[c]).length ? saved.filter((c) => defs[c]) : Object.keys(defs),
+    setCats: (c) => { if (tier) S.cats2 = { ...S.cats2, [tier]: c }; else S.cats = c; save(); },
+    eyebrow: `${PB_NAME}　もんだい${T ? `（${T.name}）` : ''}`,
     title: `${QUIZ_SECONDS}びょう もんだい`,
-    lead: `${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>1もん せいかいで ＋${PB.quiz}P</b>。${PB.streakEvery}もん れんぞくで せいかいする たびに ボーナス ＋${PB.streakBonus}P。まちがえても ポイントは へらない。`,
+    lead: `${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>1もん せいかいで ＋${per}P</b>。${PB.streakEvery}もん れんぞくで せいかいする たびに ボーナス ＋${PB.streakBonus}P。まちがえても ポイントは へらない。`,
     onAnswer: (right) => {
       streak = right ? streak + 1 : 0;
-      const g = quizGain(right, streak);
+      const g = quizGain(right, streak, tier);
       S.quiz.n++; if (right) S.quiz.ok++;
-      S.pts += g; S.earned += g; gain += g; if (g > PB.quiz) bonus += g - PB.quiz;
+      S.pts += g; S.earned += g; gain += g; if (g > per) bonus += g - per;
       save();
-      return !right ? '' : g > PB.quiz ? `${streak}もん れんぞく！ ＋${g}P` : `＋${g}P`;
+      return !right ? '' : g > per ? `${streak}もん れんぞく！ ＋${g}P` : `＋${g}P`;
     },
     record: (r) => {
       S.quiz.sessions++; save();
@@ -239,7 +266,7 @@ const packCards = (p) => p.ids.filter((id) => BY_ID[id]);
 function shop() {
   if (!S.open) return home();
   const afford = S.pts >= PB.pack;
-  const rows = PB_PACKS.map((p) => {
+  const rows = packsFor(S.tree.pack).map((p) => {
     const list = packCards(p);
     const have = list.filter((id) => (S.cards[id] || 0) > 0).length;
     const full = list.filter((id) => (S.cards[id] || 0) >= MAX_COPY).length;
@@ -263,7 +290,7 @@ function shop() {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.back) return home();
     if (b.dataset.go === 'quiz') return quiz();
-    if (b.dataset.buy) return buy(PB_PACKS.find((p) => p.id === b.dataset.buy));
+    if (b.dataset.buy) return buy(packsFor(S.tree.pack).find((p) => p.id === b.dataset.buy));
   };
 }
 async function buy(p) {
@@ -280,6 +307,7 @@ async function buy(p) {
   save();
   if (!SOLO) zukanPack(cards); // 単体版に ずかんは ない
   gacha(APP, cards, {
+    got: true, // めくった カードの 下の まどに「〇〇を てに いれた！」
     eyebrow: `${PB_NAME}　${ruby(p.name)}`, owned: new Set(Object.keys(before)), doneLabel: 'ショップへ',
     bonus: `<div class="bonus"><p class="bonus-title">${ruby(p.name)}</p><span>のこり ${S.pts}P</span></div>`,
     done: shop, // トロフィーは つけない（トロフィーで こうちくの パックけんが ふえて しまう。この モードの ものは この モードの 中だけ）
@@ -293,7 +321,7 @@ const pips = (cols) => cols.map((c) => `<i class="pip m-${c}">${COLOR_NAME[c]}</
 function deckList() {
   if (!S.open) return home();
   S.fresh = 0; save();
-  const full = S.decks.length >= PB.deckMax;
+  const full = S.decks.length >= deckMax();
   const rows = S.decks.map((d) => {
     const D = deckInfo(d), on = d.id === S.active;
     return `<li><button type="button" class="cs-deck ${on ? 'on' : ''}" data-deck="${esc(d.id)}">
@@ -307,7 +335,7 @@ function deckList() {
     <p class="zk-note">カードは デッキの あいだで わけあえない。1つの デッキに 入れた カードは、ほかの デッキでは のこりの まい数しか つかえない（4まい もって いて、デッキに 3まい 入れたら、ほかの デッキには あと 1まい）。バトルには「つかう デッキ」で 出る。</p>
     ${S.decks.length ? `<ul class="cs-decks">${rows}</ul>` : '<p class="zk-note">デッキが 1つも ない。あたらしく つくろう。</p>'}
     ${activeDeck() && !deckInfo().problems.length ? '' : `<div class="pb-need"><p><b>バトルに 出られない</b>：${activeDeck() ? 'つかう デッキが まだ できて いない。' : 'つかう デッキが ない。'}</p>${activeDeck() ? needList(deckInfo().problems) : ''}</div>`}
-    <div class="row-btns"><button type="button" class="btn" data-new="1" ${full ? 'disabled' : ''}>あたらしい デッキを つくる<small>${full ? `デッキは ${PB.deckMax}こまで` : `${S.decks.length} / ${PB.deckMax}こ`}</small></button></div>
+    <div class="row-btns"><button type="button" class="btn" data-new="1" ${full ? 'disabled' : ''}>あたらしい デッキを つくる<small>${full ? `デッキは ${deckMax()}こまで${deckMax() < PB.deckMax ? '（せいちょうで ふえる）' : ''}` : `${S.decks.length} / ${deckMax()}こ`}</small></button></div>
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
   </main>`;
   app().onclick = async (e) => {
@@ -341,7 +369,7 @@ async function dropDeck(d) {
   return deckList();
 }
 async function newDeck() {
-  if (S.decks.length >= PB.deckMax) return deckList();
+  if (S.decks.length >= deckMax()) return deckList();
   const n = Math.max(0, ...S.decks.map((d) => +(/^デッキ (\d+)$/.exec(d.name)?.[1] || 0))) + 1;
   const deck = { id: `d${Date.now().toString(36)}`, name: `デッキ ${Math.max(n, 2)}`, cards: null };
   if (!poolFor(deck).real) {
@@ -358,9 +386,11 @@ function build(deck) {
   const idx = (ids) => { const used = new Set(); return ids.map((id) => pool.findIndex((x, k) => k < real && x === id && !used.has(k) && used.add(k))).filter((k) => k >= 0); };
   const C = {
     pool, phantom, stock: (id) => ({ own: own(id), other: usedOther(deck, id) }),
+    pane: true, // 左に カードの ならび、右に えらんだ カードの せつめい
     deck: deck.cards ? idx(deck.cards) : null, stack: true, filterKey: FILTER_KEY,
     title: `${PB_NAME}：${deck.name}`,
-    auto: () => idx(autoCards(pool.slice(0, real), 'normal', null)), // おまかせ：のこって いる カードで いちばん つよい 2色
+    cap: capNow(),
+    auto: () => idx(autoCards(pool.slice(0, real), 'normal', null, capNow())), // おまかせ：のこって いる カードで いちばん つよい 2色
     save: () => { deck.cards = C.deck.map((k) => pool[k]); save(); },
     ok: async () => {
       const D = deckInfo(deck);
@@ -374,65 +404,120 @@ function build(deck) {
   deckBuilder(C);
 }
 
-// ---- ④ バトル：てきを 1体ずつ じゅんばんに たおす。すすむほど つよい ----
+// ---- ④ バトル：ステージの 中の あいてを えらんで たたかう。ぜんいんを PB.need 回ずつ たおすと つぎの ステージが ひらく ----
+let VIEW = null; // 見て いる ステージ（PB_STAGES.length ＝ むげんの たたかい）
 function arena() {
-  const st = stageNow(), D = deckInfo(), ok = !D.problems.length;
-  const tierRow = (t, i) => {
-    const state = st.lap || i < st.tier ? 'done' : i === st.tier ? 'open' : 'lock';
-    const k = state === 'done' ? t.n : state === 'open' ? st.i : 0;
-    return `<li><div class="st-ep ${state}"><b>${i + 1}</b><span><i class="st-title">${ruby(t.name)}</i><small>${'●'.repeat(k)}${'○'.repeat(t.n - k)}</small></span><em>${state === 'done' ? 'クリア' : state === 'open' ? 'いま ここ' : 'まだ'}</em></div></li>`;
-  };
+  const t = top(), D = deckInfo(), ok = !D.problems.length;
+  if (VIEW == null || VIEW > t) VIEW = t;
+  const endless = VIEW >= PB_STAGES.length;
+  const chips = [...PB_STAGES.map((x, si) => `<button type="button" class="chip ${si === VIEW ? 'on' : ''}" data-stage="${si}" ${si > t ? 'disabled' : ''}>${si + 1}${si < t ? ' ★' : ''}</button>`),
+    ...(t >= PB_STAGES.length ? [`<button type="button" class="chip ${endless ? 'on' : ''}" data-stage="${PB_STAGES.length}">∞</button>`] : [])].join('');
+  const foeRow = (f) => { const n = beatOf(f); return `<li><button type="button" class="st-ep ${n >= PB.need ? 'done' : 'open'}" data-foe="${esc(f.key)}" ${ok ? '' : 'disabled'}>
+    <b>${f.k + 1}</b><span><i class="st-title">${ruby(foeName(f))}${f.boss ? '<em class="pb-boss">ボス</em>' : ''}</i><small>かった 回数 ${'★'.repeat(Math.min(n, PB.need))}${'☆'.repeat(Math.max(0, PB.need - n))}${n > PB.need ? `（${n}回）` : ''}　＋${battleGain(f).base}P</small></span><em>${n >= PB.need ? 'クリア' : `あと ${PB.need - n}回`}</em></button></li>`; };
+  const E = endless ? endlessAt(S.endless, S.seed) : null;
+  const left = endless ? 0 : stageLeft(VIEW);
   app().innerHTML = `<main class="zukan construct pb">
     <p class="eyebrow">${PB_NAME}　たおした てき ${S.wins}たい</p>
     <h2>バトル</h2>
+    <div class="zk-sets pb-stages" role="group" aria-label="ステージ">${chips}</div>
     <section class="st-ch">
-      <h3>つぎの てき</h3>
-      <p class="pb-foe"><b>${st.n + 1}たいめ</b><span>${ruby(foeName(st))}</span><small>${ruby(st.tierName)}　${st.i + 1} / ${st.of}${st.boss ? '・ボス' : ''}${st.buff ? ruby(`・${st.lap}しゅうめ（てきの クリーチャーは ＋${st.buff}/＋${st.buff}）`) : ''}</small></p>
-      <p class="zk-note">${rewardLine(st)}。まけても ポイントと カードは なくならない。</p>
+      ${endless ? `<h3>むげんの たたかい<small class="st-guide">${ruby(`${E.lap}しゅうめ：てきの クリーチャーは ＋${E.buff}/＋${E.buff}。かった 数 ${S.endless}`)}</small></h3>
+      <ol><li><button type="button" class="st-ep open" data-foe="endless" ${ok ? '' : 'disabled'}><b>∞</b><span><i class="st-title">${ruby(foeName(E))}</i><small>${ruby(E.stageName)}　＋${battleGain(E).base}P</small></span><em>いどむ</em></button></li></ol>`
+    : `<h3>ステージ ${VIEW + 1}　${ruby(PB_STAGES[VIEW].name)}<small class="st-guide">${left ? `ぜんいんを ${PB.need}回ずつ たおすと つぎが ひらく（あと ${left}回）` : 'クリア！ なんどでも たたかえる'}</small></h3>
+      <ol>${foesOf(VIEW, S.seed).map(foeRow).join('')}</ol>`}
+      <p class="zk-note">あいてを えらんで たたかう。かつと ポイントと カード 1まい（アンティ）。ぴったり 1回ごとに ＋${PB.exact}P（${PB.exactMax}回まで）。まけても ポイントと カードは なくならない。</p>
     </section>
     ${ok ? `<p class="deckline">つかう デッキ：${esc(activeDeck().name)}　${deckLine(D)}</p>`
     : `<div class="pb-need"><p><b>つかう デッキが まだ できて いない</b>ので、バトルに 出られない。</p>${needList(D.problems)}</div>`}
-    <div class="row-btns"><button type="button" class="btn primary" data-go="fight" ${ok ? '' : 'disabled'}>たたかう</button>${S.open ? `<button type="button" class="btn" data-go="deck">${ok ? 'デッキを かえる' : 'デッキを なおす'}</button>` : ''}</div>
-    ${S.open ? '' : `<p class="pb-guide">${esc(`${PB_STARTER.name}で この てきを たおすと、ショップと デッキが あくよ。`)}</p>`}
-    <section class="st-ch">
-      <h3>てきの じゅんばん<small class="st-guide">ぜんぶで ${PB_TOTAL}たい。すすむほど つよく なる</small></h3>
-      <ol>${PB_TIERS.map(tierRow).join('')}${st.lap ? `<li><div class="st-ep open"><b>∞</b><span><i class="st-title">むげんの たたかい</i><small>${ruby(`${st.lap}しゅうめ：てきの クリーチャーは ＋${st.buff}/＋${st.buff}`)}</small></span><em>いま ここ</em></div></li>` : ''}</ol>
-    </section>
+    ${S.open ? `<div class="row-btns"><button type="button" class="btn" data-go="deck">${ok ? 'デッキを かえる' : 'デッキを なおす'}</button></div>` : `<p class="pb-guide">${esc(`${PB_STARTER.name}で あいてを 1たい たおすと、ショップと デッキが あくよ。`)}</p>`}
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
   </main>`;
   app().onclick = (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.back) return home();
     if (b.dataset.go === 'deck') return deckList();
-    if (b.dataset.go === 'fight') return fight(st);
+    if (b.dataset.stage != null) { VIEW = +b.dataset.stage; return arena(); }
+    if (b.dataset.foe) return fight(b.dataset.foe === 'endless' ? endlessAt(S.endless, S.seed) : foesOf(VIEW, S.seed).find((f) => f.key === b.dataset.foe));
   };
 }
-function fight(st) {
-  if (deckInfo().problems.length) return arena();
+// アンティ：かって もらった カードを 大きく 見せる（くらい 画面の まんなかに カード、下の まどに「〇〇を てに いれた！」）
+const anteShow = (d, dupe) => sheet(`<div class="ante-card ${d.rar === 'L' ? 'legend' : ''}">${fullCard(d)}</div>
+  <p class="ante-msg">${ruby(`${info(d).name}を てに いれた！`)}</p>
+  ${dupe ? `<p class="ante-dupe">もう ${MAX_COPY}まい もって いるので、<b>＋${PB.anteDupe}P</b> に かわった</p>` : `<p class="ante-have">もって いる ${own(d.id)}まい</p>`}`,
+  [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'アンティ：かって もらった カード', cls: 'ante', dismiss: false });
+function fight(f) {
+  if (!f || deckInfo().problems.length) return arena();
+  const label = f.endless != null ? `むげん ${f.endless + 1}：${foeName(f)}` : `ステージ ${f.si + 1}：${foeName(f)}`;
   startBattle({
-    deck: playDeck(), ...(st.kihon ? { floor: kihonFloor(st.kihon) } : { floorId: st.floorId }), diff: st.diff, floorName: stageLabel(st), buff: st.buff,
-    extraNote: st.buff ? `${st.lap}しゅうめ：てきの クリーチャーは ＋${st.buff}/＋${st.buff}` : '',
+    deck: playDeck(), ...(f.kihon ? { floor: kihonFloor(f.kihon) } : { floorId: f.floorId }), diff: f.diff, floorName: label, buff: f.buff,
+    extraNote: f.buff ? `${f.lap}しゅうめ：てきの クリーチャーは ＋${f.buff}/＋${f.buff}` : '',
     quit: { label: 'ホームへ もどる', note: 'たたかいを やめて もどる？ ポイントと カードは そのまま。この てきには また いどめるよ。', go: home },
     onEnd: async (r) => {
       S = load();
       if (!r.win) {
         S.lost = 1; save();
-        await sheet(`<p>まけて しまった。でも、ポイントと カードは そのまま。</p><p class="zk-note">${S.pts >= PB.pack ? 'ショップで パックを あけて、デッキを つよく しよう。' : 'もんだいで ポイントを ためて、パックを あけよう。'}</p>`,
+        await sheet(`<p>まけて しまった。でも、ポイントと カードは そのまま。</p><p class="zk-note">${!S.open ? 'もう いちど いどもう。' : S.pts >= PB.pack ? 'ショップで パックを あけて、デッキを つよく しよう。' : 'もんだいで ポイントを ためて、パックを あけよう。'}</p>`,
           [{ label: 'ホームへ', value: 1, kind: 'primary' }], { title: r.draw ? 'ひきわけ' : 'まけて しまった', dismiss: false });
         return home();
       }
-      // かち：さきに のこす（まどを とじる まえに ブラウザを とじても なくならない）
-      const g = battleGain(st, r.exact), before = S.pts;
+      // かち：さきに ぜんぶ のこす（まどを とじる まえに ブラウザを とじても なくならない）
+      const g = battleGain(f, r.exact), before = S.pts, was = S.stage;
       const opened = !S.open && tutorialOk() && S.active === STARTER_ID; // きそデッキで 1たい たおした：ショップと デッキが あく
-      S.wins = Math.max(S.wins, st.n + 1); S.pts += g.total; S.earned += g.total; S.lost = 0; if (opened) S.open = 1; save();
-      const all = st.n + 1 === PB_TOTAL;
-      const v = await sheet(`<p><b>${ruby(stageLabel(st))}</b>を たおした！</p>
-        <p class="what">${st.boss ? 'ボスを たおした' : 'かった'} ＋${g.base}P${g.exact ? `　ぴったり ${Math.min(PB.exactMax, r.exact)}回 ＋${g.exact}P` : ''}</p>
-        <p class="cs-math">${before}P ＋ ${g.total}P ＝ <b>${S.pts}</b>P</p>
-        ${st.boss && !st.lap ? `<p class="what">${ruby(all ? `${PB_TOTAL}たい ぜんぶ たおした！ ここからは「むげんの たたかい」。てきは 1しゅう ごとに つよく なる。` : `「${st.tierName}」を クリア！ つぎは「${stageNow().tierName}」。`)}</p>` : ''}`,
-        opened ? [{ label: 'つぎへ', value: 0, kind: 'primary' }] : [{ label: 'つぎの てきへ', value: 'next', kind: 'primary' }, { label: 'ホームへ', value: 0 }], { title: 'かった！', dismiss: false });
-      if (opened) await unlockSheet('pbOpen'); // 「あたらしく ショップと デッキが かいほう された！」（かぎが ひらく 演出と おと）
-      return v === 'next' ? arena() : home();
+      S.wins++; S.pts += g.total; S.earned += g.total; S.lost = 0; S.gp += PB.gpWin; if (opened) S.open = 1;
+      if (f.endless != null) S.endless++; else S.beat[f.key] = beatOf(f) + 1;
+      // アンティ：あいての ステージの カードを 1まい。もう 4まい もって いたら ポイントに
+      const card = antePick(f, Math.random), dupe = own(card.id) >= MAX_COPY;
+      if (dupe) { S.pts += PB.anteDupe; S.earned += PB.anteDupe; } else { S.cards[card.id] = own(card.id) + 1; S.fresh = 1; }
+      // ステージを クリア：つぎの ステージ（さいごは むげんの たたかい）が ひらく
+      const now = top(), cleared = now > was;
+      if (cleared) { S.stage = now; S.gp += PB.gpStage * (now - was); VIEW = now; }
+      save();
+      if (!SOLO && !dupe) zukanPack([card]);
+      await sheet(`<p><b>${ruby(foeName(f))}</b>を たおした！</p>
+        <p class="what">${f.boss ? 'ボスを たおした' : 'かった'} ＋${g.base}P${g.exact ? `　ぴったり ${Math.min(PB.exactMax, r.exact)}回 ＋${g.exact}P` : ''}</p>
+        <p class="cs-math">${before}P ＋ ${g.total}P ＝ <b>${before + g.total}</b>P</p>
+        <p class="what">せいちょうポイント ＋${PB.gpWin}${cleared ? `　ステージ クリア ＋${PB.gpStage * (now - was)}` : ''}（いま ${S.gp}）</p>`,
+        [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'かった！', dismiss: false });
+      await anteShow(card, dupe);
+      if (cleared) {
+        const all = now >= PB_STAGES.length;
+        NEWS_TEXT.pbStage = all
+          ? { name: 'むげんの たたかい', text: `ステージを ぜんぶ クリアした！ ここからは おまけの「むげんの たたかい」。てきは 1しゅう ごとに つよく なる。` }
+          : { name: `ステージ ${now + 1}「${PB_STAGES[now].name}」`, text: `ステージ ${was + 1}「${PB_STAGES[was].name}」の ぜんいんを ${PB.need}回ずつ たおした！ つぎの あいてが まって いる。` };
+        await unlockSheet('pbStage');
+      }
+      if (opened) { await unlockSheet('pbOpen'); return home(); } // 「あたらしく ショップと デッキが かいほう された！」
+      return arena();
     },
   });
+}
+
+// ---- ⑤ せいちょう：かつと もらう せいちょうポイントで、できる ことを ふやす（カードは つよく しない） ----
+function grow() {
+  if (!S.open) return home();
+  const node = (b, n, i) => {
+    const lv = S.tree[b.id] || 0, st = i < lv ? 'on' : i === lv && S.gp >= n.cost ? 'can' : 'lock';
+    return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(n.text)}</span><em>${i < lv ? 'とった' : `${n.cost}ポイント`}</em></button></li>`;
+  };
+  app().innerHTML = `<main class="zukan construct pb emblem">
+    <p class="eyebrow">${PB_NAME}</p>
+    <h2>せいちょう</h2>
+    <p class="em-pts">せいちょうポイント <b id="pb-gp">${S.gp}</b><small>たたかいに かつと ＋${PB.gpWin}、ステージを クリアすると ＋${PB.gpStage}。もんだいの ポイント（P）とは べつ</small></p>
+    <p class="zk-note">えだごとに、左から じゅんばんに とれる。カードは つよく ならない：できる ことが ふえる。</p>
+    ${PB_TREE.map((b) => `<section class="em-branch"><h3>${b.mark} ${esc(b.name)}<small>${esc(b.note)}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => node(b, n, i)).join('')}</ol></section>`).join('')}
+    <button type="button" class="btn ghost" data-back="1">ホームへ</button>
+  </main>`;
+  app().onclick = async (e) => {
+    const el = e.target.closest('button'); if (!el) return;
+    if (el.dataset.back) return home();
+    const b = PB_TREE.find((x) => x.id === el.dataset.b); if (!b) return;
+    const i = +el.dataset.i, lv = S.tree[b.id] || 0, n = b.nodes[i];
+    if (i < lv) return toast('もう とって いる');
+    if (i > lv) return toast('左の ものから じゅんばんに とろう');
+    if (S.gp < n.cost) return toast(`せいちょうポイントが たりない（あと ${n.cost - S.gp}）`);
+    const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(n.text)}</p><p class="cs-math">${S.gp} − ${n.cost} ＝ <b>${S.gp - n.cost}</b>ポイント</p>`,
+      [{ label: 'とる', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'せいちょう' });
+    if (v) { S.gp -= n.cost; S.tree = { ...S.tree, [b.id]: lv + 1 }; save(); }
+    return grow();
+  };
 }

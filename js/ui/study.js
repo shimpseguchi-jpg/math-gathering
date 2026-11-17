@@ -1,6 +1,6 @@
 // しゅぎょう（REQUIREMENTS 12章）：60びょうで もんだいを とく。7わりより おおく せいかいで もんしょうポイント（ui/emblem.js）
 // たたかいの なかでは もんだいを 出さない（5章）。ここは たたかいの そとの「しゅぎょうの へや」
-import { CATS, QUIZ_SECONDS, PASS_MIN, quizSession, passed } from '../data/quiz.js';
+import { CATS as ALL_CATS, QUIZ_SECONDS, PASS_MIN, quizSession, passed } from '../data/quiz.js';
 import { esc, sheet } from './view.js';
 import { addRaidQuiz } from './raidstore.js';
 
@@ -21,8 +21,10 @@ const marked = (t) => esc(t).replace(/［(.+?)］/g, '<b class="qz-target">$1</b
 // o = { cats, setCats(cats), record({ n, ok, stat }) → もらった ポイント, back() }
 //   ぼうけんの まえ・おわりの しゅぎょう（emblem.js）：say { who, text }（ふきだし）・eyebrow・reward（ポイントの せつめい）・backLabel・doneLabel・noBack（もどる ボタンなし）
 //   パック＆バトルの もんだい（packbattle.js）：title（見出し）・lead（はじめの せつめい。html）・onAnswer(せいかいか) → ○× の 下に 出す ことば・gainLabel（もらえる ものの なまえ）・gainUnit・
-//   noPass（ごうかくが ない：せいかいの ぶんだけ もらえる）・quitNote（やめる ときの ことば）
+//   noPass（ごうかくが ない：せいかいの ぶんだけ もらえる）・quitNote（やめる ときの ことば）・
+//   defs（もんだいの しゅるい。なければ しゅぎょうの CATS）・session(rng, cats) → つぎの もんだいを かえす 関数（むずかしい もんだい：data/quiz2.js）
 export function studyScreen(app, o) {
+  const CATS = o.defs || ALL_CATS, mkSession = o.session || quizSession;
   let cats = [...o.cats];
   // ---- はじめる まえ：もんだいの しゅるいを えらぶ（学校で ならった ものだけに できる） ----
   const intro = () => {
@@ -46,7 +48,7 @@ export function studyScreen(app, o) {
 
   // ---- しゅぎょう ----
   const run = () => {
-    const next = quizSession(Math.random, cats);
+    const next = mkSession(Math.random, cats);
     const end = Date.now() + QUIZ_SECONDS * 1000;
     const stat = {}, miss = [];
     let n = 0, ok = 0, q = null, typed = '', wait = false, over = false;
@@ -60,7 +62,8 @@ export function studyScreen(app, o) {
     const show = () => {
       const cat = CATS[q.cat].name;
       let body = '';
-      if (q.kind === 'num') body = q.text.includes('□') ? `<p class="qz-text">${marked(q.text).replace('<b class="qz-blank">□</b>', '<span class="qz-ans">　</span>')}</p>` : `<p class="qz-text">${esc(q.text)} ＝ <span class="qz-ans">　</span></p>`;
+      if (q.story) body = `<p class="qz-text qz-sent qz-story">${esc(q.story)}</p><p class="qz-text">${esc(q.text)} <span class="qz-ans">　</span>${esc(q.unit || '')}</p>`; // 文章題
+      else if (q.kind === 'num') body = q.text.includes('□') ? `<p class="qz-text">${marked(q.text).replace('<b class="qz-blank">□</b>', '<span class="qz-ans">　</span>')}</p>` : `<p class="qz-text">${esc(q.text)} ＝ <span class="qz-ans">　</span></p>`;
       else if (q.clock) body = `${clockSvg(...q.clock)}<p class="qz-ask">${esc(q.text)}</p>`;
       else body = `<p class="qz-text qz-sent">${marked(q.text)}</p><p class="qz-ask">${marked(q.ask)}</p>`;
       $('.qz-q').innerHTML = `<p class="qz-cat-name">${esc(cat)}</p>${body}<div class="qz-mark" hidden></div>`;
@@ -135,7 +138,7 @@ export function studyScreen(app, o) {
       ${gain ? `<p class="qz-gain">${esc(o.gainLabel || 'もんしょうポイント')} <b>＋${gain}${esc(o.gainUnit || '')}</b>${r.gainNote ? `<small>${esc(r.gainNote)}</small>` : r.bonus ? `<small>ボーナス ＋${r.bonus} こみ</small>` : r.n === r.ok && gain > 3 ? '<small>ぜんぶ せいかい！</small>' : ''}</p>` : ''}
       ${r.ticketNote ? `<p class="qz-gain">${r.ticket ? `パックけん <b>＋${r.ticket}</b>` : ''}<small>${esc(r.ticketNote)}</small></p>` : ''}
       <ul class="qz-break">${Object.entries(r.stat).map(([k, [a, b]]) => `<li><span>${esc(CATS[k].name)}</span><b>${b} / ${a}</b></li>`).join('')}</ul>
-      ${r.miss.length ? `<h3 class="zk-h">まちがえた もんだい</h3><ul class="qz-miss">${r.miss.map(({ q, given }) => `<li>${q.clock ? `とけい（${esc(q.answer)}）` : q.kind === 'num' ? esc(q.text.includes('□') ? q.text.replace('□', `［${q.answer}］`) : `${q.text} ＝ ${q.answer}`) : marked(q.text.replace('□', `［${q.answer}］`))}<small>こたえ：${esc(q.answer)}・あなた：${esc(given)}</small></li>`).join('')}</ul>` : ''}
+      ${r.miss.length ? `<h3 class="zk-h">まちがえた もんだい</h3><ul class="qz-miss">${r.miss.map(({ q, given }) => `<li>${q.story ? esc(q.story) : q.clock ? `とけい（${esc(q.answer)}）` : q.kind === 'num' ? esc(q.text.includes('□') ? q.text.replace('□', `［${q.answer}］`) : `${q.text} ＝ ${q.answer}`) : marked(q.text.replace('□', `［${q.answer}］`))}<small>こたえ：${esc(q.answer)}・あなた：${esc(given)}</small></li>`).join('')}</ul>` : ''}
       <div class="row-btns"><button type="button" class="btn primary" data-back="1">${esc(o.doneLabel || (gain ? 'もんしょうを えらぶ' : 'もどる'))}</button>${o.noAgain ? '' : '<button type="button" class="btn" data-again="1">もう いちど</button>'}</div>
     </main>`;
     app().onclick = (e) => {

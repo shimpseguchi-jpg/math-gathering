@@ -1,6 +1,6 @@
 // パック開封（ソシャゲの ガチャ演出）。冒険の パック（app.js）と こうちくモードの ショップ（construct.js）で つかう
 // ① 光る パックを タップして やぶる → ② 1まいずつ めくる（裏の光り方で レアリティが わかる）→ ③ まとめ
-// o = { eyebrow：上の 小さい 文字, bonus：パックの 下の せつめい（html）, rare：レアパックの みため, owned：もって いた カードの Set（NEW の しるし）, done() }
+// o = { got：めくった カードの 下に「〇〇を てに いれた！」（パック＆バトル）, eyebrow：上の 小さい 文字, bonus：パックの 下の せつめい（html）, rare：レアパックの みため, owned：もって いた カードの Set（NEW の しるし）, done() }
 import { BY_ID } from '../data/cards.js';
 import { sfx, soundOn, setSound } from './sfx.js';
 import { cardFace, fullCard, detail, sheet, esc, ruby, info } from './view.js';
@@ -52,7 +52,7 @@ export function gacha(app, cards, o = {}) {
           ${flipped && (d.rar === 'R' || d.rar === 'L') ? `<div class="burst ${d.rar === 'L' ? 'b-L' : ''}" aria-hidden="true">${burst(d.rar === 'L' ? 36 : 20)}</div>` : ''}
           ${flipped && d.rar === 'L' ? `<p class="legend-call">${isSurprise ? '<small>しょうかく！</small>' : ''}LEGEND!!</p>` : ''}
         </div>
-        <p class="gacha-hint">${flipped ? `${esc(RAR_NAME[d.rar])}「${ruby(nm(d))}」` : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
+        <p class="gacha-hint ${flipped && o.got ? 'got' : ''}">${flipped ? (o.got ? `${ruby(nm(d))}を てに いれた！<small>${esc(RAR_NAME[d.rar])}</small>` : `${esc(RAR_NAME[d.rar])}「${ruby(nm(d))}」`) : rar === 'L' ? 'にじいろ…！' : rar === 'R' ? 'きんいろに 光っている！' : rar === 'U' ? 'ぎんいろに 光っている' : 'タップして めくろう'}</p>
         <ol class="dots">${order.map((_, n) => `<li class="${n < k || (n === k && flipped) ? 'on' : ''} ${n === k ? 'now' : ''}"></li>`).join('')}</ol>
         <p class="tap-next">${flipped ? `カードを タップで ${k < order.length - 1 ? 'つぎへ' : 'まとめへ'}（点線の ことばは 長おしで せつめい）` : ''}</p>
         <div class="row-btns"><button type="button" class="btn ghost" data-skip="1">スキップ</button></div>

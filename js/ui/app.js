@@ -468,7 +468,8 @@ function whyNotPts(sel, i, pool = A.pool, cap = CAPACITY) {
 //         cap: キャパシティ（なければ 30点。冒険は 階で ふえる）, noCap: キャパシティと 色を 見ない（エターナル）, ident: 統率者の 色（この 色の カードだけ。noCap でも 見る）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる,
 //         back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない）, filterKey：こまかくの せっていを のこす key,
 //         stock(id) → { own, other }・phantom：Set（パック＆バトル。カードは デッキの あいだで わけあわない）：pool には この デッキに 入れられる まい数 だけ。
-//           ほかの デッキで つかって いる カードは、pool の おわりに「入れられない 1まい」（phantom の 番号）を 足して、わけを 出す }
+//           ほかの デッキで つかって いる カードは、pool の おわりに「入れられない 1まい」（phantom の 番号）を 足して、わけを 出す,
+//         pane：2つに わける（パック＆バトル。左に カードの ならび：なまえ・点・在庫、右に えらんだ カードの せつめいと 入れる・はずす。stack と いっしょに つかう） }
 const advCtx = () => ({
   get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false, get cap() { return advCap(); },
   colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
@@ -517,6 +518,21 @@ export function deckBuilder(C = advCtx()) {
   let mode = (() => { try { return localStorage.getItem(TAP_MODE) === 'quick' ? 'quick' : 'detail'; } catch { return 'detail'; } })();
   // デッキの カード（view = 'deck'）：同じ カードを 1行に まとめて マナコストの じゅん。−／＋で 1まいずつ、なまえで せつめい
   let view = 'pool';
+  // 2つに わけた 画面（C.pane）：えらんで いる カード（さいしょは ならびの いちばん 上）
+  let sel = null;
+  const paneList = (list) => (list.length ? list.map((i) => {
+    const d = BY_ID[C.pool[i]], k = nIn(i), it = stackItem(i), t = C.stock ? stockOf(i) : null;
+    return `<li><button type="button" class="bp-row ${k ? 'in' : ''} ${it.no ? 'no' : ''} ${C.pool[i] === sel ? 'sel' : ''}" data-row="${i}"><span class="dl-cost">${d.cost ?? 0}</span><span class="zk-dots">${colorsOf(d).map((c) => `<i class="m-${c}"></i>`).join('')}</span><b>${ruby(info(d).name)}</b><small>${ptsOf(d)}点</small>${t ? `<span class="stk ${t.other ? 'used' : ''}">もち${t.own}${t.other ? `・ほか${t.other}` : ''}・あと${t.left}</span>` : ''}<span class="cnt">${'●'.repeat(k)}${'○'.repeat(usable(i) - k)}</span></button></li>`;
+  }).join('') : '<li class="pool-empty">あてはまる カードが ない。しぼりこみを へらそう。</li>');
+  const paneDetail = () => {
+    const i = sel != null && G.has(sel) ? G.get(sel)[0] : null;
+    if (i == null) return '<p class="pool-empty">カードを えらぼう。</p>';
+    const f = freeOf(i), last = lastIn(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f), t = C.stock ? stockOf(i) : null;
+    return `<div class="row-btns"><button type="button" class="btn primary" data-pin="${i}" ${no ? 'disabled' : ''}>1まい 入れる</button><button type="button" class="btn" data-pout="${i}" ${last == null || outNo(last) ? 'disabled' : ''}>1まい はずす</button></div>
+      ${no ? `<p class="bp-no">入れられない：${esc(no)}</p>` : ''}
+      <p class="zk-note">${t ? `もって いる ${t.own}まい／ほかの デッキで ${t.other}まい つかって いる／この デッキに ${nIn(i)}まい／あと ${t.left}まい 入れられる` : `デッキに ${nIn(i)}まい`}</p>
+      ${detail(BY_ID[C.pool[i]])}`;
+  };
   const addOf = (id) => { const f = G.get(id).find((k) => !C.deck.includes(k)); return { f, no: f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f) }; };
   const deckHtml = (st) => {
     if (!st.count) return '<p class="pool-empty">まだ デッキに カードが ない。「カード」の タブから 入れよう。</p>';
@@ -539,7 +555,8 @@ export function deckBuilder(C = advCtx()) {
     const st = deckStats(C.deck, C.pool);
     const left = cap - st.points;
     const list = shownIdx();
-    app().innerHTML = `<main class="builder ${F.open && view === 'pool' ? 'has-filter' : ''}">
+    if (C.pane && (sel == null || !G.has(sel)) && list.length) sel = C.pool[list[0]];
+    app().innerHTML = `<main class="builder ${F.open && view === 'pool' ? 'has-filter' : ''} ${C.pane ? 'two' : ''}">
       <header class="b-head">
         <h2>${ruby(C.title)}</h2>
         <div class="meters">
@@ -558,7 +575,7 @@ export function deckBuilder(C = advCtx()) {
         <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}${C.stock ? 'カードの 下：もち＝もって いる まい数・ほか＝ほかの デッキで つかって いる・あと＝この デッキに 入れられる。' : ''}</p>
       </header>
       ${view === 'deck' ? deckHtml(st) : `${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
-      <div class="pool ${mode}">${poolHtml(list)}</div>`}
+      ${C.pane ? `<div class="bp"><ul class="bp-list">${paneList(list)}</ul><aside class="bp-detail">${paneDetail()}</aside></div>` : `<div class="pool ${mode}">${poolHtml(list)}</div>`}`}
       <footer class="actions">${C.back ? `<button type="button" class="btn" data-a="back">${esc(C.back.label)}</button>` : ''}<button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
     </main>`;
   };
@@ -597,9 +614,9 @@ export function deckBuilder(C = advCtx()) {
   app().onpointerup = app().onpointercancel = () => clearTimeout(press);
   // なまえ・テキストで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
   app().oninput = (e) => {
-    if (!onFilterInput(F, e.target) || !app().querySelector('.pool')) return;
+    if (!onFilterInput(F, e.target) || !app().querySelector('.pool, .bp-list')) return;
     const list = shownIdx();
-    app().querySelector('.pool').innerHTML = poolHtml(list);
+    if (C.pane) app().querySelector('.bp-list').innerHTML = paneList(list); else app().querySelector('.pool').innerHTML = poolHtml(list);
     const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${total()}${unit} を 見せて いる`;
   };
   app().onclick = async (e) => {
@@ -627,6 +644,10 @@ export function deckBuilder(C = advCtx()) {
       if (!C.deck.length && !C.cmd) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
       C.save(); return C.ok();
     }
+    // 2つに わけた 画面：ならびを タップで えらぶ、右の ボタンで 1まいずつ
+    if (b.dataset.row != null) { sel = C.pool[+b.dataset.row]; return draw(); }
+    if (b.dataset.pin != null) { const f = freeOf(+b.dataset.pin); if (f == null || ruleNo(f)) return; C.deck.push(f); sfx.tap(); C.save(); return draw(); }
+    if (b.dataset.pout != null) { const last = lastIn(+b.dataset.pout); if (last == null || outNo(last)) return; C.deck = C.deck.filter((k) => k !== last); sfx.tap(); C.save(); return draw(); }
     if (b.dataset.i == null) return;
     const i = +b.dataset.i;
     if (mode === 'detail') return showDetail(i);
