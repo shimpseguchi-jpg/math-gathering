@@ -38,6 +38,8 @@ import { kihonMenu } from './kihon.js';
 import { KIHON_NAME } from '../data/kihon.js';
 import { addTickets, tickets, ENDLESS_PER } from './collection.js';
 import { spireMenu, spireTile } from './spire.js';
+import { pbMenu, pbSummary } from './packbattle.js';
+import { PB_NAME } from '../data/packbattle.js';
 import './fullscreen.js'; // iPad の Safari：タップで ぜんがめん（せっていで かえられる）
 
 const SAVE = 'mtg-adventure-v1';
@@ -97,6 +99,7 @@ const T_ICON = {
   emblem: '<path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.5 2.4-7.4L2 9.6h7.6z" fill="currentColor" stroke="none"/>',
   online: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
   tut: '<path d="M5 21V4h12l-2 4 2 4H5"/>',
+  pb: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M5 7h14"/><path d="M12 9.5l1.3 2.6 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4z" fill="currentColor" stroke="none"/>',
   kihon: '<path d="M12 21V11M12 11c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5"/>',
   story: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
   zukan: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
@@ -165,8 +168,10 @@ export function title() {
     <nav class="t-menu" aria-label="メニュー">
       ${narrow ? `${step !== 'tutorial' ? tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '') : ''}
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, ruby('課題（かだい）を 3つ クリアすると せかいが ひらける'), tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
+      ${step !== 'tutorial' ? tile('pb', PB_NAME, pbSummary(), tIcon('pb')) : ''}
       ${step !== 'tutorial' ? tile('tut', 'チュートリアル', 'もう いちど') : ''}
       ${DEV ? tile('spire', ...spireTile()) : ''}` : `
+      ${tile('pb', PB_NAME, pbSummary(), tIcon('pb'))}
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
       ${tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '')}
@@ -221,6 +226,7 @@ export function title() {
     if (b.dataset.go === 'zukan') return zukanScreen(app, title);
     if (b.dataset.go === 'emblem') return emblemScreen(app, title);
     if (b.dataset.go === 'build') return constructMenu(app, title);
+    if (b.dataset.go === 'pb') return pbMenu(app, title);
     if (b.dataset.go === 'spire') return spireMenu(app, title);
     const diff = app().querySelector('input[name=diff]:checked').value;
     const plane = app().querySelector('input[name=plane]:checked').value;
