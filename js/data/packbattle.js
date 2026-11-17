@@ -20,6 +20,25 @@ export const PB = {
   boss: 100, // 段（だん）の さいごの てき（ボス）を たおした
   exact: 10, exactMax: 5, // ぴったり 1回ごと（1回の たたかいで 5回ぶんまで）
   minCards: 6, // デッキに いる カード（きほんカードは のぞく）。パック 2つで かならず とどく 数（AI の おまかせで 6〜12まい）
+  deckMax: 5, // のこせる デッキの 数
+};
+
+// ---- きそデッキ：はじめに 1つ もらう（さいしょから バトルに 出られる）----
+// 1年生の カードプール（pool1.js）の コモン だけ。チュートリアルと おなじ 白と 緑。14まい・14点 ＋ きほんカード 6まい
+// ここの カードは もちものに 入る（ほかの カードと おなじ ように、デッキの あいだで わけあえない）
+export const PB_STARTER = {
+  name: 'きそデッキ',
+  cards: [
+    'W10', 'W10', // いやしの 鷹 1/1 飛行・絆魂
+    'W02', 'W02', // おともの 騎士 2/2 先制攻撃・兵士 1体
+    'W03', // ニクスの 毛皮の ひつじ 0/5 防衛
+    'W31', // 天の 矢 4点（ぴったり）
+    'W101', // カラメトラの 祝福 ＋2/＋2
+    'G01', 'G01', // 森の ちいさな エルフ（マナ）
+    'G09', // 巨大化 ＋4/＋4
+    'G11', 'G11', // ふみならす 大鹿の むれ 5/5 圧倒
+    'C18', 'C18', // わらの 魔女 3/1
+  ],
 };
 
 // もんだい：1もんの こたえで もらえる ポイント。streak は この こたえを 入れた れんぞく せいかいの 数
@@ -72,11 +91,11 @@ export function stageAt(n, seed = 1) {
 // → たりない ことの ならび（なければ デッキは かんせい）。count：カードの 数、points：点、colors：色の 数、missing：もって いない カードの 数
 export function deckProblems({ count, points, colors, missing }, { size = 20, cap = 30 } = {}) {
   const out = [];
-  if (!count) return ['デッキが まだ ない。「デッキ」で カードを えらぼう'];
+  if (!count) return ['デッキに カードが 入って いない。「デッキ」で カードを えらぼう'];
   if (count < PB.minCards) out.push(`カードが あと ${PB.minCards - count}まい たりない（${PB.minCards}まい いじょう 入れよう）`);
   if (count > size) out.push(`カードが ${count - size}まい 多い（${size}まいまで）`);
   if (points > cap) out.push(`点が ${points - cap}点 多い（${cap}点まで）`);
   if (colors > 2) out.push(`色が ${colors}色 ある（2色まで）`);
-  if (missing > 0) out.push(`もって いない カードが ${missing}まい 入って いる`);
+  if (missing > 0) out.push(`カードが ${missing}まい たりない（もって いる まい数より 多く 入って いる）`);
   return out;
 }

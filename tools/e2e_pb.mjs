@@ -1,6 +1,7 @@
 // パック＆バトル（js/ui/packbattle.js）の 通しテスト（Playwright）：ロボットが ひとまわり あそぶ
 //   npx http-server -p 8124 -c-1 . &  →  node tools/e2e_pb.mjs
-//   もんだいで ポイントが ふえる → パックが 買える → カードが ふえる → デッキが くめる → バトルに 出られる → かって ポイントが 入る
+//   きそデッキで さいしょから バトルに 出られる → もんだいで ポイントが ふえる → パックが 買える → カードが ふえる
+//   → デッキを もう 1つ くむ（カードは デッキの あいだで わけあえない）→ つかう デッキを えらぶ → かって ポイントが 入る
 //   → まけても ポイントと カードは そのまま → よみこみなおしても つづきから。ぼうけん・こうちくの セーブには さわらない
 // 環境変数：URL、OUT（スクリーンショットの保存先）、THEME（classic・gba・clear）、CHROME（つかう chromium の パス）
 import { chromium } from 'playwright';
@@ -26,15 +27,23 @@ await page.evaluate((theme) => { localStorage.clear(); localStorage.setItem('mtg
 await page.reload();
 const PB = await page.evaluate(async () => (await import('./js/data/packbattle.js')).PB);
 
-// ---- ホーム：はじめは 200P・「もんだい」が つぎ ----
+const theme0 = process.env.THEME || 'classic';
+const look = () => page.evaluate(() => document.documentElement.dataset.theme);
+const count = (st) => Object.values(st.cards).reduce((t, n) => t + n, 0);
+// 在庫：どの カードも、ぜんぶの デッキで つかって いる まい数が もって いる まい数を こえない
+const stockOk = (st) => { const used = {}; for (const d of st.decks) for (const id of d.cards) used[id] = (used[id] || 0) + 1; return Object.entries(used).every(([id, n]) => n <= (st.cards[id] || 0)); };
+
+// ---- ホーム：はじめは 200P・きそデッキ（さいしょから バトルに 出られる）・「もんだい」が つぎ・ドットの みため ----
 await page.click('[data-go=pb]');
 await shot('1_home_first');
+let s = await state();
 check(`はじめの ポイントは ${PB.start}P`, (await page.textContent('#pb-pts')) === String(PB.start));
+check('きそデッキを もって いる（カードは もちものに 入って いる）', s.decks.length === 1 && s.active === s.decks[0].id && count(s) === s.decks[0].cards.length && stockOk(s), `${s.decks[0].name}・${count(s)}まい`);
 check('はじめは「もんだい」が つぎ', (await nextStep()) === 'quiz');
-// デッキが ないと バトルに 出られない（たりない ことが 出る）
+check('この モードは ドットの みため', (await look()) === 'gba');
 await page.click('.pb-steps [data-go=battle]');
-check('デッキが ないと「たたかう」は おせない', await page.locator('[data-go=fight]:disabled').count() === 1 && await page.locator('.pb-need .pb-list li').count() > 0, await page.locator('.pb-need').innerText().catch(() => ''));
-await shot('2_arena_nodeck');
+check('きそデッキで さいしょから「たたかう」が おせる', await page.locator('[data-go=fight]:not([disabled])').count() === 1);
+await shot('2_arena_first');
 await page.click('[data-back]');
 
 // ---- ① もんだい：たしざん・ひきざん だけに して、5もん せいかい → 1もん まちがい → 1もん せいかい ----
@@ -76,27 +85,56 @@ const openPack = async (id) => {
 };
 await page.click('.pb-steps [data-go=shop]');
 await shot('6_shop');
+const had = count(s);
 await openPack('p1');
-let s = await state();
-const count = (st) => Object.values(st.cards).reduce((t, n) => t + n, 0);
-check(`パックを あけると ${PB.pack}P へって カードが 8まい ふえる`, s.pts === want - PB.pack && count(s) === 8, `${s.pts}P・${count(s)}まい`);
+s = await state();
+check(`パックを あけると ${PB.pack}P へって カードが 8まい ふえる`, s.pts === want - PB.pack && count(s) === had + 8, `${s.pts}P・${count(s)}まい`);
 await openPack('s1');
 s = await state();
-check('2つめの パック', s.pts === want - 2 * PB.pack && count(s) === 16, `${s.pts}P・${count(s)}まい`);
+check('2つめの パック', s.pts === want - 2 * PB.pack && count(s) === had + 16, `${s.pts}P・${count(s)}まい`);
 check('ポイントが たりないと 買えない（もんだいへの あんないが 出る）', await page.locator('[data-buy]:not([disabled])').count() === 0 && await page.locator('.pb-need [data-go=quiz]').count() === 1);
 await shot('7_shop_short');
 await page.click('[data-back]');
-check('カードが そろったら「デッキ」が つぎ', (await nextStep()) === 'deck');
+check('あたらしい カードが 入ったら「デッキ」が つぎ', (await nextStep()) === 'deck');
 
-// ---- ③ デッキ：おまかせで くんで けってい ----
+// ---- ③ デッキ：もう 1つ つくる。カードは デッキの あいだで わけあえない ----
 await page.click('.pb-steps [data-go=deck]');
+await shot('8_decks');
+await page.click('[data-new]');
 await page.locator('.builder').waitFor();
-await shot('8_builder');
+await shot('9_builder');
+check('デッキを くむ 画面に 在庫が 出る（もち・ほか・あと）', await page.locator('.pool-item .stk.used').count() > 0, (await page.locator('.pool-item .stk.used').first().innerText()));
+// ほかの デッキで ぜんぶ つかって いる カードは 入れられない（わけが 出る）
+await page.click('[data-mode=quick]');
+const lockedTile = page.locator('.pool-item.no:has(.stk.used)').first();
+const before2 = (await state()).decks[1].cards.length;
+await lockedTile.click();
+await page.waitForTimeout(200);
+const toastText = await page.evaluate(() => [...document.querySelectorAll('.toast, #toast, [class*=toast]')].map((e) => e.textContent).join(' '));
+check('ほかの デッキで つかって いる カードは 入れられない', (await state()).decks[1].cards.length === before2 && /ほかの デッキで/.test(toastText), toastText.trim());
+await page.click('[data-mode=detail]');
 await page.click('[data-a=ok]');
+await page.waitForTimeout(200);
+if (await page.locator('#sheet:not([hidden]) button:has-text("デッキの いちらんへ")').count()) await sheetClick('デッキの いちらんへ');
 s = await state();
-check('デッキが くめる（もって いる カード だけ）', s.deck.length >= PB.minCards && s.deck.every((id) => s.cards[id] > 0), `${s.deck.length}まい`);
+check('2つめの デッキが くめる（在庫を こえない）', s.decks.length === 2 && s.decks[1].cards.length > 0 && stockOk(s), `${s.decks[1].name}・${s.decks[1].cards.length}まい`);
+// つかう デッキを えらぶ → もどす
+await page.click(`[data-deck=${s.decks[1].id}]`); await sheetClick('この デッキを つかう');
+check('つかう デッキを えらべる', (await state()).active === s.decks[1].id && await page.locator('.cs-deck.on').count() === 1);
+await page.click(`[data-deck=${s.decks[0].id}]`); await sheetClick('この デッキを つかう');
+await shot('10_decks_two');
+// きそデッキ（つかう デッキ）を けそうと すると、バトルに 出られなく なる ことが 出る（2つめを さきに けして から）
+await page.click(`[data-deck=${s.decks[1].id}]`); await sheetClick('けす'); await sheetClick('けす');
+s = await state();
+check('デッキを けすと カードは もちものに もどる', s.decks.length === 1 && count(s) === had + 16);
+await page.click(`[data-deck=${s.decks[0].id}]`); await sheetClick('けす');
+const warn = await page.locator('#sheet .sheet-body').innerText();
+await shot('11_drop_warn');
+check('つかう デッキを けす まえに「バトルに 出られなく なる」と 出る', /バトルに 出られなく なる/.test(warn));
+await sheetClick('やめる');
+await page.click('[data-back]');
 check('デッキが かんせい → 「バトル」が つぎ', await page.locator('.pb-stats li.ok').count() === 1 && (await nextStep()) === 'battle');
-await shot('9_home_ready');
+await shot('12_home_ready');
 
 // ---- ④ バトル ----
 // ロボット：passive なら なにも せずに ターンを おわる（まける ため）
@@ -137,16 +175,16 @@ async function battle(passive) {
 // 1たいめ：てきの ライフを 1・デッキを きほんカードだけ に して かつ（ロボットは でたらめに あそぶので、まけたら もう いちど）
 await page.evaluate(async () => { const f = (await import('./js/data/kihon.js')).KIHON_FLOORS[0]; f.life = 1; f.ids = []; });
 await page.click('.pb-steps [data-go=battle]');
-await shot('10_arena');
+await shot('13_arena');
 const before = (await state()).pts;
 for (let t = 0; t < 4 && (await state()).wins === 0; t++) {
   if (t) { await sheetClick('ホームへ'); await page.click('.pb-steps [data-go=battle]'); }
   await page.click('[data-go=fight]');
   await page.waitForTimeout(500);
-  await shot('11_battle');
+  await shot('14_battle');
   await battle(false);
 }
-await shot('12_win');
+await shot('15_win');
 s = await state();
 check('かつと ポイントが 入って つぎの てきへ', s.wins === 1 && s.pts >= before + PB.win && s.pts <= before + PB.win + PB.exact * PB.exactMax, `${before}P → ${s.pts}P・たおした てき ${s.wins}`);
 await sheetClick('つぎの てきへ');
@@ -157,23 +195,33 @@ await page.evaluate(async () => { const f = (await import('./js/data/kihon.js'))
 const keep = await state();
 await page.click('[data-go=fight]');
 await battle(true);
-await shot('13_lose');
+await shot('16_lose');
 const title = await sheetTitle();
 await sheetClick('ホームへ');
 s = await state();
 check('まけたら ホームへ。ポイントと カードは そのまま', /まけて|ひきわけ/.test(title) && await page.locator('.pb-steps').count() === 1 && s.pts === keep.pts && count(s) === count(keep) && s.wins === 1, `${title}・${s.pts}P・${count(s)}まい`);
 check('まけた あとは カードを ふやす あんない（ポイントが あれば「ショップ」、なければ「もんだい」）', (await nextStep()) === (s.pts >= PB.pack ? 'shop' : 'quiz'), await nextStep());
-await shot('14_home_lost');
+await shot('17_home_lost');
+
+// ---- タイトルに もどると せっていの みために もどる ----
+await page.click('[data-back]');
+check('タイトルに もどると せっていの みために もどる', (await look()) === theme0, await look());
 
 // ---- セーブ：よみこみなおしても つづきから。ほかの モードの セーブには さわらない ----
 await page.reload();
 check('タイトルの タイルに ポイントと たおした てき', (await page.locator('[data-go=pb]').innerText()).includes(`${s.pts}P`));
-await shot('15_title');
+await shot('18_title');
 await page.click('[data-go=pb]');
 const again = await state();
-check('よみこみなおしても つづきから', (await page.textContent('#pb-pts')) === String(s.pts) && again.wins === 1 && count(again) === count(s) && again.deck.length === s.deck.length);
+check('よみこみなおしても つづきから', (await page.textContent('#pb-pts')) === String(s.pts) && again.wins === 1 && count(again) === count(s) && again.decks.length === s.decks.length && again.active === s.active);
 const other = await page.evaluate(() => [localStorage.getItem('mtg-adventure-v1'), JSON.parse(localStorage.getItem('mtg-collection') || 'null')]);
 check('ぼうけん・こうちくの セーブは そのまま', other[0] === null && (!other[1] || (other[1].tickets === 0 && !Object.keys(other[1].cards).length)));
+
+// ---- まえの 形の セーブ（デッキが 1つ・きそデッキ なし）：デッキは のこって、きそデッキと その カードが ふえる ----
+await page.evaluate(() => localStorage.setItem('mtg-packbattle-v1', JSON.stringify({ v: 1, pts: 30, cards: { U01: 2, U02: 2, R01: 3, C01: 1 }, deck: ['U01', 'U01', 'U02', 'U02', 'R01', 'R01', 'R01', 'C01'], wins: 4, seed: 7, quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0 })));
+await page.reload(); await page.click('[data-go=pb]');
+const mig = await state();
+check('まえの 形の セーブを ひきつぐ', mig.pts === 30 && mig.wins === 4 && mig.decks.length === 2 && mig.active === 'd1' && mig.decks[1].cards.length === 8 && stockOk(mig) && await page.locator('.pb-stats li.ok').count() === 1, mig.decks.map((d) => d.name).join('・'));
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');
 console.log(fails.length ? `FAILED: ${fails.length}` : 'ALL OK');

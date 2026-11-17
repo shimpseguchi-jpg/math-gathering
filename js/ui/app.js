@@ -465,7 +465,9 @@ function whyNotPts(sel, i, pool = A.pool, cap = CAPACITY) {
 // 冒険の デッキ構築。ctx を わたすと ほかの プールでも つかえる（レイドの 統率者デッキ：raid.js、こうちくモード：construct.js）
 // ctx = { pool: カードIDの ならび, deck: えらんだ 番号, save(), auto() → 番号, ok(), title, free: 色の きまりを 見ない, colorNote,
 //         cap: キャパシティ（なければ 30点。冒険は 階で ふえる）, noCap: キャパシティと 色を 見ない（エターナル）, ident: 統率者の 色（この 色の カードだけ。noCap でも 見る）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる,
-//         back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない）, filterKey：こまかくの せっていを のこす key }
+//         back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない）, filterKey：こまかくの せっていを のこす key,
+//         stock(id) → { own, other }・phantom：Set（パック＆バトル。カードは デッキの あいだで わけあわない）：pool には この デッキに 入れられる まい数 だけ。
+//           ほかの デッキで つかって いる カードは、pool の おわりに「入れられない 1まい」（phantom の 番号）を 足して、わけを 出す }
 const advCtx = () => ({
   get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false, get cap() { return advCap(); },
   colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
@@ -483,13 +485,17 @@ export function deckBuilder(C = advCtx()) {
   const sizeNo = () => (C.deck.length >= DECK_SIZE ? `デッキは ${DECK_SIZE}まいまで` : '');
   const identNo = (i) => (colorsOf(BY_ID[C.pool[i]]).every((c) => C.ident.includes(c)) ? '' : `統率者（とうそつしゃ）の 色（${C.ident.map((c) => COLOR_NAME[c]).join('・') || 'むしょく'}）の カードだけ`);
   const cap = C.cap ?? CAPACITY;
-  const ruleNo = (i) => (C.ident && identNo(i)) || (C.noCap ? sizeNo() : C.ident ? whyNotPts(C.deck, i, C.pool, cap) : whyNot(C.deck, i, C.pool, C.free, cap));
+  const stockNo = (i) => { if (!C.phantom?.has(i)) return ''; const k = C.stock(C.pool[i]); return `ほかの デッキで ${k.other}まい つかって いる（もって いるのは ${k.own}まい）`; };
+  const ruleNo = (i) => stockNo(i) || (C.ident && identNo(i)) || (C.noCap ? sizeNo() : C.ident ? whyNotPts(C.deck, i, C.pool, cap) : whyNot(C.deck, i, C.pool, C.free, cap));
   const outNo = (i) => (C.noCap || C.ident ? '' : whyNotOut(C.deck, i, C.pool, C.free));
   // 同じ カードの 番号を まとめる（G：id → 番号の ならび）。stack では 見せるのは さいしょの 番号。デッキの カードの −／＋ でも つかう
   const G = new Map();
   C.pool.forEach((id, i) => { if (!G.has(id)) G.set(id, []); G.get(id).push(i); });
   const copies = (i) => G.get(C.pool[i]);
   const nIn = (i) => copies(i).filter((k) => C.deck.includes(k)).length;
+  const usable = (i) => copies(i).filter((k) => !C.phantom?.has(k)).length; // この デッキに 入れられる まい数
+  // 在庫（パック＆バトル）：「もち 4・ほか 3・あと 1」
+  const stockOf = (i) => { const k = C.stock(C.pool[i]); return { ...k, left: usable(i) - nIn(i) }; };
   const freeOf = (i) => copies(i).find((k) => !C.deck.includes(k)); // まだ 入れて いない 1まい
   const lastIn = (i) => [...C.deck].reverse().find((k) => C.pool[k] === C.pool[i]);
   // ぜんぶ はずすと 3色の デッキに なれない（旗）
@@ -501,7 +507,7 @@ export function deckBuilder(C = advCtx()) {
   const poolHtml = (list) => (list.length ? list.map((i) => {
     if (C.stack) {
       const k = nIn(i), it = stackItem(i);
-      return `<button type="button" class="pool-item ${k ? 'in' : ''} ${!k && it.no ? 'no' : ''}" data-i="${i}">${cardFace(it.d)}<span class="pts">${ptsOf(it.d)}点</span><span class="cnt" aria-label="デッキに ${k}まい（つかえる ${copies(i).length}まい）">${'●'.repeat(k)}${'○'.repeat(copies(i).length - k)}</span></button>`;
+      return `<button type="button" class="pool-item ${k ? 'in' : ''} ${!k && it.no ? 'no' : ''} ${C.stock ? 'stocked' : ''}" data-i="${i}">${cardFace(it.d)}<span class="pts">${ptsOf(it.d)}点</span><span class="cnt" aria-label="デッキに ${k}まい（つかえる ${usable(i)}まい）">${'●'.repeat(k)}${'○'.repeat(usable(i) - k)}</span>${C.stock ? ((t) => `<span class="stk ${t.other ? 'used' : ''}">もち${t.own}${t.other ? `・ほか${t.other}` : ''}・あと${t.left}</span>`)(stockOf(i)) : ''}</button>`;
     }
     const inDeck = C.deck.includes(i);
     const no = !inDeck && ruleNo(i);
@@ -548,7 +554,7 @@ export function deckBuilder(C = advCtx()) {
           <button type="button" class="fine" data-fine="1" aria-pressed="${F.open}" aria-expanded="${F.open}">こまかく${filterCount(F) ? `<b>${filterCount(F)}</b>` : ''}</button>
         </div>
         <div class="b-view" role="tablist"><button type="button" role="tab" data-view="pool" aria-selected="${view === 'pool'}">カードを えらぶ</button><button type="button" role="tab" data-view="deck" aria-selected="${view === 'deck'}">デッキ ${st.count}まい</button></div>
-        <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}</p>
+        <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}${C.stock ? 'カードの 下：もち＝もって いる まい数・ほか＝ほかの デッキで つかって いる・あと＝この デッキに 入れられる。' : ''}</p>
       </header>
       ${view === 'deck' ? deckHtml(st) : `${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
       <div class="pool ${mode}">${poolHtml(list)}</div>`}
@@ -560,7 +566,7 @@ export function deckBuilder(C = advCtx()) {
   const showDetail = async (i) => {
     if (C.stack) {
       const f = freeOf(i), last = lastIn(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f);
-      const v = await sheet(`${detail(BY_ID[C.pool[i]])}<p class="zk-note">デッキに ${nIn(i)}まい（つかえる カード ${copies(i).length}まい）</p>`, [
+      const v = await sheet(`${detail(BY_ID[C.pool[i]])}<p class="zk-note">${C.stock ? ((t) => `もって いる ${t.own}まい／ほかの デッキで ${t.other}まい つかって いる／この デッキに ${nIn(i)}まい／あと ${t.left}まい 入れられる`)(stockOf(i)) : `デッキに ${nIn(i)}まい（つかえる カード ${usable(i)}まい）`}</p>`, [
         { label: '1まい 入れる', value: 'in', kind: 'primary', disabled: !!no, note: no || '' },
         ...(last != null ? [{ label: '1まい はずす', value: 'out', disabled: !!outNo(last), note: outNo(last) }] : []),
         { label: 'とじる', value: null },

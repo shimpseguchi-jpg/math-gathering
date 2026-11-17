@@ -1723,7 +1723,9 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .pb-guide { margin: 0; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--gold); background: var(--table-2); font-weight: 700; line-height: 1.7; }
 .pb-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .pb-steps .st-ep { min-height: 62px; }
-.pb-steps .st-ep > b { font-size: 24px; width: 1.4em; text-align: center; }
+.pb-steps .st-ep > b { display: flex; align-items: center; gap: 8px; font-size: 22px; }
+.pb-num { font-style: normal; width: 1em; text-align: center; }
+.pb-ico { width: 30px; height: 30px; fill: currentColor; image-rendering: pixelated; }
 .pb-steps .st-title { font-size: 17px; }
 .pb-steps .st-ep.next { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); position: relative; }
 .pb-steps .st-ep.next em { color: var(--gold-text); font-weight: 700; }
@@ -1738,4 +1740,32 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .pb .st-ch h3 small { font-weight: 500; }
 .qz-note { font-size: 20px; font-weight: 700; }
 @media (max-width: 420px) { .pb-stats { grid-template-columns: repeat(2, 1fr); } }
-:root[data-theme="gba"] :is(.pb-stats li, .pb-guide, .pb-need) { border-radius: 3px; }
+/* デッキ：つかう デッキの しるし・カードの 在庫（もち・ほか・あと） */
+.pb .cs-deck.on { border-color: var(--gold); }
+.pb-use { background: var(--gold); color: var(--gold-ink); }
+/* 在庫の ふだは うすく しない（カードだけ うすく する） */
+.pool-item.stocked, .pool-item.stocked.no { opacity: 1; }
+.pool-item.stocked .card { opacity: 0.55; } .pool-item.stocked.in .card { opacity: 1; } .pool-item.stocked.no .card { opacity: 0.3; }
+.pool-item .stk { display: block; margin: 4px auto 0; padding: 1px 2px; border-radius: 6px; background: #10162c; color: #fff; font-size: 10px; font-weight: 700; line-height: 1.4; white-space: nowrap; letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
+.pool-item .stk.used { background: #5a1f14; color: #ffe08a; }
+/* ドット（GBA ふう）：この モードの きまりの みため（packbattle.js の look が data-theme を gba に する）。字は ドットの 書体、わくは RPG の まど */
+:root[data-theme="gba"] .pb { font-family: var(--display); }
+:root[data-theme="gba"] .pb :is(.zk-note, .st-ep small, .cs-meta small, .cs-meta em, .pb-list) { font-family: var(--display); }
+:root[data-theme="gba"] .pb :is(.pb-stats li, .pb-guide, .st-ch, .cs-set, .cs-deck, .st-ep) { background: var(--win); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .pb .pb-need { background: var(--table); border: 2px dashed var(--bad); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pb .pb-stats li.ok { border-color: var(--good); }
+:root[data-theme="gba"] .pb :is(.pb-guide, .cs-deck.on, .st-ep.next, .st-ep.open) { border-color: var(--gold); }
+:root[data-theme="gba"] .pb .pb-steps .st-ep.next { background: linear-gradient(#5068d8, #2c3ca8); box-shadow: 0 0 0 2px var(--px), 0 0 0 4px var(--gold), 4px 4px 0 4px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .pb .pb-steps .st-ep:active { transform: translate(2px, 2px); }
+:root[data-theme="gba"] .pb .st-ep.lock { background: var(--table); }
+:root[data-theme="gba"] .pb :is(.pb-steps .st-ep.next::after, .pb-use, .cs-rule) { border-radius: 2px; box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pb .st-ch .st-ep { box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pb :is(h2, .pb-stats b, .pb-foe b) { text-shadow: 2px 2px 0 var(--px); }
+/* もんだい（しゅぎょうの 画面）：この モードの あいだだけ ドットの わく・ボタン（ほかの モードの しゅぎょうは かえない） */
+:root.pb-on[data-theme="gba"] .study { font-family: var(--display); }
+:root.pb-on[data-theme="gba"] .study :is(.qz-q, .qz-pad button, .qz-choices button, .qz-cat, .qz-break li, .qz-say) { font-family: var(--display); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root.pb-on[data-theme="gba"] .study .qz-q { border-color: var(--paper-ink); }
+:root.pb-on[data-theme="gba"] .study :is(.qz-pad button, .qz-choices button):active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--px), 2px 2px 0 2px rgba(0, 0, 0, 0.45); }
+:root.pb-on[data-theme="gba"] .study :is(.qz-bar, .qz-bar i, .qz-mark, .qz-miss li) { border-radius: 2px; }
+:root.pb-on[data-theme="gba"] .study .qz-bar { box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pool-item .stk { font-family: var(--display); border-radius: 2px; }

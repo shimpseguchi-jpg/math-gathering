@@ -20,7 +20,7 @@ const marked = (t) => esc(t).replace(/［(.+?)］/g, '<b class="qz-target">$1</b
 
 // o = { cats, setCats(cats), record({ n, ok, stat }) → もらった ポイント, back() }
 //   ぼうけんの まえ・おわりの しゅぎょう（emblem.js）：say { who, text }（ふきだし）・eyebrow・reward（ポイントの せつめい）・backLabel・doneLabel・noBack（もどる ボタンなし）
-//   パック＆バトルの もんだい（packbattle.js）：lead（はじめの せつめい。html）・onAnswer(せいかいか) → ○× の 下に 出す ことば・gainLabel（もらえる ものの なまえ）・gainUnit・
+//   パック＆バトルの もんだい（packbattle.js）：title（見出し）・lead（はじめの せつめい。html）・onAnswer(せいかいか) → ○× の 下に 出す ことば・gainLabel（もらえる ものの なまえ）・gainUnit・
 //   noPass（ごうかくが ない：せいかいの ぶんだけ もらえる）・quitNote（やめる ときの ことば）
 export function studyScreen(app, o) {
   let cats = [...o.cats];
@@ -29,7 +29,7 @@ export function studyScreen(app, o) {
     app().innerHTML = `<main class="study">
       <p class="eyebrow">${esc(o.eyebrow || 'しゅぎょうの へや')}</p>
       ${o.say ? `<p class="say qz-say"><b>${esc(o.say.who)}</b><span>${esc(o.say.text)}</span></p>` : ''}
-      <h2>${QUIZ_SECONDS}びょう しゅぎょう</h2>
+      <h2>${esc(o.title || `${QUIZ_SECONDS}びょう しゅぎょう`)}</h2>
       <p class="qz-lead">${o.lead || `${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると ${o.reward || 'もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）'}。${PASS_MIN}もん いじょう とこう。`}</p>
       <h3 class="zk-h">もんだいの しゅるい</h3>
       <div class="qz-cats">${Object.entries(CATS).map(([k, c]) => `<button type="button" class="qz-cat ${cats.includes(k) ? 'on' : ''}" data-cat="${k}" aria-pressed="${cats.includes(k)}"><b>${esc(c.name)}</b><small>${esc(c.note)}</small></button>`).join('')}</div>
