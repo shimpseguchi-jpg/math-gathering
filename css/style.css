@@ -1711,3 +1711,61 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .perm-state { margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--paper-ink) 8%, transparent); border: 1px dashed color-mix(in srgb, var(--paper-ink) 35%, transparent); }
 .perm-state .ps-h { margin: 0 0 4px; font-weight: 700; font-size: 13px; }
 .perm-state ul { margin: 0; padding-left: 1.2em; font-size: 14px; line-height: 1.7; }
+
+/* ---- パック＆バトル（2026-11-17：js/ui/packbattle.js。docs/PACKBATTLE.md） ---- */
+.pb-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pb-stats li { background: var(--table-2); border: 2px solid var(--line); border-radius: 12px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; min-width: 0; }
+.pb-stats span { font-size: 11.5px; font-weight: 700; color: var(--ink-dim); }
+.pb-stats b { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.2; color: var(--gold-text); font-variant-numeric: tabular-nums; }
+.pb-stats small { font-size: 11px; color: var(--ink-dim); }
+.pb-stats li.ok { border-color: var(--good); } .pb-stats li.ok b { color: var(--good); font-size: 17px; line-height: 1.7; }
+.pb-stats li.ng b { color: var(--ink-dim); font-size: 17px; line-height: 1.7; }
+.pb-guide { margin: 0; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--gold); background: var(--table-2); font-weight: 700; line-height: 1.7; }
+.pb-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pb-steps .st-ep { min-height: 62px; }
+.pb-steps .st-ep > b { display: flex; align-items: center; gap: 8px; font-size: 22px; }
+.pb-num { font-style: normal; width: 1em; text-align: center; }
+.pb-ico { width: 30px; height: 30px; fill: currentColor; image-rendering: pixelated; }
+.pb-steps .st-title { font-size: 17px; }
+.pb-steps .st-ep.next { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); position: relative; }
+.pb-steps .st-ep.next em { color: var(--gold-text); font-weight: 700; }
+.pb-steps .st-ep.next::after { content: 'つぎは ここ'; position: absolute; top: -10px; right: 10px; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-size: 10.5px; font-weight: 700; }
+.pb-need { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 2px dashed var(--bad); background: var(--table-2); }
+.pb-need p { margin: 0; } .pb-need > p b { color: var(--gold-text); }
+.pb-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-weight: 700; text-align: left; }
+.pb-foe { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.pb-foe b { font-family: var(--display); font-weight: 400; color: var(--gold-text); }
+.pb-foe span { font-size: 19px; font-weight: 700; }
+.pb-foe small { font-size: 12px; color: var(--ink-dim); }
+.pb .st-ch h3 small { font-weight: 500; }
+.qz-note { font-size: 20px; font-weight: 700; }
+@media (max-width: 420px) { .pb-stats { grid-template-columns: repeat(2, 1fr); } }
+/* デッキ：つかう デッキの しるし・カードの 在庫（もち・ほか・あと） */
+.pb .cs-deck.on { border-color: var(--gold); }
+.pb-use { background: var(--gold); color: var(--gold-ink); }
+/* 在庫の ふだは うすく しない（カードだけ うすく する） */
+.pool-item.stocked, .pool-item.stocked.no { opacity: 1; }
+.pool-item.stocked .card { opacity: 0.55; } .pool-item.stocked.in .card { opacity: 1; } .pool-item.stocked.no .card { opacity: 0.3; }
+.pool-item .stk { display: block; margin: 4px auto 0; padding: 1px 2px; border-radius: 6px; background: #10162c; color: #fff; font-size: 10px; font-weight: 700; line-height: 1.4; white-space: nowrap; letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
+.pool-item .stk.used { background: #5a1f14; color: #ffe08a; }
+/* ドット（GBA ふう）：この モードの きまりの みため（packbattle.js の look が data-theme を gba に する）。字は ドットの 書体、わくは RPG の まど */
+:root[data-theme="gba"] .pb { font-family: var(--display); }
+:root[data-theme="gba"] .pb :is(.zk-note, .st-ep small, .cs-meta small, .cs-meta em, .pb-list) { font-family: var(--display); }
+:root[data-theme="gba"] .pb :is(.pb-stats li, .pb-guide, .st-ch, .cs-set, .cs-deck, .st-ep) { background: var(--win); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .pb .pb-need { background: var(--table); border: 2px dashed var(--bad); border-radius: 4px; box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pb .pb-stats li.ok { border-color: var(--good); }
+:root[data-theme="gba"] .pb :is(.pb-guide, .cs-deck.on, .st-ep.next, .st-ep.open) { border-color: var(--gold); }
+:root[data-theme="gba"] .pb .pb-steps .st-ep.next { background: linear-gradient(#5068d8, #2c3ca8); box-shadow: 0 0 0 2px var(--px), 0 0 0 4px var(--gold), 4px 4px 0 4px rgba(0, 0, 0, 0.45); }
+:root[data-theme="gba"] .pb .pb-steps .st-ep:active { transform: translate(2px, 2px); }
+:root[data-theme="gba"] .pb .st-ep.lock { background: var(--table); }
+:root[data-theme="gba"] .pb :is(.pb-steps .st-ep.next::after, .pb-use, .cs-rule) { border-radius: 2px; box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pb .st-ch .st-ep { box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pb :is(h2, .pb-stats b, .pb-foe b) { text-shadow: 2px 2px 0 var(--px); }
+/* もんだい（しゅぎょうの 画面）：この モードの あいだだけ ドットの わく・ボタン（ほかの モードの しゅぎょうは かえない） */
+:root.pb-on[data-theme="gba"] .study { font-family: var(--display); }
+:root.pb-on[data-theme="gba"] .study :is(.qz-q, .qz-pad button, .qz-choices button, .qz-cat, .qz-break li, .qz-say) { font-family: var(--display); border: 2px solid var(--line); border-radius: 4px; box-shadow: 0 0 0 2px var(--px), 4px 4px 0 2px rgba(0, 0, 0, 0.45); }
+:root.pb-on[data-theme="gba"] .study .qz-q { border-color: var(--paper-ink); }
+:root.pb-on[data-theme="gba"] .study :is(.qz-pad button, .qz-choices button):active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--px), 2px 2px 0 2px rgba(0, 0, 0, 0.45); }
+:root.pb-on[data-theme="gba"] .study :is(.qz-bar, .qz-bar i, .qz-mark, .qz-miss li) { border-radius: 2px; }
+:root.pb-on[data-theme="gba"] .study .qz-bar { box-shadow: 0 0 0 2px var(--px); }
+:root[data-theme="gba"] .pool-item .stk { font-family: var(--display); border-radius: 2px; }

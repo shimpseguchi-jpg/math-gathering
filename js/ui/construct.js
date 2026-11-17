@@ -219,7 +219,7 @@ function build(deck, fresh = false) {
 }
 // おまかせ：ノーマルは 30点の 中で（冒険と 同じ buildDeck）、エターナルは ねうちの 高い じゅんに 20まい。
 // 統率者の ルールは 統率者の 色で、ほかは いちばん つよい 2色で
-function autoCards(pool, rule, ident) {
+export function autoCards(pool, rule, ident) { // パック＆バトル（packbattle.js）の おまかせも これ
   const defs = pool.map((id) => BY_ID[id]);
   const inside = (pair) => defs.filter((d) => colorsOf(d).every((c) => pair.includes(c)));
   if (isEternal(rule)) {

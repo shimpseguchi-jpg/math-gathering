@@ -20,6 +20,8 @@ const marked = (t) => esc(t).replace(/［(.+?)］/g, '<b class="qz-target">$1</b
 
 // o = { cats, setCats(cats), record({ n, ok, stat }) → もらった ポイント, back() }
 //   ぼうけんの まえ・おわりの しゅぎょう（emblem.js）：say { who, text }（ふきだし）・eyebrow・reward（ポイントの せつめい）・backLabel・doneLabel・noBack（もどる ボタンなし）
+//   パック＆バトルの もんだい（packbattle.js）：title（見出し）・lead（はじめの せつめい。html）・onAnswer(せいかいか) → ○× の 下に 出す ことば・gainLabel（もらえる ものの なまえ）・gainUnit・
+//   noPass（ごうかくが ない：せいかいの ぶんだけ もらえる）・quitNote（やめる ときの ことば）
 export function studyScreen(app, o) {
   let cats = [...o.cats];
   // ---- はじめる まえ：もんだいの しゅるいを えらぶ（学校で ならった ものだけに できる） ----
@@ -27,8 +29,8 @@ export function studyScreen(app, o) {
     app().innerHTML = `<main class="study">
       <p class="eyebrow">${esc(o.eyebrow || 'しゅぎょうの へや')}</p>
       ${o.say ? `<p class="say qz-say"><b>${esc(o.say.who)}</b><span>${esc(o.say.text)}</span></p>` : ''}
-      <h2>${QUIZ_SECONDS}びょう しゅぎょう</h2>
-      <p class="qz-lead">${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると ${o.reward || 'もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）'}。${PASS_MIN}もん いじょう とこう。</p>
+      <h2>${esc(o.title || `${QUIZ_SECONDS}びょう しゅぎょう`)}</h2>
+      <p class="qz-lead">${o.lead || `${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>7わりより おおく</b> せいかいすると ${o.reward || 'もんしょうポイント ＋3（ぜんぶ せいかいなら ＋4）'}。${PASS_MIN}もん いじょう とこう。`}</p>
       <h3 class="zk-h">もんだいの しゅるい</h3>
       <div class="qz-cats">${Object.entries(CATS).map(([k, c]) => `<button type="button" class="qz-cat ${cats.includes(k) ? 'on' : ''}" data-cat="${k}" aria-pressed="${cats.includes(k)}"><b>${esc(c.name)}</b><small>${esc(c.note)}</small></button>`).join('')}</div>
       <p class="zk-note">まだ ならって いない ものは タップして はずせる。</p>
@@ -85,7 +87,8 @@ export function studyScreen(app, o) {
       $('.qz-score').innerHTML = `せいかい <b>${ok}</b> / ${n}`;
       const mk = $('.qz-mark');
       mk.hidden = false; mk.className = `qz-mark ${right ? 'good' : 'bad'}`;
-      mk.innerHTML = right ? '<b>○</b>せいかい！' : `<b>×</b>こたえは <em>${esc(q.answer)}</em>`;
+      const note = o.onAnswer?.(right) || ''; // パック＆バトル：「＋10P」など
+      mk.innerHTML = `${right ? '<b>○</b>せいかい！' : `<b>×</b>こたえは <em>${esc(q.answer)}</em>`}${note ? `<small class="qz-note">${esc(note)}</small>` : ''}`;
       wait = true;
       setTimeout(() => { wait = false; if (over) return; if (Date.now() >= end) finish(); else ask(); }, right ? 550 : 1300);
     };
@@ -103,7 +106,7 @@ export function studyScreen(app, o) {
     app().onclick = async (e) => {
       const b = e.target.closest('button'); if (!b || over) return;
       if (b.dataset.quit) {
-        const v = await sheet('<p>やめると ポイントは もらえない。</p>', [{ label: 'つづける', value: 0, kind: 'primary' }, { label: 'やめる', value: 1 }], { title: 'しゅぎょうを やめる？' });
+        const v = await sheet(`<p>${esc(o.quitNote || 'やめると ポイントは もらえない。')}</p>`, [{ label: 'つづける', value: 0, kind: 'primary' }, { label: 'やめる', value: 1 }], { title: 'しゅぎょうを やめる？' });
         if (v && !over) { stop(); o.back(); }
         return;
       }
@@ -126,10 +129,10 @@ export function studyScreen(app, o) {
     const need = Math.floor((7 * r.n) / 10) + 1; // 7わりより おおく
     app().innerHTML = `<main class="study done">
       <p class="eyebrow">しゅぎょう おしまい</p>
-      <h2>${pass ? 'ごうかく！' : r.n < PASS_MIN ? 'もう すこし とこう' : 'あと すこし！'}</h2>
+      <h2>${o.noPass ? (r.ok ? 'よく できました！' : 'また やって みよう') : pass ? 'ごうかく！' : r.n < PASS_MIN ? 'もう すこし とこう' : 'あと すこし！'}</h2>
       <p class="qz-result"><b>${r.ok}</b> / ${r.n}もん せいかい<small>（${pct(r.n, r.ok)}%）</small></p>
-      <p class="zk-note">ごうかく：${PASS_MIN}もん いじょう といて、7わりより おおく せいかい（${r.n}もんなら ${Math.max(need, PASS_MIN)}もん いじょう）</p>
-      ${gain ? `<p class="qz-gain">もんしょうポイント <b>＋${gain}</b>${r.bonus ? `<small>ボーナス ＋${r.bonus} こみ</small>` : r.n === r.ok && gain > 3 ? '<small>ぜんぶ せいかい！</small>' : ''}</p>` : ''}
+      ${o.noPass ? '' : `<p class="zk-note">ごうかく：${PASS_MIN}もん いじょう といて、7わりより おおく せいかい（${r.n}もんなら ${Math.max(need, PASS_MIN)}もん いじょう）</p>`}
+      ${gain ? `<p class="qz-gain">${esc(o.gainLabel || 'もんしょうポイント')} <b>＋${gain}${esc(o.gainUnit || '')}</b>${r.gainNote ? `<small>${esc(r.gainNote)}</small>` : r.bonus ? `<small>ボーナス ＋${r.bonus} こみ</small>` : r.n === r.ok && gain > 3 ? '<small>ぜんぶ せいかい！</small>' : ''}</p>` : ''}
       ${r.ticketNote ? `<p class="qz-gain">${r.ticket ? `パックけん <b>＋${r.ticket}</b>` : ''}<small>${esc(r.ticketNote)}</small></p>` : ''}
       <ul class="qz-break">${Object.entries(r.stat).map(([k, [a, b]]) => `<li><span>${esc(CATS[k].name)}</span><b>${b} / ${a}</b></li>`).join('')}</ul>
       ${r.miss.length ? `<h3 class="zk-h">まちがえた もんだい</h3><ul class="qz-miss">${r.miss.map(({ q, given }) => `<li>${q.clock ? `とけい（${esc(q.answer)}）` : q.kind === 'num' ? esc(q.text.includes('□') ? q.text.replace('□', `［${q.answer}］`) : `${q.text} ＝ ${q.answer}`) : marked(q.text.replace('□', `［${q.answer}］`))}<small>こたえ：${esc(q.answer)}・あなた：${esc(given)}</small></li>`).join('')}</ul>` : ''}
