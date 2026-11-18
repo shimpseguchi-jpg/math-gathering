@@ -11,6 +11,7 @@ import {
   foesOf, foeFloor, towerFloor, topStage, endlessAt, PB_SIG, SIG_COPIES, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
 } from '../data/packbattle.js';
 import { HARD_TIERS, hardSession } from '../data/quiz2.js';
+import { PB_FACES } from '../data/pbfaces.js';
 import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
 import { openPack, DECK_SIZE } from '../engine/run.js';
@@ -419,8 +420,9 @@ function arena() {
   const stars = (n) => `${'★'.repeat(Math.min(n, PB.need))}${'☆'.repeat(Math.max(0, PB.need - n))}${n > PB.need ? `（${n}回）` : ''}`;
   const foeRow = (f) => {
     const n = beatOf(f), c = f.char, place = foePlace(f);
+    const face = f.kihon ? PB_FACES[c.id] : null; // 顔グラ（この 画面 だけ。ない あいては いままで どおり ばんごう）
     return `<li><button type="button" class="st-ep pb-char ${locked ? 'lock' : n >= PB.need ? 'done' : 'open'}" data-foe="${esc(f.key)}" ${ok && !locked ? '' : 'disabled'}>
-    <b>${f.k + 1}</b><span><i class="st-title">${ruby(c.who)}${f.boss ? '<em class="pb-boss">ボス</em>' : ''}</i>
+    <b>${face ? `<img class="pb-face" src="${face}" alt="" width="96" height="96">` : f.k + 1}</b><span><i class="st-title">${ruby(c.who)}${f.boss ? '<em class="pb-boss">ボス</em>' : ''}</i>
       <small class="pb-line">${ruby(`「${c.line}」`)}</small>
       <small class="pb-kind">${pips([...c.cols])}${ruby(`${c.theme}・${c.style}${place ? `（${place}）` : ''}`)}</small>
       ${f.kihon ? '' : `<small class="pb-sig">${ruby(`きめわざ「${PB_SIG[f.floorId].def.name}」×${f.boss ? SIG_COPIES.boss : SIG_COPIES.foe}：${PB_SIG[f.floorId].text}${f.buff ? '。ボスは 本気（ほんき）：クリーチャー ＋1/＋1' : ''}${f.lifeBonus ? `。てごわいので きみの ライフ ＋${f.lifeBonus}` : ''}`)}</small>`}

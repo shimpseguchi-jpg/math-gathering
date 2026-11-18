@@ -125,7 +125,7 @@ async function battle(passive) {
 
 await page.click('.pb-steps [data-go=battle]');
 await noRoutes('バトルの 画面');
-check('きそデッキで さいしょから ステージ 1 の キャラクター（5人・ひとこと つき）を えらべる（デッキは かえられない・ステージ 2〜 は まだ）', await page.locator('[data-foe]:not([disabled])').count() === 5 && await page.locator('.pb-char .pb-line').count() === 5 && await page.locator('[data-go=deck]').count() === 0 && await page.locator('.pb-dot.lock').count() === 5);
+check('きそデッキで さいしょから ステージ 1 の キャラクター（5人・ひとこと つき）を えらべる（デッキは かえられない・ステージ 2〜 は まだ）', await page.locator('[data-foe]:not([disabled])').count() === 5 && await page.locator('.pb-char .pb-line').count() === 5 && await page.evaluate(() => [...document.querySelectorAll('[data-foe] img.pb-face')].filter((i) => i.complete && i.naturalWidth === 96).length) === 5 && await page.locator('[data-go=deck]').count() === 0 && await page.locator('.pb-dot.lock').count() === 5);
 // ステージを めくる：スワイプと やじるし。まだの ステージは 見えるが えらべない
 const pageName = async () => (await page.locator('.pb-page b').innerText()).trim();
 const swipe = async (dir) => { await page.mouse.move(195 + dir * 110, 300); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(195 + dir * 110 - dir * 220 * i / 6, 300 + i); await page.mouse.up(); await page.waitForTimeout(450); };

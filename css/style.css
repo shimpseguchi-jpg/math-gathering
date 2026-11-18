@@ -1885,6 +1885,8 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .pb-char .pb-kind .pip { font-size: 10px; padding: 0 6px; }
 .pb-char > span { gap: 2px; }
 .pb-char .pb-sig { color: var(--gold-text); }
+/* 顔グラ（96×96 の ドット絵を そのまま 大きく）：ステージを えらぶ 画面 だけ */
+.pb-face { display: block; width: 72px; height: 72px; image-rendering: pixelated; image-rendering: crisp-edges; border: 2px solid var(--gold); box-shadow: 0 0 0 2px var(--px, #05040e); background: #14112a; }
 :root.pb-on[data-theme="gba"] .pb :is(.pb-dot, .pb-lock) { border-radius: 2px; font-family: var(--display); }
 :root.pb-on[data-theme="gba"] .pb .pb-dot { background: var(--win); box-shadow: 0 0 0 2px var(--px); }
 :root.pb-on[data-theme="gba"] .pb .pb-dot.on { background: var(--gold); }

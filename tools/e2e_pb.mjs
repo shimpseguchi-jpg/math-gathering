@@ -54,6 +54,8 @@ check('あく まえ：もんだいは つかえる', await page.locator('.pb-st
 // ---- ステージ：はじめは ステージ 1 だけ。あいてを えらべる ----
 await page.click('.pb-steps [data-go=battle]');
 await shot('02_arena_first');
+const faces = await page.evaluate(() => [...document.querySelectorAll('[data-foe] img.pb-face')].map((i) => [i.complete && i.naturalWidth, i.naturalHeight, i.src.startsWith('data:image/png;base64,'), Math.round(i.src.length * 3 / 4)]));
+check('ステージ 1 の 5人に 顔グラ（96×96 の ドット絵・1まい 15KB いか）', faces.length === 5 && faces.every((f) => f[0] === 96 && f[1] === 96 && f[2] && f[3] < 15000), faces.map((f) => `${f[3]}B`).join(' '));
 check('ステージ 1 の キャラクターが 5人 ならぶ（かった 回数・ひとこと つき）。ステージ 2〜6 は まだ', await page.locator('[data-foe]:not([disabled])').count() === 5 && await page.locator('.pb-dot.lock').count() === 5 && /☆☆☆/.test(await page.locator('[data-foe]').first().innerText()) && await page.locator('.pb-char .pb-line').count() === 5 && /とつげき/.test(await page.locator('[data-foe]').first().innerText()) && await page.locator('[data-go=deck]').count() === 0, (await page.locator('[data-foe]').first().innerText()).replace(/\s+/g, ' '));
 
 // ロボット：passive なら なにも せずに ターンを おわる（まける ため）
@@ -141,6 +143,7 @@ s = await state();
 const ante = wins.find((w) => /アンティ/.test(w.title));
 check(`アンティ：もう 4まい もって いる カードは ＋${PB.anteDupe}P に かわる（カードは ふえない・わかる ように 出る）`, count(s) === count(before) && s.pts >= before.pts + PB.win + PB.anteDupe && /かわった/.test(ante?.text || ''), ante?.text.slice(0, 60));
 check(`ステージの ぜんいんを ${PB.need}回ずつ たおすと つぎの ステージが ひらく（おしらせ・せいちょうポイント ＋${PB.gpStage}）`, s.stage === 1 && s.gp === before.gp + PB.gpWin + PB.gpStage && wins.some((w) => /ステージ 2.*かいほう された/.test(w.title)), wins.map((w) => w.title).join(' → '));
+check('顔グラの ない あいて（ステージ 2）は いままで どおり ばんごう', await page.locator('img.pb-face').count() === 0 && (await page.locator('[data-foe] > b').first().innerText()).trim() === '1');
 check('ひらいた ステージ 2 が えらばれて いる（ステージ 1 にも もどれる）', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 2' && await page.locator('.pb-dot:not(.lock)').count() === 2 && await page.locator('[data-foe]:not([disabled])').count() === 5);
 await shot('04_arena_stage2');
 // ---- ステージを めくる：スワイプ・やじるし・下の 点。まだの ステージも 見えるが えらべない ----
@@ -310,11 +313,14 @@ await page.evaluate(async () => { const m = await import('./js/data/packbattle.j
 const keep = await state();
 await page.click('.pb-steps [data-go=battle]'); await page.click('.pb-dot[data-stage="0"]');
 await page.locator('[data-foe]').nth(1).click();
+await page.waitForTimeout(600);
+check('たたかいの 画面に 顔グラは 出ない', await page.locator('.battle').count() === 1 && await page.locator('img.pb-face').count() === 0);
 await battle(true);
 await shot('12_lose');
 const title = await sheetTitle();
 await sheetClick('ホームへ');
 s = await state();
+check('顔グラは ステージを えらぶ 画面 だけ（たたかいの あと・ホームには 出ない）', await page.locator('img.pb-face').count() === 0);
 check('まけたら ホームへ。ポイント・カード・かった 回数は そのまま', /まけて|ひきわけ/.test(title) && await page.locator('.pb-steps').count() === 1 && s.pts === keep.pts && count(s) === count(keep) && s.wins === keep.wins && s.gp === keep.gp, `${title}・${stockLine(s)}`);
 
 // ---- タイトルに もどると せっていの みために もどる。よみこみなおしても つづきから ----
