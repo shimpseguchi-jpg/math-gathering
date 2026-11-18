@@ -1,6 +1,6 @@
 // パック＆バトル（2026-11-17。docs/PACKBATTLE.md）：もんだいで ポイントを ためる → ショップで パックを あける → デッキを くむ → てきを 1体ずつ たおす
 // ぼうけん（とう）・こうちく・次元渡りとは べつの モード。エンジン・カード・てきは そのまま つかう。ここは 数字と てきの じゅんばん だけ（画面は ui/packbattle.js）
-import { SLOTS, pvp } from './enemies.js';
+import { SLOTS, pvp, FLOORS, KIT } from './enemies.js';
 import { RAV_SLOTS } from './ravnica.js';
 import { fillDeck } from './kihon.js';
 import { POOL1 } from './pool1.js';
@@ -111,6 +111,50 @@ export const PB_CHARS = {
   dimir: { who: 'ラザーヴ', cols: 'UK', theme: 'まねっこ', style: 'きみの いちばん つよい 子を まねる', line: 'きみは……わたしかな？' },
   jace: { who: 'ジェイス', cols: 'U', theme: '10の ギルドの 力（ちから）', style: 'だんかいごとに ちがう 力', line: 'ギルドパクトの 名に おいて。' },
 };
+// ---- きめわざ（2026-11-18）：ステージ 2〜6 の あいては、とうの デッキ（その あいて だけの チャレンジ・デッキと しくみ）に、
+// キャラクターの 色・テーマの「きめわざ」の じゅもんを まぜて たたかう。しくみ（あたま・12・かぎ など）は そのまま：デッキに 足す だけ
+// まい数：ふつうの あいて 2まい、ステージの ボス 3まい。こうかは 4しゅるい の くみあわせ（どの 階でも うごく もの だけ）
+//   zap：きみに ダメージ／bite：きみの いちばん 小さい クリーチャーに ダメージ／bind：きみの いちばん 大きい クリーチャーを タップ（freeze なら つぎも おきない）／heal：あいての ライフが ふえる（ライフの ある あいて）
+const sig = (name, fx, danger = 2) => KIT.esp(name, (s, E) => {
+  if (fx.zap) E.hurt(s, fx.zap);
+  if (fx.bite) { const t = KIT.weakest(s, E); if (t) E.damage(s, t, fx.bite, null); }
+  if (fx.bind) { const t = KIT.biggest(s, E, (p) => !p.tapped) || KIT.biggest(s, E); if (t) { t.tapped = true; if (fx.bind > 1) t.frozen = true; } }
+  if (fx.heal && typeof s.E.life === 'number') s.E.life += fx.heal;
+  E.sba(s);
+}, { danger, sig: true });
+export const PB_SIG = {
+  hydra: { text: 'きみに 1点', def: sig('ハイドラの おたけび', { zap: 1 }) },
+  clock: { text: 'いちばん 大きい 子を タップ', def: sig('はりの いたずら', { bind: 1 }) },
+  horde: { text: 'きみに 1点', def: sig('むれの どどう', { zap: 1 }) },
+  dragon: { text: 'いちばん 小さい 子に 2点', def: sig('たからを まもる ほのお', { bite: 2 }) },
+  factory: { text: 'いちばん 大きい 子を タップ', def: sig('ねじまき', { bind: 1 }) },
+  slime: { text: 'いちばん 大きい 子を タップ（つぎも おきない）', def: sig('ぷるぷる がため', { bind: 2 }) },
+  twins: { text: 'いちばん 小さい 子に 2点', def: sig('ふたごの じひびき', { bite: 2 }) },
+  xenagos: { text: 'きみに 1点', def: sig('うたげの たいこ', { zap: 1 }) },
+  gorgon: { text: 'いちばん 大きい 子を タップ（つぎも おきない）', def: sig('石の 庭の かぜ', { bind: 2 }) },
+  erebos: { text: 'きみに 2点', def: sig('エレボスの むち', { zap: 2 }, 3) },
+  boros: { text: 'いちばん 小さい 子に 2点', def: sig('オレリアの ごうれい', { bite: 2 }) },
+  selesnya: { text: 'あいての ライフ ＋2', def: sig('森の めぐみ', { heal: 2 }) },
+  simic: { text: 'いちばん 大きい 子を タップ', def: sig('のびる つた', { bind: 1 }) },
+  izzet: { text: 'いちばん 小さい 子に 2点', def: sig('ひらめきの 火花', { bite: 2 }) },
+  golgari: { text: 'いちばん 小さい 子に 1点・あいての ライフ ＋1', def: sig('くさった つち', { bite: 1, heal: 1 }) },
+  azorius: { text: 'いちばん 大きい 子を タップ（つぎも おきない）', def: sig('きまりの くさり', { bind: 2 }) },
+  rakdos: { text: 'きみに 1点', def: sig('ブーイングの あらし', { zap: 1 }) },
+  orzhov: { text: 'きみに 1点・あいての ライフ ＋1', def: sig('さいそくの てがみ', { zap: 1, heal: 1 }) },
+  gruul: { text: 'いちばん 小さい 子に 2点', def: sig('じならし', { bite: 2 }) },
+  dimir: { text: 'いちばん 大きい 子を タップ', def: sig('かげの ささやき', { bind: 1 }) },
+  jace: { text: 'いちばん 大きい 子を タップ・きみに 1点', def: sig('ジェイスの よみ', { bind: 1, zap: 1 }, 3) },
+};
+export const SIG_COPIES = { foe: 2, boss: 3 };
+// ステージ 2〜6 の あいての たたかう ばしょ：とうの 階を つくって、デッキの すきな ところに きめわざを まぜる
+export function towerFloor(f, o = {}) {
+  const base = FLOORS[f.floorId](), g = PB_SIG[f.floorId];
+  if (!g || o.plain) return base;
+  return { ...base, setup(s, E) {
+    base.setup(s, E);
+    for (let i = 0, n = f.boss ? SIG_COPIES.boss : SIG_COPIES.foe; i < n; i++) s.E.lib.splice(Math.floor(s.rng() * (s.E.lib.length + 1)), 0, E.card(g.def));
+  } };
+}
 // ステージ 1 の あいての たたかう ばしょ（てきも デッキで たたかう）
 export const foeFloor = (f) => pvp({ deck: fillDeck(f.char.ids), name: f.char.who, life: f.char.life, first: 'P', style: f.char.ai });
 // drop：アンティ（かつと もらう 1まい）の カード。w：コモン・アンコモン・レア・レジェンドの 出やすさ（boss：ステージの さいごの あいて）
@@ -132,8 +176,17 @@ export function foesOf(si, seed = 1) {
     const f = { si, k, of: n, stageName: t.name, diff: t.diff, boss: k === n - 1, buff: 0, lap: 0 };
     if (t.kihon) return { ...f, key: `${t.id}:${t.kihon[k].id}`, kihon: t.kihon[k], char: t.kihon[k] };
     const ids = t.slots[k], floorId = ids[Math.floor(seeded((seed >>> 0) + (si * 10 + k) * 7919)() * ids.length)];
-    return { ...f, key: `${t.id}:${k}`, floorId, char: PB_CHARS[floorId] };
+    return towerFoe(f, t, floorId);
   });
+}
+// ステージ 2〜6 の あいて 1人ぶん。むずかしさの ちょうせい（2026-11-18。ボスが その ステージで いちばん てごわく なる ように）：
+//   ボス：ステージ 4〜6 は クリーチャーが ＋1/＋1（buff）。ステージ 2・3 の ボスは そのままで いちばん てごわい
+//   とくに むずかしい あいて（PB_EASE）：きみの ライフを 少し 多く して はじめる（lifeBonus）
+export const BOSS_BUFF_FROM = 3; // 0 から かぞえる：3 ＝ ステージ 4
+export const PB_EASE = { 'rv-h:gruul': 6, 'th-h:dragon': 4, 'th-h:clock': 4 };
+export function towerFoe(f, t, floorId) {
+  const boss = f.boss ?? f.k === t.slots.length - 1;
+  return { ...f, boss, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
 }
 // ステージが クリアか（ぜんいんを PB.need 回ずつ）・いま ひらいて いる いちばん 上の ステージ（ぜんぶ クリアなら PB_STAGES.length ＝ むげんの たたかい）
 export const stageCleared = (beat, si, seed, need = PB.need) => foesOf(si, seed).every((f) => (beat[f.key] || 0) >= need);
@@ -143,7 +196,8 @@ export function topStage(beat, seed, floor = 0, need = PB.need) { let si = Math.
 const LOOP = PB_STAGES.map((t, si) => si).filter((si) => PB_STAGES[si].diff === 'hard');
 export function endlessAt(n, seed = 1) {
   const all = LOOP.flatMap((si) => foesOf(si, seed)), lap = Math.floor(n / all.length) + 1;
-  return { ...all[n % all.length], key: 'endless', endless: n, lap, buff: lap };
+  const f = all[n % all.length];
+  return { ...f, key: 'endless', endless: n, lap, buff: lap + (f.buff || 0) };
 }
 
 // ---- アンティ：かつと、あいての ステージの カードを 1まい もらう ----

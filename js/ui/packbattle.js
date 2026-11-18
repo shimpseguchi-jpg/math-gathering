@@ -8,7 +8,7 @@ import { BY_ID, BASICS } from '../data/cards.js';
 import { CATS, QUIZ_SECONDS } from '../data/quiz.js';
 import {
   PB, PB_NAME, PB_STAGES, PB_STARTER, PB_TREE, quizGain, battleGain, deckProblems,
-  foesOf, foeFloor, topStage, endlessAt, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
+  foesOf, foeFloor, towerFloor, topStage, endlessAt, PB_SIG, SIG_COPIES, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
 } from '../data/packbattle.js';
 import { HARD_TIERS, hardSession } from '../data/quiz2.js';
 import { colorsOf } from '../engine/game.js';
@@ -423,6 +423,7 @@ function arena() {
     <b>${f.k + 1}</b><span><i class="st-title">${ruby(c.who)}${f.boss ? '<em class="pb-boss">ボス</em>' : ''}</i>
       <small class="pb-line">${ruby(`「${c.line}」`)}</small>
       <small class="pb-kind">${pips([...c.cols])}${ruby(`${c.theme}・${c.style}${place ? `（${place}）` : ''}`)}</small>
+      ${f.kihon ? '' : `<small class="pb-sig">${ruby(`きめわざ「${PB_SIG[f.floorId].def.name}」×${f.boss ? SIG_COPIES.boss : SIG_COPIES.foe}：${PB_SIG[f.floorId].text}${f.buff ? '。ボスは 本気（ほんき）：クリーチャー ＋1/＋1' : ''}${f.lifeBonus ? `。てごわいので きみの ライフ ＋${f.lifeBonus}` : ''}`)}</small>`}
       <small>かった 回数 ${stars(n)}　＋${battleGain(f).base}P</small></span>
     <em>${locked ? 'まだ' : n >= PB.need ? 'クリア' : `あと ${PB.need - n}回`}</em></button></li>`;
   };
@@ -482,8 +483,10 @@ function fight(f) {
   if (!f || deckInfo().problems.length) return arena();
   const label = f.endless != null ? `むげん ${f.endless + 1}：${foeName(f)}` : `ステージ ${f.si + 1}：${foeName(f)}`;
   startBattle({
-    deck: playDeck(), ...(f.kihon ? { floor: foeFloor(f) } : { floorId: f.floorId }), diff: f.diff, floorName: label, buff: f.buff,
-    extraNote: f.buff ? `${f.lap}しゅうめ：てきの クリーチャーは ＋${f.buff}/＋${f.buff}` : '',
+    deck: playDeck(), floor: f.kihon ? foeFloor(f) : towerFloor(f), diff: f.diff, floorName: label, buff: f.buff,
+    life: f.lifeBonus ? 20 + f.lifeBonus : null, // とくに むずかしい あいて：ライフを 多く して はじめる
+    extraNote: [f.buff ? `${f.lap ? `${f.lap}しゅうめ：` : 'ボスは 本気（ほんき）：'}てきの クリーチャーは ＋${f.buff}/＋${f.buff}` : '', f.lifeBonus ? `てごわい あいて なので、きみの ライフは ${20 + f.lifeBonus}から` : '',
+      PB_SIG[f.floorId] && !f.kihon ? `きめわざ「${PB_SIG[f.floorId].def.name}」：${PB_SIG[f.floorId].text}` : ''].filter(Boolean).join('。'),
     quit: { label: 'ホームへ もどる', note: 'たたかいを やめて もどる？ ポイントと カードは そのまま。この てきには また いどめるよ。', go: home },
     onEnd: async (r) => {
       S = load();

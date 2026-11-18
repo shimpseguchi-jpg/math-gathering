@@ -361,6 +361,38 @@ m = await old({ v: 3, pts: 80, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1,
   quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0, starter: 1, open: 1, beat: { 'kihon:kh1': 2, 'kihon:pb2': 2, 'kihon:kh2': 2, 'kihon:pb1': 2, 'kihon:kh3': 2 }, endless: 0, gp: 10, tree: {} });
 check('2回ずつ たおして いた ステージは、しるしが なくても ひらく', m.stage === 1);
 
+// ---- ステージ 2〜6 の キャラクター：とうの しくみは そのまま、デッキに きめわざが まざる。ボスが いちばん てごわい ちょうせい ----
+const sigCheck = await page.evaluate(async () => {
+  const m = await import('./js/data/packbattle.js'), g = await import('./js/engine/game.js'), { AI } = await import('./js/engine/ai.js'), { fillDeck } = await import('./js/data/kihon.js');
+  const deck = fillDeck(m.PB_STARTER.cards), bad = [], seen = new Set();
+  for (let seed = 1; seed <= 12; seed++) for (let si = 1; si < m.PB_STAGES.length; si++) for (const f of m.foesOf(si, seed)) {
+    seen.add(f.floorId);
+    const mk = (plain) => g.newGame({ deck, floor: m.towerFloor(f, { plain }), diff: f.diff, seed: 5, ai: AI });
+    const a = mk(false), b = mk(true), n = a.E.lib.filter((c) => c.def.sig).length, want = f.boss ? m.SIG_COPIES.boss : m.SIG_COPIES.foe;
+    const names = (x) => x.E.lib.filter((c) => !c.def.sig).map((c) => c.def.name).sort().join('|') + '#' + x.E.bf.map((p) => p.def.name).sort().join('|');
+    if (n !== want || a.E.lib.length !== b.E.lib.length + want || names(a) !== names(b) || a.floor.id !== b.floor.id || a.E.lib.find((c) => c.def.sig).def.name !== m.PB_SIG[f.floorId].def.name) bad.push(`${f.key}:${f.floorId}`);
+    if ((f.buff === 1) !== (f.boss && si >= 3)) bad.push(`buff ${f.key}`);
+  }
+  return { bad, chars: seen.size, all: Object.keys(m.PB_CHARS).length };
+});
+check('ステージ 2〜6 の ぜんいん：とうの デッキと しくみは そのまま・きめわざが 2まい（ボスは 3まい）まざる・ステージ 4〜6 の ボスは ＋1/＋1', !sigCheck.bad.length && sigCheck.chars === sigCheck.all && sigCheck.all === 21, `${sigCheck.chars}人 ${sigCheck.bad.slice(0, 4).join(' ')}`);
+// ボルボルグミ（ステージ 5 の 4ばんめ）が 出る セーブ：てごわいので ライフ 26から
+const gSeed = await page.evaluate(async () => { const m = await import('./js/data/packbattle.js'); for (let x = 1; x < 400; x++) if (m.foesOf(4, x)[3].floorId === 'gruul') return x; return 0; });
+m = await old({ v: 4, pts: 80, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2 }, decks: [{ id: 'd0', name: 'きそデッキ', cards: starterCards }], active: 'd0', wins: 70, seed: gSeed,
+  quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0, starter: 1, open: 1, beat: {}, stage: 4, endless: 0, gp: 0, tree: {} });
+await page.click('.pb-steps [data-go=battle]');
+await shot('20_arena_stage5');
+const rows5 = (await page.locator('.st-ch ol').innerText()).replace(/\s+/g, ' ');
+check('えらぶ 画面に きめわざ・ボスの 本気・てごわい あいての ライフが 出る', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 5' && await page.locator('.pb-char .pb-sig').count() === 5 && /きめわざ「じならし」×2/.test(rows5) && /きみの ライフ ＋6/.test(rows5) && /きめわざ「ジェイスの よみ」×3/.test(rows5) && /＋1\/＋1/.test(rows5), rows5.slice(0, 80));
+await page.locator('[data-foe]').nth(3).click();
+await page.waitForTimeout(500);
+const goalText = (await page.locator('#sheet .sheet-body').innerText()).replace(/\s+/g, ' ');
+await sheetClick('はじめる');
+await page.locator('.battle').waitFor();
+check('ボルボルグミ：もとの かちかた（しくみ）の まま、きみの ライフは 26から', /ボルボルグミを たおす/.test(goalText) && /ライフは 26から/.test(goalText) && /きめわざ「じならし」/.test(goalText) && (await page.locator('.me-bar .life b, .life b').first().innerText()).trim() === '26', goalText.slice(0, 70));
+await page.waitForTimeout(1500);
+await page.click('[data-act=menu]'); await sheetClick('ホームへ もどる');
+
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');
 console.log(fails.length ? `FAILED: ${fails.length}` : 'ALL OK');
 await browser.close();

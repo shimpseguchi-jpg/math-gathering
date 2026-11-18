@@ -132,7 +132,7 @@ const swipe = async (dir) => { await page.mouse.move(195 + dir * 110, 300); awai
 await swipe(1);
 await noRoutes('まだの ステージ');
 await shot('3a_stage_locked');
-check('左へ スワイプで つぎの ステージ：まだ あかない（えらべない・あく 条件が 出る）', (await pageName()) === 'ステージ 2' && await page.locator('[data-foe]:not([disabled])').count() === 0 && /ステージ 1の ぜんいんを 3かいずつ たおすと あく/.test(await page.locator('.pb-lock').innerText()));
+check('左へ スワイプで つぎの ステージ：まだ あかない（えらべない・あく 条件が 出る）', (await pageName()) === 'ステージ 2' && await page.locator('[data-foe]:not([disabled])').count() === 0 && /ステージ 1の ぜんいんを 3かいずつ たおすと あく/.test(await page.locator('.pb-lock').innerText()) && await page.locator('.pb-char .pb-sig').count() === 5);
 await page.click('[data-step="-1"]');
 check('やじるしで もどれる', (await pageName()) === 'ステージ 1' && await page.locator('[data-foe]:not([disabled])').count() === 5);
 // たたかいの メニュー：ホームへ もどる だけ

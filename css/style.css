@@ -1884,6 +1884,7 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .pb-char .pb-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .pb-char .pb-kind .pip { font-size: 10px; padding: 0 6px; }
 .pb-char > span { gap: 2px; }
+.pb-char .pb-sig { color: var(--gold-text); }
 :root.pb-on[data-theme="gba"] .pb :is(.pb-dot, .pb-lock) { border-radius: 2px; font-family: var(--display); }
 :root.pb-on[data-theme="gba"] .pb .pb-dot { background: var(--win); box-shadow: 0 0 0 2px var(--px); }
 :root.pb-on[data-theme="gba"] .pb .pb-dot.on { background: var(--gold); }
