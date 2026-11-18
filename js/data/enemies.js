@@ -833,7 +833,7 @@ export function tutorial() {
 }
 
 // ===== オンラインバトル：ほかの 人の デッキ（ゴースト）と 1対1 =====
-// g = { deck: [def…], name, first: 'P' | 'E' }。どちらも ライフ 20。攻撃は あいて（プレイヤー）に する（MTG と おなじ）
+// g = { deck: [def…], name, first: 'P' | 'E', style?: 'rush' | 'guard'（こうげきの くせ） }。どちらも ライフ 20。攻撃は あいて（プレイヤー）に する（MTG と おなじ）
 // あいての ターンは P と E を 入れかえて、プレイヤー用の AI（ai.js）と カードの 効果を そのまま 使う
 export function pvp(g) {
   return {
@@ -860,6 +860,10 @@ export function pvp(g) {
       if (!s.over) E.combatStart(s);
       if (!s.over) {
         atk = AI.attack(s).filter((a) => a.t);
+        // たたかいかたの くせ（g.style。パック＆バトルの キャラクター：data/packbattle.js）。なければ いつもの AI
+        // rush：こうげきできる クリーチャーは ぜんぶ こうげき（そんな こうげきも やめない）。guard：クリーチャーの 数で かって いる ときか、あいての ライフが 少ない ときだけ こうげき
+        if (g.style === 'rush') atk = E.readyAttackers(s).map((p) => ({ p, t: 'face' }));
+        if (g.style === 'guard') { const n = (side) => side.bf.filter((q) => E.isCreature(q)).length; if (n(s.P) <= n(s.E) && s.E.life > 5) atk = []; }
         if (atk.length) { E.L(s, `てきの こうげき：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
       }
       back();

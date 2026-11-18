@@ -54,7 +54,7 @@ check('あく まえ：もんだいは つかえる', await page.locator('.pb-st
 // ---- ステージ：はじめは ステージ 1 だけ。あいてを えらべる ----
 await page.click('.pb-steps [data-go=battle]');
 await shot('02_arena_first');
-check('ステージ 1 の あいてが 4たい ならぶ（かった 回数つき）。ステージ 2〜6 は まだ', await page.locator('[data-foe]:not([disabled])').count() === 4 && await page.locator('.pb-stages [data-stage]:disabled').count() === 5 && /☆☆/.test(await page.locator('[data-foe]').first().innerText()) && await page.locator('[data-go=deck]').count() === 0);
+check('ステージ 1 の キャラクターが 5人 ならぶ（かった 回数・ひとこと つき）。ステージ 2〜6 は まだ', await page.locator('[data-foe]:not([disabled])').count() === 5 && await page.locator('.pb-dot.lock').count() === 5 && /☆☆☆/.test(await page.locator('[data-foe]').first().innerText()) && await page.locator('.pb-char .pb-line').count() === 5 && /とつげき/.test(await page.locator('[data-foe]').first().innerText()) && await page.locator('[data-go=deck]').count() === 0, (await page.locator('[data-foe]').first().innerText()).replace(/\s+/g, ' '));
 
 // ロボット：passive なら なにも せずに ターンを おわる（まける ため）
 async function battle(passive) {
@@ -132,19 +132,36 @@ check('よみこみなおしても あいた まま', (await state()).open === 1
 
 // ---- アンティの 変換と ステージの 解放：のこり 1かちで ステージ 1 を クリア・ステージ 1 の カードは ぜんぶ 4まい に して かつ ----
 const pool1 = await page.evaluate(async () => (await import('./js/data/pool1.js')).POOL1);
-await edit("for (const id of a) s.cards[id] = 4; s.beat = { 'kihon:kh1': 1, 'kihon:kh2': 2, 'kihon:pb1': 2, 'kihon:kh3': 2 }; s.wins = 7; s.gp = 7;", pool1);
+await edit("for (const id of a) s.cards[id] = 4; s.beat = { 'kihon:kh1': 2, 'kihon:pb2': 3, 'kihon:kh2': 3, 'kihon:pb1': 3, 'kihon:kh3': 3 }; s.wins = 14; s.gp = 14;", pool1);
 before = await state();
 await page.click('.pb-steps [data-go=battle]');
-check('クリアまで あと 1回と 出る', /あと 1回/.test(await page.locator('.st-ch h3').first().innerText()));
+check(`${PB.need}回ずつ：2回 かった だけでは つぎの ステージは あかない（あと 1回と 出る）`, PB.need === 3 && before.stage === 0 && /あと 1回/.test(await page.locator('.st-ch h3').first().innerText()) && /★★☆/.test(await page.locator('[data-foe]').first().innerText()) && await page.locator('.pb-dot.lock').count() === 5);
 wins = await winFoe(0);
 s = await state();
 const ante = wins.find((w) => /アンティ/.test(w.title));
 check(`アンティ：もう 4まい もって いる カードは ＋${PB.anteDupe}P に かわる（カードは ふえない・わかる ように 出る）`, count(s) === count(before) && s.pts >= before.pts + PB.win + PB.anteDupe && /かわった/.test(ante?.text || ''), ante?.text.slice(0, 60));
 check(`ステージの ぜんいんを ${PB.need}回ずつ たおすと つぎの ステージが ひらく（おしらせ・せいちょうポイント ＋${PB.gpStage}）`, s.stage === 1 && s.gp === before.gp + PB.gpWin + PB.gpStage && wins.some((w) => /ステージ 2.*かいほう された/.test(w.title)), wins.map((w) => w.title).join(' → '));
-check('ひらいた ステージ 2 が えらばれて いる（ステージ 1 にも もどれる）', (await page.locator('.pb-stages .chip.on').innerText()).trim() === '2' && await page.locator('.pb-stages [data-stage]:not([disabled])').count() === 2 && await page.locator('[data-foe]').count() === 5);
+check('ひらいた ステージ 2 が えらばれて いる（ステージ 1 にも もどれる）', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 2' && await page.locator('.pb-dot:not(.lock)').count() === 2 && await page.locator('[data-foe]:not([disabled])').count() === 5);
 await shot('04_arena_stage2');
-await page.click('.pb-stages [data-stage="0"]');
-check('クリアした ステージの あいてとも なんどでも たたかえる', await page.locator('[data-foe]:not([disabled])').count() === 4 && /クリア/.test(await page.locator('[data-foe]').first().innerText()));
+// ---- ステージを めくる：スワイプ・やじるし・下の 点。まだの ステージも 見えるが えらべない ----
+const pageName = async () => (await page.locator('.pb-page b').innerText()).trim();
+const swipe = async (dir) => { await page.mouse.move(195 + dir * 110, 300); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(195 + dir * 110 - dir * 220 * i / 6, 300 + i); await page.mouse.up(); await page.waitForTimeout(450); };
+await swipe(1); // 右から 左へ：つぎの ステージ
+check('左へ スワイプすると つぎの ステージ（まだ あかない ステージも 見える）', (await pageName()) === 'ステージ 3');
+await shot('04b_arena_locked');
+check(`まだの ステージ：えらべない。あく 条件（${PB.need}かいずつ たおすと あく）が 出る`, await page.locator('[data-foe]').count() === 5 && await page.locator('[data-foe]:not([disabled])').count() === 0 && new RegExp(`ステージ 2の ぜんいんを ${PB.need}かいずつ たおすと あく`).test(await page.locator('.pb-lock').innerText()));
+await page.locator('[data-foe]').first().click({ force: true }); await page.waitForTimeout(300);
+check('まだの ステージの あいてを おしても たたかいに ならない', await page.locator('.pb-arena').count() === 1 && await page.locator('.battle').count() === 0 && !(await sheetTitle()));
+await swipe(-1); await swipe(-1); // 左から 右へ：まえの ステージ
+check('右へ スワイプすると まえの ステージ', (await pageName()) === 'ステージ 1' && await page.locator('[data-step="-1"]:disabled').count() === 1);
+await page.click('[data-step="1"]');
+const viaArrow = await pageName();
+await page.click('.pb-dot[data-stage="5"]');
+check('やじるしと 下の 点でも めくれる（はしでは やじるしが おせない）', viaArrow === 'ステージ 2' && (await pageName()) === 'ステージ 6' && await page.locator('[data-step="1"]:disabled').count() === 1);
+await page.click('.pb-dot[data-stage="1"]');
+
+await page.click('.pb-dot[data-stage="0"]');
+check('クリアした ステージの あいてとも なんどでも たたかえる', await page.locator('[data-foe]:not([disabled])').count() === 5 && /クリア/.test(await page.locator('[data-foe]').first().innerText()));
 await page.click('[data-back]');
 
 // ---- ① もんだい：たしざん・ひきざん だけに して、5もん せいかい → 1もん まちがい → 1もん せいかい ----
@@ -291,7 +308,7 @@ await page.click('[data-quit]'); await sheetClick('やめる');
 // ---- まける：ステージ 1 の 2ばんめに なにも しないで まける → ホームへ。ポイントと カードは そのまま ----
 await page.evaluate(async () => { const m = await import('./js/data/packbattle.js'); m.foesOf(0, 1)[1].kihon.life = 99; });
 const keep = await state();
-await page.click('.pb-steps [data-go=battle]'); await page.click('.pb-stages [data-stage="0"]');
+await page.click('.pb-steps [data-go=battle]'); await page.click('.pb-dot[data-stage="0"]');
 await page.locator('[data-foe]').nth(1).click();
 await battle(true);
 await shot('12_lose');
@@ -315,9 +332,9 @@ check('ぼうけん・こうちくの セーブは そのまま', other[0] === n
 const old = async (v) => { await page.evaluate((x) => localStorage.setItem('mtg-packbattle-v1', JSON.stringify(x)), v); await page.reload(); await page.click('[data-go=pb]'); return state(); };
 // いちばん まえ（デッキが 1つ・きそデッキ なし）で 4たい たおして いた：ステージ 1 は クリア、ステージ 2 の 1たいめも クリア
 let m = await old({ v: 1, pts: 30, cards: { U01: 2, U02: 2, R01: 3, C01: 1 }, deck: ['U01', 'U01', 'U02', 'U02', 'R01', 'R01', 'R01', 'C01'], wins: 4, seed: 7, quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0 });
-check('まえの セーブ（4たい たおした）：ステージ 2 が ひらいて いて、たおした あいては クリア・せいちょうポイントも もらう', m.open === 1 && m.pts === 30 && m.wins === 4 && m.stage === 1 && m.gp === 4 * PB.gpWin + PB.gpStage && Object.values(m.beat).filter((n) => n >= PB.need).length === 5 && m.decks.length === 2 && m.active === 'd1' && stockOk(m), `ステージ ${m.stage + 1}・せいちょう ${m.gp}・${Object.keys(m.beat).join(' ')}`);
+check('まえの セーブ（4たい たおした）：ステージ 2 が ひらいて いて、たおした あいては クリア・せいちょうポイントも もらう', m.open === 1 && m.pts === 30 && m.wins === 4 && m.stage === 1 && m.gp === 4 * PB.gpWin + PB.gpStage && Object.values(m.beat).filter((n) => n >= PB.need).length === 6 && m.decks.length === 2 && m.active === 'd1' && stockOk(m), `ステージ ${m.stage + 1}・せいちょう ${m.gp}・${Object.keys(m.beat).join(' ')}`);
 await page.click('.pb-steps [data-go=battle]');
-check('まえの セーブ：ステージ 2 の 画面に クリアが 1つ', await page.locator('.pb-stages [data-stage]:not([disabled])').count() === 2 && await page.locator('[data-foe].done').count() === 1);
+check('まえの セーブ：ステージ 2 の 画面に クリアが 1つ', await page.locator('.pb-dot:not(.lock)').count() === 2 && await page.locator('[data-foe].done').count() === 1);
 // まだ 1たいも たおして いない：あいて いない。きそデッキで たたかう
 m = await old({ v: 1, pts: 30, cards: { U01: 2, U02: 2, R01: 3, C01: 1 }, deck: ['U01', 'U01', 'U02', 'U02', 'R01', 'R01', 'R01', 'C01'], wins: 0, seed: 7, quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0 });
 check('まえの セーブ（まだ たおして いない）：あいて いない。きそデッキで たたかう（もとの デッキは のこる）', m.open !== 1 && m.active === 'd0' && m.decks.length === 2 && m.stage === 0 && m.gp === 0 && await page.locator('.pb-steps [data-go=shop]:disabled').count() === 1 && (await nextStep()) === 'battle');
@@ -326,9 +343,23 @@ const five = Array.from({ length: 5 }, (_, i) => ({ id: `d${i}`, name: i ? `デ�
 m = await old({ v: 2, pts: 500, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2 }, decks: five, active: 'd0', wins: 30, seed: 7, quiz: { n: 9, ok: 8, sessions: 2 }, opened: 3, earned: 0, lost: 0, starter: 1, open: 1 });
 check('まえの セーブ（30たい たおした）：ステージは ぜんぶ クリア・むげんの たたかいの つづきから', m.stage === 6 && m.endless === 2 && m.gp === 30 * PB.gpWin + 6 * PB.gpStage && m.wins === 30, `せいちょう ${m.gp}・むげん ${m.endless}`);
 await page.click('.pb-steps [data-go=battle]');
-check('むげんの たたかいに いどめる', (await page.locator('.pb-stages .chip.on').innerText()).trim() === '∞' && await page.locator('[data-foe=endless]:not([disabled])').count() === 1);
+check('むげんの たたかいに いどめる', (await page.locator('.pb-page b').innerText()).trim() === 'むげんの たたかい' && await page.locator('[data-foe=endless]:not([disabled])').count() === 1);
 await page.click('[data-back]'); await page.click('.pb-steps [data-go=deck]');
 check(`デッキが 5こ ある まえの セーブ：とりあげない。わく（${PB.deckBase}こ）が おいつくまで あたらしく つくれない だけ`, (await state()).decks.length === 5 && await page.locator('.cs-deck').count() === 5 && await page.locator('[data-new]:disabled').count() === 1);
+
+// 2回ずつで ひらいた ころの セーブ（ステージ 1 は 4人を 2回ずつ・ステージ 2 が ひらいて いる）：とじない。かった 回数は そのまま
+const starterCards = ['W10', 'W10', 'W02', 'W02', 'W03', 'W31', 'W101', 'G01', 'G01', 'G09', 'G11', 'G11', 'C18', 'C18'];
+m = await old({ v: 3, pts: 80, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2 }, decks: [{ id: 'd0', name: 'きそデッキ', cards: starterCards }], active: 'd0', wins: 9, seed: 7,
+  quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0, starter: 1, open: 1, beat: { 'kihon:kh1': 2, 'kihon:kh2': 2, 'kihon:pb1': 2, 'kihon:kh3': 2, 'th-e:0': 1 }, stage: 1, endless: 0, gp: 12, tree: { cap: 1 } });
+check('2回ずつで ひらいた セーブ：ステージ 2 は ひらいた まま（とじない）。かった 回数・せいちょうは そのまま', m.stage === 1 && m.beat['kihon:kh1'] === 2 && !m.beat['kihon:pb2'] && m.beat['th-e:0'] === 1 && m.gp === 12 && m.tree.cap === 1 && m.wins === 9, JSON.stringify(m.beat));
+await page.click('.pb-steps [data-go=battle]');
+check('2回ずつで ひらいた セーブ：ステージ 2 の あいてを えらべる', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 2' && await page.locator('[data-foe]:not([disabled])').count() === 5 && await page.locator('.pb-dot:not(.lock)').count() === 2);
+await page.click('.pb-dot[data-stage="0"]');
+check('2回ずつで ひらいた セーブ：ステージ 1 は クリアの まま、あたらしい なかま（メエ）とも たたかえる', /クリア！/.test(await page.locator('.st-ch h3').first().innerText()) && await page.locator('[data-foe]:not([disabled])').count() === 5 && /メエ/.test(await page.locator('.st-ch').innerText()));
+// ひらいた しるし（stage）が ない ときも、2回ずつの きまりで ひらいて いた ぶんは ひらく
+m = await old({ v: 3, pts: 80, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2 }, decks: [{ id: 'd0', name: 'きそデッキ', cards: starterCards }], active: 'd0', wins: 10, seed: 7,
+  quiz: { n: 9, ok: 8, sessions: 2 }, opened: 1, earned: 0, lost: 0, starter: 1, open: 1, beat: { 'kihon:kh1': 2, 'kihon:pb2': 2, 'kihon:kh2': 2, 'kihon:pb1': 2, 'kihon:kh3': 2 }, endless: 0, gp: 10, tree: {} });
+check('2回ずつ たおして いた ステージは、しるしが なくても ひらく', m.stage === 1);
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');
 console.log(fails.length ? `FAILED: ${fails.length}` : 'ALL OK');

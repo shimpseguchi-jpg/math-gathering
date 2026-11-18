@@ -125,7 +125,16 @@ async function battle(passive) {
 
 await page.click('.pb-steps [data-go=battle]');
 await noRoutes('バトルの 画面');
-check('きそデッキで さいしょから ステージ 1 の あいて（4たい）を えらべる（デッキは かえられない・ステージ 2〜 は まだ）', await page.locator('[data-foe]:not([disabled])').count() === 4 && await page.locator('[data-go=deck]').count() === 0 && await page.locator('.pb-stages [data-stage]:disabled').count() === 5);
+check('きそデッキで さいしょから ステージ 1 の キャラクター（5人・ひとこと つき）を えらべる（デッキは かえられない・ステージ 2〜 は まだ）', await page.locator('[data-foe]:not([disabled])').count() === 5 && await page.locator('.pb-char .pb-line').count() === 5 && await page.locator('[data-go=deck]').count() === 0 && await page.locator('.pb-dot.lock').count() === 5);
+// ステージを めくる：スワイプと やじるし。まだの ステージは 見えるが えらべない
+const pageName = async () => (await page.locator('.pb-page b').innerText()).trim();
+const swipe = async (dir) => { await page.mouse.move(195 + dir * 110, 300); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(195 + dir * 110 - dir * 220 * i / 6, 300 + i); await page.mouse.up(); await page.waitForTimeout(450); };
+await swipe(1);
+await noRoutes('まだの ステージ');
+await shot('3a_stage_locked');
+check('左へ スワイプで つぎの ステージ：まだ あかない（えらべない・あく 条件が 出る）', (await pageName()) === 'ステージ 2' && await page.locator('[data-foe]:not([disabled])').count() === 0 && /ステージ 1の ぜんいんを 3かいずつ たおすと あく/.test(await page.locator('.pb-lock').innerText()));
+await page.click('[data-step="-1"]');
+check('やじるしで もどれる', (await pageName()) === 'ステージ 1' && await page.locator('[data-foe]:not([disabled])').count() === 5);
 // たたかいの メニュー：ホームへ もどる だけ
 await page.locator('[data-foe]').first().click();
 await page.waitForTimeout(400);
@@ -206,7 +215,7 @@ await page.click('[data-back]');
 
 // ---- ⑤ バトル：くんだ デッキで 2たいめに 出られる ----
 await page.click('.pb-steps [data-go=battle]');
-check('⑤ バトル：くんだ デッキで あいてを えらべる（1たいめには かった 回数が つく）', await page.locator('[data-foe]:not([disabled])').count() === 4 && /★☆/.test(await page.locator('[data-foe]').first().innerText()) && (await page.locator('.deckline').innerText()).includes(s.decks[1].name));
+check('⑤ バトル：くんだ デッキで あいてを えらべる（1たいめには かった 回数が つく）', await page.locator('[data-foe]:not([disabled])').count() === 5 && /★☆☆/.test(await page.locator('[data-foe]').first().innerText()) && (await page.locator('.deckline').innerText()).includes(s.decks[1].name));
 await page.locator('[data-foe]').nth(1).click();
 await page.waitForTimeout(400);
 if (await page.locator('#sheet:not([hidden]) button:has-text("はじめる")').count()) await sheetClick('はじめる');
@@ -232,9 +241,9 @@ await page.click('[data-back]');
 // ---- まえの 形の セーブ（単体版・28たいを じゅんばんに）：3たい たおして いた → ステージ 2 が ひらいて いる ----
 const keepSave = await state();
 let m = await edit({ v: 2, solo: 1, pts: 120, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2 }, decks: [{ id: 'd0', name: 'きそデッキ', cards: ['W10', 'W10', 'W02', 'W02', 'W03', 'W31', 'W101', 'G01', 'G01', 'G09', 'G11', 'G11', 'C18', 'C18'] }], active: 'd0', wins: 3, seed: 9, quiz: { n: 4, ok: 4, sessions: 1 }, opened: 0, earned: 0, lost: 0, starter: 1, open: 1 });
-check('まえの 形の セーブを うつす：ステージ 2 が ひらいて いる・せいちょうポイントも もらう', m.stage === 1 && m.gp === 3 + 3 && m.pts === 120 && m.wins === 3 && Object.values(m.beat).filter((n) => n >= 2).length === 4 && m.open === 1, `ステージ ${m.stage + 1}・せいちょう ${m.gp}`);
+check('まえの 形の セーブを うつす：ステージ 2 が ひらいて いる・せいちょうポイントも もらう', m.stage === 1 && m.gp === 3 + 3 && m.pts === 120 && m.wins === 3 && Object.values(m.beat).filter((n) => n >= 3).length === 5 && m.open === 1, `ステージ ${m.stage + 1}・せいちょう ${m.gp}`);
 await page.click('.pb-steps [data-go=battle]');
-check('まえの セーブ：ステージ 2 の あいてを えらべる', (await page.locator('.pb-stages .chip.on').innerText()).trim() === '2' && await page.locator('[data-foe]:not([disabled])').count() === 5);
+check('まえの セーブ：ステージ 2 の あいてを えらべる', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 2' && await page.locator('[data-foe]:not([disabled])').count() === 5);
 await page.click('[data-back]');
 await edit(keepSave);
 

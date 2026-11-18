@@ -1,8 +1,8 @@
 // パック＆バトル（2026-11-17。docs/PACKBATTLE.md）：もんだいで ポイントを ためる → ショップで パックを あける → デッキを くむ → てきを 1体ずつ たおす
 // ぼうけん（とう）・こうちく・次元渡りとは べつの モード。エンジン・カード・てきは そのまま つかう。ここは 数字と てきの じゅんばん だけ（画面は ui/packbattle.js）
-import { SLOTS } from './enemies.js';
+import { SLOTS, pvp } from './enemies.js';
 import { RAV_SLOTS } from './ravnica.js';
-import { KIHON_FLOORS } from './kihon.js';
+import { fillDeck } from './kihon.js';
 import { POOL1 } from './pool1.js';
 import { SETS } from './cards.js';
 import { BY_ID } from './cards.js';
@@ -23,7 +23,7 @@ export const PB = {
   minCards: 6, // デッキに いる カード（きほんカードは のぞく）。パック 2つで かならず とどく 数（AI の おまかせで 6〜12まい）
   deckBase: 3, deckMax: 5, // のこせる デッキの 数：はじめは 3こ。せいちょうの「デッキの わく」で 5こまで
   cap: 30, capStep: 2, // デッキの 点：はじめは 30点。せいちょうの「キャパシティ」で ＋2ずつ（40点まで）
-  need: 2, // つぎの ステージが ひらく：ステージの ぜんいんを この 回数ずつ たおす
+  need: 3, // （2026-11-18 に 2回から 3回に） つぎの ステージが ひらく：ステージの ぜんいんを この 回数ずつ たおす
   anteDupe: 20, // アンティ：もう 4まい もって いる カードは ポイントに かわる
   gpWin: 1, gpStage: 3, // せいちょうポイント：かつと ＋1、ステージを クリアすると ＋3
   quizTier: [10, 15, 20], // もんだい 1もんの ポイント：ふつう・むずかしい・とても むずかしい
@@ -71,11 +71,51 @@ export const packsFor = (lv = 0) => [...PB_PACKS, ...PB_PACKS_MORE.slice(0, lv)]
 // 6つの ステージ。ステージの 中では あいてを えらべる。ぜんいんを PB.need 回ずつ たおすと つぎの ステージが ひらく
 // AI の しらべ（パック 2〜32こ ぶんの カードで おまかせデッキ・100回ずつ）：みならい 81〜100%・テーロス かんたん 78〜100%・テーロス ふつう 43〜95%・
 // ラヴニカ ふつう 66〜95%・ラヴニカ むずかしい 51〜91%・テーロス むずかしい 23〜85%（どれも さいごの ボスが いちばん ひくい）
-// みならいの みちは 4たい：みならいの しけんの 3階 ＋ もりの なかま（てきも 1年生の カードプール）
-const FOREST = { id: 'pb1', name: 'もりの なかま', foe: 'もりの なかま', life: 12, ids: ['G01', 'G11', 'C02', 'G09', 'G01', 'C18', 'G05', 'C01'] };
+// ---- キャラクター（2026-11-18）：あいては みんな、じぶんだけの デッキと たたかいかたを もつ ----
+// who：なまえ、cols：色、theme：デッキの テーマ、style：たたかいかた（えらぶ 画面に 出す ことば）、line：ひとこと
+// ステージ 1 の 5人：1年生の カードプールの デッキ（きほんカードで 20まいに する）。ai：こうげきの くせ（enemies.js の pvp の style。なければ いつもの AI）
+// id は かった 回数を おぼえる 名前（kh1・kh2・kh3・pb1 は まえの セーブの まま）
+const S1 = [
+  { id: 'kh1', who: 'ゴブリンの ガブ', cols: 'R', theme: '小さい なかまを たくさん', style: 'どんどん せめる', ai: 'rush', life: 10,
+    line: 'まって られない！ ぜんいん とつげきだ！', ids: ['R01', 'R01', 'R76', 'R76', 'R77', 'R77', 'C18', 'R21'] },
+  { id: 'pb2', who: 'ひつじかいの メエ', cols: 'W', theme: 'まもりと かいふく', style: 'じっくり まもる', ai: 'guard', life: 12,
+    line: 'あわてない、あわてない。ひつじと いっしょに まもるよ。', ids: ['W03', 'W03', 'W10', 'W10', 'C02', 'C02', 'W02', 'W101'] },
+  { id: 'kh2', who: 'そらの ソラ', cols: 'U', theme: 'そらを とぶ なかま', style: 'うえから ねらう', ai: '', life: 12,
+    line: 'そらの うえから しつれい！ とどくかな？', ids: ['U01', 'U01', 'U02', 'C01', 'C01', 'U14', 'U09', 'U82'] },
+  { id: 'pb1', who: 'もりの モリー', cols: 'G', theme: '大きな なかま', style: '大きく そだててから', ai: 'guard', life: 12,
+    line: 'ゆっくり 大きく なるよ。どーん！', ids: ['G01', 'G01', 'G11', 'G11', 'G05', 'G09', 'C18', 'C02'] },
+  { id: 'kh3', who: 'テフェリーの でし ミラ', cols: 'WU', theme: 'まもって とんで、じゅもんも つかう', style: 'バランスよく', ai: '', life: 14,
+    line: 'せんせいに ならった こと、ぜんぶ 見せるね。', ids: ['W02', 'U01', 'W03', 'U14', 'W19', 'U82', 'W22', 'U02', 'W02'] },
+];
+// ステージ 2〜6：とうの あいて（それぞれ きまった しくみで たたかう）。同じ あいてが、ステージが すすむと つよく なって 出て くる
+export const PB_CHARS = {
+  hydra: { who: 'ハイドラ', cols: 'G', theme: 'ふえる あたま', style: 'たおされても はえて くる', line: 'あたまを たおしても、また はえて くるぞ。' },
+  clock: { who: 'からくり とけいとう', cols: '', theme: 'ちょうど 12', style: 'ぴったりを まつ', line: 'はりを ちょうど 12に とめて ごらん。' },
+  horde: { who: 'ミノタウルスの たいぐん', cols: 'R', theme: 'かぞえきれない むれ', style: '数で おす', line: 'おれたちは やまほど いるぞ！' },
+  dragon: { who: 'たからの 山の ドラゴン', cols: 'R', theme: 'たからを まもる', style: 'ねむって いて、足音で おきる', line: 'ぐう……だれだ、わしの きんかに さわるのは。' },
+  factory: { who: 'ゴーレム工場', cols: '', theme: 'かぎの 数と ぴったり', style: 'ゴーレムを つくりつづける', line: 'かぎと 同じ 数で ないと、こわれないよ。' },
+  slime: { who: 'ふえる スライム', cols: 'G', theme: 'わかれて ふえる', style: 'たおすと 半分ずつに なる', line: 'ぷるん。きっても きっても ふえるよ。' },
+  twins: { who: 'ふたごの きょじん', cols: 'R', theme: 'いつも 2人 いっしょ', style: 'かたほうを つれもどす', line: 'ふたり いっしょで ないと、たおれないぞ。' },
+  xenagos: { who: 'ゼナゴス', cols: 'RG', theme: 'おまつりの なかま', style: 'なかまに まもって もらう', line: 'さあ、うたげの はじまりだ！' },
+  gorgon: { who: 'メドゥーサ', cols: 'KG', theme: '石の 庭', style: '大きい あいてを 石に する', line: 'つよい 子ほど、石に なるのよ。' },
+  erebos: { who: '死者の神（かみ） エレボス', cols: 'K', theme: '3つの だんかい', style: 'だんだん ほんきに なる', line: 'ここまで 来るとは。ほんきを 見せよう。' },
+  boros: { who: 'オレリア', cols: 'RW', theme: 'ボロスの 軍団（ぐんだん）', style: '3人 いじょうで いっせいに', line: 'ぜんいん、すすめ！' },
+  selesnya: { who: 'トロスターニ', cols: 'GW', theme: 'なえぎと かいふく', style: 'なえぎを ふやして ライフを もどす', line: '森は、ゆっくり そだつのです。' },
+  simic: { who: 'ヴォレル', cols: 'GU', theme: 'そだつ 生きもの', style: 'カウンターを 2ばいに する', line: 'じっけん かいし。もっと 大きく！' },
+  izzet: { who: 'ニヴ＝ミゼット', cols: 'UR', theme: 'じゅもんの じっけん', style: 'じゅもんで じわじわ けずる', line: 'わしの ひらめきを 見るが よい。' },
+  golgari: { who: 'ジャラド', cols: 'KG', theme: '地下（ちか）の むれ', style: 'なかまが たおれると 元気に なる', line: 'たおれても、土に かえる だけさ。' },
+  azorius: { who: 'イスペリア', cols: 'WU', theme: 'きまりで しばる', style: 'カードの コストを ふやす', line: 'きまりは きまりです。' },
+  rakdos: { who: 'ラクドス', cols: 'KR', theme: 'はでな ショー', style: 'せめないと ブーイング', line: 'もっと はでに やれ！' },
+  orzhov: { who: 'テイサ', cols: 'WK', theme: 'すいとる 聖堂（せいどう）', style: 'すこしずつ ライフを すいとる', line: 'おだいは、いただきますよ。' },
+  gruul: { who: 'ボルボルグミ', cols: 'RG', theme: '大きな 1体', style: '1ターンで たおさないと もどる', line: 'ボルボル、つよい！' },
+  dimir: { who: 'ラザーヴ', cols: 'UK', theme: 'まねっこ', style: 'きみの いちばん つよい 子を まねる', line: 'きみは……わたしかな？' },
+  jace: { who: 'ジェイス', cols: 'U', theme: '10の ギルドの 力（ちから）', style: 'だんかいごとに ちがう 力', line: 'ギルドパクトの 名に おいて。' },
+};
+// ステージ 1 の あいての たたかう ばしょ（てきも デッキで たたかう）
+export const foeFloor = (f) => pvp({ deck: fillDeck(f.char.ids), name: f.char.who, life: f.char.life, first: 'P', style: f.char.ai });
 // drop：アンティ（かつと もらう 1まい）の カード。w：コモン・アンコモン・レア・レジェンドの 出やすさ（boss：ステージの さいごの あいて）
 export const PB_STAGES = [
-  { id: 'kihon', name: 'みならいの みち', diff: 'easy', kihon: [KIHON_FLOORS[0], KIHON_FLOORS[1], FOREST, KIHON_FLOORS[2]], drop: { ids: POOL1, w: [70, 25, 5, 0], boss: [40, 40, 18, 2] } },
+  { id: 'kihon', name: 'みならいの みち', diff: 'easy', kihon: S1, drop: { ids: POOL1, w: [70, 25, 5, 0], boss: [40, 40, 18, 2] } },
   { id: 'th-e', name: 'テーロス（かんたん）', diff: 'easy', slots: SLOTS, drop: { sets: [1], w: [65, 28, 7, 0], boss: [35, 40, 22, 3] } },
   { id: 'th-n', name: 'テーロス（ふつう）', diff: 'normal', slots: SLOTS, drop: { sets: [2], w: [55, 33, 11, 1], boss: [25, 40, 30, 5] } },
   { id: 'rv-n', name: 'ラヴニカ（ふつう）', diff: 'normal', slots: RAV_SLOTS, drop: { sets: [1, 2], w: [50, 35, 13, 2], boss: [20, 40, 33, 7] } },
@@ -85,19 +125,20 @@ export const PB_STAGES = [
 const sizeOf = (t) => (t.kihon || t.slots).length;
 export const PB_TOTAL = PB_STAGES.reduce((t, x) => t + sizeOf(x), 0);
 // ステージ si の あいての ならび。seed：セーブごとの 数（2〜3しゅるいから えらぶ あいては、同じ セーブなら いつも 同じ）
-// → [{ key（かった 回数を おぼえる 名前）, si, k, of, stageName, diff, boss, buff: 0, kihon: 階 | floorId }]
+// → [{ key（かった 回数を おぼえる 名前）, si, k, of, stageName, diff, boss, buff: 0, char：キャラクター, kihon：ステージ 1 の デッキの あいて | floorId }]
 export function foesOf(si, seed = 1) {
   const t = PB_STAGES[si], n = sizeOf(t);
   return Array.from({ length: n }, (_, k) => {
     const f = { si, k, of: n, stageName: t.name, diff: t.diff, boss: k === n - 1, buff: 0, lap: 0 };
-    if (t.kihon) return { ...f, key: `${t.id}:${t.kihon[k].id}`, kihon: t.kihon[k] };
-    const ids = t.slots[k];
-    return { ...f, key: `${t.id}:${k}`, floorId: ids[Math.floor(seeded((seed >>> 0) + (si * 10 + k) * 7919)() * ids.length)] };
+    if (t.kihon) return { ...f, key: `${t.id}:${t.kihon[k].id}`, kihon: t.kihon[k], char: t.kihon[k] };
+    const ids = t.slots[k], floorId = ids[Math.floor(seeded((seed >>> 0) + (si * 10 + k) * 7919)() * ids.length)];
+    return { ...f, key: `${t.id}:${k}`, floorId, char: PB_CHARS[floorId] };
   });
 }
 // ステージが クリアか（ぜんいんを PB.need 回ずつ）・いま ひらいて いる いちばん 上の ステージ（ぜんぶ クリアなら PB_STAGES.length ＝ むげんの たたかい）
-export const stageCleared = (beat, si, seed) => foesOf(si, seed).every((f) => (beat[f.key] || 0) >= PB.need);
-export function topStage(beat, seed) { let si = 0; while (si < PB_STAGES.length && stageCleared(beat, si, seed)) si++; return si; }
+export const stageCleared = (beat, si, seed, need = PB.need) => foesOf(si, seed).every((f) => (beat[f.key] || 0) >= need);
+// floor：もう ひらいた ステージ（セーブの stage）。きまりが かわっても（2回 → 3回・あいてが ふえた）、ひらいた ステージは とじない
+export function topStage(beat, seed, floor = 0, need = PB.need) { let si = Math.max(0, floor | 0); while (si < PB_STAGES.length && stageCleared(beat, si, seed, need)) si++; return si; }
 // むげんの たたかい（ぜんぶ クリアした あとの おまけ）：「むずかしい」の 2つの ステージを じゅんばんに。1しゅう ごとに てきの クリーチャーが ＋1/＋1
 const LOOP = PB_STAGES.map((t, si) => si).filter((si) => PB_STAGES[si].diff === 'hard');
 export function endlessAt(n, seed = 1) {
@@ -151,8 +192,8 @@ export function migrateProgress(wins, seed = 1) {
   let left = Math.max(0, wins | 0), si = 0;
   while (si < OLD.length && left >= OLD[si]) { all(si); left -= OLD[si]; si++; }
   if (si >= OLD.length) return { beat, endless: left, stage: PB_STAGES.length, gp: wins * PB.gpWin + PB_STAGES.length * PB.gpStage };
-  // みならいの みちは あいてが 1たい ふえた：まえの じゅんばん（ゴブリン・そら・テフェリー）で かぞえる
-  const order = si === 0 ? foesOf(0, seed).filter((f) => f.kihon.id !== FOREST.id) : foesOf(si, seed);
+  // みならいの みちは あいてが ふえた：まえの じゅんばん（ゴブリン・そら・テフェリー）で かぞえる
+  const order = si === 0 ? ['kh1', 'kh2', 'kh3'].map((id) => foesOf(0, seed).find((f) => f.kihon.id === id)) : foesOf(si, seed);
   for (const f of order.slice(0, left)) beat[f.key] = PB.need;
   return { beat, endless: 0, stage: si, gp: wins * PB.gpWin + si * PB.gpStage };
 }

@@ -1866,3 +1866,26 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 /* えらんだ カードの せつめいは 上の まどに（たたかいの あいだ） */
 :root.pb-on[data-theme="gba"]:has(.battle) #sheet:has(.sheet-body > .detail) { align-items: flex-start; padding-top: env(safe-area-inset-top, 0px); }
 :root.pb-on[data-theme="gba"]:has(.battle) #sheet:has(.sheet-body > .detail) .sheet-body { border-bottom: 2px solid var(--line); border-top: 0; animation: none; }
+
+/* ---- パック＆バトル：ステージを めくる 画面と キャラクター（2026-11-18。docs/PACKBATTLE.md 13章） ---- */
+.pb-arena { touch-action: pan-y; } /* よこの スワイプは ステージを めくる（たての スクロールは そのまま） */
+.pb-pager { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.pb-arrow { min-width: 54px; min-height: 54px; font-size: 20px; padding: 0; }
+.pb-page { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.pb-page b { font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--gold-text); }
+.pb-page span { font-size: 14px; font-weight: 700; }
+.pb-dots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.pb-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--table-2); color: var(--ink); font-weight: 700; cursor: pointer; padding: 0; }
+.pb-dot.on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.pb-dot.lock { opacity: 0.45; border-style: dashed; }
+.pb-swipe-note { text-align: center; }
+.pb-lock { margin: 0; padding: 8px 10px; border-radius: 10px; border: 2px dashed var(--bad); font-weight: 700; }
+.pb-char .pb-line { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.5; }
+.pb-char .pb-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.pb-char .pb-kind .pip { font-size: 10px; padding: 0 6px; }
+.pb-char > span { gap: 2px; }
+:root.pb-on[data-theme="gba"] .pb :is(.pb-dot, .pb-lock) { border-radius: 2px; font-family: var(--display); }
+:root.pb-on[data-theme="gba"] .pb .pb-dot { background: var(--win); box-shadow: 0 0 0 2px var(--px); }
+:root.pb-on[data-theme="gba"] .pb .pb-dot.on { background: var(--gold); }
+:root.pb-on[data-theme="gba"] .pb .pb-lock { background: #1c0d1c; }
+:root.pb-on[data-theme="gba"] .pb .st-ch.pb-locked { border-color: #5a4d86; }
