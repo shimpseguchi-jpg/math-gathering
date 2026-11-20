@@ -143,7 +143,10 @@ s = await state();
 const ante = wins.find((w) => /アンティ/.test(w.title));
 check(`アンティ：もう 4まい もって いる カードは ＋${PB.anteDupe}P に かわる（カードは ふえない・わかる ように 出る）`, count(s) === count(before) && s.pts >= before.pts + PB.win + PB.anteDupe && /かわった/.test(ante?.text || ''), ante?.text.slice(0, 60));
 check(`ステージの ぜんいんを ${PB.need}回ずつ たおすと つぎの ステージが ひらく（おしらせ・せいちょうポイント ＋${PB.gpStage}）`, s.stage === 1 && s.gp === before.gp + PB.gpWin + PB.gpStage && wins.some((w) => /ステージ 2.*かいほう された/.test(w.title)), wins.map((w) => w.title).join(' → '));
-check('顔グラの ない あいて（ステージ 2）は いままで どおり ばんごう', await page.locator('img.pb-face').count() === 0 && (await page.locator('[data-foe] > b').first().innerText()).trim() === '1');
+// 顔グラの ならび：その ページの ぜんぶの 行に 96×96 の 絵が 72px で 出て、行から はみ出さず、文字と かさならず、よこに スクロール しない
+const faceRows = () => page.evaluate(() => { const vw = document.documentElement.clientWidth; return [...document.querySelectorAll('[data-foe]')].map((b) => { const i = b.querySelector('img.pb-face'), t = b.querySelector('.st-title'); if (!i) return { ok: false, why: 'ない' }; const r = b.getBoundingClientRect(), q = i.getBoundingClientRect(), u = t.getBoundingClientRect(); const ok = i.complete && i.naturalWidth === 96 && i.naturalHeight === 96 && Math.round(q.width) === 76 && Math.round(q.height) === 76 && q.left >= r.left && q.right <= r.right && q.top >= r.top && q.bottom <= r.bottom && u.left >= q.right && r.left >= 0 && r.right <= vw && getComputedStyle(i).imageRendering !== 'auto' && document.documentElement.scrollWidth <= vw; return { ok, why: `${Math.round(q.width)}x${Math.round(q.height)} ${Math.round(r.right)}/${vw}`, src: i.src.length }; }); });
+let fr = await faceRows();
+check('ステージ 2 の あいてにも 顔グラ（5人・行が くずれない）', fr.length === 5 && fr.every((x) => x.ok) && new Set(fr.map((x) => x.src)).size >= 4, fr.map((x) => x.why).join(' '));
 check('ひらいた ステージ 2 が えらばれて いる（ステージ 1 にも もどれる）', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 2' && await page.locator('.pb-dot:not(.lock)').count() === 2 && await page.locator('[data-foe]:not([disabled])').count() === 5);
 await shot('04_arena_stage2');
 // ---- ステージを めくる：スワイプ・やじるし・下の 点。まだの ステージも 見えるが えらべない ----
@@ -152,6 +155,8 @@ const swipe = async (dir) => { await page.mouse.move(195 + dir * 110, 300); awai
 await swipe(1); // 右から 左へ：つぎの ステージ
 check('左へ スワイプすると つぎの ステージ（まだ あかない ステージも 見える）', (await pageName()) === 'ステージ 3');
 await shot('04b_arena_locked');
+fr = await faceRows();
+check('スワイプで めくった まだの ステージ（ロック中）でも 顔グラが 出て、行が くずれない', fr.length === 5 && fr.every((x) => x.ok), fr.map((x) => x.why).join(' '));
 check(`まだの ステージ：えらべない。あく 条件（${PB.need}かいずつ たおすと あく）が 出る`, await page.locator('[data-foe]').count() === 5 && await page.locator('[data-foe]:not([disabled])').count() === 0 && new RegExp(`ステージ 2の ぜんいんを ${PB.need}かいずつ たおすと あく`).test(await page.locator('.pb-lock').innerText()));
 await page.locator('[data-foe]').first().click({ force: true }); await page.waitForTimeout(300);
 check('まだの ステージの あいてを おしても たたかいに ならない', await page.locator('.pb-arena').count() === 1 && await page.locator('.battle').count() === 0 && !(await sheetTitle()));
@@ -161,6 +166,13 @@ await page.click('[data-step="1"]');
 const viaArrow = await pageName();
 await page.click('.pb-dot[data-stage="5"]');
 check('やじるしと 下の 点でも めくれる（はしでは やじるしが おせない）', viaArrow === 'ステージ 2' && (await pageName()) === 'ステージ 6' && await page.locator('[data-step="1"]:disabled').count() === 1);
+{ // ぜんぶの ステージ（ロック中も）の ぜんぶの 行に 顔グラ。ぜんぶで 26しゅるい（ステージ 1 の 5人 ＋ ステージ 2〜6 の 21人）
+  const bad = [], kinds = new Set();
+  for (let si = 0; si < 6; si++) { await page.click(`.pb-dot[data-stage="${si}"]`); await page.waitForTimeout(120); const rows = await faceRows(); if (!rows.length || !rows.every((x) => x.ok)) bad.push(`${si + 1}:${rows.map((x) => x.why).join(',')}`); (await page.evaluate(() => [...document.querySelectorAll('img.pb-face')].map((i) => i.src))).forEach((u) => kinds.add(u)); if (si === 5) await shot('04c_arena_stage6_faces'); }
+  check('ぜんぶの ステージの ぜんぶの 行に 顔グラ（ロック中も・くずれない）', bad.length === 0 && kinds.size >= 5 + 10, bad.join(' ') || `${kinds.size}しゅるい`);
+  const all = await page.evaluate(async () => { const m = await import('/js/data/pbfaces.js'), d = await import('/js/data/packbattle.js'); const ids = ['kh1', 'pb2', 'kh2', 'pb1', 'kh3', ...Object.keys(d.PB_CHARS)]; return { n: Object.keys(m.PB_FACES).length, miss: ids.filter((i) => !m.PB_FACES[i]), big: Object.values(m.PB_FACES).filter((u) => u.length * 3 / 4 > 15000).length }; });
+  check('顔グラは 26人 ぜんいんぶん（1まい 15KB いか）', all.n === 26 && all.miss.length === 0 && all.big === 0, JSON.stringify(all));
+}
 await page.click('.pb-dot[data-stage="1"]');
 
 await page.click('.pb-dot[data-stage="0"]');
