@@ -99,12 +99,12 @@ export const PB_CHARS = {
   xenagos: { who: 'ゼナゴス', cols: 'RG', theme: 'おまつりの なかま', style: 'なかまに まもって もらう', line: 'さあ、うたげの はじまりだ！' },
   gorgon: { who: 'メドゥーサ', cols: 'KG', theme: '石の 庭', style: '大きい あいてを 石に する', line: 'つよい 子ほど、石に なるのよ。' },
   erebos: { who: '死者の神（かみ） エレボス', cols: 'K', theme: '3つの だんかい', style: 'だんだん ほんきに なる', line: 'ここまで 来るとは。ほんきを 見せよう。' },
-  boros: { who: 'オレリア', cols: 'RW', theme: 'ボロスの 軍団（ぐんだん）', style: '3人 いじょうで いっせいに', line: 'ぜんいん、すすめ！' },
+  boros: { who: 'オレリア', cols: 'RW', theme: 'ボロスの 軍団（ぐんだん）', style: 'なかまを そろえて せめる', line: 'ぜんいん、すすめ！' },
   selesnya: { who: 'トロスターニ', cols: 'GW', theme: 'なえぎと かいふく', style: 'なえぎを ふやして ライフを もどす', line: '森は、ゆっくり そだつのです。' },
-  simic: { who: 'ヴォレル', cols: 'GU', theme: 'そだつ 生きもの', style: 'カウンターを 2ばいに する', line: 'じっけん かいし。もっと 大きく！' },
+  simic: { who: 'ヴォレル', cols: 'GU', theme: 'そだつ 生きもの', style: 'カウンターで なかまを そだてる', line: 'じっけん かいし。もっと 大きく！' },
   izzet: { who: 'ニヴ＝ミゼット', cols: 'UR', theme: 'じゅもんの じっけん', style: 'じゅもんで じわじわ けずる', line: 'わしの ひらめきを 見るが よい。' },
   golgari: { who: 'ジャラド', cols: 'KG', theme: '地下（ちか）の むれ', style: 'なかまが たおれると 元気に なる', line: 'たおれても、土に かえる だけさ。' },
-  azorius: { who: 'イスペリア', cols: 'WU', theme: 'きまりで しばる', style: 'カードの コストを ふやす', line: 'きまりは きまりです。' },
+  azorius: { who: 'イスペリア', cols: 'WU', theme: 'きまりで しばる', style: 'まもりを かためて、きまりで しばる', line: 'きまりは きまりです。' },
   rakdos: { who: 'ラクドス', cols: 'KR', theme: 'はでな ショー', style: 'せめないと ブーイング', line: 'もっと はでに やれ！' },
   orzhov: { who: 'テイサ', cols: 'WK', theme: 'すいとる 聖堂（せいどう）', style: 'すこしずつ ライフを すいとる', line: 'おだいは、いただきますよ。' },
   gruul: { who: 'ボルボルグミ', cols: 'RG', theme: '大きな 1体', style: '1ターンで たおさないと もどる', line: 'ボルボル、つよい！' },
@@ -146,14 +146,88 @@ export const PB_SIG = {
   jace: { text: 'いちばん 大きい 子を タップ・きみに 1点', def: sig('ジェイスの よみ', { bind: 1, zap: 1 }, 3) },
 };
 export const SIG_COPIES = { foe: 2, boss: 3 };
+// ---- なかま（2026-11-20）：とうの しくみで たたかう 13人に、その キャラクター だけの あたらしい クリーチャーを 1しゅるい ----
+// しくみの こま（あたま・ふたご・ドラゴン など）と もとの じゅもんは そのまま。まい数は きめわざと おなじ（2まい・ボス 3まい）
+// swap：もとの デッキの ふつうの 手下（いちばん 小さい もの）と 入れかえる（デッキの まい数は そのまま）。なければ 足す
+// role：true ＝ せめる、false ＝ まもる（きみに ブロックできる クリーチャーが いない ときだけ こうげき）
+const pal = (name, pow, tou, kw, role, text, swap = false) => ({ text, swap, def: KIT.ecr(name, pow, tou, [], kw, { attacks: role, pal: true }) });
+export const PB_PAL = {
+  hydra: pal('ぬまの ちびハイドラ', 2, 2, [], true, '2/2・こうげきして くる'),
+  clock: pal('ねじまき ふくろう', 1, 2, ['flying'], true, '1/2 飛行（ひこう）・こうげきして くる'),
+  horde: pal('むれの たいこもち', 2, 2, ['haste'], true, '2/2 速攻（そっこう）・こうげきして くる', true),
+  dragon: pal('たからの 番を する コボルド', 1, 3, [], false, '1/3・まもり役'),
+  factory: pal('くみたて中の ゴーレム', 2, 4, [], false, '2/4・まもり役'),
+  slime: pal('ちびスライム', 1, 1, [], true, '1/1・こうげきして くる'),
+  twins: pal('きょじんの いわはこび', 3, 2, [], true, '3/2・こうげきして くる', true),
+  xenagos: pal('おどる サテュロス', 2, 1, ['haste'], true, '2/1 速攻（そっこう）・こうげきして くる'),
+  gorgon: pal('石に された 英雄（えいゆう）', 0, 5, [], false, '0/5・まもり役'),
+  erebos: pal('冥界（めいかい）の 門番', 2, 4, [], false, '2/4・まもり役'),
+  gruul: pal('あれ地の イノシシ', 3, 2, ['trample'], true, '3/2 トランプル・こうげきして くる', true),
+  dimir: pal('かげの うつし身', 1, 3, [], false, '1/3・まもり役'),
+  jace: pal('ジェイスの うつし絵', 2, 3, ['flying'], true, '2/3 飛行（ひこう）・こうげきして くる', true),
+};
+const PLAIN = new Set(['name', 'types', 'pow', 'tou', 'sub', 'kw', 'color', 'cost', 'attacks']);
+const isPlain = (d) => d.types.includes('creature') && d.attacks === true && Object.keys(d).every((k) => PLAIN.has(k));
+// ---- ギルドの リーダー 8人（2026-11-20）：ステージ 1 と おなじ つくり。じぶんの デッキ（ほんものの カード）を AI が 手札と マナで つかう ----
+// ギルドの きまり（とうの ラヴニカの 階と おなじ もの）は そのまま 上に のせる。ids：ステージ 4 の デッキ、hard：ステージ 5 で 足す カード、life：[ステージ 4, ステージ 5]
+// ai：こうげきの くせ（rush・guard・なし）。rule：えらぶ 画面と かちかたの まどに 出す きまり
+const SAPLING = KIT.ecr('苗木（なえぎ）', 1, 1, ['sapling'], [], { sapling: true });
+const spellHit = (who, heal) => (s, E, n) => { if (heal) s.E.life += n; E.L(s, `${who}：じゅもんで ${n}点`); E.hurt(s, n); };
+export const PB_GUILD = {
+  boros: { ai: '', life: [10, 11], ids: ['RV02', 'RV03', 'RV04', 'R01', 'R27', 'W18', 'R76', 'W17'], hard: ['RV05', 'RV02'],
+    rule: '3体（たい） いじょうで こうげき すると、ぜんぶ パワー ＋1',
+    beforeAttack(s, E, ps) { if (ps.length >= 3) { for (const p of ps) E.pump(p, 1, 0); E.L(s, `大隊（だいたい）：${ps.length}体で こうげき、ぜんぶ ＋1`); } } },
+  selesnya: { ai: '', life: [8, 9], ids: ['RV07', 'RV09', 'G01', 'G01', 'W03', 'G11', 'W10', 'G21'], hard: ['RV08', 'G21'],
+    rule: 'ターンの はじめに 苗木（なえぎ）が 1体 ふえる（2体まで）。ふえる たびに ライフ ＋1',
+    turnStart(s, E) { const n = () => E.creatures(s, 'E').filter((p) => p.def.sapling).length; if (n() < 2) { E.token(s, 'E', SAPLING); s.E.life += 1; E.L(s, `トロスターニ：なえぎが ふえた（${n()}体）、ライフ ＋1（${s.E.life}）`); } } },
+  simic: { ai: '', life: [8, 9], ids: ['RV12', 'RV12', 'RV13', 'RV13', 'RV14', 'G20', 'G20', 'U18', 'U18', 'U01'], hard: ['RV15', 'G14', 'U34'],
+    rule: 'ターンの はじめに、あいての クリーチャーの ＋1/＋1カウンターが 2ばいに なる（なければ 1こ。4こまで）',
+    turnStart(s, E) { for (const p of E.creatures(s, 'E')) { const k = Math.min(4, p.ctr ? p.ctr * 2 : 1); if (k > (p.ctr || 0)) E.addCounters(s, p, k - (p.ctr || 0)); } E.L(s, 'ヴォレル：カウンターが 2ばい'); } },
+  izzet: { ai: '', life: [8, 9], ids: ['RV17', 'RV17', 'RV18', 'RV18', 'RV19', 'R10', 'U09', 'U82', 'R21', 'R14'], hard: ['RV20', 'R22', 'RV19'],
+    rule: 'あいてが じゅもんを つかう たびに、きみに 1点', onSpells: spellHit('ニヴ＝ミゼット', false) },
+  golgari: { ai: '', life: [13, 16], ids: ['RV22', 'RV22', 'RV23', 'RV23', 'RV24', 'RV25', 'K02', 'K02', 'K08', 'G12', 'K15', 'G01'], hard: ['RV25', 'K07', 'RV24', 'K18'],
+    rule: 'あいての クリーチャーが たおれると、つぎの ターンの はじめに あいての ライフが その 数だけ ふえる',
+    turnStart(s, E) { const n = s.E.gy.filter((c) => c.def.types.includes('creature')).length, d = n - (s.E.flags.pbDead || 0); s.E.flags.pbDead = n; if (d > 0) { s.E.life += d; E.L(s, `ジャラド：ライフ ＋${d}（${s.E.life}）`); } } },
+  azorius: { ai: 'guard', life: [9, 10], ids: ['RV27', 'RV27', 'RV28', 'RV29', 'RV30', 'W11', 'W11', 'U01', 'U01', 'W03', 'U30'], hard: ['RV30', 'W14', 'U34'],
+    rule: 'きみの カードは コストが 1 ふえる（きほんカードは そのまま）',
+    hooks: { costTax: (s, d) => (s.swapped || d.basic || !d.cost ? 0 : 1) } },
+  rakdos: { ai: '', life: [8, 9], ids: ['RV32', 'RV32', 'RV33', 'RV34', 'K21', 'K21', 'R28', 'R28', 'R02', 'K14'], hard: ['RV35', 'R33', 'RV33'],
+    rule: '2ターンめから、きみの ターンに あいてへの ダメージが 3点より 少ないと、2点 うける（ブーイング）',
+    turnStart(s, E) { const d = s.E.flags.pbShow ?? 3; if (d < 3 && s.stats.playerTurns >= 2) { E.L(s, `ラクドス：${d}点 だけ？ ブーイング！`); E.hurt(s, 2); } },
+    hooks: { endTurn(s, E) { if (!s.swapped && s.active === 'P') s.E.flags.pbShow = E.dmgThisTurn(s); } } },
+  orzhov: { ai: '', life: [8, 9], ids: ['RV37', 'RV37', 'RV38', 'RV39', 'RV40', 'K04', 'K05', 'W10', 'K01', 'K01'], hard: ['RV38', 'RV39', 'K13'],
+    rule: 'あいてが じゅもんを つかう たびに、きみに 1点・あいての ライフ ＋1（ゆすり）', onSpells: spellHit('テイサ', true) },
+};
+// ギルドの リーダーの たたかう ばしょ。o.life・o.ids：しらべ用（ちょうせい）
+export function guildFloor(f, o = {}) {
+  const g = PB_GUILD[f.floorId], c = PB_CHARS[f.floorId], hard = f.diff === 'hard';
+  const ids = o.ids || [...g.ids, ...(hard ? g.hard : [])];
+  return pvp({ deck: fillDeck(ids), name: c.who, life: o.life || g.life[hard ? 1 : 0], first: 'P', style: g.ai,
+    turnStart: g.turnStart, beforeAttack: g.beforeAttack, onSpells: g.onSpells, hooks: g.hooks,
+    goal: () => `${c.who}「${c.line}」\n${c.who}の ライフを 0に する。${g.rule}。` });
+}
 // ステージ 2〜6 の あいての たたかう ばしょ：とうの 階を つくって、デッキの すきな ところに きめわざを まぜる
 export function towerFloor(f, o = {}) {
   const base = FLOORS[f.floorId](), g = PB_SIG[f.floorId];
   if (!g || o.plain) return base;
-  return { ...base, setup(s, E) {
+  const n = f.boss ? SIG_COPIES.boss : SIG_COPIES.foe, q = PB_PAL[f.floorId];
+  const put = (s, E, def) => s.E.lib.splice(Math.floor(s.rng() * (s.E.lib.length + 1)), 0, E.card(def));
+  const floor = { ...base, setup(s, E) {
     base.setup(s, E);
-    for (let i = 0, n = f.boss ? SIG_COPIES.boss : SIG_COPIES.foe; i < n; i++) s.E.lib.splice(Math.floor(s.rng() * (s.E.lib.length + 1)), 0, E.card(g.def));
+    for (let i = 0; i < n; i++) put(s, E, g.def);
+    if (!q) return;
+    // なかま：ふつうの 手下の 小さい ほうから 入れかえる（swap）。入れかえる ものが なければ 足す
+    const plain = q.swap ? s.E.lib.filter((c) => isPlain(c.def)).sort((a, b) => a.def.pow + a.def.tou - b.def.pow - b.def.tou).slice(0, n) : [];
+    for (const c of plain) s.E.lib[s.E.lib.indexOf(c)] = E.card(q.def);
+    for (let i = plain.length; i < n; i++) put(s, E, q.def);
   } };
+  // こうげきの ない 階（ハイドラ・エレボスの 1だんかいめ）：なかま だけ こうげきする
+  if (q && (f.floorId === 'hydra' || f.floorId === 'erebos')) floor.enemyTurn = async (s, E) => {
+    const noStep = f.floorId === 'hydra' || s.phase === 1;
+    await base.enemyTurn(s, E);
+    if (!s.over && noStep) await E.enemyAttack(s, KIT.attackers(s, E, (p) => p.def.pal && p.def.attacks));
+  };
+  return floor;
 }
 // ステージ 1 の あいての たたかう ばしょ（てきも デッキで たたかう）
 export const foeFloor = (f) => pvp({ deck: fillDeck(f.char.ids), name: f.char.who, life: f.char.life, first: 'P', style: f.char.ai });
@@ -186,7 +260,7 @@ export const BOSS_BUFF_FROM = 3; // 0 から かぞえる：3 ＝ ステージ 4
 export const PB_EASE = { 'rv-h:gruul': 6, 'th-h:dragon': 4, 'th-h:clock': 4 };
 export function towerFoe(f, t, floorId) {
   const boss = f.boss ?? f.k === t.slots.length - 1;
-  return { ...f, boss, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
+  return { ...f, boss, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], ghost: !!PB_GUILD[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
 }
 // ステージが クリアか（ぜんいんを PB.need 回ずつ）・いま ひらいて いる いちばん 上の ステージ（ぜんぶ クリアなら PB_STAGES.length ＝ むげんの たたかい）
 export const stageCleared = (beat, si, seed, need = PB.need) => foesOf(si, seed).every((f) => (beat[f.key] || 0) >= need);

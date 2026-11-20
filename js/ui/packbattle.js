@@ -8,7 +8,7 @@ import { BY_ID, BASICS } from '../data/cards.js';
 import { CATS, QUIZ_SECONDS } from '../data/quiz.js';
 import {
   PB, PB_NAME, PB_STAGES, PB_STARTER, PB_TREE, quizGain, battleGain, deckProblems,
-  foesOf, foeFloor, towerFloor, topStage, endlessAt, PB_SIG, SIG_COPIES, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
+  foesOf, foeFloor, towerFloor, guildFloor, topStage, endlessAt, PB_SIG, PB_PAL, PB_GUILD, SIG_COPIES, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
 } from '../data/packbattle.js';
 import { HARD_TIERS, hardSession } from '../data/quiz2.js';
 import { PB_FACES } from '../data/pbfaces.js';
@@ -410,6 +410,9 @@ function build(deck) {
 // ---- ④ バトル：ステージの 中の あいてを えらんで たたかう。ぜんいんを PB.need 回ずつ たおすと つぎの ステージが ひらく ----
 let VIEW = null; // 見て いる ステージ（PB_STAGES.length ＝ むげんの たたかい）
 let SWIPED = 0; // さいごに スワイプした とき（すぐ あとの タップを むしする）
+const sigN = (f) => (f.boss ? SIG_COPIES.boss : SIG_COPIES.foe);
+// デッキで たたかう あいての こうげきの くせ（enemies.js の pvp の style）
+const AI_WORD = { rush: 'こうげきできる 子は ぜんぶ こうげき', guard: '数で かって いる ときだけ こうげき', '': 'ようすを 見て こうげき' };
 // ステージを 左右に めくる（スワイプ・やじるし・下の 点）。まだの ステージも 見られるが、えらべない
 function arena() {
   const t = top(), D = deckInfo(), ok = !D.problems.length, N = PB_STAGES.length;
@@ -425,7 +428,9 @@ function arena() {
     <b>${face ? `<img class="pb-face" src="${face}" alt="" width="96" height="96">` : f.k + 1}</b><span><i class="st-title">${ruby(c.who)}${f.boss ? '<em class="pb-boss">ボス</em>' : ''}</i>
       <small class="pb-line">${ruby(`「${c.line}」`)}</small>
       <small class="pb-kind">${pips([...c.cols])}${ruby(`${c.theme}・${c.style}${place ? `（${place}）` : ''}`)}</small>
-      ${f.kihon ? '' : `<small class="pb-sig">${ruby(`きめわざ「${PB_SIG[f.floorId].def.name}」×${f.boss ? SIG_COPIES.boss : SIG_COPIES.foe}：${PB_SIG[f.floorId].text}${f.buff ? '。ボスは 本気（ほんき）：クリーチャー ＋1/＋1' : ''}${f.lifeBonus ? `。てごわいので きみの ライフ ＋${f.lifeBonus}` : ''}`)}</small>`}
+      ${f.kihon ? '' : `<small class="pb-sig">${ruby(f.ghost
+    ? `じぶんの デッキ（カード ${PB_GUILD[f.floorId].ids.length + (f.diff === 'hard' ? PB_GUILD[f.floorId].hard.length : 0)}まい ＋ きほんカード）で たたかう。${AI_WORD[PB_GUILD[f.floorId].ai]}。きまり：${PB_GUILD[f.floorId].rule}`
+    : `きめわざ「${PB_SIG[f.floorId].def.name}」×${sigN(f)}：${PB_SIG[f.floorId].text}。なかま「${PB_PAL[f.floorId].def.name}」×${sigN(f)}：${PB_PAL[f.floorId].text}${f.buff ? '。ボスは 本気（ほんき）：クリーチャー ＋1/＋1' : ''}${f.lifeBonus ? `。てごわいので きみの ライフ ＋${f.lifeBonus}` : ''}`)}</small>`}
       <small>かった 回数 ${stars(n)}　＋${battleGain(f).base}P</small></span>
     <em>${locked ? 'まだ' : n >= PB.need ? 'クリア' : `あと ${PB.need - n}回`}</em></button></li>`;
   };
@@ -485,10 +490,11 @@ function fight(f) {
   if (!f || deckInfo().problems.length) return arena();
   const label = f.endless != null ? `むげん ${f.endless + 1}：${foeName(f)}` : `ステージ ${f.si + 1}：${foeName(f)}`;
   startBattle({
-    deck: playDeck(), floor: f.kihon ? foeFloor(f) : towerFloor(f), diff: f.diff, floorName: label, buff: f.buff,
+    deck: playDeck(), floor: f.kihon ? foeFloor(f) : f.ghost ? guildFloor(f) : towerFloor(f), diff: f.diff, floorName: label, buff: f.buff,
     life: f.lifeBonus ? 20 + f.lifeBonus : null, // とくに むずかしい あいて：ライフを 多く して はじめる
     extraNote: [f.buff ? `${f.lap ? `${f.lap}しゅうめ：` : 'ボスは 本気（ほんき）：'}てきの クリーチャーは ＋${f.buff}/＋${f.buff}` : '', f.lifeBonus ? `てごわい あいて なので、きみの ライフは ${20 + f.lifeBonus}から` : '',
-      PB_SIG[f.floorId] && !f.kihon ? `きめわざ「${PB_SIG[f.floorId].def.name}」：${PB_SIG[f.floorId].text}` : ''].filter(Boolean).join('。'),
+      PB_SIG[f.floorId] && !f.kihon && !f.ghost ? `きめわざ「${PB_SIG[f.floorId].def.name}」：${PB_SIG[f.floorId].text}` : '',
+      PB_PAL[f.floorId] && !f.kihon && !f.ghost ? `なかま「${PB_PAL[f.floorId].def.name}」：${PB_PAL[f.floorId].text}` : ''].filter(Boolean).join('。'),
     quit: { label: 'ホームへ もどる', note: 'たたかいを やめて もどる？ ポイントと カードは そのまま。この てきには また いどめるよ。', go: home },
     onEnd: async (r) => {
       S = load();
