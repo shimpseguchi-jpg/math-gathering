@@ -137,6 +137,14 @@ function humanAI() {
       ch.run(s, api, p, picks);
       render();
     },
+    // いくつかの 中から 1つ えらぶ（静希草十郎の カウンター など）。opts = [{ label, value, disabled?, note? }]
+    aim: true, // きっかけの 能力の あいてを 人が えらぶ（s.aimQ → drainAim）
+    choose: async (s, title, opts, html = '') => {
+      if (B) render();
+      const v = await sheet(html, opts.map((o) => ({ label: ruby(o.label), value: o.value, kind: 'primary', disabled: !!o.disabled, note: o.note || '' })), { title: ruby(title), dismiss: false });
+      setTimeout(() => { if (B && !checkOver()) render(); }, 0);
+      return v ?? opts.find((o) => !o.disabled)?.value;
+    },
     dice: (rolls) => sheet(`<p class="big-result dice">サイコロ：${rolls.join(' ＋ ')}${rolls.length > 1 ? ` ＝ ${rolls.reduce((a, b) => a + b, 0)}` : ''}</p>${rolls.length > 1 ? '<p>6が 出たので もう1回 ふった！</p>' : ''}`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'サイコロ', dismiss: false }),
     // 占術：上から1まいずつ「上に のこす／いちばん下へ」
     // 学習：「本」か「次の ページ」を えらぶ。本は 出た 学習呪文を 見せる。次の ページは すてる カードを えらぶ（やめたら えらびなおし）
@@ -435,6 +443,22 @@ function tellLore(p, why) {
   const head = why === 'appear' ? `<p class="what">${p.side === 'E' ? 'あいての ' : ''}${ruby(info(p.def).name)}が あらわれた！</p>` : `<p class="what">${ruby(info(p.def).name)}は ねらえない！</p>`;
   return sheet(`${head}${loreHtml(p.def)}`, [{ label: 'わかった', value: 1, kind: 'primary' }], { title: ruby(info(p.def).name), dismiss: false });
 }
+// わりふる 数：数・'x'（X）・関数（その ときの 数。青崎青子の 魔力カウンター）
+const divN = (spec, ctx) => (spec.divide === 'x' ? ctx.x : typeof spec.divide === 'function' ? spec.divide(B.s, ctx.src) : spec.divide);
+// きっかけの 能力で あいてを えらぶ（s.aimQ。青崎青子「呪文を 唱えるたび 好きな 対象に 1点」）：画面を かきなおす たびに、たまって いる ぶんを 1つずつ えらぶ。
+// えらばなかった（やめる）ときは AI の えらびかた（a.auto）。data/set17.js の flushAim が、えらぶ まえに 戦闘・ターンの おわりが 来た ぶんを かたづける
+async function drainAim() {
+  try {
+    while (B && !B.left && B.s.aimQ?.length && !B.s.over) {
+      const s = B.s, a = s.aimQ.shift(), p = [...s.P.bf].find((q) => q.uid === a.src);
+      if (!p) continue;
+      const picks = needsTargets(a.tgt, { src: p }) ? await pickAll(a.tgt, { src: p, card: p.def, note: a.note }) : null;
+      if (!B || B.left || s.over || !onBf(s, p)) continue;
+      if (picks) a.apply(s, api, picks, p); else a.auto(s, api, p);
+      sba(s);
+    }
+  } finally { if (B) { B.aiming = false; if (!B.left && !checkOver()) render(); } }
+}
 async function pickAll(tgt, ctx = {}) {
   // ねらえない てきの カードが いれば、なぜ ねらえないかを せつめい
   { const s = B.s, wd = s.srcDef; s.srcDef = ctx.card || wd; const sh = s.E.bf.filter((p) => LORE[p.def.id] && api.shielded(s, p)); s.srcDef = wd; for (const p of sh) await tellLore(p, 'shield'); }
@@ -447,7 +471,7 @@ async function pickAll(tgt, ctx = {}) {
       if (list.length < (spec.min ?? 1)) return null;
       if (!list.length) { picks.push([]); continue; }
       const chosen = await autoPick(mode, spec, ctx, list);
-      picks.push(spec.divide ? [{ t: chosen[0], n: spec.divide === 'x' ? ctx.x : spec.divide }] : chosen);
+      picks.push(spec.divide ? [{ t: chosen[0], n: divN(spec, ctx) }] : chosen);
       continue;
     }
     const list = cands(spec, ctx);
@@ -459,7 +483,7 @@ async function pickAll(tgt, ctx = {}) {
     if (!chosen) return null;
     if (spec.divide && !chosen.length) { picks.push([]); continue; }
     if (spec.divide) {
-      const n = spec.divide === 'x' ? ctx.x : spec.divide;
+      const n = divN(spec, ctx);
       const k = chosen.length;
       chosen = k === 1 ? [{ t: chosen[0], n }] : await divideSheet(`${n}を わりふる`, n, chosen.map((t) => ({ label: targetLabel(t), value: t })));
     }
@@ -1457,6 +1481,7 @@ document.addEventListener('click', (e) => {
 function render() {
   if (B.left) return; // メニューへ もどった あと
   const s = B.s;
+  if (s.aimQ?.length && !B.aiming && !s.over) { B.aiming = true; setTimeout(drainAim, 0); }
   // キャラクターが 場に 出た：とくべつな ルールの てきは ポップアップ。「とき」が「出た」の キャラは ふきだし
   for (const p of [...s.P.bf, ...s.E.bf]) {
     const l = LORE[p.def.id];

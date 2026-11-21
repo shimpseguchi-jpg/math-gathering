@@ -349,6 +349,7 @@ function makePerm(side, def, o = {}) {
     uid: UID++, def, card: o.card || def, side, tapped: !!o.tapped, sick: true, ctr: o.ctr || 0, level: 0, dmg: 0, dt: false, dmgBy: [],
     mP: 0, mT: 0, kwT: new Set(), frozen: false, token: !!o.token, monstrous: false, attached: null, links: [], flags: { turn: {} },
     loy: (def.types || []).includes('planeswalker') ? def.loyalty || 0 : 0,
+    mp: 0, kwc: null, // 魔力カウンター（番外編「魔法使いの夜」）・キーワードカウンター（接死・呪禁 など。addKwCounter）
   };
 }
 
@@ -435,7 +436,7 @@ export function autoTargets(s, mode, spec, ctx, list, E) {
 }
 
 export function hasKw(s, p, k) {
-  if (p.def.kw?.includes(k) || p.kwT.has(k) || levelRow(p)?.kw?.includes(k)) return true;
+  if (p.def.kw?.includes(k) || p.kwT.has(k) || p.kwc?.has(k) || levelRow(p)?.kw?.includes(k)) return true;
   if (p.def.kwFn?.(s, p, api)?.includes(k)) return true;
   if (p.side === 'P' && !s.swapped && s.P.emblem?.kwAll?.includes(k) && isCreature(p)) return true; // きょうの ぼうけんの ルール（はやての 日・そらの 日。data/daily.js）
   for (const q of s[p.side].bf) if (q.def.grant) { const g = q.def.grant(s, q, p, api); if (g && g.includes(k)) return true; }
@@ -458,6 +459,26 @@ export function addCounters(s, p, n) {
   if (p.side === 'P') zzBreak(s, 'G', '緑：＋1/＋1カウンター');
 }
 
+// キーワードカウンター（2026-11-23。接死カウンター・呪禁カウンター・飛行カウンター など）：その キーワードを もつ。戦場を はなれるまで のこる。同じ ものは 1こ まで
+// → 置けたら true（もう もって いれば false）
+export function addKwCounter(s, p, k) {
+  if (!p || !onBf(s, p)) return false;
+  if (p.kwc?.has(k)) return false;
+  (p.kwc ||= new Set()).add(k);
+  L(s, `${foe(s, p.side)}${p.def.name} に ${KWC_JA[k] || k}カウンター`);
+  return true;
+}
+export const KWC_JA = { deathtouch: '接死（せっし）', hexproof: '呪禁（じゅきん）', flying: '飛行（ひこう）', trample: 'トランプル', lifelink: '絆魂（はんこん）', first: '先制攻撃（せんせいこうげき）', vigilance: '警戒（けいかい）', reach: '到達（とうたつ）', haste: '速攻（そっこう）', indestructible: '破壊不能（はかいふのう）' };
+// 魔力カウンター（番外編「魔法使いの夜」）：n こ 置く（n が マイナスなら 取りのぞく）。def.onMP(s, p, api, n)：置かれた あと
+export function addMP(s, p, n) {
+  if (!p || !onBf(s, p) || !n) return 0;
+  const was = p.mp || 0;
+  p.mp = Math.max(0, was + n);
+  L(s, `${foe(s, p.side)}${p.def.name}：魔力（まりょく）カウンター ${was} ${n > 0 ? '＋' : '−'} ${Math.abs(n)} ＝ ${p.mp}`);
+  if (n > 0) p.def.onMP?.(s, p, api, n);
+  return p.mp;
+}
+
 export function proliferate(s) {
   for (const p of s.P.bf) {
     if (p.ctr > 0) addCounters(s, p, 1);
@@ -467,6 +488,7 @@ export function proliferate(s) {
     // ほかの しゅるいの カウンターも 1こ ふえる（盾・時間・試練・令呪・しるし）。伝承カウンターは 英雄譚の 章を 起こす（onProliferate）
     if (p.shieldCtr > 0) p.shieldCtr++;
     if (p.time > 0) p.time++;
+    if (p.mp > 0) addMP(s, p, 1);
     if (p.trial > 0) p.trial++;
     if (p.seals > 0) p.seals++;
     if (p.marks > 0) p.marks++;
@@ -689,6 +711,7 @@ export function damage(s, p, n, src, o = {}) {
   if (isCreature(p)) for (const q of [...s[p.side].bf]) if (q.attached === p.uid && q.def.onHostHurt && onBf(s, q)) q.def.onHostHurt(s, q, p, n, src, api); // 装備品：装備している クリーチャーが ダメージを うけたとき
   L(s, `${src ? `${src.def.name} → ` : ''}${foe(s, p.side)}${p.def.name} に ${n}点`);
   s.floor.onDamaged?.(s, p, n, src, api);
+  if (src && src !== p && onBf(s, src)) src.def.onDealt?.(s, src, n, p, api); // ダメージを あたえるたび（青崎青子）
   if (src && src.side === 'P' && hasKw(s, src, 'lifelink')) gainLife(s, n);
   // 赤の 属性ブレイク：戦闘 いがいの ダメージ（呪文・能力。攻撃したときの 能力も）
   if (p.side === 'E' && !s.combatHit && (!src || src.side === 'P')) zzBreak(s, 'R', '赤：呪文（じゅもん）・能力（のうりょく）で ダメージ');
@@ -741,7 +764,8 @@ export function hitTarget(s, t, n, src, combat = false) {
     noteDmg(s, n);
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
     L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
-    s.floor.face(s, n, api);
+    s.floor.face(s, n, api, src); // src：ダメージの もと（とげを かえす 階が つかう）
+    if (src && onBf(s, src)) src.def.onDealt?.(s, src, n, 'face', api); // ダメージを あたえるたび（青崎青子）
     // 統率者戦：統率者で とどめ（レイドの 点 ＋5）
     if (s.over === 'win' && !s.swapped && src && s.P.cmdId && src.card?.id === s.P.cmdId) s.cmdFinish = true;
     // とどめを さした カード（みならいの しけん：神で とどめを さすと 神からの ことば）
@@ -810,6 +834,11 @@ const isExact = (s, p) => p.side === 'E' && isCreature(p) && !p.dt && p.dmg > 0 
 export function leave(s, p, to = 'gy', o = {}) {
   if (!onBf(s, p)) return false;
   if (s.floor.cantLeave?.(s, p, api)) return false;
+  // 空蝉（うつせみ。def.standIn）：ほかの クリーチャーが 死亡するなら、かわりに これを 墓地へ（ロスト・ロビン・ロンド）。まもられた ものの ダメージは きえる
+  if (o.died && isCreature(p) && !o.standIn) {
+    const g = s[p.side].bf.find((q) => q !== p && q.def.standIn && onBf(s, q) && q.def.standIn(s, q, p, api));
+    if (g) { L(s, `${foe(s, p.side)}${g.def.name}：空蝉（うつせみ）。${p.def.name}の かわりに 墓地（ぼち）へ`); p.dmg = 0; p.dt = false; p.dmgBy = []; leave(s, g, 'gy', { died: true, standIn: true }); if (pt(s, p)[1] > 0) return false; }
+  }
   if (o.died && p.def.saveDeath?.(s, p, api)) { for (const q of [...s[p.side].bf]) if (q.attached === p.uid && q.def.onHostSaved) q.def.onHostSaved(s, q, p, api); return false; } // 死亡の かわりに（ヘラクレスの 十二の試練）。装備品は onHostSaved
   // 死亡の かわりに：アナフェンザ（てきは 追放）・墓の タイタン など（ライブラリーの 一番下）
   if (o.died && to === 'gy' && !p.token) {
@@ -1135,7 +1164,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  transform, L, drawCard, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  transform, L, drawCard, addKwCounter, addMP, KWC_JA, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,
