@@ -166,12 +166,16 @@ await page.click('[data-step="1"]');
 const viaArrow = await pageName();
 await page.click('.pb-dot[data-stage="5"]');
 check('やじるしと 下の 点でも めくれる（はしでは やじるしが おせない）', viaArrow === 'ステージ 2' && (await pageName()) === 'ステージ 6' && await page.locator('[data-step="1"]:disabled').count() === 1);
-{ // ぜんぶの ステージ（ロック中も）の ぜんぶの 行に 顔グラ。ぜんぶで 26しゅるい（ステージ 1 の 5人 ＋ ステージ 2〜6 の 21人）
+{ // ステージ 1〜5（ロック中も）の ぜんぶの 行に 顔グラ（26人）。ステージ 6 の あたらしい 5人は まだ 顔グラが ない ので ばんごう
   const bad = [], kinds = new Set();
-  for (let si = 0; si < 6; si++) { await page.click(`.pb-dot[data-stage="${si}"]`); await page.waitForTimeout(120); const rows = await faceRows(); if (!rows.length || !rows.every((x) => x.ok)) bad.push(`${si + 1}:${rows.map((x) => x.why).join(',')}`); (await page.evaluate(() => [...document.querySelectorAll('img.pb-face')].map((i) => i.src))).forEach((u) => kinds.add(u)); if (si === 5) await shot('04c_arena_stage6_faces'); }
-  check('ぜんぶの ステージの ぜんぶの 行に 顔グラ（ロック中も・くずれない）', bad.length === 0 && kinds.size >= 5 + 10, bad.join(' ') || `${kinds.size}しゅるい`);
+  for (let si = 0; si < 5; si++) { await page.click(`.pb-dot[data-stage="${si}"]`); await page.waitForTimeout(120); const rows = await faceRows(); if (!rows.length || !rows.every((x) => x.ok)) bad.push(`${si + 1}:${rows.map((x) => x.why).join(',')}`); (await page.evaluate(() => [...document.querySelectorAll('img.pb-face')].map((i) => i.src))).forEach((u) => kinds.add(u)); }
+  check('ステージ 1〜5 の ぜんぶの 行に 顔グラ（ロック中も・くずれない）', bad.length === 0 && kinds.size >= 5 + 10, bad.join(' ') || `${kinds.size}しゅるい`);
   const all = await page.evaluate(async () => { const m = await import('/js/data/pbfaces.js'), d = await import('/js/data/packbattle.js'); const ids = ['kh1', 'pb2', 'kh2', 'pb1', 'kh3', ...Object.keys(d.PB_CHARS)]; return { n: Object.keys(m.PB_FACES).length, miss: ids.filter((i) => !m.PB_FACES[i]), big: Object.values(m.PB_FACES).filter((u) => u.length * 3 / 4 > 15000).length }; });
-  check('顔グラは 26人 ぜんいんぶん（1まい 15KB いか）', all.n === 26 && all.miss.length === 0 && all.big === 0, JSON.stringify(all));
+  check('顔グラは 26人ぶん（1まい 15KB いか）。ステージ 6 の あたらしい 5人 だけ まだ ない', all.n === 26 && all.miss.join() === 'harisen,kameron,konkon,rirara,owaron' && all.big === 0, JSON.stringify(all));
+  await page.click('.pb-dot[data-stage="5"]'); await page.waitForTimeout(120);
+  await shot('04c_arena_stage6');
+  const six = await page.evaluate(() => { const vw = document.documentElement.clientWidth; return { name: document.querySelector('.pb-page').innerText.replace(/\s+/g, ' '), nums: [...document.querySelectorAll('[data-foe] > b')].map((b) => b.innerText.trim()).join(''), faces: document.querySelectorAll('img.pb-face').length, who: [...document.querySelectorAll('[data-foe] .st-title')].map((x) => x.innerText.replace(/\s+/g, ' ').trim()), fit: [...document.querySelectorAll('[data-foe]')].every((b) => b.getBoundingClientRect().right <= vw) && document.documentElement.scrollWidth <= vw }; });
+  check('ステージ 6 は あたらしい 5人（ばんごうの まま・ボスは オワロン だけ・くずれない）', /しゅうまつの しま/.test(six.name) && six.nums === '12345' && six.faces === 0 && six.fit && /ハリセン/.test(six.who[0]) && /カメロン/.test(six.who[1]) && /コンコン/.test(six.who[2]) && /リララ/.test(six.who[3]) && /オワロン.*ボス/.test(six.who[4]) && six.who.filter((w) => /ボス/.test(w)).length === 1, JSON.stringify(six.who));
 }
 await page.click('.pb-dot[data-stage="1"]');
 
@@ -396,14 +400,14 @@ const sigCheck = await page.evaluate(async () => {
     // とうの しくみで たたかう あいて：しくみの こま・じゅもんは そのまま。きめわざと なかまが 2まいずつ（ボスは 3まいずつ）
     tower.add(f.floorId);
     const mk = (plain) => g.newGame({ deck, floor: m.towerFloor(f, { plain }), diff: f.diff, seed: 5, ai: AI });
-    const a = mk(false), b = mk(true), want = f.boss ? m.SIG_COPIES.boss : m.SIG_COPIES.foe, Q = m.PB_PAL[f.floorId];
+    const a = mk(false), b = mk(true), want = (f.boss ? m.SIG_COPIES.boss : m.SIG_COPIES.foe) + (f.plus || 0), Q = m.PB_PAL[f.floorId];
     const n = (x, k) => x.E.lib.filter((c) => c.def[k]).length;
     const core = (x) => [...x.E.lib.map((c) => c.def), ...x.E.bf.map((p) => p.def)].filter((d) => !d.sig && !d.pal && !(d.types.includes('creature') && d.attacks === true && Object.keys(d).length <= 9)).map((d) => d.name).sort().join('|');
     if (n(a, 'sig') !== want || n(a, 'pal') !== want || a.E.lib.length !== b.E.lib.length + want + (Q.swap ? 0 : want) || core(a) !== core(b) || a.floor.id !== b.floor.id) bad.push(`${f.key}:${f.floorId}`);
   }
   return { bad, tower: tower.size, guild: guild.size };
 });
-check('ステージ 2〜6：ギルドの リーダー 8人は ほんものの カードの デッキ ＋ ギルドの きまり。のこり 13人は とうの しくみの まま きめわざと なかまが まざる', !sigCheck.bad.length && sigCheck.guild === 8 && sigCheck.tower === 13, `ギルド ${sigCheck.guild}・とう ${sigCheck.tower} ${[...new Set(sigCheck.bad)].slice(0, 5).join(' ')}`);
+check('ステージ 2〜6：ギルドの リーダー 8人は ほんものの カードの デッキ ＋ ギルドの きまり。のこり 18人（とうの 13人 ＋ ステージ 6 の 5人）は しくみの まま きめわざと なかまが まざる', !sigCheck.bad.length && sigCheck.guild === 8 && sigCheck.tower === 18, `ギルド ${sigCheck.guild}・とう ${sigCheck.tower} ${[...new Set(sigCheck.bad)].slice(0, 5).join(' ')}`);
 // ギルドの きまりが うごく：ニヴ＝ミゼット（じゅもんで 1点）・トロスターニ（なえぎ）を AI どうしで 30回ずつ
 const ruleCheck = await page.evaluate(async () => {
   const m = await import('./js/data/packbattle.js'), run = await import('./js/engine/run.js'), { fillDeck } = await import('./js/data/kihon.js');
@@ -447,6 +451,108 @@ const gTop = (await page.locator('.battle').innerText()).replace(/\s+/g, ' ');
 check('ギルドの リーダー：かちかたに ライフと きまり・あいての 手札（てふだ 5）と ライフが 出る', /の ライフを 0に する/.test(gGoal) && /てふだ 5/.test(gTop) && /あいての ライフ/.test(gTop), gGoal.slice(0, 90));
 await page.waitForTimeout(1500);
 await page.click('[data-act=menu]'); await sheetClick('ホームへ もどる');
+
+// ---- ステージの 顔ぶれ（2026-11-21）：テーロスがわは きまった 5人ずつ・ステージ 6 は あたらしい 5人・ラヴニカは まえの まま ----
+const lineup = await page.evaluate(async () => {
+  const m = await import('./js/data/packbattle.js'), { RAV_SLOTS } = await import('./js/data/ravnica.js'), { seeded } = await import('./js/engine/rng.js');
+  const ids = (si, seed) => m.foesOf(si, seed).map((f) => f.floorId).join(), bad = [];
+  for (let seed = 1; seed <= 40; seed++) {
+    if (ids(1, seed) !== 'hydra,clock,horde,dragon,factory' || ids(2, seed) !== 'slime,twins,xenagos,gorgon,erebos' || ids(5, seed) !== 'harisen,kameron,konkon,rirara,owaron') bad.push(`th ${seed}`);
+    for (const si of [3, 4]) if (ids(si, seed) !== RAV_SLOTS.map((x, k) => x[Math.floor(seeded((seed >>> 0) + (si * 10 + k) * 7919)() * x.length)]).join()) bad.push(`rv ${seed}`);
+  }
+  const boss = [1, 2, 3, 4, 5].map((si) => m.foesOf(si, 1).filter((f) => f.boss).map((f) => f.floorId).join());
+  const s2 = m.foesOf(1, 1).map((f) => `${f.diff}${f.plus}`).join();
+  return { bad, boss: boss.join('/'), s2, keys: [1, 2, 5].map((si) => m.foesOf(si, 1).map((f) => f.key).join()).join(' '), loop: Array.from({ length: 10 }, (_, n) => m.endlessAt(n, 1).floorId).slice(5).join() };
+});
+check('顔ぶれ：ステージ 2・3・6 は きまった 5人（エレボスは ステージ 3 だけ）。ラヴニカの えらばれかたは まえの まま。ステージ 2 に ボスは いない', !lineup.bad.length && lineup.boss === '/erebos/jace/jace/owaron' && lineup.keys === 'th-e:0,th-e:1,th-e:2,th-e:3,th-e:4 th-n:0,th-n:1,th-n:2,th-n:3,th-n:4 th-h:0,th-h:1,th-h:2,th-h:3,th-h:4', `${lineup.boss} ${lineup.bad.slice(0, 3)}`);
+check('ステージ 2 の とけいとうと ドラゴン だけ 少し てごわい（1つ 上の むずかしさ・きめわざと なかまが 多い）', lineup.s2 === 'easy0,normal2,easy0,normal1,easy0', lineup.s2);
+check('むげんの たたかいは ラヴニカ（むずかしい）→ ステージ 6 の 5人の じゅん', lineup.loop === 'harisen,kameron,konkon,rirara,owaron', lineup.loop);
+// あたらしい 5人の しくみ（AI どうし 25回ずつ）：しくみが うごく・すがたが かわる・ぜんぶ さいごまで
+const newCheck = await page.evaluate(async () => {
+  const m = await import('./js/data/packbattle.js'), run = await import('./js/engine/run.js'), g = await import('./js/engine/game.js'), { AI } = await import('./js/engine/ai.js'), { fillDeck } = await import('./js/data/kihon.js');
+  const deck = fillDeck(m.PB_STARTER.cards), t = m.PB_STAGES[5], out = {};
+  const RE = { harisen: /とげ：.*に 1点 かえす/, kameron: /こうら（[34]）：/, konkon: /コンコンの ねらいうち：/, rirara: /リララの うた：.*ねむった/, owaron: /オワロン：こりゅうが ふえた/ };
+  m.foesOf(5, 1).forEach((f) => { out[f.floorId] = { hit: 0, form: 0, form3: 0, over: 0, sig: 0, low: 0, n: 25 }; });
+  for (const f of m.foesOf(5, 1)) for (let i = 0; i < 25; i++) {
+    const s = await run.fight(deck, null, { floor: m.towerFloor(f), diff: 'easy', buff: 0, life: 60, seed: 31 + i, log: true }), o = out[f.floorId];
+    if (s.over) o.over++;
+    if (s.logs.some((l) => RE[f.floorId].test(l))) o.hit++;
+    if (s.logs.some((l) => /すがたが かわった（2だんかいめ）/.test(l))) o.form++;
+    if (s.logs.some((l) => /すがたが かわった（3だんかいめ）/.test(l))) o.form3++;
+    if (s.E.said?.sig1 || s.E.said?.sig2 || s.E.said?.sig3) o.sig++;
+    if (s.E.said?.low) o.low++;
+  }
+  // こうらと とげを じかに たしかめる：こうら 3 の カメロンに 5点 → 3点（半分・きりあげ）、3点 → 3点、1点 → 1点。ハリセンに クリーチャーで 2点 → その クリーチャーに 1点
+  const mk = (id) => { const f = m.foesOf(5, 1).find((x) => x.floorId === id), s = g.newGame({ deck, floor: m.towerFloor(f), diff: 'hard', seed: 3, ai: AI }); return s; };
+  const k = mk('kameron'), k0 = k.E.life; k.floor.face(k, 5, g.api, null); const d5 = k0 - k.E.life; k.floor.face(k, 3, g.api, null); const d3 = k0 - d5 - k.E.life; k.floor.face(k, 1, g.api, null); const d1 = k0 - d5 - d3 - k.E.life;
+  const h = mk('harisen'); const me = g.enter(h, 'P', { name: 'テスト', types: ['creature'], pow: 2, tou: 3, kw: [], color: 'W', cost: 1 }); const h0 = h.E.life; h.floor.face(h, 2, g.api, me);
+  // 2つめの すがた：ライフが 半分で のこりの きめわざが あたらしい きめわざに かわる
+  const c = mk('konkon'); c.floor.face(c, Math.ceil(c.E.life / 2), g.api, null);
+  return { out, shell: [d5, d3, d1].join(), thorn: `${h0 - h.E.life}/${me.dmg}`, form: `${c.phase}:${[...new Set(c.E.lib.filter((x) => x.def.sig).map((x) => x.def.name))].join()}:${c.floor.intent(c, g.api).join('／')}`, said: !!c.E.said?.form2 };
+});
+check('あたらしい 5人：しくみ（とげ・こうら・ねらいうち・うた・こりゅう）が たたかいの 中で うごき、ぜんぶ さいごまで', Object.values(newCheck.out).every((o) => o.hit >= 20 && o.over === o.n), JSON.stringify(newCheck.out));
+check('あたらしい 5人：ライフ 半分で 2つめの すがた（オワロンは 3だんかい）。きめわざの セリフと ピンチの セリフも 出る', Object.entries(newCheck.out).every(([id, o]) => o.form >= 5 && o.sig >= 5 && o.low >= 3 && (id !== 'owaron' || o.form3 >= 3)), JSON.stringify(newCheck.out));
+check('ぴったりガード：こうら 3 に 5点 → 3点・3点 → 3点・1点 → 1点。とげ：2点 あたえた クリーチャーが 1点 うける', newCheck.shell === '3,3,1' && newCheck.thorn === '2/1', `${newCheck.shell} ${newCheck.thorn}`);
+check('2つめの すがた：きめわざが かわり（れんしゃ）、こうげきの くせも かわる（ぜんいんで こうげき）', /^2:れんしゃ:.*ぜんいんで こうげき/.test(newCheck.form) && newCheck.said, newCheck.form);
+// テーロスの 10人の セリフ（AI どうし 15回ずつ）：とうじょう・きめわざ・ピンチ・まけた とき
+const lineCheck = await page.evaluate(async () => {
+  const m = await import('./js/data/packbattle.js'), { PB_LINES } = await import('./js/data/pbfoes.js'), run = await import('./js/engine/run.js'), { fillDeck } = await import('./js/data/kihon.js');
+  const deck = fillDeck(m.PB_STARTER.cards), out = {};
+  for (const si of [1, 2]) for (const f of m.foesOf(si, 1)) {
+    const o = out[f.floorId] = { start: 0, sig: 0, low: 0, win: 0 }, L = PB_LINES[f.floorId];
+    for (let i = 0; i < 15; i++) {
+      const fl = m.towerFloor(f), s = await run.fight(deck, null, { floor: fl, diff: 'easy', life: 60, seed: 51 + i, log: true });
+      if (fl.speaker && fl.goal(s).includes(L.start)) o.start++;
+      if (s.logs.some((l) => l.includes(`「${L.sig}」`))) o.sig++;
+      if (s.logs.some((l) => l.includes(`「${L.low}」`))) o.low++;
+      if (s.over === 'win' && fl.lines.win === L.win) o.win++;
+    }
+  }
+  return out;
+});
+check('テーロスの 10人：4つの セリフ（とうじょう・きめわざ・ピンチ・まけた とき）が たたかいの 中で 出る', Object.keys(lineCheck).length === 10 && Object.values(lineCheck).every((o) => o.start === 15 && o.sig > 0 && o.low > 0 && o.win > 0), JSON.stringify(lineCheck));
+
+// ---- セーブの うつしかえ（v4 → v5）：まえの 顔ぶれで クリアした ステージは、あたらしい 顔ぶれでも クリア ----
+const baseSave = { v: 4, pts: 345, cards: { W10: 2, W02: 2, W03: 1, W31: 1, W101: 1, G01: 2, G09: 1, G11: 2, C18: 2, R01: 3 }, decks: [{ id: 'd0', name: 'きそデッキ', cards: starterCards }], active: 'd0', wins: 40, seed: 7,
+  quiz: { n: 9, ok: 8, sessions: 2 }, opened: 4, earned: 0, lost: 0, starter: 1, open: 1, endless: 0, gp: 9, tree: { cap: 2, pack: 1 } };
+const kihon3 = { 'kihon:kh1': 3, 'kihon:pb2': 3, 'kihon:kh2': 3, 'kihon:pb1': 3, 'kihon:kh3': 3 };
+// 2回ずつの ころに ステージ 2 を クリア（2回ずつ）して、ステージ 3 の とちゅう
+m = await old({ ...baseSave, beat: { ...kihon3, 'th-e:0': 2, 'th-e:1': 2, 'th-e:2': 4, 'th-e:3': 2, 'th-e:4': 2, 'th-n:0': 3, 'th-n:1': 1 }, stage: 2 });
+check('うつしかえ：クリアして いた ステージ 2 は ぜんいん クリア（3回に そろえる・多い ぶんは そのまま）。ステージ 3 の とちゅうの 回数・ポイント・カード・せいちょうは そのまま',
+  m.v === 5 && m.stage === 2 && [0, 1, 3, 4].every((k) => m.beat[`th-e:${k}`] === 3) && m.beat['th-e:2'] === 4 && m.beat['th-n:0'] === 3 && m.beat['th-n:1'] === 1 && !m.beat['th-n:2'] && m.pts === 345 && m.gp === 9 && m.tree.cap === 2 && m.tree.pack === 1 && m.cards.R01 === 3 && m.wins === 40 && m.beat['kihon:kh1'] === 3, JSON.stringify(m.beat));
+await page.click('.pb-steps [data-go=battle]');
+check('うつしかえの あと：ステージ 3（スライムから）が えらばれて いて、とちゅうの 回数が 出る', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 3' && /スライム/.test(await page.locator('[data-foe]').first().innerText()) && /クリア/.test(await page.locator('[data-foe]').first().innerText()) && /あと 2回/.test(await page.locator('[data-foe]').nth(1).innerText()));
+await page.click('.pb-dot[data-stage="1"]');
+const rows2 = (await page.locator('.st-ch ol').innerText()).replace(/\s+/g, ' ');
+check('ステージ 2：きまった 5人（ハイドラ・とけいとう・たいぐん・ドラゴン・工場）が ぜんいん クリア。ボスの しるしは ない。とけいとうは きめわざ ×4', await page.locator('[data-foe].done').count() === 5 && /ハイドラ.*からくり とけいとう.*ミノタウルスの たいぐん.*たからの 山の ドラゴン.*ゴーレム工場/.test(rows2) && await page.locator('.pb-boss').count() === 0 && /きめわざ「はりの いたずら」×4/.test(rows2) && /きめわざ「たからを まもる ほのお」×3/.test(rows2), rows2.slice(0, 60));
+// テーロスの あいての セリフが たたかいの 画面に 出る（ハイドラ）
+await page.locator('[data-foe]').first().click(); await page.waitForTimeout(500);
+const hGoal = (await page.locator('#sheet .sheet-body').innerText()).replace(/\s+/g, ' ');
+await sheetClick('はじめる'); await page.locator('.battle').waitFor();
+await shot('21_battle_say');
+check('たたかいの 画面に セリフの ふきだし（ハイドラ「あたまを たおしても…」）。かちかたの まどにも 出る', /ハイドラ「あたまを たおしても/.test(hGoal) && /あたまを たおしても、また はえて くるぞ/.test(await page.locator('.battle .say').innerText()), hGoal.slice(0, 50));
+await page.waitForTimeout(800);
+await page.click('[data-act=menu]'); await sheetClick('ホームへ もどる');
+// ぜんぶ クリアして いた セーブ（まえの ステージ 6 は ハイドラたち）：ぜんぶ クリアの まま・むげんの たたかいが あたらしい ステージ 6 で うごく
+const all3 = Object.fromEntries(['th-e', 'th-n', 'rv-n', 'rv-h', 'th-h'].flatMap((id) => [0, 1, 2, 3, 4].map((k) => [`${id}:${k}`, 3])));
+m = await old({ ...baseSave, beat: { ...kihon3, ...all3 }, stage: 6, endless: 5, wins: 95 });
+check('うつしかえ：ぜんぶ クリアして いた セーブは ぜんぶ クリアの まま（むげんの たたかいの つづき）', m.v === 5 && m.stage === 6 && m.endless === 5 && Object.entries(all3).every(([k, n]) => m.beat[k] === n) && m.pts === 345 && m.gp === 9);
+await page.click('.pb-steps [data-go=battle]');
+check('むげんの たたかい：あたらしい ステージ 6 の あいて（ハリセン）が 出る', (await page.locator('.pb-page b').innerText()).trim() === 'むげんの たたかい' && /ハリセン/.test(await page.locator('[data-foe=endless]').innerText()), (await page.locator('[data-foe=endless]').innerText()).replace(/\s+/g, ' ').slice(0, 60));
+await page.click('.pb-dot[data-stage="5"]');
+check('まえの ステージ 6 を クリアして いた セーブ：あたらしい 5人も ぜんいん クリア・なんどでも たたかえる', await page.locator('[data-foe].done:not([disabled])').count() === 5 && /ハリセン/.test(await page.locator('[data-foe]').first().innerText()));
+await page.click(`.pb-dot[data-stage="6"]`);
+await page.locator('[data-foe=endless]').click(); await page.waitForTimeout(500);
+const eGoal = (await page.locator('#sheet .sheet-body').innerText()).replace(/\s+/g, ' ');
+await sheetClick('はじめる'); await page.locator('.battle').waitFor();
+await shot('22_battle_harisen');
+const eTop = (await page.locator('.battle').innerText()).replace(/\s+/g, ' ');
+check('むげんの たたかいで ハリセンと たたかえる（かちかた・セリフ・とげの きまり・ライフが 出る）', /とげとげ ハリセン「さわると いたいぞ/.test(eGoal) && /とげ/.test(eGoal) && /さわると いたいぞ/.test(await page.locator('.battle .say').innerText()) && /ハリセンの ライフ/.test(eTop), eGoal.slice(0, 70));
+await page.waitForTimeout(800);
+await page.click('[data-act=menu]'); await sheetClick('ホームへ もどる');
+// 2回ずつで ひらいた ステージ（しるし だけ・回数は 2回）も、クリアして いた テーロスがわは 3回に そろう。ステージ 1 と ラヴニカの 回数は さわらない
+m = await old({ ...baseSave, v: 3, beat: { 'kihon:kh1': 2, 'kihon:kh2': 2, 'kihon:pb1': 2, 'kihon:kh3': 2, ...Object.fromEntries(['th-e', 'th-n', 'rv-n'].flatMap((id) => [0, 1, 2, 3, 4].map((k) => [`${id}:${k}`, 2]))) }, stage: 4 });
+check('うつしかえ：2回ずつで クリアして いた テーロスの ステージは 3回に。ステージ 1・ラヴニカの 回数は そのまま（ひらいた ステージは とじない）', m.stage === 4 && m.beat['th-e:1'] === 3 && m.beat['th-n:4'] === 3 && m.beat['rv-n:0'] === 2 && m.beat['kihon:kh1'] === 2 && !m.beat['kihon:pb2'], JSON.stringify(m.beat));
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');
 console.log(fails.length ? `FAILED: ${fails.length}` : 'ALL OK');

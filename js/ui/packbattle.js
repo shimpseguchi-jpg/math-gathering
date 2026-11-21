@@ -40,7 +40,7 @@ const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; //
 //   gp：せいちょうポイント, tree：{ 枝の id: とった 数 } }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 4, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
+const fresh = () => ({ v: 5, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -59,7 +59,15 @@ function load() {
       if (!v.beat) Object.assign(s, migrateProgress(s.wins, s.seed), { tree: {} });
       // ステージの きまりが かわった（2026-11-18：2回 → 3回ずつ・ステージ 1 が 5人に）：まえの きまりで ひらいて いた ステージは ひらいた まま。かった 回数は そのまま
       else if ((v.v || 0) < 4) s.stage = Math.max(s.stage || 0, topStage(s.beat, s.seed, 0, 2));
-      s.v = 4;
+      // ステージの 顔ぶれが かわった（2026-11-21：テーロスがわは きまった 5人ずつ・ステージ 6 は あたらしい 5人）：
+      // まえの 顔ぶれで クリアして いた テーロスがわの ステージ（2・3・6。ひらいた ステージより まえ）は、あたらしい 顔ぶれでも ぜんいん クリア（PB.need 回）。かった 回数は へらさない
+      if ((v.v || 0) < 5) {
+        const done = Math.max(s.stage || 0, topStage(s.beat, s.seed, 0));
+        s.beat = { ...s.beat };
+        for (let si = 0; si < Math.min(done, PB_STAGES.length); si++) if (PB_STAGES[si].id.startsWith('th-')) for (const f of foesOf(si, s.seed)) s.beat[f.key] = Math.max(s.beat[f.key] || 0, PB.need);
+        s.stage = done;
+      }
+      s.v = 5;
       return s;
     }
   } catch { /* こわれていたら はじめから */ }
@@ -410,7 +418,7 @@ function build(deck) {
 // ---- ④ バトル：ステージの 中の あいてを えらんで たたかう。ぜんいんを PB.need 回ずつ たおすと つぎの ステージが ひらく ----
 let VIEW = null; // 見て いる ステージ（PB_STAGES.length ＝ むげんの たたかい）
 let SWIPED = 0; // さいごに スワイプした とき（すぐ あとの タップを むしする）
-const sigN = (f) => (f.boss ? SIG_COPIES.boss : SIG_COPIES.foe);
+const sigN = (f) => (f.boss ? SIG_COPIES.boss : SIG_COPIES.foe) + (f.plus || 0);
 // デッキで たたかう あいての こうげきの くせ（enemies.js の pvp の style）
 const AI_WORD = { rush: 'こうげきできる 子は ぜんぶ こうげき', guard: '数で かって いる ときだけ こうげき', '': 'ようすを 見て こうげき' };
 // ステージを 左右に めくる（スワイプ・やじるし・下の 点）。まだの ステージも 見られるが、えらべない

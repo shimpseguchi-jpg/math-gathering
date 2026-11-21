@@ -741,7 +741,7 @@ export function hitTarget(s, t, n, src, combat = false) {
     noteDmg(s, n);
     if (s.combat && src?.side === 'P') s.combat.events.push({ src, t: 'face', n });
     L(s, `${src ? `${src.def.name} → ` : ''}${s.swapped ? 'プレイヤー' : (s.floor.faceLabel || 'てきの 本体')}に ${n}点`);
-    s.floor.face(s, n, api);
+    s.floor.face(s, n, api, src); // src：ダメージの もと（とげを かえす 階が つかう）
     // 統率者戦：統率者で とどめ（レイドの 点 ＋5）
     if (s.over === 'win' && !s.swapped && src && s.P.cmdId && src.card?.id === s.P.cmdId) s.cmdFinish = true;
     // とどめを さした カード（みならいの しけん：神で とどめを さすと 神からの ことば）

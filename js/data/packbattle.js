@@ -1,7 +1,8 @@
 // パック＆バトル（2026-11-17。docs/PACKBATTLE.md）：もんだいで ポイントを ためる → ショップで パックを あける → デッキを くむ → てきを 1体ずつ たおす
 // ぼうけん（とう）・こうちく・次元渡りとは べつの モード。エンジン・カード・てきは そのまま つかう。ここは 数字と てきの じゅんばん だけ（画面は ui/packbattle.js）
-import { SLOTS, pvp, FLOORS, KIT } from './enemies.js';
-import { RAV_SLOTS } from './ravnica.js';
+import { pvp, FLOORS, KIT } from './enemies.js';
+import { RAV_SLOTS, RAV_KIT } from './ravnica.js';
+import { PB_NEW, NEW_CHARS, NEW_SIG, NEW_PAL, PB_LINES, PB_LOW } from './pbfoes.js';
 import { fillDeck } from './kihon.js';
 import { POOL1 } from './pool1.js';
 import { SETS } from './cards.js';
@@ -87,7 +88,8 @@ const S1 = [
   { id: 'kh3', who: 'テフェリーの でし ミラ', cols: 'WU', theme: 'まもって とんで、じゅもんも つかう', style: 'バランスよく', ai: '', life: 14,
     line: 'せんせいに ならった こと、ぜんぶ 見せるね。', ids: ['W02', 'U01', 'W03', 'U14', 'W19', 'U82', 'W22', 'U02', 'W02'] },
 ];
-// ステージ 2〜6：とうの あいて（それぞれ きまった しくみで たたかう）。同じ あいてが、ステージが すすむと つよく なって 出て くる
+// ステージ 2〜6：とうの あいて（それぞれ きまった しくみで たたかう）。ラヴニカの 人は ステージ 4・5 の 2回 出て くる（5 の ほうが つよい）
+// テーロスの 10人は ステージ 2・3 に 5人ずつ（1回 だけ）。ステージ 6 は あたらしい 5人（pbfoes.js）
 export const PB_CHARS = {
   hydra: { who: 'ハイドラ', cols: 'G', theme: 'ふえる あたま', style: 'たおされても はえて くる', line: 'あたまを たおしても、また はえて くるぞ。' },
   clock: { who: 'からくり とけいとう', cols: '', theme: 'ちょうど 12', style: 'ぴったりを まつ', line: 'はりを ちょうど 12に とめて ごらん。' },
@@ -110,6 +112,7 @@ export const PB_CHARS = {
   gruul: { who: 'ボルボルグミ', cols: 'RG', theme: '大きな 1体', style: '1ターンで たおさないと もどる', line: 'ボルボル、つよい！' },
   dimir: { who: 'ラザーヴ', cols: 'UK', theme: 'まねっこ', style: 'きみの いちばん つよい 子を まねる', line: 'きみは……わたしかな？' },
   jace: { who: 'ジェイス', cols: 'U', theme: '10の ギルドの 力（ちから）', style: 'だんかいごとに ちがう 力', line: 'ギルドパクトの 名に おいて。' },
+  ...NEW_CHARS,
 };
 // ---- きめわざ（2026-11-18）：ステージ 2〜6 の あいては、とうの デッキ（その あいて だけの チャレンジ・デッキと しくみ）に、
 // キャラクターの 色・テーマの「きめわざ」の じゅもんを まぜて たたかう。しくみ（あたま・12・かぎ など）は そのまま：デッキに 足す だけ
@@ -144,6 +147,7 @@ export const PB_SIG = {
   gruul: { text: 'いちばん 小さい 子に 2点', def: sig('じならし', { bite: 2 }) },
   dimir: { text: 'いちばん 大きい 子を タップ', def: sig('かげの ささやき', { bind: 1 }) },
   jace: { text: 'いちばん 大きい 子を タップ・きみに 1点', def: sig('ジェイスの よみ', { bind: 1, zap: 1 }, 3) },
+  ...NEW_SIG,
 };
 export const SIG_COPIES = { foe: 2, boss: 3 };
 // ---- なかま（2026-11-20）：とうの しくみで たたかう 13人に、その キャラクター だけの あたらしい クリーチャーを 1しゅるい ----
@@ -165,6 +169,7 @@ export const PB_PAL = {
   gruul: pal('あれ地の イノシシ', 3, 2, ['trample'], true, '3/2 トランプル・こうげきして くる', true),
   dimir: pal('かげの うつし身', 1, 3, [], false, '1/3・まもり役'),
   jace: pal('ジェイスの うつし絵', 2, 3, ['flying'], true, '2/3 飛行（ひこう）・こうげきして くる', true),
+  ...NEW_PAL,
 };
 const PLAIN = new Set(['name', 'types', 'pow', 'tou', 'sub', 'kw', 'color', 'cost', 'attacks']);
 const isPlain = (d) => d.types.includes('creature') && d.attacks === true && Object.keys(d).every((k) => PLAIN.has(k));
@@ -208,13 +213,17 @@ export function guildFloor(f, o = {}) {
 }
 // ステージ 2〜6 の あいての たたかう ばしょ：とうの 階を つくって、デッキの すきな ところに きめわざを まぜる
 export function towerFloor(f, o = {}) {
-  const base = FLOORS[f.floorId](), g = PB_SIG[f.floorId];
+  const base = (PB_NEW[f.floorId] || FLOORS[f.floorId])(), g = PB_SIG[f.floorId];
   if (!g || o.plain) return base;
-  const n = f.boss ? SIG_COPIES.boss : SIG_COPIES.foe, q = PB_PAL[f.floorId];
+  const n = (f.boss ? SIG_COPIES.boss : SIG_COPIES.foe) + (f.plus || 0), q = PB_PAL[f.floorId];
   const put = (s, E, def) => s.E.lib.splice(Math.floor(s.rng() * (s.E.lib.length + 1)), 0, E.card(def));
+  // セリフ（テーロスの 10人。ステージ 6 の 5人は じぶんの 階で しゃべる）：とうじょう・きめわざ・ピンチ・まけた とき。画面の ふきだしに 出る
+  const L = base.pbForm ? null : PB_LINES[f.floorId], who = PB_CHARS[f.floorId].who.replace(/（[^）]*）/g, '');
+  const sigDef = L ? { ...g.def, effect(s, E) { g.def.effect(s, E); RAV_KIT.speak(s, E, 'sig', L.sig); } } : g.def;
   const floor = { ...base, setup(s, E) {
     base.setup(s, E);
-    for (let i = 0; i < n; i++) put(s, E, g.def);
+    if (L) { s.E.say = L.start; s.E.pbLife0 = s.E.life; }
+    for (let i = 0; i < n; i++) put(s, E, sigDef);
     if (!q) return;
     // なかま：ふつうの 手下の 小さい ほうから 入れかえる（swap）。入れかえる ものが なければ 足す
     const plain = q.swap ? s.E.lib.filter((c) => isPlain(c.def)).sort((a, b) => a.def.pow + a.def.tou - b.def.pow - b.def.tou).slice(0, n) : [];
@@ -227,18 +236,29 @@ export function towerFloor(f, o = {}) {
     await base.enemyTurn(s, E);
     if (!s.over && noStep) await E.enemyAttack(s, KIT.attackers(s, E, (p) => p.def.pal && p.def.attacks));
   };
+  if (L) {
+    Object.assign(floor, { speaker: who, lines: { win: L.win }, goal: (s) => `${who}「${L.start}」\n${base.goal(s)}` });
+    floor.check = (s, E, when) => {
+      base.check?.(s, E, when);
+      if (s.over) return;
+      if (f.floorId === 'erebos' && s.phase === 3 && !s.E.pbLife3) s.E.pbLife3 = s.E.life;
+      if (PB_LOW[f.floorId]?.(s, E)) RAV_KIT.speak(s, E, 'low', L.low);
+    };
+  }
   return floor;
 }
 // ステージ 1 の あいての たたかう ばしょ（てきも デッキで たたかう）
 export const foeFloor = (f) => pvp({ deck: fillDeck(f.char.ids), name: f.char.who, life: f.char.life, first: 'P', style: f.char.ai });
+// テーロスがわ（ステージ 2・3・6）は きまった 5人ずつ（2026-11-21。まえは 10人が 3つの ステージに くりかえし 出た）。ラヴニカ（4・5）は 2〜3人から セーブごとに えらぶ まま
+// noBoss：ボスの いない ステージ（ステージ 2）。id は セーブの かった 回数の なまえに つかう ので かえない（th-h は いまは「しゅうまつの しま」）
 // drop：アンティ（かつと もらう 1まい）の カード。w：コモン・アンコモン・レア・レジェンドの 出やすさ（boss：ステージの さいごの あいて）
 export const PB_STAGES = [
   { id: 'kihon', name: 'みならいの みち', diff: 'easy', kihon: S1, drop: { ids: POOL1, w: [70, 25, 5, 0], boss: [40, 40, 18, 2] } },
-  { id: 'th-e', name: 'テーロス（かんたん）', diff: 'easy', slots: SLOTS, drop: { sets: [1], w: [65, 28, 7, 0], boss: [35, 40, 22, 3] } },
-  { id: 'th-n', name: 'テーロス（ふつう）', diff: 'normal', slots: SLOTS, drop: { sets: [2], w: [55, 33, 11, 1], boss: [25, 40, 30, 5] } },
+  { id: 'th-e', name: 'テーロス（かんたん）', diff: 'easy', noBoss: true, slots: [['hydra'], ['clock'], ['horde'], ['dragon'], ['factory']], drop: { sets: [1], w: [65, 28, 7, 0], boss: [35, 40, 22, 3] } },
+  { id: 'th-n', name: 'テーロス（ふつう）', diff: 'normal', slots: [['slime'], ['twins'], ['xenagos'], ['gorgon'], ['erebos']], drop: { sets: [2], w: [55, 33, 11, 1], boss: [25, 40, 30, 5] } },
   { id: 'rv-n', name: 'ラヴニカ（ふつう）', diff: 'normal', slots: RAV_SLOTS, drop: { sets: [1, 2], w: [50, 35, 13, 2], boss: [20, 40, 33, 7] } },
   { id: 'rv-h', name: 'ラヴニカ（むずかしい）', diff: 'hard', slots: RAV_SLOTS, drop: { sets: [5], w: [45, 35, 17, 3], boss: [15, 35, 40, 10] } },
-  { id: 'th-h', name: 'テーロス（むずかしい）', diff: 'hard', slots: SLOTS, drop: { sets: [1, 2, 5], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
+  { id: 'th-h', name: 'しゅうまつの しま（むずかしい）', diff: 'hard', slots: [['harisen'], ['kameron'], ['konkon'], ['rirara'], ['owaron']], drop: { sets: [1, 2, 5], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
 ];
 const sizeOf = (t) => (t.kihon || t.slots).length;
 export const PB_TOTAL = PB_STAGES.reduce((t, x) => t + sizeOf(x), 0);
@@ -247,7 +267,7 @@ export const PB_TOTAL = PB_STAGES.reduce((t, x) => t + sizeOf(x), 0);
 export function foesOf(si, seed = 1) {
   const t = PB_STAGES[si], n = sizeOf(t);
   return Array.from({ length: n }, (_, k) => {
-    const f = { si, k, of: n, stageName: t.name, diff: t.diff, boss: k === n - 1, buff: 0, lap: 0 };
+    const f = { si, k, of: n, stageName: t.name, diff: t.diff, boss: !t.noBoss && k === n - 1, buff: 0, lap: 0 };
     if (t.kihon) return { ...f, key: `${t.id}:${t.kihon[k].id}`, kihon: t.kihon[k], char: t.kihon[k] };
     const ids = t.slots[k], floorId = ids[Math.floor(seeded((seed >>> 0) + (si * 10 + k) * 7919)() * ids.length)];
     return towerFoe(f, t, floorId);
@@ -257,10 +277,13 @@ export function foesOf(si, seed = 1) {
 //   ボス：ステージ 4〜6 は クリーチャーが ＋1/＋1（buff）。ステージ 2・3 の ボスは そのままで いちばん てごわい
 //   とくに むずかしい あいて（PB_EASE）：きみの ライフを 少し 多く して はじめる（lifeBonus）
 export const BOSS_BUFF_FROM = 3; // 0 から かぞえる：3 ＝ ステージ 4
-export const PB_EASE = { 'rv-h:gruul': 6, 'th-h:dragon': 4, 'th-h:clock': 4 };
+//   かんたん すぎる あいて（PB_DIFF）：その あいて だけ、1つ 上の むずかしさで たたかう（ステージ 2 の ドラゴンと とけいとう。2026-11-21）
+export const PB_EASE = { 'rv-h:gruul': 6 };
+export const PB_DIFF = { 'th-e:dragon': 'normal', 'th-e:clock': 'normal' };
+export const PB_PLUS = { 'th-e:dragon': 1, 'th-e:clock': 2 }; // きめわざと なかまを その 数だけ 多く 入れる
 export function towerFoe(f, t, floorId) {
-  const boss = f.boss ?? f.k === t.slots.length - 1;
-  return { ...f, boss, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], ghost: !!PB_GUILD[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
+  const boss = f.boss ?? (!t.noBoss && f.k === t.slots.length - 1);
+  return { ...f, boss, diff: PB_DIFF[`${t.id}:${floorId}`] || f.diff, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], ghost: !!PB_GUILD[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, plus: PB_PLUS[`${t.id}:${floorId}`] || 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
 }
 // ステージが クリアか（ぜんいんを PB.need 回ずつ）・いま ひらいて いる いちばん 上の ステージ（ぜんぶ クリアなら PB_STAGES.length ＝ むげんの たたかい）
 export const stageCleared = (beat, si, seed, need = PB.need) => foesOf(si, seed).every((f) => (beat[f.key] || 0) >= need);
