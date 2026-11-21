@@ -10,12 +10,18 @@ import { PICK_FREE } from '../engine/game.js';
 // ---- トークン ----
 const tok = (def, type, text) => ({ ...def, typeOver: type, textOver: text });
 export const MY_T = {
-  bird: tok(cr('t_mukudori', '椋鳥（むくどり）', null, 'K', 0, 1, 1, ['プロイ', 'bird'], ['flying']), 'クリーチャー — プロイ・鳥', '飛行（ひこう）。'),
+  bird: tok(cr('t_mukudori', '椋鳥（むくどり）', null, 'K', 0, 1, 1, ['プロイ', 'bird'], ['flying'], { muku: true }), 'クリーチャー — プロイ・鳥', '飛行（ひこう）。'),
   doll: tok({ ...cr('t_ningyo', '人形（にんぎょう）', null, '', 0, 1, 1, ['人形']), types: ['artifact', 'creature'] }, 'アーティファクト・クリーチャー — 人形（にんぎょう）', ''),
 };
 const isPloy = (p) => (p.def.sub || []).includes('プロイ');
 const isDoll = (p) => (p.def.sub || []).includes('人形');
 const birds = (s, E, side, n = 1) => E.token(s, side, MY_T.bird, n);
+const isBird = (q) => !!q.def.muku; // 椋鳥（ふつうの ものも チョコレイトの ものも）
+// シックス・スィング・チョコレイトが 出す 椋鳥：食物でも ある（チョコレイトの 鳥。2・タップ・墓地に 置く：ライフ ＋3）。ほかの カードの 椋鳥は ふつうの 椋鳥
+MY_T.choco = tok({ ...cr('t_mukudori_c', '椋鳥（むくどり）', null, 'K', 0, 1, 1, ['プロイ', 'bird', 'food'], ['flying'], { muku: true, food: true }), types: ['artifact', 'creature'],
+  acts: [{ cost: 2, tap: true, sac: true, when: [1, 2], label: '2・タップ・墓地（ぼち）に置（お）く：3点の ライフを 得（え）る（食物（しょくもつ））', play: (s, p, E, ctx = {}) => (ctx.human || s.P.life <= 8 ? { score: 2, run: () => { E.leave(s, p, 'gy', { died: true }); E.gain(s, 3); E.sba(s); } } : null) }],
+}, 'アーティファクト・クリーチャー — プロイ・鳥・食物（しょくもつ）', '飛行（ひこう）。食物（しょくもつ）でも ある。2、タップ、これを 墓地（ぼち）に置（お）く：あなたは 3点のライフを得（え）る。');
+const chocoBirds = (s, E, side, n = 1) => E.token(s, side, MY_T.choco, n);
 const dolls = (s, E, side, n = 1) => E.token(s, side, MY_T.doll, n);
 
 // ---- グレートスリー（有珠の 大技 だけ。カードでは ない）----
@@ -84,6 +90,12 @@ const GUNNER = {
   },
 };
 
+// 青子人形の 麻痺カウンターを 置く あいて
+const DOLL_AIM = {
+  tgt: [{ side: 'E', label: '青子人形（あおこにんぎょう）：麻痺（まひ）カウンターを 置（お）く 敵（てき）の クリーチャー' }],
+  apply: (s, E, [[t]]) => { if (t && E.onBf(s, t)) { E.target(s, t); E.addStun(s, t, 1); } },
+  auto: (s, E) => { const t = biggest(s, E, (q) => !q.stun) || biggest(s, E); if (t) E.addStun(s, t, 1); },
+};
 // ---- 草十郎：時間カウンターを 取りのぞく たびに 1つ えらぶ ----
 const SOJU_OPTS = (p) => [
   { label: '接死（せっし）カウンター', value: 'deathtouch', disabled: !!p.kwc?.has('deathtouch'), note: p.kwc?.has('deathtouch') ? 'もう ある' : 'ダメージを あたえた クリーチャーを たおす' },
@@ -173,13 +185,13 @@ export const S17 = {
   // 空蝉：game.js の leave（def.standIn）。トークンでない ほかの クリーチャーの かわりに 墓地へ
   MY09: { standIn: (s, q, p, E) => !p.token && E.isCreature(p), onDie: toHand },
   MY10: {
-    etb: (s, p, E) => { birds(s, E, p.side, 2); },
+    etb: (s, p, E) => { chocoBirds(s, E, p.side, 2); },
     acts: [
-      { cost: 2, tap: true, when: [1, 2], label: '2・タップ：椋鳥（むくどり）トークンを 1体 出す', play: (s, p, E) => ({ score: 3, run: () => birds(s, E, 'P', 1) }) },
+      { cost: 2, tap: true, when: [1, 2], label: '2・タップ：椋鳥（むくどり）トークン（食物（しょくもつ）でも ある）を 1体 出す', play: (s, p, E) => ({ score: 3, run: () => chocoBirds(s, E, 'P', 1) }) },
       {
         cost: 0, when: [1, 2], label: '椋鳥（むくどり）1体を 墓地（ぼち）に置（お）く：ライフ ＋2',
-        can: (s, p) => s[p.side].bf.some((q) => q.def.id === 't_mukudori'), cantWhy: '椋鳥（むくどり）が いない',
-        play: (s, p, E, ctx = {}) => { const b = s.P.bf.find((q) => q.def.id === 't_mukudori'); return b && (ctx.human || s.P.life <= 6) ? { score: 2, run: () => { E.leave(s, b, 'gy', { died: true }); E.gain(s, 2); E.sba(s); } } : null; },
+        can: (s, p) => s[p.side].bf.some(isBird), cantWhy: '椋鳥（むくどり）が いない',
+        play: (s, p, E, ctx = {}) => { const b = s.P.bf.find((q) => isBird(q) && !q.def.food) || s.P.bf.find(isBird); return b && (ctx.human || s.P.life <= 6) ? { score: 2, run: () => { E.leave(s, b, 'gy', { died: true }); E.gain(s, 2); E.sba(s); } } : null; },
       },
     ],
   },
@@ -230,6 +242,23 @@ export const S17 = {
     play: (s, p, E) => { const t = mine(s, E).find((q) => q.def.onMP || q.def.id === 'MY01') || (mine(s, E).some((q) => q.mp > 0) ? mine(s, E).find((q) => q.mp > 0) : null); return t ? { score: 3, run: () => E.addMP(s, t, 1) } : null; },
     tgt: [{ side: 'P', label: '魔力（まりょく）カウンターを 置（お）く あなたの クリーチャー' }], apply: (s, E, [[t]]) => { if (t) E.addMP(s, t, 1); },
   }] },
+  // 青子人形：ターンの はじめに 敵の クリーチャー 1体と じぶんに 麻痺カウンター。死亡したとき、のって いた 数の ダメージ
+  // 人は 画面で あいてを えらぶ（s.aimQ）。AI は まだ 麻痺して いない、パワーが いちばん 大きい 敵
+  MY55: {
+    upkeep: (s, p, E) => {
+      if (p.side !== 'P') return;
+      E.addStun(s, p, 1);
+      if (!theirs(s, E).length) return;
+      if (s.ai?.aim && !s.swapped) (s.aimQ ||= []).push({ src: p.uid, ...DOLL_AIM }); else DOLL_AIM.auto(s, E, p);
+    },
+    onDie: (s, p, E) => {
+      const n = p.stun || 0; if (!n) return;
+      E.L(s, `${p.def.name}：麻痺（まひ）カウンター ${n}こ → ${n}点`);
+      // 敵（本体）へ。本体の ない 階（ハイドラ など）は、いつもの「敵に N点」（AI が えらぶ）
+      if (p.side !== 'P') E.hurt(s, n); else if (s.floor.faceValue && s.floor.faceValue(s, n, E) > 0) E.hitTarget(s, 'face', n, null); else E.hitEnemy(s, n, null);
+      E.sba(s);
+    },
+  },
   // ---- 舞台 ----
   MY52: {
     anthem: (s, q, p) => (p.side === q.side && isCr(p.def) && isPloy(p) ? [1, 1] : null),
@@ -240,3 +269,4 @@ export const S17 = {
 };
 // 1体を タップ（ルーン「イサ」）は コモンでも じぶんで えらぶ（docs/REMOVAL.md 4.1 と おなじ）
 PICK_FREE.add('MY20');
+PICK_FREE.add('MY55'); // 麻痺カウンターを 置く あいても じぶんで えらぶ

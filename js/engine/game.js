@@ -213,7 +213,16 @@ export async function enemyTurn(s) {
 // ターンの はじめの アンタップ。こおり（つぎの 1回 起きない）と、氷の時代（それが 戦場に あるあいだ 起きない）
 export function untap(s, p) {
   if (p.iceBy && onBf(s, p.iceBy)) return;
+  // 麻痺（まひ）カウンター（p.stun。addStun）：アンタップする かわりに 1こ 取りのぞく（タップして いる ときだけ。おきて いる ものは そのまま のこる）
+  if (p.stun > 0 && p.tapped) { p.stun--; L(s, `${foe(s, p.side)}${p.def.name}：麻痺（まひ）で おきない（麻痺（まひ）カウンター のこり ${p.stun}）`); if (p.frozen) p.frozen = false; return; }
   if (p.frozen) p.frozen = false; else p.tapped = false;
+}
+// 麻痺カウンターを n こ 置く（どの カードにも つかえる）
+export function addStun(s, p, n = 1) {
+  if (!p || !onBf(s, p) || n <= 0) return 0;
+  p.stun = (p.stun || 0) + n;
+  L(s, `${foe(s, p.side)}${p.def.name} に 麻痺（まひ）カウンター ${n}こ（${p.stun}こ）`);
+  return p.stun;
 }
 
 function endTurn(s) {
@@ -349,7 +358,7 @@ function makePerm(side, def, o = {}) {
     uid: UID++, def, card: o.card || def, side, tapped: !!o.tapped, sick: true, ctr: o.ctr || 0, level: 0, dmg: 0, dt: false, dmgBy: [],
     mP: 0, mT: 0, kwT: new Set(), frozen: false, token: !!o.token, monstrous: false, attached: null, links: [], flags: { turn: {} },
     loy: (def.types || []).includes('planeswalker') ? def.loyalty || 0 : 0,
-    mp: 0, kwc: null, // 魔力カウンター（番外編「魔法使いの夜」）・キーワードカウンター（接死・呪禁 など。addKwCounter）
+    mp: 0, kwc: null, stun: 0, // 魔力カウンター（番外編「魔法使いの夜」）・キーワードカウンター（接死・呪禁 など。addKwCounter）
   };
 }
 
@@ -489,6 +498,7 @@ export function proliferate(s) {
     if (p.shieldCtr > 0) p.shieldCtr++;
     if (p.time > 0) p.time++;
     if (p.mp > 0) addMP(s, p, 1);
+    if (p.stun > 0) p.stun++;
     if (p.trial > 0) p.trial++;
     if (p.seals > 0) p.seals++;
     if (p.marks > 0) p.marks++;
@@ -1164,7 +1174,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  transform, L, drawCard, addKwCounter, addMP, KWC_JA, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  transform, L, drawCard, addKwCounter, addMP, KWC_JA, addStun, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,

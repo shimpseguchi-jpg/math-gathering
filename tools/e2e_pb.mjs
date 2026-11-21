@@ -579,7 +579,7 @@ const myBefore = await state();
 const myGot = await openPack('s17');
 s = await state();
 const myNew = Object.keys(s.cards).filter((id) => (s.cards[id] || 0) > (myBefore.cards[id] || 0));
-check(`まほよパック：${PB.pack}P で あけると「魔法使いの夜」の カードが 8まい（ID は MY）`, s.pts === 250 - PB.pack && count(s) === count(myBefore) + 8 && myNew.length > 0 && myNew.every((id) => /^MY\d\d$/.test(id)) && /を てに いれた！/.test(myGot), `${myNew.join(' ')}・${myGot}`);
+check(`まほよパック：${PB.pack}P で あけると「魔法使いの夜」の カードが 8まい（ID は MY）`, s.pts === 250 - PB.pack && count(s) === count(myBefore) + 8 && myNew.length > 0 && myNew.every((id) => /^MY\d\d$/.test(id)) && await page.evaluate(async () => (await import('./js/data/packbattle.js')).packsFor(0).find((p) => p.set === 17).ids.includes('MY55')) && /を てに いれた！/.test(myGot), `${myNew.join(' ')}・${myGot}`);
 await page.click('[data-back]');
 await page.click('.pb-steps [data-go=deck]');
 await page.waitForTimeout(200);
@@ -644,9 +644,24 @@ await page.waitForTimeout(500);
 const al1 = await page.evaluate(() => window.__s.P.bf.find((p) => p.def.id === 'MY02')?.mp);
 await page.locator('[data-hand="0"]').click(); await sheetClick('出す');
 await page.waitForTimeout(700);
-const al2 = await page.evaluate(() => { const s = window.__s; return { great: s.P.bf.filter((p) => p.def.great).map((p) => p.def.id).join(), mp: s.P.bf.find((p) => p.def.id === 'MY02')?.mp ?? -1, birds: s.P.bf.filter((p) => p.def.id === 't_mukudori').length }; });
+const al2 = await page.evaluate(() => { const s = window.__s; return { great: s.P.bf.filter((p) => p.def.great).map((p) => p.def.id).join(), mp: s.P.bf.find((p) => p.def.id === 'MY02')?.mp ?? -1, birds: s.P.bf.filter((p) => p.def.muku).length, food: s.P.bf.filter((p) => p.def.food).length }; });
 await shot('27_alice_great3');
-check('有珠（画面）：椋鳥 2体で 2 ＋ 2 ＝ 4こ、つぎの 1体で 5こ → グレートスリーが 出る', al1 === 4 && al2.great.length > 0 && al2.birds === 3, `${al1}・${JSON.stringify(al2)}`);
+check('有珠（画面）：椋鳥 2体で 2 ＋ 2 ＝ 4こ、つぎの 1体で 5こ → グレートスリーが 出る', al1 === 4 && al2.great.length > 0 && al2.birds === 3 && al2.food === 2, `${al1}・${JSON.stringify(al2)}`);
+// チョコレイトの 椋鳥：タップすると 食物の ボタンが 出る
+await page.evaluate(() => { for (const p of window.__s.P.bf) p.sick = false; });
+await page.locator('.zone.mine .perm', { hasText: '椋鳥' }).first().click(); await page.waitForTimeout(300);
+const foodBtn = (await page.locator('#sheet .sheet-actions').innerText()).replace(/\s+/g, ' ');
+const lifeF = await page.evaluate(() => window.__s.P.life);
+await sheetClick('3点の ライフ'); await page.waitForTimeout(400);
+const afterF = await page.evaluate(() => ({ life: window.__s.P.life, food: window.__s.P.bf.filter((p) => p.def.food).length }));
+check('チョコレイトの 椋鳥（画面）：食物の ボタン（2・タップ・墓地に 置く）で ライフ ＋3', /食物/.test(foodBtn) && afterF.life === lifeF + 3 && afterF.food === 1, `${foodBtn.slice(0, 40)}・${JSON.stringify(afterF)}`);
+// 青子人形：ターンの はじめに 麻痺カウンターを 置く 敵を えらぶ
+await startMy([], ['MY55'], [['てきA', 2, 2], ['てきB', 3, 3]]);
+await page.locator('.battle').waitFor();
+const stunTitle = await pickSheet('てきA');
+const stun = await page.evaluate(() => { const s = window.__s; return { doll: s.P.bf.find((p) => p.def.id === 'MY55')?.stun, foes: s.E.bf.map((p) => `${p.def.name}:${p.stun || 0}`).join() }; });
+await shot('28_aoko_doll_stun');
+check('青子人形（画面）：ターンの はじめに 敵を えらぶ まど → えらんだ 敵と じぶんに 麻痺カウンター（「まひ 1」の バッジ）', /麻痺|まひ/.test(stunTitle) && stun.doll === 1 && stun.foes === 'てきA:1,てきB:0' && /まひ 1/.test(await page.locator('.zone.mine').innerText()) && ((await page.locator('.battle').innerText()).match(/まひ 1/g) || []).length >= 2, `${stunTitle}・${JSON.stringify(stun)}`);
 await page.reload(); await page.click('[data-go=pb]');
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');

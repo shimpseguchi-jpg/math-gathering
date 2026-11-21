@@ -1,7 +1,8 @@
 // 番外編「魔法使いの夜」（第17弾）の しくみの テスト：node tools/mytest.mjs
 // 魔力カウンター・キーワードカウンター・消失と 時間カウンター・看板の 3人・空蝉・予備の 体・増殖・パック＆バトルの まほよパック
 import { BY_ID, SETS, BASICS } from '../js/data/cards.js';
-import { newGame, api, beginPlayerTurn, onBf, hasKw, pt, sba, proliferate, isCreature } from '../js/engine/game.js';
+import { newGame, api, beginPlayerTurn, onBf, hasKw, pt, sba, proliferate, isCreature, untap } from '../js/engine/game.js';
+import { foods } from '../js/data/kit.js';
 import { AI, castCard, plan } from '../js/engine/ai.js';
 import { pvp } from '../js/data/enemies.js';
 import { GREAT3, MY_T, ALICE_MAX } from '../js/data/set17.js';
@@ -24,13 +25,13 @@ const cast = (s, id, o = {}) => { const c = api.card(D(id)); s.P.hand.push(c); f
 
 // ---- セット ----
 const set = SETS.find((x) => x.id === 17);
-check('第17弾：54種・番外編・ID は MY01〜MY54', set && set.extra && set.cards.length === 54 && set.cards.every((d, i) => d.id === `MY${String(i + 1).padStart(2, '0')}`));
+check('第17弾：55種・番外編・ID は MY01〜MY55', set && set.extra && set.cards.length === 55 && set.cards.every((d, i) => d.id === `MY${String(i + 1).padStart(2, '0')}`));
 check('文が ぜんぶ ある（名前・タイプ・テキスト）', set.cards.every((d) => CARD_TEXT[d.id]?.name && CARD_TEXT[d.id]?.type));
-check('レアリティ：L 5・R 9・U 21・C 19', ['L', 'R', 'U', 'C'].map((r) => set.cards.filter((d) => d.rar === r).length).join() === '5,9,21,19');
+check('レアリティ：L 5・R 9・U 22・C 19', ['L', 'R', 'U', 'C'].map((r) => set.cards.filter((d) => d.rar === r).length).join() === '5,9,22,19');
 check('グレートスリーは カードに ない（トークン だけ）', !set.cards.some((d) => /巨人|月の油|猟犬/.test(d.name.replace(/（[^）]*）/g, ''))) && Object.values(GREAT3).every((d) => d.great && !d.rar));
 check('本編：もんしょう「番外編 魔法使いの夜」で パックに まざる', EMBLEMS.some((e) => e.id === 'pMY' && e.fx.packExtra === 17));
 const shop = packsFor(0), my = shop.find((p) => p.set === 17);
-check('パック＆バトル：まほよパックが さいしょから ショップに ある（100P・54種）', my && my.name === 'まほよパック' && my.special && my.ids.length === 54 && PB.pack === 100 && PB_PACKS_SPECIAL.length === 1 && packsFor(3).includes(my));
+check('パック＆バトル：まほよパックが さいしょから ショップに ある（100P・55種。青子人形 MY55 も 入る）', my && my.name === 'まほよパック' && my.special && my.ids.length === 55 && my.ids.includes('MY55') && PB.pack === 100 && PB_PACKS_SPECIAL.length === 1 && packsFor(3).includes(my));
 
 // ---- キーワードカウンター ----
 {
@@ -95,7 +96,7 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   const s = board(), al = put(s, 'MY02'); api.token(s, 'E', MY_T.bird, 2); put(s, 'MY27');
   check('有珠：あいての トークン・トークンでない クリーチャーでは たまらない', al.mp === 0);
   put(s, 'MY10');
-  check('シックス・スィング・チョコレイト：椋鳥 2体 → 有珠に 2こ', al.mp === 2 && s.P.bf.filter((p) => p.def.id === 't_mukudori').length === 2);
+  check('シックス・スィング・チョコレイト：椋鳥 2体 → 有珠に 2こ', al.mp === 2 && s.P.bf.filter((p) => p.def.id === 't_mukudori_c').length === 2);
 }
 // ---- 静希草十郎（消失・時間カウンター）----
 {
@@ -159,6 +160,59 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   check('三咲町：マナを 出せる（好きな 色）', D('MY53').mana === 'any' && !!plan(s5, m0 + 1, ['K']));
   const s6 = board(), lu = put(s6, 'MY05'), w = put(s6, vanillaE, 'E'), big = put(s6, { ...vanillaE, name: 'てきC', pow: 3, tou: 3 }, 'E');
   check('ルゥ・ベオウルフ：6/5 速攻・トランプル。パワー 2 いかには ブロックされない', pt(s6, lu).join('/') === '6/5' && hasKw(s6, lu, 'haste') && hasKw(s6, lu, 'trample') && !api.canBlock(s6, w, lu) && api.canBlock(s6, big, lu));
+}
+// ---- シックス・スィング・チョコレイトの 椋鳥は 食物でも ある ----
+{
+  const s = board(), c = put(s, 'MY10');
+  const cb = s.P.bf.filter((p) => p.def.id === 't_mukudori_c');
+  check('チョコレイトの 椋鳥：2体。椋鳥（1/1 飛行・プロイ）で、食物でも ある', cb.length === 2 && cb.every((p) => p.def.food && p.def.muku && p.token && pt(s, p).join('/') === '1/1' && hasKw(s, p, 'flying') && p.def.sub.includes('プロイ')) && foods(s).length === 2);
+  put(s, 'MY14'); put(s, 'MY52'); D('MY52').upkeep(s, s.P.bf.find((p) => p.def.id === 'MY52'), api);
+  const plainB = s.P.bf.filter((p) => p.def.id === 't_mukudori');
+  check('ほかの カード（椋鳥の 群れ など）の 椋鳥は 食物では ない', plainB.length === 1 && !plainB[0].def.food && !plainB[0].def.acts && foods(s).length === 2);
+  cb[0].sick = false; const fa = cb[0].def.acts[0], life0 = s.P.life;
+  fa.play(s, cb[0], api, { human: true }).run(); sba(s);
+  check('食物として つかう（2・タップ・墓地に 置く）：ライフ ＋3', fa.cost === 2 && fa.tap && fa.sac && !onBf(s, cb[0]) && s.P.life === life0 + 3);
+  const a2 = D('MY10').acts[1];
+  a2.play(s, c, api, { human: true }).run(); sba(s);
+  check('MY10 の「椋鳥 1体を 墓地に 置く：ライフ ＋2」も つかえる（ふつうの 椋鳥から 先に）', s.P.life === life0 + 5 && s.P.bf.filter((p) => p.def.id === 't_mukudori').length === 0 && s.P.bf.filter((p) => p.def.id === 't_mukudori_c').length === 1);
+  a2.play(s, c, api, { human: true }).run(); sba(s);
+  check('チョコレイトの 椋鳥も その こうかで 墓地に 置ける（＋2）', s.P.life === life0 + 7 && !s.P.bf.some((p) => p.def.muku) && a2.can(s, c) === false);
+  for (const m of s.P.mana) m.tapped = false; c.sick = false;
+  D('MY10').acts[0].play(s, c, api, {}).run();
+  check('MY10 の「2・タップ」で 出る 椋鳥も 食物', s.P.bf.filter((p) => p.def.id === 't_mukudori_c').length === 1 && foods(s).length === 1);
+  const s2 = board(), sn = put(s2, 'MY06'); put(s2, 'MY10');
+  check('チョコレイトの 椋鳥も プロイ（夜の饗宴で 2/2）', s2.P.bf.filter((p) => p.def.id === 't_mukudori_c').every((p) => pt(s2, p).join('/') === '2/2'));
+}
+// ---- 麻痺カウンター・青子人形（MY55）----
+{
+  const s = board(), e = put(s, { ...vanillaE, pow: 3, tou: 3 }, 'E'), me = put(s, 'MY27');
+  api.addStun(s, e, 2);
+  untap(s, e);
+  check('麻痺カウンター：おきて いる クリーチャーは そのまま（カウンターは のこる）', e.stun === 2 && !e.tapped);
+  e.tapped = true; untap(s, e); const a1 = [e.tapped, e.stun].join(); untap(s, e); const a2 = [e.tapped, e.stun].join(); untap(s, e);
+  check('麻痺カウンター：アンタップする かわりに 1こ 取りのぞく（2こ → 2ターン おきない → 3ターンめに おきる）', a1 === 'true,1' && a2 === 'true,0' && !e.tapped && e.stun === 0, `${a1} ${a2}`);
+  api.addStun(s, me, 1); proliferate(s);
+  check('増殖：麻痺カウンターも 1こ ふえる', me.stun === 2);
+  const d = D('MY55');
+  check('青子人形：3マナ・青・アンコモン・2/2 警戒・アーティファクト・クリーチャー（人形）', d.cost === 3 && d.color === 'U' && d.rar === 'U' && d.pow === 2 && d.tou === 2 && d.kw.includes('vigilance') && d.types.join() === 'artifact,creature' && d.sub.includes('人形'));
+  const s2 = board(), doll = put(s2, 'MY55'), big = put(s2, { ...vanillaE, name: '大', pow: 4, tou: 4 }, 'E'), small = put(s2, vanillaE, 'E');
+  d.upkeep(s2, doll, api);
+  check('青子人形：ターンの はじめに 敵 1体（AI は パワーが いちばん 大きい）と じぶんに 麻痺カウンター 1こずつ', doll.stun === 1 && big.stun === 1 && !small.stun);
+  d.upkeep(s2, doll, api);
+  check('青子人形（AI）：2回めは まだ 麻痺して いない 敵へ。じぶんは 2こ', doll.stun === 2 && big.stun === 1 && small.stun === 1);
+  untap(s2, doll);
+  check('青子人形：警戒で タップしない ので、じぶんの カウンターは へらない', doll.stun === 2 && !doll.tapped);
+  const life0 = s2.E.life; d.upkeep(s2, doll, api); api.destroy(s2, doll); sba(s2);
+  check('青子人形：死亡したとき、のって いた 麻痺カウンターの 数（3）の ダメージを 敵に', !onBf(s2, doll) && s2.E.life === life0 - 3, `life ${s2.E.life}`);
+  const s3 = board(), doll3 = put(s3, 'MY55'), f3 = put(s3, vanillaE, 'E'); s3.ai = { ...s3.ai, aim: true };
+  d.upkeep(s3, doll3, api);
+  check('青子人形（人）：じぶんには すぐ 置き、敵は えらぶ 順番まちに 入る', doll3.stun === 1 && !f3.stun && s3.aimQ?.length === 1);
+  s3.aimQ.shift().apply(s3, api, [[f3]], doll3);
+  check('青子人形（人）：えらんだ 敵に 麻痺カウンター', f3.stun === 1);
+  const s4 = board(), t4 = put(s4, 'MY04'), d4 = put(s4, 'MY55'); api.destroy(s4, t4); sba(s4);
+  check('青子人形は 人形：橙子の 予備の 体に つかえる', s4.P.bf.some((p) => p.def.id === 'MY04'));
+  const s5 = board(), doll5 = put(s5, 'MY55'); api.destroy(s5, doll5); sba(s5);
+  check('青子人形：カウンターが 0こなら ダメージ なし', s5.E.life === 20);
 }
 console.log(fails ? `FAILED: ${fails} / ${n}` : `ALL OK（${n}）`);
 process.exit(fails ? 1 : 0);
