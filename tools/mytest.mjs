@@ -89,7 +89,7 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
     const g = s.P.bf.filter((p) => p.def.great);
     seen.add(g[0]?.def.id);
     if (k === 0) check('有珠：トークンが 出るたび 1こ（4体で 4こ）。5こめで ぜんぶ 取りのぞいて グレートスリー', before === 4 && g.length === 1 && g[0].def.id === 't_thames' && pt(s, g[0]).join('/') === '8/8' && hasKw(s, g[0], 'trample') && al.mp === 1, `mp ${al.mp}`);
-    if (k === 1) { const b = s.P.bf.find((p) => p.def.id === 't_mukudori'); check('月の油：ほかの トークンは ＋2/＋2（椋鳥 1/1 → 3/3）。じぶんは 2/2', g[0].def.id === 't_flat' && pt(s, b).join('/') === '3/3' && pt(s, g[0]).join('/') === '2/2'); }
+    if (k === 1) { const b = s.P.bf.find((p) => p.def.id === 't_mukudori'); check('月の油：ほかの トークンは ＋2/＋2（椋鳥 1/1 → 3/3）で 警戒と 絆魂。じぶんは 2/2 で もたない。トークンで ない ものも もたない', g[0].def.id === 't_flat' && pt(s, b).join('/') === '3/3' && hasKw(s, b, 'vigilance') && hasKw(s, b, 'lifelink') && pt(s, g[0]).join('/') === '2/2' && !hasKw(s, g[0], 'vigilance') && !hasKw(s, g[0], 'lifelink') && !hasKw(s, al, 'lifelink') && /警戒.*絆魂/.test(g[0].def.textOver.replace(/（[^）]*）/g, ''))); }
     if (k === 2) check('薔薇の猟犬：3体 出る（3体 そろって 6/6・呪禁）。有珠は 墓地へ', g.length === 3 && g.every((p) => pt(s, p).join('/') === '6/6' && hasKw(s, p, 'hexproof')) && !onBf(s, al) && s.P.gy.some((c) => c.def.id === 'MY02'));
   }
   check('グレートスリーは 3しゅるいとも 出る（ランダム）', seen.size === 3);
@@ -213,6 +213,25 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   check('青子人形は 人形：橙子の 予備の 体に つかえる', s4.P.bf.some((p) => p.def.id === 'MY04'));
   const s5 = board(), doll5 = put(s5, 'MY55'); api.destroy(s5, doll5); sba(s5);
   check('青子人形：カウンターが 0こなら ダメージ なし', s5.E.life === 20);
+}
+// ---- 調整 2（2026-11-25）：スターマイン・文柄詠梨 ----
+{
+  const s = board(), e = put(s, { ...vanillaE, pow: 3, tou: 3 }, 'E'); cast(s, 'MY45');
+  check('夜空の スターマイン：青子が いなければ 2点（3/3 は のこる）', onBf(s, e) && e.dmg === 2);
+  const s2 = board(), a = put(s2, 'MY01'), e2 = put(s2, { ...vanillaE, pow: 3, tou: 3 }, 'E'), e3 = put(s2, { ...vanillaE, name: 'てきD', pow: 4, tou: 4 }, 'E'); cast(s2, 'MY45');
+  check('夜空の スターマイン：青子が いれば 3点（3/3 は たおれる・4/4 に 3点 ＋ 魔弾 1点）', !onBf(s2, e2) && (!onBf(s2, e3) || e3.dmg >= 3), `dmg ${e3.dmg}`);
+  const d = D('MY26');
+  check('文柄詠梨：白・3マナ・2/4・アンコモン。まえの 能力（ターンの はじめの ライフ）は ない', d.color === 'W' && d.cost === 3 && d.pow === 2 && d.tou === 4 && d.rar === 'U' && !d.upkeep && !d.etb && !d.onCast);
+  const s3 = board(), f = put(s3, 'MY26'), x1 = put(s3, vanillaE, 'E'), x2 = put(s3, { ...vanillaE, name: '大', pow: 5, tou: 5 }, 'E');
+  d.onAttack(s3, f, api);
+  check('文柄詠梨：この ターンに ライフを 回復して いなければ なにも おきない', s3.E.bf.length === 2 && d.trigTgt.when(s3, f, api) === false);
+  api.gain(s3, 1); d.onAttack(s3, f, api);
+  check('文柄詠梨：回復して いれば、攻撃するたび 敵の クリーチャー 1体を 追放（AI は いちばん ねらいたい 敵）', s3.E.bf.length === 1 && !onBf(s3, x2) && s3.E.exile.some((c) => c.def.name === '大') && d.trigTgt.when(s3, f, api) === true);
+  const s4 = board(), f4 = put(s4, 'MY26'), y1 = put(s4, vanillaE, 'E'), y2 = put(s4, { ...vanillaE, name: '大', pow: 5, tou: 5 }, 'E');
+  api.gain(s4, 2); f4.trigPick = y1; d.onAttack(s4, f4, api);
+  check('文柄詠梨（人）：えらんだ 敵を 追放', !onBf(s4, y1) && onBf(s4, y2));
+  s4.turn++; d.onAttack(s4, f4, api);
+  check('文柄詠梨：つぎの ターンは 回復して いなければ 追放しない', onBf(s4, y2));
 }
 console.log(fails ? `FAILED: ${fails} / ${n}` : `ALL OK（${n}）`);
 process.exit(fails ? 1 : 0);

@@ -662,6 +662,24 @@ const stunTitle = await pickSheet('てきA');
 const stun = await page.evaluate(() => { const s = window.__s; return { doll: s.P.bf.find((p) => p.def.id === 'MY55')?.stun, foes: s.E.bf.map((p) => `${p.def.name}:${p.stun || 0}`).join() }; });
 await shot('28_aoko_doll_stun');
 check('青子人形（画面）：ターンの はじめに 敵を えらぶ まど → えらんだ 敵と じぶんに 麻痺カウンター（「まひ 1」の バッジ）', /麻痺|まひ/.test(stunTitle) && stun.doll === 1 && stun.foes === 'てきA:1,てきB:0' && /まひ 1/.test(await page.locator('.zone.mine').innerText()) && ((await page.locator('.battle').innerText()).match(/まひ 1/g) || []).length >= 2, `${stunTitle}・${JSON.stringify(stun)}`);
+// 文柄詠梨：ライフを 回復した ターンに 攻撃すると、追放する 敵を えらぶ まど（回復して いなければ 出ない）
+const eiriAttack = async (gain) => {
+  await startMy([], ['MY26'], [['てきA', 2, 2], ['てきB', 5, 5]]);
+  await page.locator('.battle').waitFor();
+  if (gain) await page.evaluate(async () => { const { api } = await import('./js/engine/game.js'); api.gain(window.__s, 2); });
+  await page.click('[data-act=attack]'); await page.waitForTimeout(250);
+  await page.click('[data-act=auto]'); await page.waitForTimeout(250);
+  await page.click('[data-act=declare]');
+  let title = '';
+  for (let i = 0; i < 25 && !title; i++) { await page.waitForTimeout(100); if (await page.locator('#sheet:not([hidden]) .pick-list').count()) title = (await page.locator('#sheet .sheet-title').innerText()).replace(/\s+/g, ''); }
+  if (title) { await page.locator('#sheet .pick', { hasText: 'てきA' }).first().click(); await page.click('#sheet [data-ok]'); await page.waitForTimeout(500); }
+  return { title, ...(await page.evaluate(() => ({ foes: window.__s.E.bf.map((p) => p.def.name).join(), exile: window.__s.E.exile.map((c) => c.def.name).join() }))) };
+};
+const ei0 = await eiriAttack(false);
+check('文柄詠梨（画面）：ライフを 回復して いない ターンは、えらぶ まどが 出ず 追放も しない', !ei0.title && !ei0.exile && /てきA/.test(ei0.foes) && /てきB/.test(ei0.foes), JSON.stringify(ei0));
+const ei1 = await eiriAttack(true);
+await shot('29_eiri_exile');
+check('文柄詠梨（画面）：ライフを 回復した ターンに 攻撃すると、追放する 敵を えらぶ まど → えらんだ 敵を 追放', /追放/.test(ei1.title) && ei1.exile === 'てきA' && !/てきA/.test(ei1.foes), JSON.stringify(ei1));
 await page.reload(); await page.click('[data-go=pb]');
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');

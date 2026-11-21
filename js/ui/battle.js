@@ -429,6 +429,7 @@ async function preTrig(on, list) {
   for (const p of list) {
     const tt = p.def.trigTgt;
     if (!tt || tt.on !== on || pickOf(p.def) || !onBf(B.s, p)) continue;
+    if (tt.when && !tt.when(B.s, p, api)) continue; // じょうけんつきの きっかけ（文柄詠梨：この ターンに ライフを 回復して いたら）
     const spec = { side: 'E', label: `${noRuby(info(p.def).name)}：${tt.label}` };
     if (!needsTargets([spec], {})) continue;
     const picks = await pickAll([spec], { note: on === 'attack' ? 'こうげきした ときの こうか' : 'てきに ダメージを あたえた ときの こうか' });

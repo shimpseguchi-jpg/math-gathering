@@ -33,7 +33,8 @@ export const GREAT3 = {
   troll: tok(cr('t_thames', '橋（はし）の巨人（きょじん）（テムズトロル）', null, 'KG', 0, 8, 8, ['プロイ', 'giant'], ['trample'], { great: true }), 'クリーチャー — プロイ（グレートスリー）', 'トランプル。'),
   snark: tok(cr('t_flat', '月（つき）の油（あぶら）（フラットスナーク）', null, 'KG', 0, 2, 2, ['プロイ'], [], {
     great: true, anthem: (s, q, p) => (p !== q && p.side === q.side && p.token && isCr(p.def) ? [2, 2] : null),
-  }), 'クリーチャー — プロイ（グレートスリー）', 'あなたの ほかの トークンは ＋2/＋2 の修整（しゅうせい）を受（う）ける。'),
+    grant: (s, q, p) => (p !== q && p.side === q.side && p.token && isCr(p.def) ? ['vigilance', 'lifelink'] : null),
+  }), 'クリーチャー — プロイ（グレートスリー）', 'あなたの ほかの トークンは ＋2/＋2 の修整（しゅうせい）を受（う）け、警戒（けいかい）と 絆魂（はんこん）を得（え）る。'),
   hound: HOUND,
 };
 export const ALICE_MAX = 5;
@@ -216,7 +217,17 @@ export const S17 = {
   // ---- 三咲の 面々 ----
   MY22: etbP((s, p, E) => { E.token(s, 'P', T.treasure, 1); }),
   MY24: etbP((s, p, E) => { E.gain(s, 3); }),
-  MY26: { upkeep: (s, p, E) => { if (p.side === 'P') E.gain(s, 1); } },
+  // 文柄詠梨：攻撃するたび、この ターンに ライフを 回復して いたら 敵の クリーチャー 1体を 追放（人は 攻撃の まえに えらぶ。AI は いちばん ねらいたい 敵）
+  MY26: {
+    trigTgt: { on: 'attack', label: '追放（ついほう）する 敵（てき）の クリーチャー', when: (s, p, E) => E.gainedNow(s) > 0 },
+    onAttack: (s, p, E) => {
+      if (p.side !== 'P') return;
+      const pick = E.takePick(s, p);
+      if (!(E.gainedNow(s) > 0)) return;
+      const t = pick && pick !== 'face' ? pick : foeBest(s, E)?.t;
+      if (t && E.onBf(s, t)) { E.L(s, `${p.def.name}：この ターンに ライフを 回復（かいふく）した → ${t.def.name}を 追放（ついほう）`); E.target(s, t); E.exile(s, t); E.sba(s); }
+    },
+  },
   MY28: etbP((s, p, E) => { E.gain(s, 2); }),
   MY31: etbP((s, p, E) => { E.hitEnemy(s, 1, p); }),
   // ---- 呪文 ----
@@ -230,7 +241,7 @@ export const S17 = {
   MY42: foe1('てふだに もどす（てきは やまふだの 上へ）クリーチャー', (s, E, t) => { E.bounce(s, t); E.sba(s); }, { score: 1 }),
   MY43: foe1('−1/−1カウンターを 2こ 置（お）く クリーチャー', (s, E, t) => { if (t && E.onBf(s, t)) { E.addMinus(s, t, 2); E.sba(s); } }, { n: 2 }),
   MY44: single(2, 0, { kw: ['first'] }),
-  MY45: { play: (s, E, ctx) => { const n = theirs(s, E).length; return n || ctx.human ? { score: 2 + 3 * n, run: () => { for (const t of [...theirs(s, E)]) E.damage(s, t, 2, null); E.sba(s); } } : null; } },
+  MY45: { play: (s, E, ctx) => { const n = theirs(s, E).length; return n || ctx.human ? { score: 2 + 3 * n, run: () => { const k = aokoOn(s) ? 3 : 2; for (const t of [...theirs(s, E)]) E.damage(s, t, k, null); E.sba(s); } } : null; } }, // 青子が いれば 3点
   MY46: foe1('4点を あたえる クリーチャー', (s, E, t) => hit(s, E, t, 4), { n: 4 }),
   MY47: { play: (s, E) => ({ score: 5, run: () => E.token(s, 'P', T.human, 2) }) },
   MY48: own1('＋1/＋1カウンターを 2こ 置（お）く クリーチャー', (s, E, t) => E.addCounters(s, t, 2), 5),
@@ -269,4 +280,5 @@ export const S17 = {
 };
 // 1体を タップ（ルーン「イサ」）は コモンでも じぶんで えらぶ（docs/REMOVAL.md 4.1 と おなじ）
 PICK_FREE.add('MY20');
-PICK_FREE.add('MY55'); // 麻痺カウンターを 置く あいても じぶんで えらぶ
+PICK_FREE.add('MY55');
+PICK_FREE.add('MY26'); // 追放する あいても じぶんで えらぶ（じょうけんつき） // 麻痺カウンターを 置く あいても じぶんで えらぶ
