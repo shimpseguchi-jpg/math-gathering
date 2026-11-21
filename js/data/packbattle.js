@@ -250,11 +250,11 @@ export function towerFloor(f, o = {}) {
 // ステージ 1 の あいての たたかう ばしょ（てきも デッキで たたかう）
 export const foeFloor = (f) => pvp({ deck: fillDeck(f.char.ids), name: f.char.who, life: f.char.life, first: 'P', style: f.char.ai });
 // テーロスがわ（ステージ 2・3・6）は きまった 5人ずつ（2026-11-21。まえは 10人が 3つの ステージに くりかえし 出た）。ラヴニカ（4・5）は 2〜3人から セーブごとに えらぶ まま
-// noBoss：ボスの いない ステージ（ステージ 2）。id は セーブの かった 回数の なまえに つかう ので かえない（th-h は いまは「しゅうまつの しま」）
+// ステージ 2 の ボスは たからの 山の ドラゴン（2026-11-22。さいごに ならぶ）。noBoss：ボスの いない ステージ（いまは ない）。id は セーブの かった 回数の なまえに つかう ので かえない（th-h は いまは「しゅうまつの しま」）
 // drop：アンティ（かつと もらう 1まい）の カード。w：コモン・アンコモン・レア・レジェンドの 出やすさ（boss：ステージの さいごの あいて）
 export const PB_STAGES = [
   { id: 'kihon', name: 'みならいの みち', diff: 'easy', kihon: S1, drop: { ids: POOL1, w: [70, 25, 5, 0], boss: [40, 40, 18, 2] } },
-  { id: 'th-e', name: 'テーロス（かんたん）', diff: 'easy', noBoss: true, slots: [['hydra'], ['clock'], ['horde'], ['dragon'], ['factory']], drop: { sets: [1], w: [65, 28, 7, 0], boss: [35, 40, 22, 3] } },
+  { id: 'th-e', name: 'テーロス（かんたん）', diff: 'easy', slots: [['hydra'], ['clock'], ['horde'], ['factory'], ['dragon']], drop: { sets: [1], w: [65, 28, 7, 0], boss: [35, 40, 22, 3] } },
   { id: 'th-n', name: 'テーロス（ふつう）', diff: 'normal', slots: [['slime'], ['twins'], ['xenagos'], ['gorgon'], ['erebos']], drop: { sets: [2], w: [55, 33, 11, 1], boss: [25, 40, 30, 5] } },
   { id: 'rv-n', name: 'ラヴニカ（ふつう）', diff: 'normal', slots: RAV_SLOTS, drop: { sets: [1, 2], w: [50, 35, 13, 2], boss: [20, 40, 33, 7] } },
   { id: 'rv-h', name: 'ラヴニカ（むずかしい）', diff: 'hard', slots: RAV_SLOTS, drop: { sets: [5], w: [45, 35, 17, 3], boss: [15, 35, 40, 10] } },
@@ -280,7 +280,7 @@ export const BOSS_BUFF_FROM = 3; // 0 から かぞえる：3 ＝ ステージ 4
 //   かんたん すぎる あいて（PB_DIFF）：その あいて だけ、1つ 上の むずかしさで たたかう（ステージ 2 の ドラゴンと とけいとう。2026-11-21）
 export const PB_EASE = { 'rv-h:gruul': 6 };
 export const PB_DIFF = { 'th-e:dragon': 'normal', 'th-e:clock': 'normal' };
-export const PB_PLUS = { 'th-e:dragon': 1, 'th-e:clock': 2 }; // きめわざと なかまを その 数だけ 多く 入れる
+export const PB_PLUS = { 'th-e:clock': 2 }; // きめわざと なかまを その 数だけ 多く 入れる（ドラゴンは ステージ 2 の ボスに なった ので、ボスの 3まいずつ ＝ まえの 2 ＋ 1 と おなじ）
 export function towerFoe(f, t, floorId) {
   const boss = f.boss ?? (!t.noBoss && f.k === t.slots.length - 1);
   return { ...f, boss, diff: PB_DIFF[`${t.id}:${floorId}`] || f.diff, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], ghost: !!PB_GUILD[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, plus: PB_PLUS[`${t.id}:${floorId}`] || 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };

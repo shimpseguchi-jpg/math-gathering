@@ -40,7 +40,7 @@ const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; //
 //   gp：せいちょうポイント, tree：{ 枝の id: とった 数 } }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 5, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
+const fresh = () => ({ v: 6, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -67,7 +67,9 @@ function load() {
         for (let si = 0; si < Math.min(done, PB_STAGES.length); si++) if (PB_STAGES[si].id.startsWith('th-')) for (const f of foesOf(si, s.seed)) s.beat[f.key] = Math.max(s.beat[f.key] || 0, PB.need);
         s.stage = done;
       }
-      s.v = 5;
+      // ステージ 2 の ならびが かわった（2026-11-22：ドラゴンが ボスで さいご、工場が 4ばんめ）：かった 回数を あいてに ついて いかせる（v5 の セーブ だけ。その まえは ばしょで おぼえて いた）
+      if (v.v === 5) { const a = s.beat['th-e:3'], b = s.beat['th-e:4']; s.beat = { ...s.beat }; delete s.beat['th-e:3']; delete s.beat['th-e:4']; if (b) s.beat['th-e:3'] = b; if (a) s.beat['th-e:4'] = a; }
+      s.v = 6;
       return s;
     }
   } catch { /* こわれていたら はじめから */ }
