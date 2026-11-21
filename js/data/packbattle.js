@@ -66,7 +66,9 @@ export const PB_PACKS = [
 ];
 // せいちょうの「パック」の 枝で ふえる パック（じゅんばんに）：第3弾・第4弾・ラヴニカ
 export const PB_PACKS_MORE = [3, 4, 9].map((id) => setPack(SETS.find((x) => x.id === id)));
-export const packsFor = (lv = 0) => [...PB_PACKS, ...PB_PACKS_MORE.slice(0, lv)];
+// とくべつな パック（番外編。さいしょから 買える・PB.pack と おなじ ねだん）。これからの 番外編は 本編と ここの 両方に 入れる（2026-11-23。ユーザーの きまり）
+export const PB_PACKS_SPECIAL = [17].map((id) => ({ ...setPack(SETS.find((x) => x.id === id)), name: 'まほよパック', note: '番外編（ばんがいへん）「魔法使（まほうつか）いの夜（よる）」。カウンターを ためて つかう', special: true }));
+export const packsFor = (lv = 0) => [...PB_PACKS, ...PB_PACKS_SPECIAL, ...PB_PACKS_MORE.slice(0, lv)];
 
 // ---- ステージ（2026-11-17。まえは 28たいを じゅんばんに たおす 1本道）----
 // 6つの ステージ。ステージの 中では あいてを えらべる。ぜんいんを PB.need 回ずつ たおすと つぎの ステージが ひらく

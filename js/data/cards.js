@@ -19,6 +19,7 @@ import { S12 } from './set12.js';
 import { S14 } from './set14.js';
 import { S15 } from './set15.js';
 import { S16 } from './set16.js';
+import { S17 } from './set17.js';
 import { S13 } from './set13.js';
 import { SPW } from './pw.js';
 import { LESSONS, REG, foe1, shrink } from './kit.js';
@@ -931,7 +932,7 @@ function build(id, b = {}) {
   if ([...d.color].length >= 3) d.req2 = true; // 3色の カードは、3色の うち 2つの マナが いる
   return d;
 }
-const BEH = { ...S2B, ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11, ...S12, ...S13, ...S14, ...S15, ...S16 };
+const BEH = { ...S2B, ...S3, ...S4, ...S5, ...S6, ...SY, ...SPW, ...S9, ...S10, ...S11, ...S12, ...S13, ...S14, ...S15, ...S16, ...S17 };
 const setOf = (n) => SET_IDS[n].map((id) => build(id, BEH[id]));
 BASICS.K = build('B06', B06);
 
@@ -959,6 +960,7 @@ export const SET12 = setOf(12);
 export const SET14 = setOf(14);
 export const SET15 = setOf(15);
 export const SET16 = setOf(16);
+export const SET17 = setOf(17);
 // レイドの 統率者カード：パックには 出ない（noPack）。統率者の カードプール だけ（docs/RAID_CARDS.md）
 export const SET13 = setOf(13).map((d) => ({ ...d, noPack: true }));
 LESSONS.push(...SET5.filter((d) => isSub({ def: d }, 'lesson')));
@@ -982,6 +984,8 @@ export const SETS = [
   { id: 14, name: '番外編（ばんがいへん）「Fate/Grand Order」第2弾（だん）「異聞帯（いぶんたい）」', cards: SET14, extra: true },
   { id: 15, name: '番外編（ばんがいへん）「崩壊（ほうかい）：スターレイル」第2弾（だん）「火を 追（お）う 旅（たび）」', cards: SET15, extra: true },
   { id: 16, name: '番外編（ばんがいへん）「ゼンレスゾーンゼロ」第2弾（だん）', cards: SET16, extra: true },
+  // 番外編「魔法使いの夜」（2026-11-23。docs/EXTRA3_MY.md）：カウンターが 主役。パック＆バトルの「まほよパック」にも 入る
+  { id: 17, name: '番外編（ばんがいへん）「魔法使（まほうつか）いの夜（よる）」', cards: SET17, extra: true },
   // レイド（raid）：パックにも せっていにも 出ない。レイドの 統率者デッキ だけ
   { id: 13, name: 'レイド「タルキール大戦（たいせん）」', cards: SET13, raid: true },
 ];

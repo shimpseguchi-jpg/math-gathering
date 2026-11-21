@@ -232,7 +232,7 @@ const openPack = async (id) => {
 };
 await page.click('.pb-steps [data-go=shop]');
 await shot('07_shop');
-check('ショップ：はじめは 4しゅるいの パック', await page.locator('[data-buy]').count() === 4);
+check('ショップ：はじめは 5しゅるいの パック（まほよパックは さいしょから ある）', await page.locator('[data-buy]').count() === 5 && await page.locator('[data-buy=s17]').count() === 1 && /まほよパック/.test(await page.locator('.cs-set', { has: page.locator('[data-buy=s17]') }).innerText()));
 s = await state();
 const had = count(s), p0 = s.pts;
 const gotLine = await openPack('s2');
@@ -301,7 +301,7 @@ check(`キャパシティ：デッキの 点が ${PB.cap + PB.capStep}点まで�
 await page.click('[data-a=back]'); await page.click('[data-back]');
 // パック：ショップに 第3弾
 await page.click('.pb-steps [data-go=shop]');
-check('パック：ショップに 第3弾が ふえる', await page.locator('[data-buy]').count() === 5 && await page.locator('[data-buy=s3]').count() === 1);
+check('パック：ショップに 第3弾が ふえる', await page.locator('[data-buy]').count() === 6 && await page.locator('[data-buy=s3]').count() === 1);
 await page.click('[data-back]');
 // もんだい：むずかしい（1もん 15P）
 await page.click('.pb-steps [data-go=quiz]');
@@ -570,6 +570,84 @@ m = await old({ ...baseSave, v: 5, beat: { ...kihon3, 'th-e:0': 3, 'th-e:1': 2, 
 await page.click('.pb-steps [data-go=battle]');
 check('うつしかえ（v5 → v6）：ドラゴンの 3回・工場の 1回が あたらしい ばしょに うつる。ほかは そのまま', m.v === 6 && m.stage === 1 && m.beat['th-e:3'] === 1 && m.beat['th-e:4'] === 3 && m.beat['th-e:0'] === 3 && m.beat['th-e:1'] === 2 && m.pts === 345 && m.gp === 9 && /ゴーレム工場/.test(await page.locator('[data-foe]').nth(3).innerText()) && /あと 2回/.test(await page.locator('[data-foe]').nth(3).innerText()) && /ドラゴン/.test(await page.locator('[data-foe]').nth(4).innerText()) && /クリア/.test(await page.locator('[data-foe]').nth(4).innerText()), JSON.stringify(m.beat));
 await page.click('[data-back]');
+
+// ---- 番外編「魔法使いの夜」：まほよパック（100P）・たたかいの 画面で カウンターの しくみが うごく ----
+m = await old({ ...baseSave, v: 6, pts: 250, beat: { ...kihon3 }, stage: 1 });
+await page.click('.pb-steps [data-go=shop]');
+await shot('23_shop_mahoyo');
+const myBefore = await state();
+const myGot = await openPack('s17');
+s = await state();
+const myNew = Object.keys(s.cards).filter((id) => (s.cards[id] || 0) > (myBefore.cards[id] || 0));
+check(`まほよパック：${PB.pack}P で あけると「魔法使いの夜」の カードが 8まい（ID は MY）`, s.pts === 250 - PB.pack && count(s) === count(myBefore) + 8 && myNew.length > 0 && myNew.every((id) => /^MY\d\d$/.test(id)) && /を てに いれた！/.test(myGot), `${myNew.join(' ')}・${myGot}`);
+await page.click('[data-back]');
+await page.click('.pb-steps [data-go=deck]');
+await page.waitForTimeout(200);
+check('まほよパックの カードを デッキに 入れられる（デッキの 画面が ひらく）', await page.locator('.cs-decks, .builder').count() >= 1);
+await page.click('[data-back]').catch(() => {});
+// たたかいの 画面（じかに はじめる）：青子の 魔弾（あいてを えらぶ）→ 魔力カウンター → マジックガンナー（割り振る）
+const startMy = async (hand, mine, foes) => { await page.reload(); await page.waitForTimeout(900); return page.evaluate(async ([hand, mine, foes]) => {
+  const b = await import('./js/ui/battle.js'), { BY_ID, BASICS } = await import('./js/data/cards.js'), { pvp } = await import('./js/data/enemies.js');
+  b.startBattle({ deck: Array(20).fill(BASICS.U), floor: pvp({ deck: Array(20).fill(BASICS.C), first: 'P', life: 20, name: 'テスト' }), diff: 'easy', floorName: 'まほよの テスト', onEnd: () => {}, quit: { label: 'やめる', note: '', go: () => location.reload() },
+    setup: (s, api) => {
+      s.P.hand = hand.map((id) => api.card(BY_ID[id]));
+      s.P.mana = [...'UUUURRKK'].map((c) => ({ ...api.card(BASICS[c]), tapped: false }));
+      for (const id of mine) { const p = api.enter(s, 'P', BY_ID[id]); p.sick = false; }
+      for (const [name, pow, tou] of foes) api.enter(s, 'E', { id: `x_${name}`, name, types: ['creature'], pow, tou, sub: [], kw: [], color: 'R', cost: 2, attacks: false });
+      s.E.hand = [];
+      window.__s = s;
+    } });
+}, [hand, mine, foes]); };
+const mp = () => page.evaluate(() => { const s = window.__s, a = s.P.bf.find((p) => p.def.id === 'MY01'); return { mp: a?.mp || 0, life: s.E.life, foes: s.E.bf.map((p) => `${p.def.name}:${p.dmg}`).join(), q: s.aimQ?.length || 0, hand: s.P.hand.length }; });
+const pickSheet = async (label) => { await page.locator('#sheet:not([hidden]) .pick-list').waitFor({ timeout: 5000 }); const t = (await page.locator('#sheet .sheet-title').innerText()).replace(/\s+/g, ' '); await page.locator('#sheet .pick', { hasText: label }).first().click(); await page.click('#sheet [data-ok]'); await page.waitForTimeout(250); return t; };
+await startMy(['MY39', 'MY39'], ['MY01'], [['てきA', 2, 2], ['てきB', 1, 3]]);
+await page.locator('.battle').waitFor();
+await page.locator('[data-hand="0"]').click(); await sheetClick('使う');
+const aimTitle = await pickSheet('てきB');
+let st = await mp();
+await shot('24_aoko_mp');
+check('青子（画面）：クリーチャーでない 呪文を 使うと、魔弾の あいてを えらぶ まどが 出る → えらんだ あいてに 1点・魔力カウンター 1こ（バッジ）', /魔弾/.test(aimTitle) && st.mp === 1 && /てきB:1/.test(st.foes) && /てきA:0/.test(st.foes) && st.q === 0 && /まりょく 1/.test(await page.locator('.zone.mine').innerText()), `${aimTitle}・${JSON.stringify(st)}`);
+await page.locator('[data-hand="0"]').click(); await sheetClick('使う');
+await pickSheet('あいて');
+st = await mp();
+check('青子（画面）：敵（本体）も えらべる。2回で 魔力カウンター 2こ', st.mp === 2 && st.life === 19, JSON.stringify(st));
+await page.evaluate(() => { window.__s.P.bf.find((p) => p.def.id === 'MY01').mp = 4; });
+await page.locator('.zone.mine .perm', { hasText: '青崎青子' }).first().click();
+await page.waitForTimeout(250);
+await sheetClick('マジックガンナー');
+await page.locator('#sheet:not([hidden]) .pick-list').waitFor({ timeout: 5000 });
+await page.locator('#sheet .pick', { hasText: 'てきA' }).first().click(); await page.locator('#sheet .pick', { hasText: 'てきB' }).first().click();
+await page.click('#sheet [data-ok]'); await page.waitForTimeout(300);
+const divTitle = await sheetTitle();
+await shot('25_gunner_divide');
+await page.click('#sheet [data-ok]').catch(() => {}); await page.waitForTimeout(400);
+st = await mp();
+check('マジックガンナー（画面）：魔力カウンター 4こを ぜんぶ つかって、4点を 割り振る まどが 出る。あたえた あいての 数だけ また たまる', /4を わりふる/.test(divTitle) && st.mp >= 1 && st.mp <= 2 && !/てきA:0,てきB:1$/.test(st.foes), `${divTitle}・${JSON.stringify(st)}`);
+// 草十郎：ターンの はじめに 時間カウンターを 取りのぞいて、カウンターを えらぶ まど
+await startMy([], ['MY03'], []);
+await page.locator('.battle').waitFor();
+// さいしょの ターンの はじめに、もう 1こ 取りのぞく（えらぶ まどが すぐ 出る）
+await page.locator('#sheet:not([hidden]) .sheet-actions button').first().waitFor({ timeout: 8000 });
+const sojuTitle = (await sheetTitle()).replace(/\s+/g, '');
+await shot('26_soju_choose');
+const sojuBtns = (await page.locator('#sheet .sheet-actions').innerText()).replace(/\s+/g, ' ');
+await sheetClick('呪禁');
+await page.waitForTimeout(400);
+const soju = await page.evaluate(() => { const p = window.__s.P.bf.find((q) => q.def.id === 'MY03'); return { time: p?.time, kw: [...(p?.kwc || [])].join(), ctr: p?.ctr }; });
+check('草十郎（画面）：時間カウンターを 取りのぞくと 3つ（接死・呪禁・＋1/＋1）から えらぶ まど → 呪禁カウンター（バッジ）・のこり 2', /時間|じかん/.test(sojuTitle) && /接死/.test(sojuBtns) && /呪禁/.test(sojuBtns) && /＋1\/＋1/.test(sojuBtns) && soju.time === 2 && soju.kw === 'hexproof' && /じかん 2/.test(await page.locator('.zone.mine').innerText()) && /呪禁/.test(await page.locator('.zone.mine').innerText()), `${sojuTitle}・${JSON.stringify(soju)}`);
+// 有珠：椋鳥を 出す プロイで カウンターが たまり、5こで グレートスリーが 出る（画面の 中で）
+await startMy(['MY10', 'MY14'], ['MY02'], []);
+await page.locator('.battle').waitFor();
+await page.evaluate(() => { window.__s.P.bf.find((p) => p.def.id === 'MY02').mp = 2; });
+await page.locator('[data-hand="0"]').click(); await sheetClick('出す');
+await page.waitForTimeout(500);
+const al1 = await page.evaluate(() => window.__s.P.bf.find((p) => p.def.id === 'MY02')?.mp);
+await page.locator('[data-hand="0"]').click(); await sheetClick('出す');
+await page.waitForTimeout(700);
+const al2 = await page.evaluate(() => { const s = window.__s; return { great: s.P.bf.filter((p) => p.def.great).map((p) => p.def.id).join(), mp: s.P.bf.find((p) => p.def.id === 'MY02')?.mp ?? -1, birds: s.P.bf.filter((p) => p.def.id === 't_mukudori').length }; });
+await shot('27_alice_great3');
+check('有珠（画面）：椋鳥 2体で 2 ＋ 2 ＝ 4こ、つぎの 1体で 5こ → グレートスリーが 出る', al1 === 4 && al2.great.length > 0 && al2.birds === 3, `${al1}・${JSON.stringify(al2)}`);
+await page.reload(); await page.click('[data-go=pb]');
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');
 console.log(fails.length ? `FAILED: ${fails.length}` : 'ALL OK');
