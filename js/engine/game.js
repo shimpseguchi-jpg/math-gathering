@@ -621,7 +621,10 @@ export function bolster(s, n) {
 
 // 圧倒：自分の クリーチャーの パワーの 合計が 8 いじょう
 // 唱える コスト（ガルタ：あなたの クリーチャーの パワーの 合計だけ 安く なる。costMin より 下には ならない）
+// 手札の カードを タダで 唱えられる（def.castFree(s, q, d)。「星が瞬くこんな夜に」）：コストが 0 に なる（色の マナも いらない。X・キッカーなどの 足す ぶんは はらう）
+export const freeCast = (s, d) => s.P.bf.some((q) => q.def.castFree && onBf(s, q) && q.def.castFree(s, q, d, api));
 export function costOf(s, d) {
+  if (freeCast(s, d)) return 0;
   let c = d.cost, cut = 0;
   if (d.costLess) c -= d.costLess(s, api);
   for (const q of s.P.bf) if (q.def.costCut) cut += q.def.costCut(s, q, d, api) || 0; // ほかの カードで 安く なる（色の ぶんは のこる）
@@ -1174,7 +1177,7 @@ export function resolveCombat(s, atk, blocks) {
 }
 
 Object.assign(api, {
-  transform, L, drawCard, addKwCounter, addMP, KWC_JA, addStun, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
+  transform, L, drawCard, addKwCounter, addMP, KWC_JA, addStun, freeCast, rampTop, rampBasic, basicsInLib, setBasics, deckCols, basicCol, charge, enter, token, pt, power, need, hasKw, tapPerm, addCounters, proliferate, pump, target,
   setCommander, cmdTax, cmdCost, useBreak, canBreak, takePick, REIJU_START, shielded, silenced, uncounterable, equipCost, mostOrder,
   damage, hurt, gainLife, hitEnemy, hitTarget, fight, sba, leave, destroy, exile, bounce, exileLinked, reveal, enemyCast,
   refill, discard, untap, coven, hellbent, rollDie, enemyAttack,

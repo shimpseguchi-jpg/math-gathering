@@ -677,9 +677,10 @@ function reactLoop(s, ctx) {
       const d = c.def;
       if (!d.react || c.locked) continue;
       const o = { convoke: d.kw?.includes('convoke') };
-      if (!plan(s, d.cost, colorsOf(d), o)) continue;
-      const r = d.react(s, api, { ...ctx, manaLeft: manaCount(s, o) - d.cost });
-      if (r && r.score > 0) opts.push({ score: r.score, exec: () => { const pl = plan(s, d.cost + (r.extra || 0), colorsOf(d), o); if (pl) castCard(s, c, pl, { run: r.run }); } });
+      const dc = api.freeCast(s, d) ? 0 : d.cost; // タダで 唱えられる（星が瞬くこんな夜に）
+      if (!plan(s, dc, colorsOf(d), o)) continue;
+      const r = d.react(s, api, { ...ctx, manaLeft: manaCount(s, o) - dc });
+      if (r && r.score > 0) opts.push({ score: r.score, exec: () => { const pl = plan(s, dc + (r.extra || 0), colorsOf(d), o); if (pl) castCard(s, c, pl, { run: r.run }); } });
     }
     if (!opts.length) break;
     opts.sort((a, b) => b.score - a.score);

@@ -444,6 +444,8 @@ function tellLore(p, why) {
   const head = why === 'appear' ? `<p class="what">${p.side === 'E' ? 'あいての ' : ''}${ruby(info(p.def).name)}が あらわれた！</p>` : `<p class="what">${ruby(info(p.def).name)}は ねらえない！</p>`;
   return sheet(`${head}${loreHtml(p.def)}`, [{ label: 'わかった', value: 1, kind: 'primary' }], { title: ruby(info(p.def).name), dismiss: false });
 }
+// 戦闘中の 呪文（トリック）の コスト：タダで 唱えられる とき（game.js の freeCast）は 0
+const trickCost = (s, d) => (api.freeCast(s, d) ? 0 : d.cost);
 // わりふる 数：数・'x'（X）・関数（その ときの 数。青崎青子の 魔力カウンター）
 const divN = (spec, ctx) => (spec.divide === 'x' ? ctx.x : typeof spec.divide === 'function' ? spec.divide(B.s, ctx.src) : spec.divide);
 // きっかけの 能力で あいてを えらぶ（s.aimQ。青崎青子「呪文を 唱えるたび 好きな 対象に 1点」）：画面を かきなおす たびに、たまって いる ぶんを 1つずつ えらぶ。
@@ -861,7 +863,7 @@ async function tapHand(c) {
   const choices = [];
   if (inWindow()) { // てきの ターンの まど：インスタントを 使う（ブロックの あとは ブロッカーの 強化も）
     if (B.mode === 'defend' && isTrick(d)) { // コンバットトリック：1体なら ブロッカーを えらぶ、まとめて 強化は そのまま
-      const ok = blockersNow().length > 0, pl = ok && plan(s, d.cost, colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
+      const ok = blockersNow().length > 0, pl = ok && plan(s, trickCost(s, d), colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
       choices.push({ label: d.trick.kind === 'mass' ? '使う（じぶんの クリーチャー みんな）' : 'ブロックしている クリーチャーに 使う', value: 'trick', kind: 'primary', disabled: !pl, note: !ok ? 'ブロックしている クリーチャーが いない' : !pl ? 'マナが たりない' : pl.life ? lifeNote(d, pl.life) : '' });
     } else {
       const ci = castInfo(c);
@@ -890,7 +892,7 @@ async function tapHand(c) {
       choices.push({ label: `しゅんそくで 出す（${less ? `${d.cost} − ${less} ＝ ${d.cost - less}` : d.cost}マナ）`, value: 'cast', kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why });
     }
     if (tr || (d.modes && d.types.includes('instant'))) { // モードの ある ソーサリー（プルフォロスの 介入）は たたかいの とちゅうには 使えない
-      const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
+      const cost = d.bloodrush ? d.bloodrush.cost : trickCost(s, d), req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
       const pl = plan(s, cost, req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 });
       const verb = d.bloodrush ? 'ゆうけつで 使う' : '使う';
       choices.push({ label: pl?.life ? `ライフを ${pl.life} はらって ${verb}` : verb, value: 'trick', kind: 'primary', disabled: !pl, note: !pl ? 'マナが たりない' : pl.life ? lifeNote(d, pl.life) : '' });
@@ -962,7 +964,7 @@ async function doNinjutsu(c) {
 async function useTrick(c) {
   const s = B.s, d = c.def;
   const tr = d.trick || { kind: 'single' };
-  const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
+  const cost = d.bloodrush ? d.bloodrush.cost : trickCost(s, d), req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
   let target = null, mode = null;
   if (d.modes) { if (!(mode = await chooseMode(d, winCtx()))) return; }
   else if (tr.kind !== 'mass') {
@@ -1057,7 +1059,7 @@ function handMark(c) {
   if (B.tut) return '';
   if (inWindow()) { // てきの ターンの まど
     if (B.busy) return '';
-    if (B.mode === 'defend' && isTrick(d)) return blockersNow().length && plan(s, d.cost, colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 }) ? 'ok' : '';
+    if (B.mode === 'defend' && isTrick(d)) return blockersNow().length && plan(s, trickCost(s, d), colorsOf(d), { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 }) ? 'ok' : '';
     return castInfo(c).ok ? 'ok' : '';
   }
   if (B.busy || s.active !== 'P') return '';
@@ -1073,7 +1075,7 @@ function handMark(c) {
     if (d.flash && !isSpell(d) && !d.types.includes('creature') && castInfo(c).ok) return 'ok';
     const tr = d.trick || (d.bloodrush ? { kind: 'single' } : null);
     if (tr || (d.modes && d.types.includes('instant'))) {
-      const cost = d.bloodrush ? d.bloodrush.cost : d.cost, req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
+      const cost = d.bloodrush ? d.bloodrush.cost : trickCost(s, d), req = d.bloodrush ? d.bloodrush.req : colorsOf(d);
       if (plan(s, cost, req, { convoke: d.kw?.includes('convoke'), lifeKeep: c.conj ? 1 : 0 })) return 'ok';
     }
   }

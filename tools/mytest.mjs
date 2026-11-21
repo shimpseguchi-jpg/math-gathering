@@ -1,7 +1,7 @@
 // 番外編「魔法使いの夜」（第17弾）の しくみの テスト：node tools/mytest.mjs
 // 魔力カウンター・キーワードカウンター・消失と 時間カウンター・看板の 3人・空蝉・予備の 体・増殖・パック＆バトルの まほよパック
 import { BY_ID, SETS, BASICS } from '../js/data/cards.js';
-import { newGame, api, beginPlayerTurn, onBf, hasKw, pt, sba, proliferate, isCreature, untap } from '../js/engine/game.js';
+import { newGame, api, beginPlayerTurn, onBf, hasKw, pt, sba, proliferate, isCreature, untap, costOf, freeCast } from '../js/engine/game.js';
 import { foods } from '../js/data/kit.js';
 import { AI, castCard, plan } from '../js/engine/ai.js';
 import { pvp } from '../js/data/enemies.js';
@@ -27,7 +27,7 @@ const cast = (s, id, o = {}) => { const c = api.card(D(id)); s.P.hand.push(c); f
 const set = SETS.find((x) => x.id === 17);
 check('第17弾：55種・番外編・ID は MY01〜MY55', set && set.extra && set.cards.length === 55 && set.cards.every((d, i) => d.id === `MY${String(i + 1).padStart(2, '0')}`));
 check('文が ぜんぶ ある（名前・タイプ・テキスト）', set.cards.every((d) => CARD_TEXT[d.id]?.name && CARD_TEXT[d.id]?.type));
-check('レアリティ：L 5・R 9・U 22・C 19', ['L', 'R', 'U', 'C'].map((r) => set.cards.filter((d) => d.rar === r).length).join() === '5,9,22,19');
+check('レアリティ：L 5・R 10・U 22・C 18', ['L', 'R', 'U', 'C'].map((r) => set.cards.filter((d) => d.rar === r).length).join() === '5,10,22,18');
 check('グレートスリーは カードに ない（トークン だけ）', !set.cards.some((d) => /巨人|月の油|猟犬/.test(d.name.replace(/（[^）]*）/g, ''))) && Object.values(GREAT3).every((d) => d.great && !d.rar));
 check('本編：もんしょう「番外編 魔法使いの夜」で パックに まざる', EMBLEMS.some((e) => e.id === 'pMY' && e.fx.packExtra === 17));
 const shop = packsFor(0), my = shop.find((p) => p.set === 17);
@@ -55,9 +55,9 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   const s = board(), a = put(s, 'MY01'), e1 = put(s, vanillaE, 'E'), e2 = put(s, { ...vanillaE, name: 'てきB', tou: 1, pow: 1 }, 'E');
   cast(s, 'MY27'); // クリーチャーの 呪文
   check('青子：クリーチャーの 呪文では うたない', a.mp === 0 && s.E.life === 20 && e1.dmg === 0 && onBf(s, e2));
-  cast(s, 'MY39');
+  cast(s, 'MY47');
   check('青子：クリーチャーでない 呪文を 唱えると 1点（AI は たおせる あいて）→ 魔力カウンター 1こ', !onBf(s, e2) && a.mp === 1, `mp ${a.mp}`);
-  cast(s, 'MY37'); cast(s, 'MY39');
+  cast(s, 'MY37'); cast(s, 'MY47');
   check('青子：ダメージを あたえるたび 1こ（3回で 3こ）', a.mp === 3, `mp ${a.mp} life ${s.E.life} dmg ${e1.dmg}`);
   const act = D('MY01').acts[0];
   check('マジックガンナー：カウンターが あれば つかえる', act.can(s, a) === true && act.tgt[0].divide(s, a) === 3);
@@ -66,11 +66,11 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   check('マジックガンナー：ぜんぶ 取りのぞいて、その 数（3）を 割り振る（2 ＋ 1）。あたえた ダメージで また たまる（2こ）', !onBf(s, e1) && s.E.life === life0 - 1 && a.mp === 2 && act.can(s, a) === false, `mp ${a.mp} life ${s.E.life}`);
   // 人：あいてを えらぶ（aimQ）
   const s2 = board(), a2 = put(s2, 'MY01'); put(s2, vanillaE, 'E'); s2.ai = { ...s2.ai, aim: true };
-  cast(s2, 'MY39');
+  cast(s2, 'MY47');
   check('青子（人）：呪文の あと、あいてを えらぶ 順番まちに 入る（1つ）', s2.aimQ?.length === 1 && s2.aimQ[0].src === a2.uid && a2.mp === 0);
   s2.aimQ.shift().apply(s2, api, [['face']], a2);
   check('青子（人）：えらんだ あいて（敵）に 1点・魔力カウンター 1こ', s2.E.life === 19 && a2.mp === 1);
-  cast(s2, 'MY39'); D('MY01').combatStart(s2, a2, api);
+  cast(s2, 'MY47'); D('MY01').combatStart(s2, a2, api);
   check('青子（人）：えらぶ まえに 戦闘が はじまったら 自動で うつ', !s2.aimQ.length && a2.mp === 2);
   const s3 = board(), a3 = put(s3, 'MY01'); cast(s3, 'MY36');
   check('第五魔法『青』：青子が いると 3まい 引いて 魔力カウンター ＋3（呪文の 1点と あわせて 4こ）', a3.mp === 4, `mp ${a3.mp}`);
@@ -232,6 +232,34 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   check('文柄詠梨（人）：えらんだ 敵を 追放', !onBf(s4, y1) && onBf(s4, y2));
   s4.turn++; d.onAttack(s4, f4, api);
   check('文柄詠梨：つぎの ターンは 回復して いなければ 追放しない', onBf(s4, y2));
+}
+// ---- 調整 3（2026-11-26）：星が瞬くこんな夜に（MY39）----
+{
+  const d = D('MY39'), nm = CARD_TEXT.MY39.name.replace(/（[^）]*）/g, '').replace(/ /g, '');
+  check('星が瞬くこんな夜に：名前・青・5マナ・エンチャント・レア。まえの「2まい 引く」は ない', nm === '星が瞬くこんな夜に' && d.color === 'U' && d.cost === 5 && d.types.join() === 'enchantment' && d.rar === 'R' && !d.play);
+  const s = board(), night = put(s, 'MY39');
+  const costs = (ids) => ids.map((id) => costOf(s, D(id))).join();
+  check('星が瞬くこんな夜に：青子も 有珠も いなければ コストは そのまま', costs(['MY05', 'MY45', 'MY27']) === '5,3,2' && !freeCast(s, D('MY05')));
+  const a = put(s, 'MY01');
+  check('星が瞬くこんな夜に：青子が いるかぎり、手札の カードの コストは 0（クリーチャーも 呪文も）', costs(['MY05', 'MY45', 'MY27', 'MY36']) === '0,0,0,0' && freeCast(s, D('MY05')));
+  for (const m of s.P.mana) m.tapped = true;
+  const c = api.card(D('MY05')); s.P.hand.push(c);
+  const pl = plan(s, costOf(s, D('MY05')), api.colorsOf(D('MY05')));
+  if (pl) castCard(s, c, pl, {});
+  check('星が瞬くこんな夜に：マナが ぜんぶ タップでも 唱えられる（色の マナも いらない）', !!pl && s.P.bf.some((p) => p.def.id === 'MY05'));
+  api.leave(s, a, 'gy');
+  check('星が瞬くこんな夜に：青子が いなくなると もとに もどる', costs(['MY05', 'MY45']) === '5,3');
+  put(s, 'MY02');
+  check('星が瞬くこんな夜に：有珠でも おなじ（コスト 0）', costs(['MY05', 'MY45']) === '0,0');
+  api.leave(s, night, 'gy');
+  check('星が瞬くこんな夜に：これが 戦場を はなれると もとに もどる', costs(['MY05', 'MY45']) === '5,3');
+  const s2 = board(), n2 = put(s2, 'MY39'), a2 = put(s2, 'MY01'), so = put(s2, 'MY03'), pl2 = put(s2, 'MY27'); a2.mp = 2; api.addCounters(s2, pl2, 1);
+  const act = d.acts[0];
+  check('星が瞬くこんな夜に：1マナ・タップで 増殖', act.cost === 1 && act.tap === true);
+  act.play(s2, n2, api, { human: true }).run();
+  check('増殖：魔力カウンター・時間カウンター・＋1/＋1カウンターが 1こずつ ふえる', a2.mp === 3 && so.time === 4 && pl2.ctr === 2);
+  const s3 = board(); put(s3, 'MY39', 'E'); put(s3, 'MY01', 'E');
+  check('星が瞬くこんな夜に：あいての ものは じぶんの コストに かんけい ない', costOf(s3, D('MY05')) === 5);
 }
 console.log(fails ? `FAILED: ${fails} / ${n}` : `ALL OK（${n}）`);
 process.exit(fails ? 1 : 0);

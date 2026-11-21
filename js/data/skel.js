@@ -1282,7 +1282,7 @@ export const SKEL = {
   MY36: {"id": "MY36", "name": "第五魔法（だいごまほう）『青（あお）』", "rar": "R", "color": "UR", "cost": 3, "types": ["sorcery"], "sub": [], "kw": []},
   MY37: {"id": "MY37", "name": "紅茶（こうちゃ）の 時間（じかん）", "rar": "U", "color": "W", "cost": 2, "types": ["sorcery"], "sub": [], "kw": []},
   MY38: {"id": "MY38", "name": "人形（にんぎょう）の 糸（いと）", "rar": "R", "color": "U", "cost": 4, "types": ["enchantment"], "sub": ["aura"], "kw": []},
-  MY39: {"id": "MY39", "name": "星（ほし）を 見（み）る 夜（よる）", "rar": "C", "color": "U", "cost": 2, "types": ["sorcery"], "sub": [], "kw": []},
+  MY39: {"id": "MY39", "name": "星（ほし）が 瞬（またた）く こんな 夜（よる）に", "rar": "R", "color": "U", "cost": 5, "types": ["enchantment"], "sub": [], "kw": []},
   MY40: {"id": "MY40", "name": "山（やま）の 教（おし）え", "rar": "C", "color": "W", "cost": 1, "types": ["instant"], "sub": [], "kw": []},
   MY41: {"id": "MY41", "name": "工房（こうぼう）の 結界（けっかい）", "rar": "C", "color": "U", "cost": 1, "types": ["instant"], "sub": [], "kw": []},
   MY42: {"id": "MY42", "name": "三咲（みさき）の 夜霧（よぎり）", "rar": "U", "color": "U", "cost": 2, "types": ["instant"], "sub": [], "kw": []},

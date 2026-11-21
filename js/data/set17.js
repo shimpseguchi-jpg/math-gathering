@@ -235,7 +235,14 @@ export const S17 = {
   MY36: { play: (s, E) => ({ score: aokoOn(s) ? 14 : 8, run: () => { E.drawCard(s, 2); const a = aokoOn(s); if (a) { E.drawCard(s, 1); E.addMP(s, a, 3); } } }) },
   MY37: { play: (s, E, ctx) => ({ score: (s.P.life <= 12 ? 6 : 3) - (ctx.phase === 1 ? 1 : 0), run: () => { E.gain(s, 4); E.drawCard(s); } }) },
   MY38: { ...aura('E', 'コントロールを える パワー 3 いかの てきの クリーチャー', { filter: (s, E, p) => E.power(s, p) <= 3 && (!E.stealable || E.stealable(s, p)) }), steal: true },
-  MY39: { play: draw(2) },
+  // 星が瞬くこんな夜に：青子か 有珠が いるかぎり、手札の カードの コストは 0（game.js の freeCast）。1・タップ：増殖
+  MY39: {
+    castFree: (s, q) => s[q.side].bf.some((x) => x.def.id === 'MY01' || x.def.id === 'MY02'),
+    acts: [{
+      cost: 1, tap: true, when: [1, 2], label: '1・タップ：増殖（ぞうしょく）する',
+      play: (s, p, E, ctx = {}) => { const n = s.P.bf.filter((q) => q.ctr > 0 || q.mp > 0 || q.time > 0 || q.loy > 0).length + theirs(s, E).filter((t) => t.mctr > 0 || t.stun > 0).length; return n || ctx.human ? { score: 2 + 2 * n, run: () => E.proliferate(s) } : null; },
+    }],
+  },
   MY40: single(2, 2),
   MY41: own1('呪禁（じゅきん）カウンターを 置（お）く クリーチャー', (s, E, t) => { E.addKwCounter(s, t, 'hexproof'); E.drawCard(s); }, 4),
   MY42: foe1('てふだに もどす（てきは やまふだの 上へ）クリーチャー', (s, E, t) => { E.bounce(s, t); E.sba(s); }, { score: 1 }),

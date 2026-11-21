@@ -591,7 +591,7 @@ const startMy = async (hand, mine, foes) => { await page.reload(); await page.wa
   b.startBattle({ deck: Array(20).fill(BASICS.U), floor: pvp({ deck: Array(20).fill(BASICS.C), first: 'P', life: 20, name: 'テスト' }), diff: 'easy', floorName: 'まほよの テスト', onEnd: () => {}, quit: { label: 'やめる', note: '', go: () => location.reload() },
     setup: (s, api) => {
       s.P.hand = hand.map((id) => api.card(BY_ID[id]));
-      s.P.mana = [...'UUUURRKK'].map((c) => ({ ...api.card(BASICS[c]), tapped: false }));
+      s.P.mana = [...'UUWWWWKK'].map((c) => ({ ...api.card(BASICS[c]), tapped: false }));
       for (const id of mine) { const p = api.enter(s, 'P', BY_ID[id]); p.sick = false; }
       for (const [name, pow, tou] of foes) api.enter(s, 'E', { id: `x_${name}`, name, types: ['creature'], pow, tou, sub: [], kw: [], color: 'R', cost: 2, attacks: false });
       s.E.hand = [];
@@ -600,7 +600,7 @@ const startMy = async (hand, mine, foes) => { await page.reload(); await page.wa
 }, [hand, mine, foes]); };
 const mp = () => page.evaluate(() => { const s = window.__s, a = s.P.bf.find((p) => p.def.id === 'MY01'); return { mp: a?.mp || 0, life: s.E.life, foes: s.E.bf.map((p) => `${p.def.name}:${p.dmg}`).join(), q: s.aimQ?.length || 0, hand: s.P.hand.length }; });
 const pickSheet = async (label) => { await page.locator('#sheet:not([hidden]) .pick-list').waitFor({ timeout: 5000 }); const t = (await page.locator('#sheet .sheet-title').innerText()).replace(/\s+/g, ' '); await page.locator('#sheet .pick', { hasText: label }).first().click(); await page.click('#sheet [data-ok]'); await page.waitForTimeout(250); return t; };
-await startMy(['MY39', 'MY39'], ['MY01'], [['てきA', 2, 2], ['てきB', 1, 3]]);
+await startMy(['MY47', 'MY47'], ['MY01'], [['てきA', 2, 2], ['てきB', 1, 3]]);
 await page.locator('.battle').waitFor();
 await page.locator('[data-hand="0"]').click(); await sheetClick('使う');
 const aimTitle = await pickSheet('てきB');
@@ -680,6 +680,16 @@ check('文柄詠梨（画面）：ライフを 回復して いない ターン�
 const ei1 = await eiriAttack(true);
 await shot('29_eiri_exile');
 check('文柄詠梨（画面）：ライフを 回復した ターンに 攻撃すると、追放する 敵を えらぶ まど → えらんだ 敵を 追放', /追放/.test(ei1.title) && ei1.exile === 'てきA' && !/てきA/.test(ei1.foes), JSON.stringify(ei1));
+// 星が瞬くこんな夜に：青子が いると、手札の カードが マナなしで 使える（画面）
+await startMy(['MY05'], ['MY39', 'MY01'], []);
+await page.locator('.battle').waitFor();
+await page.evaluate(() => { for (const m of window.__s.P.mana) m.tapped = true; });
+await page.locator('[data-hand="0"]').click(); await page.waitForTimeout(250);
+const freeBtn = (await page.locator('#sheet .sheet-actions').innerText()).replace(/\s+/g, ' ');
+await shot('30_night_free');
+await sheetClick('出す'); await page.waitForTimeout(500);
+const free = await page.evaluate(() => ({ lugh: window.__s.P.bf.some((p) => p.def.id === 'MY05'), tapped: window.__s.P.mana.every((m) => m.tapped) }));
+check('星が瞬くこんな夜に（画面）：青子が いると、マナが ぜんぶ タップでも 5マナの カードを 出せる（5 − 5 ＝ 0マナ と 出る）', free.lugh && free.tapped && /0マナ/.test(freeBtn), `${freeBtn.slice(0, 50)}・${JSON.stringify(free)}`);
 await page.reload(); await page.click('[data-go=pb]');
 
 console.log(errors.length ? `ERRORS:\n${[...new Set(errors)].join('\n')}` : 'no errors');
