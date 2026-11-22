@@ -437,7 +437,7 @@ function arena() {
     return `<li><button type="button" class="st-ep pb-char ${locked ? 'lock' : n >= PB.need ? 'done' : 'open'}" data-foe="${esc(f.key)}" ${ok && !locked ? '' : 'disabled'}>
     <b>${face ? `<img class="pb-face" src="${face}" alt="" width="96" height="96">` : f.k + 1}</b><span><i class="st-title">${ruby(c.who)}${f.boss ? '<em class="pb-boss">ボス</em>' : ''}</i>
       <small class="pb-line">${ruby(`「${c.line}」`)}</small>
-      <small class="pb-kind">${pips([...c.cols])}${ruby(`${c.theme}・${c.style}${place ? `（${place}）` : ''}`)}</small>
+      <small class="pb-kind">${pips([...c.cols])}<span>${ruby(`${c.theme}・${c.style}${place ? `（${place}）` : ''}`)}</span></small>
       ${f.kihon ? '' : `<small class="pb-sig">${ruby(f.ghost
     ? `じぶんの デッキ（カード ${ghostDeck(f).ids.length}まい${ghostDeck(f).ids.length < 20 ? ' ＋ きほんカード' : ''}）で たたかう。${AI_WORD[ghostDeck(f).ai]}。きまり：${ghostDeck(f).rule}`
     : `きめわざ「${PB_SIG[f.floorId].def.name}」×${sigN(f)}：${PB_SIG[f.floorId].text}。なかま「${PB_PAL[f.floorId].def.name}」×${sigN(f)}：${PB_PAL[f.floorId].text}${f.buff ? '。ボスは 本気（ほんき）：クリーチャー ＋1/＋1' : ''}${f.lifeBonus ? `。てごわいので きみの ライフ ＋${f.lifeBonus}` : ''}`)}</small>`}
@@ -460,7 +460,7 @@ function arena() {
     <section class="st-ch ${locked ? 'pb-locked' : ''}">
       ${endless ? `<h3>むげんの たたかい<small class="st-guide">${ruby(`${E.lap}しゅうめ：てきの クリーチャーは ＋${E.buff}/＋${E.buff}。かった 数 ${S.endless}`)}</small></h3>
       <ol><li><button type="button" class="st-ep open pb-char" data-foe="endless" ${ok ? '' : 'disabled'}><b>∞</b><span><i class="st-title">${ruby(E.char.who)}</i><small class="pb-line">${ruby(`「${E.char.line}」`)}</small><small>${ruby(E.stageName)}　＋${battleGain(E).base}P</small></span><em>いどむ</em></button></li></ol>`
-    : `<h3>ステージ ${VIEW + 1}　${ruby(PB_STAGES[VIEW].name)}<small class="st-guide">${locked ? `まだ あかない：ステージ ${VIEW}の ぜんいんを ${PB.need}かいずつ たおすと あく` : done ? 'クリア！ なんどでも たたかえる' : `ぜんいんを ${PB.need}かいずつ たおすと つぎが あく（あと ${left}回）`}</small></h3>
+    : `<h3><span>ステージ ${VIEW + 1}　${ruby(PB_STAGES[VIEW].name)}</span><small class="st-guide">${locked ? `まだ あかない：ステージ ${VIEW}の ぜんいんを ${PB.need}かいずつ たおすと あく` : done ? 'クリア！ なんどでも たたかえる' : `ぜんいんを ${PB.need}かいずつ たおすと つぎが あく（あと ${left}回）`}</small></h3>
       ${locked ? `<p class="pb-lock">まだ あかない。ステージ ${VIEW}の ぜんいんを ${PB.need}かいずつ たおすと あくよ。</p>` : ''}
       <ol>${foesOf(VIEW, S.seed).map(foeRow).join('')}</ol>`}
       <p class="zk-note">すきな あいてから たたかえる。かつと ポイントと カード 1まい（アンティ）。ぴったり 1回ごとに ＋${PB.exact}P（${PB.exactMax}回まで）。まけても ポイントと カードは なくならない。</p>

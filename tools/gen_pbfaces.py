@@ -2,7 +2,7 @@
 # パック＆バトルの キャラクターの 顔グラ（docs/PACKBATTLE.md 15章）
 # ① もとの 絵（大きい 画像）を ドット絵らしく 小さく する：python3 tools/gen_pbfaces.py もとの絵のフォルダ
 #    96×96 に ちぢめて 色を 24色に しぼり、img/pb/<id>.png に 書く（もとの 絵は リポジトリに 入れない）
-#    ファイルの なまえ：下の IDS の 左がわ（.jpg か .png）。ステージ 1 の 5人 ＋ テーロス 10人 ＋ ラヴニカ 11人 ＋ ステージ 6 の 5人 ＝ 31人
+#    ファイルの なまえ：下の IDS の 左がわ（.jpg か .png）。ステージ 1 の 5人 ＋ テーロス 10人 ＋ ラヴニカ 11人 ＋ ステージ 6 の 5人 ＋ 特別ステージ 7 の 6人 ＝ 37人
 # ② img/pb/*.png を js/data/pbfaces.js に する（data URL。1ファイル版でも そとの ファイルを よまない）：引数 なしでも ここは うごく
 import base64, io, os, sys
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
@@ -13,7 +13,8 @@ IDS = {'gabu': 'kh1', 'mee': 'pb2', 'sora': 'kh2', 'molly': 'pb1', 'mira': 'kh3'
        'slime': 'slime', 'twins': 'twins', 'xenagos': 'xenagos', 'medusa': 'gorgon', 'erebos': 'erebos',
        'aurelia': 'boros', 'trostani': 'selesnya', 'vorel': 'simic', 'nivmizzet': 'izzet', 'jarad': 'golgari',
        'isperia': 'azorius', 'rakdos': 'rakdos', 'teysa': 'orzhov', 'borborygmos': 'gruul', 'lazav': 'dimir', 'jace': 'jace',
-       'harisen': 'harisen', 'kameron': 'kameron', 'konkon': 'konkon', 'rirara': 'rirara', 'owaron': 'owaron'}
+       'harisen': 'harisen', 'kameron': 'kameron', 'konkon': 'konkon', 'rirara': 'rirara', 'owaron': 'owaron',
+       'touko': 'ex_touko', 'chaldea': 'ex_fgo', 'hoshimeguri': 'ex_sr', 'hollow': 'ex_zz', 'aoko': 'ex_aoko', 'alice': 'ex_alice'}
 SIZE, COLORS = 96, 24
 
 if len(sys.argv) > 1:

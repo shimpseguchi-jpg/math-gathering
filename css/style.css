@@ -1883,6 +1883,7 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .pb-char .pb-line { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.5; }
 .pb-char .pb-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .pb-char .pb-kind .pip { font-size: 10px; padding: 0 6px; }
+.pb-char .pb-kind > span { display: block; flex: 1 1 100%; min-width: 0; font-weight: inherit; } /* 色の しるしの 下に 文を 1つに まとめて おく（ふりがなで わかれない） */
 .pb-char > span { gap: 2px; }
 .pb-char .pb-sig { color: var(--gold-text); }
 /* 顔グラ（96×96 の ドット絵を そのまま 大きく）：ステージを えらぶ 画面 だけ */
