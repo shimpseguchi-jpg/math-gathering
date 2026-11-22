@@ -8,7 +8,7 @@ import { BY_ID, BASICS } from '../data/cards.js';
 import { CATS, QUIZ_SECONDS } from '../data/quiz.js';
 import {
   PB, PB_NAME, PB_STAGES, PB_STARTER, PB_TREE, quizGain, battleGain, deckProblems,
-  foesOf, foeFloor, towerFloor, guildFloor, topStage, endlessAt, PB_SIG, PB_PAL, PB_GUILD, SIG_COPIES, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
+  foesOf, foeFloor, towerFloor, guildFloor, topStage, endlessAt, PB_SIG, PB_PAL, SIG_COPIES, PB_MAIN, ghostDeck, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
 } from '../data/packbattle.js';
 import { HARD_TIERS, hardSession } from '../data/quiz2.js';
 import { PB_FACES } from '../data/pbfaces.js';
@@ -426,7 +426,7 @@ const AI_WORD = { rush: 'こうげきできる 子は ぜんぶ こうげき', g
 // ステージを 左右に めくる（スワイプ・やじるし・下の 点）。まだの ステージも 見られるが、えらべない
 function arena() {
   const t = top(), D = deckInfo(), ok = !D.problems.length, N = PB_STAGES.length;
-  const pages = N + (t >= N ? 1 : 0); // ぜんぶ クリアすると むげんの たたかいの ページが ふえる
+  const pages = N + (t >= PB_MAIN ? 1 : 0); // ステージ 1〜6 を クリアすると むげんの たたかいの ページが ふえる（特別ステージ 7 と いっしょに ひらく）
   if (VIEW == null) VIEW = Math.min(t, pages - 1);
   VIEW = Math.max(0, Math.min(pages - 1, VIEW));
   const endless = VIEW >= N, locked = !endless && VIEW > t, done = !endless && VIEW < t;
@@ -439,14 +439,14 @@ function arena() {
       <small class="pb-line">${ruby(`「${c.line}」`)}</small>
       <small class="pb-kind">${pips([...c.cols])}${ruby(`${c.theme}・${c.style}${place ? `（${place}）` : ''}`)}</small>
       ${f.kihon ? '' : `<small class="pb-sig">${ruby(f.ghost
-    ? `じぶんの デッキ（カード ${PB_GUILD[f.floorId].ids.length + (f.diff === 'hard' ? PB_GUILD[f.floorId].hard.length : 0)}まい ＋ きほんカード）で たたかう。${AI_WORD[PB_GUILD[f.floorId].ai]}。きまり：${PB_GUILD[f.floorId].rule}`
+    ? `じぶんの デッキ（カード ${ghostDeck(f).ids.length}まい${ghostDeck(f).ids.length < 20 ? ' ＋ きほんカード' : ''}）で たたかう。${AI_WORD[ghostDeck(f).ai]}。きまり：${ghostDeck(f).rule}`
     : `きめわざ「${PB_SIG[f.floorId].def.name}」×${sigN(f)}：${PB_SIG[f.floorId].text}。なかま「${PB_PAL[f.floorId].def.name}」×${sigN(f)}：${PB_PAL[f.floorId].text}${f.buff ? '。ボスは 本気（ほんき）：クリーチャー ＋1/＋1' : ''}${f.lifeBonus ? `。てごわいので きみの ライフ ＋${f.lifeBonus}` : ''}`)}</small>`}
       <small>かった 回数 ${stars(n)}　＋${battleGain(f).base}P</small></span>
     <em>${locked ? 'まだ' : n >= PB.need ? 'クリア' : `あと ${PB.need - n}回`}</em></button></li>`;
   };
   const E = endless ? endlessAt(S.endless, S.seed) : null;
   const left = endless || locked ? 0 : stageLeft(VIEW);
-  const dots = Array.from({ length: pages }, (_, si) => `<button type="button" class="pb-dot ${si === VIEW ? 'on' : ''} ${si > t ? 'lock' : ''}" data-stage="${si}" aria-label="${si >= N ? 'むげんの たたかい' : `ステージ ${si + 1}`}${si > t ? '（まだ）' : ''}">${si >= N ? '∞' : si + 1}</button>`).join('');
+  const dots = Array.from({ length: pages }, (_, si) => `<button type="button" class="pb-dot ${si === VIEW ? 'on' : ''} ${si < N && si > t ? 'lock' : ''}" data-stage="${si}" aria-label="${si >= N ? 'むげんの たたかい' : `ステージ ${si + 1}`}${si > t ? '（まだ）' : ''}">${si >= N ? '∞' : si + 1}</button>`).join('');
   app().innerHTML = `<main class="zukan construct pb pb-arena">
     <p class="eyebrow">${PB_NAME}　たおした てき ${S.wins}たい</p>
     <h2>バトル</h2>
@@ -534,9 +534,11 @@ function fight(f) {
         [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'かった！', dismiss: false });
       await anteShow(card, dupe);
       if (cleared) {
-        const all = now >= PB_STAGES.length;
-        NEWS_TEXT.pbStage = all
-          ? { name: 'むげんの たたかい', text: `ステージを ぜんぶ クリアした！ ここからは おまけの「むげんの たたかい」。てきは 1しゅう ごとに つよく なる。` }
+        const N = PB_STAGES.length;
+        NEWS_TEXT.pbStage = now >= N
+          ? { name: 'ぜんぶの ステージを クリア', text: `特別（とくべつ）ステージ「${PB_STAGES[N - 1].name}」も クリアした！ おめでとう。「むげんの たたかい」は まだまだ つづく。` }
+          : now === PB_MAIN && was < PB_MAIN
+          ? { name: `むげんの たたかい と ステージ ${now + 1}`, text: `ステージ 1〜${PB_MAIN} を ぜんぶ クリアした！ おまけの「むげんの たたかい」（てきは 1しゅう ごとに つよく なる）と、特別（とくべつ）ステージ ${now + 1}「${PB_STAGES[now].name}」が ひらいた。` }
           : { name: `ステージ ${now + 1}「${PB_STAGES[now].name}」`, text: `ステージ ${was + 1}「${PB_STAGES[was].name}」の ぜんいんを ${PB.need}かいずつ たおした！ つぎの あいてが まって いる。` };
         await unlockSheet('pbStage');
       }

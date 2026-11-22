@@ -115,6 +115,13 @@ export const PB_CHARS = {
   dimir: { who: 'ラザーヴ', cols: 'UK', theme: 'まねっこ', style: 'きみの いちばん つよい 子を まねる', line: 'きみは……わたしかな？' },
   jace: { who: 'ジェイス', cols: 'U', theme: '10の ギルドの 力（ちから）', style: 'だんかいごとに ちがう 力', line: 'ギルドパクトの 名に おいて。' },
   ...NEW_CHARS,
+  // 特別ステージ「番外編の 挑戦者たち」（2026-11-27）：番外編の カードの デッキで たたかう 6人（PB_EX）
+  ex_touko: { who: '青崎橙子（あおざきとうこ）', cols: 'UK', theme: '人形（にんぎょう）を ならべる', style: 'たおれても 予備（よび）の 体で もどる', line: PB_LINES.ex_touko.start },
+  ex_fgo: { who: 'カルデアの 挑戦者（ちょうせんしゃ）', cols: 'WU', theme: 'サーヴァントと 宝具（ほうぐ）', style: 'NP を ためて 宝具（ほうぐ）を うつ', line: PB_LINES.ex_fgo.start },
+  ex_sr: { who: '星（ほし）めぐりの 挑戦者（ちょうせんしゃ）', cols: 'UR', theme: 'せんぎポイントと 必殺技（ひっさつわざ）', style: 'なかまで せめて、せんぎを つかう', line: PB_LINES.ex_sr.start },
+  ex_zz: { who: 'ホロウの 挑戦者（ちょうせんしゃ）', cols: 'WK', theme: 'エージェントと ブレイク', style: '数を ならべて いっきに せめる', line: PB_LINES.ex_zz.start },
+  ex_aoko: { who: '青崎青子（あおざきあおこ）', cols: 'UR', theme: '魔弾（まだん）と マジックガンナー', style: 'じゅもんを れんぱつして 魔力（まりょく）を ためる', line: PB_LINES.ex_aoko.start },
+  ex_alice: { who: '久遠寺有珠（くおんじありす）', cols: 'KG', theme: 'プロイと グレートスリー', style: 'トークンを ならべて 魔力（まりょく）を 5こ ためる', line: PB_LINES.ex_alice.start },
 };
 // ---- きめわざ（2026-11-18）：ステージ 2〜6 の あいては、とうの デッキ（その あいて だけの チャレンジ・デッキと しくみ）に、
 // キャラクターの 色・テーマの「きめわざ」の じゅもんを まぜて たたかう。しくみ（あたま・12・かぎ など）は そのまま：デッキに 足す だけ
@@ -205,13 +212,48 @@ export const PB_GUILD = {
   orzhov: { ai: '', life: [8, 9], ids: ['RV37', 'RV37', 'RV38', 'RV39', 'RV40', 'K04', 'K05', 'W10', 'K01', 'K01'], hard: ['RV38', 'RV39', 'K13'],
     rule: 'あいてが じゅもんを つかう たびに、きみに 1点・あいての ライフ ＋1（ゆすり）', onSpells: spellHit('テイサ', true) },
 };
-// ギルドの リーダーの たたかう ばしょ。o.life・o.ids：しらべ用（ちょうせい）
+// ---- 特別ステージ「番外編の 挑戦者たち」の 6人（2026-11-27）：ギルドの リーダーと おなじ つくり（じぶんの デッキを AI が 手札と マナで つかう）----
+// ids：デッキ（20まいに たりない ぶんは きほんカード）、life：ライフ、sets：アンティで もらえる 弾、sig：きめわざの セリフを 言う きっかけ（ログ）
+// あいての ターンの ログ（[3E] …）だけ 見る（きみの カードの 同じ ことばで しゃべらない ように）
+const foeLine = (re) => (s, l) => /^\[\d+E\]/.test(l) && re.test(l);
+export const PB_EX = {
+  ex_touko: { ai: '', life: 28, sets: [17], sig: (s, l) => /予備（よび）の 体/.test(l) && s.E.bf.some((p) => p.def.id === 'MY04'), rule: '橙子（とうこ）が たおれても、人形（にんぎょう）が いれば 予備（よび）の 体で もどる。青子人形（あおこにんぎょう）は 麻痺（まひ）カウンターを 置（お）いて くる',
+    ids: ['MY04', 'MY04', 'MY16', 'MY16', 'MY17', 'MY17', 'MY18', 'MY18', 'MY55', 'MY55', 'MY20', 'MY21', 'MY21', 'MY43', 'MY43', 'MY42', 'MY38', 'MY09', 'MY15', 'MY15'] },
+  ex_fgo: { ai: '', life: 22, sets: [10, 14], sig: foeLine(/ほうぐ！/), rule: 'サーヴァントは こうげきで NP が たまり、100 で 宝具（ほうぐ）を つかう',
+    ids: ['FG01', 'FG02', 'FG11', 'FG19', 'FG19', 'FG20', 'FG21', 'FG21', 'FG22', 'FG22', 'FG23', 'FG23', 'FG24', 'FG24', 'FG31', 'FG31', 'FG32', 'FG32', 'FG52', 'FG163'] },
+  ex_sr: { ai: '', life: 17, sets: [11, 15], sig: foeLine(/せんぎポイント \d+ − /), rule: 'こうげきで せんぎポイントが たまり、せんぎで つかう',
+    ids: ['SR03', 'SR03', 'SR07', 'SR14', 'SR15', 'SR19', 'SR38', 'SR38', 'SR42', 'SR42', 'SR43', 'SR43', 'SR44', 'SR44', 'SR49', 'SR49', 'SR50', 'SR50', 'SR51', 'SR51'] },
+  ex_zz: { ai: '', life: 30, sets: [12, 16], sig: foeLine(/ブレイク！|(月城柳|朱鳶|儀玄|ダイアリン|アンビー).*せんじょうに 出た/), rule: 'エージェントの こうげきで ブレイクカウンターが たまる',
+    ids: ['ZZ07', 'ZZ15', 'ZZ17', 'ZZ29', 'ZZ29', 'ZZ30', 'ZZ30', 'ZZ33', 'ZZ33', 'ZZ34', 'ZZ34', 'ZZ35', 'ZZ35', 'ZZ36', 'ZZ36', 'ZZ44', 'ZZ44', 'ZZ82', 'ZZ90', 'ZZ102'] },
+  ex_aoko: { ai: '', life: 16, sets: [17], sig: foeLine(/マジックガンナー！/), rule: '青子（あおこ）は じゅもんを つかう たびに 1点。ダメージを あたえる たびに 魔力（まりょく）カウンターが たまり、マジックガンナーで まとめて うって くる',
+    ids: ['MY01', 'MY01', 'MY19', 'MY19', 'MY19', 'MY20', 'MY20', 'MY35', 'MY35', 'MY45', 'MY45', 'MY46', 'MY46', 'MY36', 'MY36', 'MY41', 'MY30', 'MY30', 'MY31', 'MY31'] },
+  ex_alice: { ai: '', life: 13, sets: [17], sig: (s, l) => /グレートスリー！/.test(l) && s.E.bf.some((p) => p.def.great), rule: '有珠（ありす）は トークンが 出る たびに 魔力（まりょく）カウンターが たまり、5こで グレートスリー（橋（はし）の巨人（きょじん）・月の油（あぶら）・薔薇（ばら）の猟犬（りょうけん））が 出る',
+    ids: ['MY02', 'MY02', 'MY10', 'MY10', 'MY14', 'MY14', 'MY14', 'MY11', 'MY11', 'MY06', 'MY07', 'MY07', 'MY52', 'MY08', 'MY15', 'MY15', 'MY13', 'MY43', 'MY05', 'MY32'] },
+};
+// デッキで たたかう あいて（ギルドの リーダー・番外編の 挑戦者）の データ：{ ids（その むずかしさの デッキ）, life, ai, rule }
+export function ghostDeck(f) {
+  const g = PB_GUILD[f.floorId], x = PB_EX[f.floorId], hard = f.diff === 'hard';
+  return g ? { ids: [...g.ids, ...(hard ? g.hard : [])], life: g.life[hard ? 1 : 0], ai: g.ai, rule: g.rule } : { ids: x.ids, life: x.life, ai: x.ai, rule: x.rule };
+}
+// ギルドの リーダー・番外編の 挑戦者の たたかう ばしょ。o.life・o.ids：しらべ用（ちょうせい）
 export function guildFloor(f, o = {}) {
-  const g = PB_GUILD[f.floorId], c = PB_CHARS[f.floorId], hard = f.diff === 'hard';
-  const ids = o.ids || [...g.ids, ...(hard ? g.hard : [])];
-  return pvp({ deck: fillDeck(ids), name: c.who, life: o.life || g.life[hard ? 1 : 0], first: 'P', style: g.ai,
+  const g = PB_GUILD[f.floorId] || PB_EX[f.floorId], c = PB_CHARS[f.floorId], D = ghostDeck(f), who = c.who.replace(/（[^）]*）/g, '');
+  const life = o.life || D.life;
+  const floor = pvp({ deck: fillDeck(o.ids || D.ids), name: who, life, first: 'P', style: g.ai,
     turnStart: g.turnStart, beforeAttack: g.beforeAttack, onSpells: g.onSpells, hooks: g.hooks,
     goal: () => `${c.who}「${c.line}」\n${c.who}の ライフを 0に する。${g.rule}。` });
+  // 番外編の 挑戦者：セリフ 4つ（とうじょう・きめわざ・ピンチ・まけた とき）。テーロスがわと おなじ ふきだし
+  const L = PB_EX[f.floorId] && PB_LINES[f.floorId];
+  if (!L) return floor;
+  const setup = floor.setup, check = floor.check;
+  return { ...floor, speaker: who, lines: { win: L.win },
+    setup(s, E) { setup(s, E); s.E.say = L.start; s.exLog = 0; },
+    check(s, E, when) {
+      check(s, E, when);
+      if (s.over || s.swapped) return; // 入れかえて いる あいだ（あいての 番）は s.E が きみ なので 見ない
+      for (; s.exLog < s.logs.length; s.exLog++) if (g.sig(s, s.logs[s.exLog])) RAV_KIT.speak(s, E, 'sig', L.sig);
+      if (s.E.life > 0 && s.E.life <= life / 3) RAV_KIT.speak(s, E, 'low', L.low);
+    } };
 }
 // ステージ 2〜6 の あいての たたかう ばしょ：とうの 階を つくって、デッキの すきな ところに きめわざを まぜる
 export function towerFloor(f, o = {}) {
@@ -261,7 +303,11 @@ export const PB_STAGES = [
   { id: 'rv-n', name: 'ラヴニカ（ふつう）', diff: 'normal', slots: RAV_SLOTS, drop: { sets: [1, 2], w: [50, 35, 13, 2], boss: [20, 40, 33, 7] } },
   { id: 'rv-h', name: 'ラヴニカ（むずかしい）', diff: 'hard', slots: RAV_SLOTS, drop: { sets: [5], w: [45, 35, 17, 3], boss: [15, 35, 40, 10] } },
   { id: 'th-h', name: 'しゅうまつの しま（むずかしい）', diff: 'hard', slots: [['harisen'], ['kameron'], ['konkon'], ['rirara'], ['owaron']], drop: { sets: [1, 2, 5], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
+  // 特別ステージ（special）：番外編の カードの デッキで たたかう 6人。アンティは その あいての 番外編（PB_EX の sets）。むげんの たたかいには 入らない
+  { id: 'ex', name: '番外編（ばんがいへん）の 挑戦者（ちょうせんしゃ）たち', diff: 'hard', special: true, slots: [['ex_touko'], ['ex_fgo'], ['ex_sr'], ['ex_zz'], ['ex_aoko'], ['ex_alice']], drop: { sets: [17], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
 ];
+// むげんの たたかいが ひらく ステージの 数（特別ステージは 入れない）：ステージ 1〜6 を クリア
+export const PB_MAIN = PB_STAGES.filter((t) => !t.special).length;
 const sizeOf = (t) => (t.kihon || t.slots).length;
 export const PB_TOTAL = PB_STAGES.reduce((t, x) => t + sizeOf(x), 0);
 // ステージ si の あいての ならび。seed：セーブごとの 数（2〜3しゅるいから えらぶ あいては、同じ セーブなら いつも 同じ）
@@ -285,14 +331,14 @@ export const PB_DIFF = { 'th-e:dragon': 'normal', 'th-e:clock': 'normal' };
 export const PB_PLUS = { 'th-e:clock': 2 }; // きめわざと なかまを その 数だけ 多く 入れる（ドラゴンは ステージ 2 の ボスに なった ので、ボスの 3まいずつ ＝ まえの 2 ＋ 1 と おなじ）
 export function towerFoe(f, t, floorId) {
   const boss = f.boss ?? (!t.noBoss && f.k === t.slots.length - 1);
-  return { ...f, boss, diff: PB_DIFF[`${t.id}:${floorId}`] || f.diff, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], ghost: !!PB_GUILD[floorId], buff: boss && f.si >= BOSS_BUFF_FROM ? 1 : 0, plus: PB_PLUS[`${t.id}:${floorId}`] || 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
+  return { ...f, boss, diff: PB_DIFF[`${t.id}:${floorId}`] || f.diff, key: `${t.id}:${f.k}`, floorId, char: PB_CHARS[floorId], ghost: !!(PB_GUILD[floorId] || PB_EX[floorId]), dropSets: PB_EX[floorId]?.sets || null, buff: boss && f.si >= BOSS_BUFF_FROM && !PB_EX[floorId] ? 1 : 0, plus: PB_PLUS[`${t.id}:${floorId}`] || 0, lifeBonus: PB_EASE[`${t.id}:${floorId}`] || 0 };
 }
 // ステージが クリアか（ぜんいんを PB.need 回ずつ）・いま ひらいて いる いちばん 上の ステージ（ぜんぶ クリアなら PB_STAGES.length ＝ むげんの たたかい）
 export const stageCleared = (beat, si, seed, need = PB.need) => foesOf(si, seed).every((f) => (beat[f.key] || 0) >= need);
 // floor：もう ひらいた ステージ（セーブの stage）。きまりが かわっても（2回 → 3回・あいてが ふえた）、ひらいた ステージは とじない
 export function topStage(beat, seed, floor = 0, need = PB.need) { let si = Math.max(0, floor | 0); while (si < PB_STAGES.length && stageCleared(beat, si, seed, need)) si++; return si; }
 // むげんの たたかい（ぜんぶ クリアした あとの おまけ）：「むずかしい」の 2つの ステージを じゅんばんに。1しゅう ごとに てきの クリーチャーが ＋1/＋1
-const LOOP = PB_STAGES.map((t, si) => si).filter((si) => PB_STAGES[si].diff === 'hard');
+const LOOP = PB_STAGES.map((t, si) => si).filter((si) => PB_STAGES[si].diff === 'hard' && !PB_STAGES[si].special);
 export function endlessAt(n, seed = 1) {
   const all = LOOP.flatMap((si) => foesOf(si, seed)), lap = Math.floor(n / all.length) + 1;
   const f = all[n % all.length];
@@ -302,17 +348,19 @@ export function endlessAt(n, seed = 1) {
 // ---- アンティ：かつと、あいての ステージの カードを 1まい もらう ----
 const RAR = ['C', 'U', 'R', 'L'];
 const DROPS = new Map();
-function dropPool(si) {
-  if (!DROPS.has(si)) {
-    const d = PB_STAGES[si].drop;
+// sets：あいて だけの 弾（番外編の 挑戦者）。なければ ステージの 弾
+function dropPool(si, sets) {
+  const key = sets ? `s${sets.join()}` : si;
+  if (!DROPS.has(key)) {
+    const d = sets ? { sets } : PB_STAGES[si].drop;
     const ids = d.ids || SETS.filter((x) => d.sets.includes(x.id)).flatMap((x) => x.cards.filter((c) => !c.noPack).map((c) => c.id));
-    DROPS.set(si, Object.fromEntries(RAR.map((r) => [r, ids.map((id) => BY_ID[id]).filter((c) => c && c.rar === r)])));
+    DROPS.set(key, Object.fromEntries(RAR.map((r) => [r, ids.map((id) => BY_ID[id]).filter((c) => c && c.rar === r)])));
   }
-  return DROPS.get(si);
+  return DROPS.get(key);
 }
 // → もらう カード。rng は 0〜1 の 数を かえす 関数
 export function antePick(foe, rng) {
-  const d = PB_STAGES[foe.si].drop, pool = dropPool(foe.si);
+  const d = PB_STAGES[foe.si].drop, pool = dropPool(foe.si, foe.dropSets);
   const w = (foe.boss ? d.boss : d.w).map((x, i) => (pool[RAR[i]].length ? x : 0));
   let r = rng() * w.reduce((t, x) => t + x, 0), k = 0;
   while (k < 3 && (r -= w[k]) >= 0) k++;
@@ -344,7 +392,7 @@ export function migrateProgress(wins, seed = 1) {
   const all = (si) => { for (const f of foesOf(si, seed)) beat[f.key] = PB.need; };
   let left = Math.max(0, wins | 0), si = 0;
   while (si < OLD.length && left >= OLD[si]) { all(si); left -= OLD[si]; si++; }
-  if (si >= OLD.length) return { beat, endless: left, stage: PB_STAGES.length, gp: wins * PB.gpWin + PB_STAGES.length * PB.gpStage };
+  if (si >= OLD.length) return { beat, endless: left, stage: OLD.length, gp: wins * PB.gpWin + OLD.length * PB.gpStage }; // ステージ 1〜6 を クリア（特別ステージは これから）
   // みならいの みちは あいてが ふえた：まえの じゅんばん（ゴブリン・そら・テフェリー）で かぞえる
   const order = si === 0 ? ['kh1', 'kh2', 'kh3'].map((id) => foesOf(0, seed).find((f) => f.kihon.id === id)) : foesOf(si, seed);
   for (const f of order.slice(0, left)) beat[f.key] = PB.need;

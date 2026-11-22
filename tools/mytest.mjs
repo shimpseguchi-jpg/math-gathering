@@ -261,5 +261,53 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   const s3 = board(); put(s3, 'MY39', 'E'); put(s3, 'MY01', 'E');
   check('星が瞬くこんな夜に：あいての ものは じぶんの コストに かんけい ない', costOf(s3, D('MY05')) === 5);
 }
+// ---- 特別ステージ「番外編の 挑戦者たち」（2026-11-27）----
+{
+  const { PB_STAGES, PB_MAIN, PB_EX, PB_CHARS, foesOf, guildFloor, ghostDeck, antePick, endlessAt, topStage, battleGain } = await import('../js/data/packbattle.js');
+  const { PB_LINES } = await import('../js/data/pbfoes.js');
+  const { SET_OF } = await import('../js/data/cards.js');
+  const { fight } = await import('../js/engine/run.js');
+  const { fillDeck } = await import('../js/data/kihon.js');
+  const { PB_STARTER } = await import('../js/data/packbattle.js');
+  const st = PB_STAGES[6], fs = foesOf(6, 1);
+  check('特別ステージ：7ばんめ「番外編の 挑戦者たち」・6人・さいごの 有珠が ボス・デッキで たたかう', PB_STAGES.length === 7 && PB_MAIN === 6 && st.special && /番外編.*挑戦者/.test(st.name.replace(/（[^）]*）/g, '')) && fs.length === 6 && fs.map((f) => f.floorId).join() === 'ex_touko,ex_fgo,ex_sr,ex_zz,ex_aoko,ex_alice' && fs.every((f) => f.ghost && f.buff === 0) && fs.filter((f) => f.boss).map((f) => f.floorId).join() === 'ex_alice' && fs.map((f) => f.key).join() === 'ex:0,ex:1,ex:2,ex:3,ex:4,ex:5');
+  check('ボスの ポイントは ほかの ステージの ボスと おなじ', battleGain(fs[5]).base === battleGain(foesOf(5, 1)[4]).base && battleGain(fs[0]).base === battleGain(foesOf(5, 1)[0]).base);
+  const WANT = { ex_touko: [17], ex_fgo: [10, 14], ex_sr: [11, 15], ex_zz: [12, 16], ex_aoko: [17], ex_alice: [17] };
+  check('デッキ：20まい・その 番外編の カード だけ（きほんカードで うめない）', fs.every((f) => { const d = ghostDeck(f).ids; return d.length === 20 && d.every((id) => WANT[f.floorId].includes(SET_OF[id])) && fillDeck(d).length === 20; }));
+  check('デッキの 切り札：橙子の デッキに 橙子、青子の デッキに 青子、有珠の デッキに 有珠', PB_EX.ex_touko.ids.includes('MY04') && PB_EX.ex_aoko.ids.includes('MY01') && PB_EX.ex_alice.ids.includes('MY02'));
+  check('名前：FGO・スターレイル・ゼンゼロの あいては 作品の キャラで ない 挑戦者', ['ex_fgo', 'ex_sr', 'ex_zz'].every((id) => /挑戦者/.test(PB_CHARS[id].who)) && /青崎橙子/.test(PB_CHARS.ex_touko.who) && /青崎青子/.test(PB_CHARS.ex_aoko.who) && /久遠寺有珠/.test(PB_CHARS.ex_alice.who));
+  check('セリフ：6人に 4つずつ（とうじょう・きめわざ・ピンチ・まけた とき）', fs.every((f) => { const L = PB_LINES[f.floorId]; return L && L.start && L.sig && L.low && L.win; }));
+  let x = 5; const rnd = () => (x = (x * 16807) % 2147483647) / 2147483647;
+  check('アンティ：その あいての 番外編の カードが 出る（200回ずつ）', fs.every((f) => Array.from({ length: 200 }, () => antePick(f, rnd)).every((d) => d && WANT[f.floorId].includes(SET_OF[d.id]))));
+  check('アンティ：ほかの ステージは いままで どおり（ステージ 6 は 第1・2・5弾）', Array.from({ length: 100 }, () => antePick(foesOf(5, 1)[0], rnd)).every((d) => [1, 2, 5].includes(SET_OF[d.id])));
+  check('むげんの たたかいの ならびは かわらない（特別ステージは 入らない）', Array.from({ length: 10 }, (_, n) => endlessAt(n, 1).floorId).slice(5).join() === 'harisen,kameron,konkon,rirara,owaron');
+  const b6 = Object.fromEntries([0, 1, 2, 3, 4, 5].flatMap((si) => foesOf(si, 1).map((f) => [f.key, 3])));
+  check('すすみかた：ステージ 1〜6 を クリアすると ステージ 7 が ひらく（6）。7 も クリアで 7', topStage(b6, 1, 0) === 6 && topStage({ ...b6, ...Object.fromEntries(fs.map((f) => [f.key, 3])) }, 1, 0) === 7 && topStage({}, 1, 6) === 6);
+  // あいての AI が まほよの しくみを つかう（AI どうし・きみの ライフ 60 で 長く たたかう・30回ずつ）
+  const deck = fillDeck(PB_STARTER.cards), R = {};
+  const RE = {
+    ex_touko: [/てき：.*人形.*が せんじょうに 出た/, /予備（よび）の 体/],
+    ex_aoko: [/青崎青子（あおざきあおこ）：魔弾/, /青崎青子（あおざきあおこ）：魔力（まりょく）カウンター \d+ ＋ 1/, /マジックガンナー！/],
+    ex_alice: [/久遠寺有珠（くおんじありす）：魔力（まりょく）カウンター \d+ ＋ 1/, /グレートスリー！/],
+    ex_fgo: [/ほうぐ！/], ex_sr: [/せんぎポイント/], ex_zz: [/ブレイク/],
+  };
+  for (const f of fs) {
+    const r = R[f.floorId] = { n: 30, over: 0, hit: RE[f.floorId].map(() => 0), sig: 0, low: 0, start: 0 };
+    for (let i = 0; i < r.n; i++) {
+      const fl = guildFloor(f), s = await fight(deck, null, { floor: fl, diff: f.diff, life: 60, seed: 101 + i, log: true });
+      if (s.over) r.over++;
+      RE[f.floorId].forEach((re, k) => { if (s.logs.some((l) => /^\[\d+E\]/.test(l) && re.test(l)) || (k > 0 && s.logs.some((l) => re.test(l)))) r.hit[k]++; });
+      if (s.E.said?.sig) r.sig++; if (s.E.said?.low) r.low++;
+      if (fl.speaker && fl.lines.win === PB_LINES[f.floorId].win && fl.goal().includes(PB_LINES[f.floorId].start)) r.start++;
+    }
+  }
+  const show = JSON.stringify(Object.fromEntries(Object.entries(R).map(([k, r]) => [k, `${r.hit.join('/')} sig${r.sig} low${r.low}`])));
+  check('たたかいは ぜんぶ さいごまで すすむ（6人 × 30回）', Object.values(R).every((r) => r.over === r.n && r.start === r.n), show);
+  check('あいての 橙子：人形を ならべ、たおれても 予備の 体で もどる', R.ex_touko.hit[0] >= 15 && R.ex_touko.hit[1] >= 3, show);
+  check('あいての 青子：じゅもんで 魔弾 → 魔力カウンターが たまる → マジックガンナーを うつ', R.ex_aoko.hit[0] >= 15 && R.ex_aoko.hit[1] >= 15 && R.ex_aoko.hit[2] >= 10, show);
+  check('あいての 有珠：トークンで 魔力カウンターが たまり、5こで グレートスリーが 出る', R.ex_alice.hit[0] >= 15 && R.ex_alice.hit[1] >= 8, show);
+  check('FGO・スターレイル・ゼンゼロの 挑戦者：その 番外編の しくみ（宝具・せんぎポイント・ブレイク）が うごく', R.ex_fgo.hit[0] >= 10 && R.ex_sr.hit[0] >= 15 && R.ex_zz.hit[0] >= 15, show);
+  check('きめわざと ピンチの セリフが たたかいの 中で 出る（6人とも）', Object.values(R).every((r) => r.sig >= 3 && r.low >= 1), show);
+}
 console.log(fails ? `FAILED: ${fails} / ${n}` : `ALL OK（${n}）`);
 process.exit(fails ? 1 : 0);
