@@ -617,6 +617,21 @@ span.pile { cursor: default; }
 .ol-selects select { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font: inherit; font-weight: 700; padding: 4px 8px; }
 .ol-empty { margin: 0; padding: 12px; border-radius: 12px; border: 2px dashed var(--line); color: var(--ink-dim); font-size: 13px; line-height: 1.9; }
 .ol-found { font-family: var(--display); font-size: 22px; color: var(--gold-text); margin: 0 0 4px; }
+/* リアルタイムたいせん（js/ui/rt.js） */
+.rt-steps { margin: 0; padding: 10px 12px 10px 34px; border-radius: 12px; background: var(--table-2); font-size: 14px; line-height: 2; }
+.rt-code { margin: 4px 0; display: flex; justify-content: center; gap: 10px; }
+.rt-code b { font-family: var(--display); font-size: clamp(40px, 14vw, 64px); line-height: 1.2; min-width: 1.3em; text-align: center; border-radius: 14px; background: var(--paper); color: var(--paper-ink); }
+.rt-code b.empty { opacity: 0.45; }
+.rt-wait { margin: 0; padding: 12px; border-radius: 12px; background: var(--table-2); text-align: center; font-weight: 700; }
+.rt-wait b { margin-left: 10px; font-family: var(--display); font-size: 20px; color: var(--gold-text); }
+.rt-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 320px; width: 100%; margin: 0 auto; }
+.rt-pad .btn { min-height: 56px; font-size: 22px; }
+.rt-go .btn { flex: 1; }
+.rt-first { font-weight: 700; color: var(--gold-text); }
+.rt-why { font-weight: 700; }
+.btn.rt-main { font-size: 1.1em; }
+.banner.rt-wait { background: var(--table-2); padding: 6px 10px; text-align: center; font-weight: 700; }
+.banner.rt-mine[data-away]:not([data-away=""])::after { content: "（" attr(data-away) "）"; color: var(--gold-text); }
 
 /* ---- トロフィー ---- */
 .cup { width: 22px; height: 22px; flex: none; fill: currentColor; }
