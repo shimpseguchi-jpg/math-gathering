@@ -248,7 +248,7 @@ const openPack = async (id) => {
 };
 await page.click('.pb-steps [data-go=shop]');
 await shot('07_shop');
-check('ショップ：はじめは 5しゅるいの パック（まほよパックは さいしょから ある）', await page.locator('[data-buy]').count() === 5 && await page.locator('[data-buy=s17]').count() === 1 && /まほよパック/.test(await page.locator('.cs-set', { has: page.locator('[data-buy=s17]') }).innerText()));
+check('ショップ：はじめは 13しゅるいの パック（みならい・第1〜5弾・番外編 7つ。まほよパックも さいしょから ある）', await page.locator('[data-buy]').count() === 13 && (await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy).join())) === 'p1,s1,s2,s3,s4,s5,s10,s14,s11,s15,s12,s16,s17' && (await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)) && await page.locator('[data-buy=s17]').count() === 1 && /まほよパック/.test(await page.locator('.cs-set', { has: page.locator('[data-buy=s17]') }).innerText()));
 s = await state();
 const had = count(s), p0 = s.pts;
 const gotLine = await openPack('s2');
@@ -315,9 +315,9 @@ check(`デッキの わく：${PB.deckBase + 1}こまでに なる`, (await page
 await page.click(`[data-deck=${s.decks[0].id}]`); await sheetClick('なおす');
 check(`キャパシティ：デッキの 点が ${PB.cap + PB.capStep}点までに なる`, (await page.locator('.builder .meter').first().innerText()).includes(`/${PB.cap + PB.capStep}点`), (await page.locator('.builder .meter').first().innerText()).replace(/\s+/g, ' '));
 await page.click('[data-a=back]'); await page.click('[data-back]');
-// パック：ショップに 第3弾
+// パック：ショップに 三つの 旗（まえは 第3弾。第3弾・第4弾は さいしょから ある）
 await page.click('.pb-steps [data-go=shop]');
-check('パック：ショップに 第3弾が ふえる', await page.locator('[data-buy]').count() === 6 && await page.locator('[data-buy=s3]').count() === 1);
+check('パック：ショップに「三つの 旗」が ふえる（同じ パックは 2つ ならばない）', await page.locator('[data-buy]').count() === 14 && await page.locator('[data-buy=s6]').count() === 1 && await page.locator('[data-buy=s3]').count() === 1);
 await page.click('[data-back]');
 // もんだい：むずかしい（1もん 15P）
 await page.click('.pb-steps [data-go=quiz]');
@@ -643,6 +643,26 @@ if ((await state()).wins > exB0.wins) {
 }
 check(`ステージ 7 の ボス（有珠）に かつ：ボスの ポイント（＋${PB.boss}P いじょう）・かった 回数 1・アンティは「魔法使いの夜」の カード`, !!exWin && /ボスを たおした/.test(exWin.won) && exWin.pts >= PB.boss && exWin.beat === 1 && !!exWin.ante && (exWin.newIds.length === 0 || exWin.newIds.every((id) => /^MY\d\d$/.test(id))), JSON.stringify(exWin || {}).slice(0, 300));
 await page.reload(); await page.click('[data-go=pb]');
+
+// ---- 番外編の パック 6つ（FGO・スターレイル・ゼンゼロの 第1・2弾）：100P で その 弾の カードが 8まい ----
+m = await old({ ...baseSave, v: 6, pts: 650, beat: { ...kihon3 }, stage: 1, tree: { cap: 2, pack: 3 } });
+await page.click('.pb-steps [data-go=shop]');
+await shot('22b_shop_extra');
+{
+  const buys = await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy));
+  check('まえの セーブ（パックの 枝を 3つ とって いた）：こわれない。第3弾・第4弾は 1つずつ、三つの 旗・アルケミー・ラヴニカが ひらいて いる（16しゅるい・かさなり なし）', m.tree.pack === 3 && m.tree.cap === 2 && m.gp === 9 && buys.length === 16 && new Set(buys).size === 16 && ['s3', 's4', 's6', 's7', 's9'].every((id) => buys.includes(id)), buys.join());
+  const bad = [];
+  for (const set of [10, 14, 11, 15, 12, 16]) {
+    const b0 = await state();
+    await openPack('s' + set);
+    const b1 = await state();
+    const got = Object.keys(b1.cards).filter((id) => (b1.cards[id] || 0) > (b0.cards[id] || 0));
+    const sets = await page.evaluate(async (ids) => { const { SET_OF } = await import('./js/data/cards.js'); return ids.map((id) => SET_OF[id]); }, got);
+    if (b1.pts !== b0.pts - PB.pack || count(b1) !== count(b0) + 8 || !got.length || !sets.every((x) => x === set)) bad.push(`${set}:${b0.pts - b1.pts}P・${count(b1) - count(b0)}まい・${sets.join('')}`);
+  }
+  check(`番外編の パック 6つ：${PB.pack}P で あけると その 弾の カード だけ 8まい`, bad.length === 0 && (await state()).pts === 50, bad.join(' '));
+}
+await page.click('[data-back]');
 
 // ---- 番外編「魔法使いの夜」：まほよパック（100P）・たたかいの 画面で カウンターの しくみが うごく ----
 m = await old({ ...baseSave, v: 6, pts: 250, beat: { ...kihon3 }, stage: 1 });

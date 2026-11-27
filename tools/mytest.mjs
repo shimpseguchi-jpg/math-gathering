@@ -31,7 +31,17 @@ check('レアリティ：L 5・R 10・U 22・C 18', ['L', 'R', 'U', 'C'].map((r)
 check('グレートスリーは カードに ない（トークン だけ）', !set.cards.some((d) => /巨人|月の油|猟犬/.test(d.name.replace(/（[^）]*）/g, ''))) && Object.values(GREAT3).every((d) => d.great && !d.rar));
 check('本編：もんしょう「番外編 魔法使いの夜」で パックに まざる', EMBLEMS.some((e) => e.id === 'pMY' && e.fx.packExtra === 17));
 const shop = packsFor(0), my = shop.find((p) => p.set === 17);
-check('パック＆バトル：まほよパックが さいしょから ショップに ある（100P・55種。青子人形 MY55 も 入る）', my && my.name === 'まほよパック' && my.special && my.ids.length === 55 && my.ids.includes('MY55') && PB.pack === 100 && PB_PACKS_SPECIAL.length === 1 && packsFor(3).includes(my));
+check('パック＆バトル：まほよパックが さいしょから ショップに ある（100P・55種。青子人形 MY55 も 入る）', my && my.name === 'まほよパック' && my.special && my.ids.length === 55 && my.ids.includes('MY55') && PB.pack === 100 && packsFor(3).includes(my));
+{
+  const { PB_PACKS, PB_PACKS_MORE, PB_TREE } = await import('../js/data/packbattle.js');
+  const { SET_OF, ALL } = await import('../js/data/cards.js');
+  const sp = PB_PACKS_SPECIAL;
+  check('パック＆バトル：番外編の パックは 7つ（FGO 2・スターレイル 2・ゼンゼロ 2・まほよ）。さいしょから・その 弾の カード だけ・名前と ひとこと', sp.map((p) => p.set).join() === '10,14,11,15,12,16,17' && sp.every((p) => p.special && /パック$/.test(p.name) && /^番外編/.test(p.note) && p.ids.length >= 55 && p.ids.every((id) => SET_OF[id] === p.set) && shop.includes(p)) && new Set(sp.map((p) => p.name)).size === 7, sp.map((p) => `${p.name}:${p.ids.length}`).join(' '));
+  check('第3弾・第4弾は 出た 弾：ふつうの パック（ALL）に 入り、パック＆バトルの ショップに さいしょから ある', SETS.filter((x) => x.released).map((x) => x.id).join() === '1,2,3,4,5' && ALL.some((d) => SET_OF[d.id] === 3) && ALL.some((d) => SET_OF[d.id] === 4) && PB_PACKS.map((p) => p.id).join() === 'p1,s1,s2,s3,s4,s5');
+  const ids3 = packsFor(3).map((p) => p.id);
+  check('ショップに 同じ パックが 2つ ならばない（せいちょうの 枝を ぜんぶ とっても）', new Set(ids3).size === ids3.length && ids3.length === 16 && packsFor(0).length === 13);
+  check('せいちょうの「パック」の 枝：3つの まま（三つの 旗・アルケミー・ラヴニカ）。3つめは まえと おなじ ラヴニカ', PB_PACKS_MORE.map((p) => p.set).join() === '6,7,9' && PB_TREE.find((t) => t.id === 'pack').nodes.map((n) => n.cost).join() === '3,4,5' && PB_PACKS_MORE.every((p) => p.ids.length >= 30 && p.ids.every((id) => SET_OF[id] === p.set)));
+}
 
 // ---- キーワードカウンター ----
 {
