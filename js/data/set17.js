@@ -109,7 +109,7 @@ function sojuUpkeep(s, p, E) {
   p.time--;
   E.L(s, `しょうしつ：${p.def.name}（のこり ${p.time}）`);
   const fin = () => { if (p.time <= 0 && E.onBf(s, p)) { E.leave(s, p, 'gy', { died: true }); E.sba(s); } };
-  if (s.ai?.choose && !s.swapped && p.side === 'P') {
+  if (s.ai?.choose && s.ai.aim && !s.swapped && p.side === 'P') { // リアルタイムたいせん（s.ai.aim が false）では AI と おなじ じゅん
     return Promise.resolve(s.ai.choose(s, `${p.def.name}：時間（じかん）カウンターを 取（と）りのぞいた（のこり ${p.time}）`, SOJU_OPTS(p), '<p>カウンターを 1つ えらぶ。</p>')).then((k) => { sojuGive(s, p, E, k); fin(); });
   }
   sojuGive(s, p, E, !p.kwc?.has('deathtouch') ? 'deathtouch' : !p.kwc?.has('hexproof') ? 'hexproof' : 'ctr');

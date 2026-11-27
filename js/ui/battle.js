@@ -12,12 +12,80 @@ import { spOf, spMax } from '../data/set11.js';
 const spDots = (s) => { const n = Math.min(spOf(s), spMax(s)); return `<b>${n}</b> ${'●'.repeat(n)}${'○'.repeat(spMax(s) - n)}`; };
 import '../data/ravnica.js'; // ラヴニカの 塔の 階を FLOORS に 入れる
 import '../data/strixhaven.js'; // ストリクスヘイヴンの 塔の 階も
-import { permFace, cardFace, detail, permState, loreHtml, speak, sheet, esc, ruby, noRuby, info, pickMany, divideSheet, numberSheet, byColorCost, toast, COLOR_NAME } from './view.js';
+import { permFace, cardFace, detail, permState, loreHtml, speak as speak0, sheet as sheet0, esc, ruby, noRuby, info, pickMany as pickMany0, divideSheet as divideSheet0, numberSheet as numberSheet0, byColorCost, toast as toast0, COLOR_NAME } from './view.js';
 import { makeTutorial } from './tutorial.js';
 import { LORE } from '../data/lore.js';
-import * as fx from './fx.js';
+import * as fx0 from './fx.js';
 
 let B = null; // いまのたたかい
+
+// ---- リアルタイムたいせん（js/ui/rt.js・docs/REALTIME_PVP.md）：そうさの きろくと さいせい ----
+// じぶんの ばんの そうさ（どこを タップしたか ＋ まどで えらんだ こたえ）を 1つずつ きろくして おくる。あいての 画面は それを おなじ じゅんで
+// この ファイルの おなじ 関数に とおして さいせいする（ルールも 乱数も おなじ なので、ふたりの 場は おなじに なる）。
+// さいせい中（REPLAY）は まど・演出・描画を 出さず、まどの こたえは きろくから とる。
+// まどの きまり（ふたりの 画面で おなじ じゅんに なる ように）：
+//   ・こたえは まどを よんだ じゅん（view.js の まどは 1つずつ 出る）
+//   ・こたえが ルールに とどくのは、ほかの ながれが ぜんぶ 止まって から（演出の まちが おわり、つづきの 処理が おちついて から）。
+//     「攻撃したとき 占術」の ように、まどを 出した まま 先へ すすむ 能力（まって もらえない ながれ）が あっても、じゅんばんが かわらない
+let REPLAY = null; // { a: [こたえ…], i, q: [まって いる まど…], bad }
+let NOREC = 0;     // 描画の 中から 出た まど（とくべつな ルールの せつめい）は きろくしない
+const rtWait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+const rtNoFx = () => Promise.resolve();
+const fx = new Proxy(fx0, { get: (t, k) => {
+  if (REPLAY) return rtNoFx;
+  const f = t[k], op = B?.rt?.cur;
+  if (!op || typeof f !== 'function') return f;
+  return (...a) => { const r = f(...a); if (r && typeof r.then === 'function') { op.fx++; const done = () => { op.fx--; }; r.then(done, done); } return r; }; // そうさの 中の 演出の まち
+} });
+const toast = (m) => { if (!REPLAY) toast0(m); };
+const speak = (...a) => { if (!REPLAY) speak0(...a); };
+const recTo = () => (!REPLAY && !NOREC && B?.rt?.cur) || null;
+// じぶんの そうさ：まどの こたえを きろくする（enc：こたえ → きろく）
+function rtRec(p, enc) {
+  const op = recTo();
+  if (!op) return p;
+  op.pend++;
+  return new Promise((resolve) => {
+    p.then((v) => { op.chain = op.chain.then(() => rtQuiet(op)).then(() => { op.a.push(enc(v)); op.pend--; resolve(v); }); });
+  });
+}
+async function rtQuiet(op) { do { while (op.fx > 0) await rtWait(30); await rtWait(0); } while (op.fx > 0); }
+// さいせい：まどは よんだ じゅんに ならべ、1つずつ（つづきの 処理が おちついて から）きろくの こたえを かえす（dec：きろく → こたえ）
+function rtPlay(kind, dec) {
+  const R = REPLAY;
+  return new Promise((resolve) => { R.q.push({ kind, dec, resolve }); rtPump(R); });
+}
+function rtPump(R) {
+  if (R.pumping) return;
+  R.pumping = true;
+  setTimeout(() => {
+    R.pumping = false;
+    const it = R.q.shift();
+    if (!it || R.bad) return;
+    const x = R.a[R.i];
+    if (!Array.isArray(x) || x[0] !== it.kind) { R.bad = true; return; } // きろくと あわない：場が ずれた
+    R.i++;
+    it.resolve(it.dec(x));
+    rtPump(R);
+  }, 0);
+}
+function sheet(html, choices = [], o = {}) {
+  if (REPLAY) return rtPlay('s', ([, t, i]) => (t === 'c' ? choices[i]?.value : t === 'v' ? o.values?.[i] : null));
+  return rtRec(sheet0(html, choices, o), (v) => { const i = choices.findIndex((c) => c.value === v), j = (o.values || []).indexOf(v); return i >= 0 ? ['s', 'c', i] : j >= 0 ? ['s', 'v', j] : ['s', 'x']; });
+}
+function pickMany(title, items, o) {
+  if (REPLAY) return rtPlay('m', ([, ix]) => ix && ix.map((i) => items[i]?.value));
+  return rtRec(pickMany0(title, items, o), (v) => ['m', v ? v.map((x) => items.findIndex((it) => it.value === x)) : null]);
+}
+function divideSheet(title, n, items) {
+  if (REPLAY) return rtPlay('d', ([, ns]) => ns && items.map((it, k) => ({ t: it.value, n: ns[k] })));
+  return rtRec(divideSheet0(title, n, items), (v) => ['d', v ? v.map((x) => x.n) : null]);
+}
+function numberSheet(title, o) {
+  if (REPLAY) return rtPlay('n', (x) => x[1]);
+  return rtRec(numberSheet0(title, o), (v) => ['n', v ?? null]);
+}
+
 const app = () => document.getElementById('app');
 // カードの 名前：nm は ふりがなつきの HTML、nmText は「漢字（よみ）」の 文字（あとで ruby に とおす）
 const nmText = (p) => info(p.def).name;
@@ -27,11 +95,12 @@ const isSpell = (d) => d.types.includes('instant') || d.types.includes('sorcery'
 export function startBattle(o) {
   const floor = o.floor || FLOORS[o.floorId]();
   B = { mode: 'main', phase: 1, combatDone: false, busy: false, onEnd: o.onEnd, quit: o.quit, floorName: o.floorName, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), seen: 0, lore: new Set() };
-  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
+  B.s = newGame({ deck: o.deck, floor, diff: o.diff, seed: o.seed ?? Math.floor(Math.random() * 1e9), ai: humanAI(), log: true, emblem: o.emblem, bless: o.bless, buff: o.buff, cmd: o.cmd, cmdOpt: o.cmdOpt, life: o.life });
   // チュートリアル（o.tutorial：ボタンを しぼる）・ストーリーの コーチ（o.coach：ことばだけ。どの そうさも できる）
   if (o.tutorial || o.coach) B.tut = makeTutorial(o.coach, { lock: !o.coach || !!o.coachLock }); // coachLock：ストーリーでも 光って いる ところ だけ（1-2）
   B.coachWho = o.coach?.[0]?.who || (o.tutorial ? 'コーチ' : '');
   o.setup?.(B.s, api);
+  if (o.rt) rtInit(o.rt); // リアルタイムたいせん：はじめかたは rt.js が きめる（先手は サーバーが きめた）
   // せりふ：能力が うごいた とき（docs/LORE.md の「とき」）。1まいに つき 1ターンに 1回
   B.s.say = (p, when) => {
     const l = LORE[p.def.id], k = `${p.def.id}:say:${B.s.turn}`;
@@ -40,7 +109,7 @@ export function startBattle(o) {
   };
   app().onclick = onClick;
   initSwipe();
-  const go = async () => { await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
+  const go = async () => { if (o.rt) { render(); return o.rt.ready(); } await askMulligan(); return floor.first === 'E' ? enemyFirst() : startTurn(); };
   if (!floor.goal || o.tutorial || o.skipGoal) return go(); // skipGoal：つめマスの やりなおし（かちかたは もう 見た）
   render();
   sheet(`<p class="goal">${ruby(floor.goal(B.s))}</p>${o.emblemNote ? `<p class="em-line">もんしょう：${esc(o.emblemNote)}</p>` : ''}${o.extraNote ? `<p class="em-line">${ruby(o.extraNote)}</p>` : ''}`, [{ label: 'はじめる', value: 1, kind: 'primary' }], { title: `${ruby(o.floorName)}：かちかた`, dismiss: false }).then(go);
@@ -138,7 +207,9 @@ function humanAI() {
       render();
     },
     // いくつかの 中から 1つ えらぶ（静希草十郎の カウンター など）。opts = [{ label, value, disabled?, note? }]
-    aim: true, // きっかけの 能力の あいてを 人が えらぶ（s.aimQ → drainAim）
+    // きっかけの 能力の あいてを 人が えらぶ（s.aimQ → drainAim）。リアルタイムたいせんでは えらばない（AI と おなじ えらびかた）：
+    // えらぶ まどが そうさの きろくの 外で 出ると、ふたりの 画面が ずれる ため（docs/REALTIME_PVP.md 8章）
+    get aim() { return !(B && B.rt); },
     choose: async (s, title, opts, html = '') => {
       if (B) render();
       const v = await sheet(html, opts.map((o) => ({ label: ruby(o.label), value: o.value, kind: 'primary', disabled: !!o.disabled, note: o.note || '' })), { title: ruby(title), dismiss: false });
@@ -288,6 +359,7 @@ async function endTurn() {
   B.busy = true;
   endPlayerTurn(s);
   if (checkOver()) return;
+  if (B.rt) return rtAfterEnd();
   if (s.E.extraTurns > 0) {
     s.E.extraTurns--;
     await sheet('<p>たいぐんが 来る前に、もう1ターン じゅんびできる。</p>', [{ label: 'つぎの ターン', value: 1, kind: 'primary' }], { title: 'ついかターン！' });
@@ -329,10 +401,12 @@ const sayBox = (text) => (text && B.s.floor.speaker ? `<p class="say"><b>${esc(B
 function checkOver(lines) {
   const s = B.s;
   if (!s.over) return false;
+  if (REPLAY) return true; // さいせい中：けっかは 入れかえを もどして から 出す（rtApply）
+  if (B.rt) { if (B.overShown) return true; B.overShown = true; }
   render();
   const win = s.over === 'win', draw = s.over === 'draw';
   const winText = s.floor.winText || 'かった！'; // 次元渡りの 侵略者の ボスは「勝利……？」（いつか レイドの ボスで もどって くる かも。2026-11-05）
-  fx.result(win ? 'win' : draw ? 'draw' : 'lose', win ? winText : undefined).then(() => sheet(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? winText : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
+  fx.result(win ? 'win' : draw ? 'draw' : 'lose', win ? winText : undefined).then(() => sheet0(`${lines ? `<ol class="elog">${lines.map((l) => `<li>${ruby(l)}</li>`).join('')}</ol>` : ''}<p class="big-result ${win ? 'win' : draw ? 'draw' : 'lose'}">${win ? winText : draw ? 'ひきわけ' : 'まけた…'}</p><p>${s.stats.playerTurns}ターン　ぴったり ${s.stats.exact}回</p>${sayBox(s.floor.lines?.[s.over])}`,
     [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: B.floorName, dismiss: false })
     .then(() => B.onEnd({
       win, draw, turns: s.stats.playerTurns, exact: s.stats.exact, phase: s.stats.phase, cmdFinish: !!s.cmdFinish, finisher: s.finisher || null,
@@ -439,10 +513,10 @@ async function preTrig(on, list) {
 // とくべつな ルールの カード（data/lore.js）：せりふ と しくみを 見せる。1回の たたかいで 1まいに つき 1回（why ごと）
 function tellLore(p, why) {
   const k = `${p.def.id}:${why}`;
-  if (!LORE[p.def.id] || B.lore.has(k)) return null;
+  if (!LORE[p.def.id] || B.lore.has(k) || REPLAY) return null;
   B.lore.add(k);
   const head = why === 'appear' ? `<p class="what">${p.side === 'E' ? 'あいての ' : ''}${ruby(info(p.def).name)}が あらわれた！</p>` : `<p class="what">${ruby(info(p.def).name)}は ねらえない！</p>`;
-  return sheet(`${head}${loreHtml(p.def)}`, [{ label: 'わかった', value: 1, kind: 'primary' }], { title: ruby(info(p.def).name), dismiss: false });
+  return sheet0(`${head}${loreHtml(p.def)}`, [{ label: 'わかった', value: 1, kind: 'primary' }], { title: ruby(info(p.def).name), dismiss: false });
 }
 // 戦闘中の 呪文（トリック）の コスト：タダで 唱えられる とき（game.js の freeCast）は 0
 const trickCost = (s, d) => (api.freeCast(s, d) ? 0 : d.cost);
@@ -707,6 +781,7 @@ async function doCast(c, from = 'hand') {
 
 // ---- タップしたとき ----
 async function onClick(e) {
+  if (REPLAY) return; // あいての そうさを さいせい中
   if (B.swiped) { B.swiped = false; return; } // スワイプの おわりの タップは むし
   const b = e.target.closest('[data-act],[data-uid],[data-hand]');
   if (b?.dataset.act === 'goal' && document.getElementById('sheet').hidden) return showGoal(); // てきの ターン中も 見られる
@@ -714,11 +789,11 @@ async function onClick(e) {
   const s = B.s;
   const t = B.tut;
   if (B.hint && b.dataset.act !== 'hintx') B.hint = null; // なにか したら ヒントは けす
-  if (b.dataset.act) return t && !t.allowAct(b.dataset.act) ? toast(t.hint()) : action(b.dataset.act);
-  if (b.dataset.hand != null) { const c = s.P.hand[+b.dataset.hand]; return t && !t.allowHand(c) ? toast(t.hint()) : tapHand(c); }
+  if (b.dataset.act) return t && !t.allowAct(b.dataset.act) ? toast(t.hint()) : rtDo(['act', b.dataset.act], () => action(b.dataset.act));
+  if (b.dataset.hand != null) { const c = s.P.hand[+b.dataset.hand]; return t && !t.allowHand(c) ? toast(t.hint()) : rtDo(['hand', +b.dataset.hand], () => tapHand(c)); }
   const uid = +b.dataset.uid;
   const p = [...s.P.bf, ...s.E.bf].find((q) => q.uid === uid);
-  if (p) return t && !t.allowPerm(p) ? toast(t.hint()) : tapPerm_(p);
+  if (p) return t && !t.allowPerm(p) ? toast(t.hint()) : rtDo(['perm', p.side, s[p.side].bf.indexOf(p)], () => tapPerm_(p));
 }
 
 // たたかいの とちゅうで メニューへ もどる（o.quit：{ label, note, go }。冒険は つづきが のこる、オンラインは こうさん）
@@ -1211,7 +1286,7 @@ async function showGy() {
   }
   choices.push({ label: 'とじる', value: null });
   const v = await sheet(pileList(s.P.gy, false, gyUsable()), choices, { title: `ぼち（${s.P.gy.length}まい）` });
-  if (v) doCast(v.c, v.from);
+  if (v) return doCast(v.c, v.from);
 }
 
 // ---- スワイプ：自分の クリーチャーから 敵へ ひっぱると 攻撃先・ブロックを きめる ----
@@ -1239,6 +1314,23 @@ function validDrop(p, t) {
   return attackTargets().includes(t);
 }
 let drag = null;
+// ひっぱって はなした（こうげき先・ブロックを きめる）
+function dropOn(p, t) {
+  if (B.mode === 'block') {
+    for (const [k, v] of B.blockMap) if (v === p) B.blockMap.delete(k);
+    B.blockMap.set(t.uid, p);
+    return render();
+  }
+  if (B.mode === 'main') { // 攻撃モードに 入る
+    combatStart(B.s); B.combatDone = true;
+    if (checkOver()) return;
+    B.mode = 'attack'; B.sel = new Map();
+    for (const q of readyAttackers(B.s)) if (q.def.mustAttack) { const f = attackTargets()[0]; if (f) B.sel.set(q.uid, f); }
+    if (!onBf(B.s, p) || !validDrop(p, t)) return render();
+  }
+  B.sel.set(p.uid, t);
+  render();
+}
 function arrow(x0, y0, x1, y1, ok) {
   let svg = document.getElementById('arrow');
   if (!svg) {
@@ -1260,7 +1352,7 @@ function initSwipe() {
   if (swipeReady) return;
   swipeReady = true;
   document.addEventListener('pointerdown', (e) => {
-    if (!B || !document.getElementById('sheet').hidden || (B.busy && B.mode !== 'block')) return;
+    if (!B || REPLAY || !document.getElementById('sheet').hidden || (B.busy && B.mode !== 'block')) return;
     const el = e.target.closest?.('.zone.mine .perm[data-uid]'); if (!el) return;
     const p = B.s.P.bf.find((q) => q.uid === +el.dataset.uid);
     if (p && canDrag(p)) drag = { p, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false };
@@ -1278,24 +1370,12 @@ function initSwipe() {
   const end = (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     const d = drag; drag = null; clearDrag();
+    if (REPLAY) return;
     if (!d.moved || e.type === 'pointercancel') return;
     B.swiped = true; setTimeout(() => { B.swiped = false; }, 400);
     const t = dropAt(e.clientX, e.clientY);
     if (!validDrop(d.p, t)) { if (t || dropAt(e.clientX, e.clientY) === null) toast(B.mode === 'block' ? 'その てきは ブロック できない' : 'そこは こうげき できない'); return; }
-    if (B.mode === 'block') {
-      for (const [k, v] of B.blockMap) if (v === d.p) B.blockMap.delete(k);
-      B.blockMap.set(t.uid, d.p);
-      return render();
-    }
-    if (B.mode === 'main') { // 攻撃モードに 入る
-      combatStart(B.s); B.combatDone = true;
-      if (checkOver()) return;
-      B.mode = 'attack'; B.sel = new Map();
-      for (const q of readyAttackers(B.s)) if (q.def.mustAttack) { const f = attackTargets()[0]; if (f) B.sel.set(q.uid, f); }
-      if (!onBf(B.s, d.p) || !validDrop(d.p, t)) return render();
-    }
-    B.sel.set(d.p.uid, t);
-    render();
+    rtDo(['swipe', B.s.P.bf.indexOf(d.p), t === 'face' ? 'face' : B.s.E.bf.indexOf(t)], () => dropOn(d.p, t));
   };
   document.addEventListener('pointerup', end);
   document.addEventListener('pointercancel', end);
@@ -1385,7 +1465,7 @@ function banner() {
     case 'precombat': return 'てきの こうげきの まえ：光っている インスタントや 能力（のうりょく）で、こうげきして くる てきを へらせる';
     case 'defend': return 'ブロックの あと：光っている インスタントや クリーチャーの 能力を 使える';
     case 'eot': return 'てきの ターンの おわり：のこった マナで 光っている インスタントや 能力（のうりょく）を 使える';
-    case 'enemy': return B.s.floor.id === 'pvp' ? 'あいての ターン…' : 'てきの ターン…';
+    case 'enemy': return B.rt ? B.rt.waitText() : B.s.floor.id === 'pvp' ? 'あいての ターン…' : 'てきの ターン…';
     default: return B.phase === 1 ? (B.combatDone ? 'カードを 使うか、マナゾーンに おこう' : 'カードを 使おう。クリーチャーを てきへ ひっぱると こうげき') : 'こうげきは おわり。カードを 使って、ターンを おわろう';
   }
 }
@@ -1456,7 +1536,7 @@ async function showCmd() {
   const nj = c?.def.ninjutsu && B.mode === 'tricks' ? [njChoice(c)] : [];
   const v = await sheet(cmdNote(s.P), [...nj, ...(c && !nj.length ? [{ label: `となえる（${c.def.cost}${s.P.cmdLess ? ` − ${s.P.cmdLess}` : ''} ＋ ${cmdTax(s)} ＝ ${cmdCost(s, c.def)}マナ）`, value: 1, kind: 'primary', disabled: !ci.ok, note: ci.ok ? '' : ci.why }] : []), { label: 'とじる', value: 0 }], { title: '統率者（とうそつしゃ）' });
   if (v === 'ninja') return doNinjutsu(c);
-  if (v) doCast(c, 'cmd');
+  if (v) return doCast(c, 'cmd');
 }
 // やまふだ・ぼちの 中身：おなじ カードは まとめて「×2」。じゅんばんは デッキ構築と おなじ（色 → コスト）
 function pileList(cards, enemy = false, ok = new Set()) { // ok：いま となえられる カード番号（金色の わく）
@@ -1482,6 +1562,14 @@ document.addEventListener('click', (e) => {
 }, true);
 
 function render() {
+  if (!B || B.left || REPLAY) return; // さいせい中は 描かない（入れかえを もどして から）
+  if (!B.rt) return render0();
+  // リアルタイムたいせん：描く ための しらべ（つかえる カードの 光 など）が たたかいの 乱数を すすめない ように、描く あいだは べつの 乱数に する
+  const s = B.s, keep = s.rng;
+  s.rng = Math.random; NOREC++;
+  try { render0(); } finally { s.rng = keep; NOREC--; }
+}
+function render0() {
   if (B.left) return; // メニューへ もどった あと
   const s = B.s;
   if (s.aimQ?.length && !B.aiming && !s.over) { B.aiming = true; setTimeout(drainAim, 0); }
@@ -1524,12 +1612,12 @@ function render() {
   if (B.mode === 'attack') btns = `<button type="button" class="btn" data-act="cancel">こうげきしない</button><button type="button" class="btn" data-act="auto">おまかせ</button><button type="button" class="btn primary" data-act="declare">こうげき！（${B.sel.size}体）</button>`;
   if (B.mode === 'tricks') btns = '<button type="button" class="btn primary" data-act="damage">ダメージ！</button>';
   if (B.mode === 'block') btns = '<button type="button" class="btn" data-act="blockauto">おまかせ</button><button type="button" class="btn primary" data-act="blockdone">ブロック けってい</button>';
-  if (B.mode === 'enemy') btns = `<span class="wait">${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ターン…</span>`;
+  if (B.mode === 'enemy') btns = `<span class="wait">${B.rt ? 'あいての ばん（きみは まだ うごかせない）' : `${s.floor.id === 'pvp' ? 'あいて' : 'てき'}の ターン…`}</span>`;
   if (inWindow()) btns = `<button type="button" class="btn primary" data-act="pass">つぎへ<small>なにも 使わない</small></button>`;
   const snap = fx.capture(app());
   app().innerHTML = `<div class="battle">
     <header class="bt-head">
-      <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
+      <button type="button" class="menu-btn" data-act="menu" ${B.mode === 'enemy' && !B.rt ? 'disabled' : ''} aria-label="メニュー"><span aria-hidden="true">≡</span></button>
       <div class="bt-title"><span class="floor">${ruby(B.floorName)}</span><span class="turn">ターン ${s.stats.playerTurns}${s.floor.id === 'pvp' ? `/${PVP_TURNS}` : ''}</span></div>
       <div class="chips">${s.floor.goal && !B.tut?.lock ? '<button type="button" class="chip goal-btn" data-act="goal">かちかた</button>' : ''}${enemyStatus()}</div>
     </header>
@@ -1540,7 +1628,7 @@ function render() {
       <div class="piles foe">${deckPile('E')}${gravePile('E')}${cmdPile('E')}</div>
     </div>
     <button type="button" class="logline ${typed ? 'typed' : ''}" data-act="log">${last.map((l) => `<span>${ruby(l)}</span>`).join('') || '<span>たたかい スタート！</span>'}</button>
-    ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner">${esc(banner())}</p>`}${hintHtml()}
+    ${B.tut?.active ? B.tut.html(ruby) : `<p class="banner ${B.rt ? (B.mode === 'enemy' ? 'rt-wait' : 'rt-mine') : ''}">${esc(banner())}</p>`}${hintHtml()}
     <section class="zone mine" aria-label="わたしの せんじょう">${perms('P')}</section>
     <div class="me-bar">
       <span class="life ${s.P.life <= 5 ? 'low' : ''} ${s.P.life < pv.life ? 'hit' : s.P.life > pv.life ? 'heal' : ''}" role="status"><small>ライフ</small><b>${s.P.life}</b></span>
@@ -1577,6 +1665,137 @@ function fxState(s) {
 }
 // 要素：場の カード（uid）
 const permEl = (uid) => app().querySelector(`.perm[data-uid="${uid}"]`);
+
+// ---- リアルタイムたいせん：すすめかた（通信は js/ui/rt.js。ここは たたかいの 中だけ）----
+// rt ＝ { flip: へやに 入った がわ（つくった がわの むきで つくって から 入れかえる）, first: じぶんが 先手, send(op), ready(), waitText() }
+// きまり：どちらの ばんも「じぶんの ターン」の 流れ（startTurn → そうさ → endTurn）で すすめる。あいての ばんは、場を 入れかえて（rtFlip）おなじ 流れを さいせいする。
+// まもる がわの ブロックは じどう（ゴーストたいせんで こちらが こうげきした ときと おなじ game.js の enemyBlocks）。あいての ばんに カードは つかえない
+const RT_ACTS = new Set(['end', 'attack', 'auto', 'cancel', 'declare', 'damage', 'gy', 'cmd', 'brk', 'reiju']); // 場が かわる かも しれない ボタン（ほかは 見るだけ）
+function rtFlip(s) { api.swapSides(s); s.swapped = false; s.active = s.active === 'P' ? 'E' : 'P'; }
+function rtInit(rt) {
+  const s = B.s;
+  B.rt = rt; rt.me = B; rt.cur = null; rt.mine = false; rt.seq = 0; rt.turnLog = 0; rt.turnCards = 0;
+  // どちらの がわも おなじ きまりで たたかう（newGame が P に つける ものを E にも）
+  const eDefs = [...s.E.lib, ...s.E.hand].map((c) => c.def);
+  Object.assign(s.E, { handSize: s.P.handSize, emblem: {}, bless: null, srDeck: eDefs.some((d) => /^SR\d/.test(d.id || '')), zzDeck: eDefs.some((d) => /^ZZ\d/.test(d.id || '')) });
+  // 乱数を つかった 回数（ふたりの 場が ずれて いないかの たしかめに 入れる）
+  const r0 = s.rng; s.rngN = 0; s.rng = () => { s.rngN++; return r0(); };
+  if (rt.flip) rtFlip(s);
+  s.active = rt.first ? 'P' : 'E';
+  B.mode = rt.first ? 'main' : 'enemy';
+  rt.R = { ...B, mode: 'main', phase: 1, combatDone: false, busy: false, sel: new Map(), atk: [], blocks: new Map(), blockMap: new Map(), lore: new Set() }; // あいての 画面の ようす（えらんで いる こうげき など）
+}
+// ふたりの 場が おなじかの たしかめ（ばんの 人を P に した むきで 数える）
+const RT_DEBUG = (() => { try { return !!localStorage.getItem('mtg-rt-debug'); } catch { return false; } })(); // しらべる とき：そうさごとに 場の ようすを コンソールに 出す（tools/rt_e2e.mjs）
+function rtDigest(s, tag) {
+  const side = (S) => `${S.life}|${S.lib.map((c) => c.def.id).join(',')}|${S.hand.map((c) => c.def.id).join(',')}|${S.gy.length}|${S.exile.length}|${S.mana.map((m) => (m.tapped ? 't' : 'u')).join('')}|${S.bf.map((p) => `${p.def.id || p.def.name}${p.tapped ? 't' : ''}${p.ctr}.${p.mctr || 0}.${p.dmg}.${p.loy || 0}`).join(',')}`;
+  const t = `${s.turn}|${s.rngN}|${s.over || ''}|${side(s.P)}#${side(s.E)}`;
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  if (RT_DEBUG && tag) console.log(`RTDBG ${tag} ${t}`);
+  return (h >>> 0).toString(36);
+}
+// じぶんの そうさ：ばんの ときは きろくして おくる。ばんで ない ときは 見るだけ（場は かわらない）
+async function rtDo(e, fn) {
+  const rt = B.rt;
+  if (!rt || REPLAY) return fn();
+  if (rt.cur) return; // 1つの そうさが おわるまで、つぎは うけない
+  const s = B.s, game = e[0] !== 'act' || RT_ACTS.has(e[1]);
+  if (!game || !rt.mine || s.over) { // 見るだけ：乱数は すすめない
+    const keep = s.rng; s.rng = Math.random; NOREC++;
+    try { return fn(); } finally { s.rng = keep; NOREC--; }
+  }
+  const op = rt.cur = { e, a: [], pend: 0, fx: 0, chain: Promise.resolve() }, me = B, n0 = s.rngN, l0 = s.logs.length, ui0 = rtUi();
+  try { await fn(); } finally {
+    // まどを 出した まま 先へ すすんだ 能力（攻撃したとき 占術 など）の こたえと、演出が おわるまで が 1つの そうさ
+    for (;;) { while (op.pend > 0 || op.fx > 0) await rtWait(30); await rtWait(0); if (!op.pend && !op.fx) break; }
+    rt.cur = null;
+    // カードを 見て とじた だけ（なにも かわって いない）は おくらない
+    const look = (e[0] === 'hand' || e[0] === 'perm') && s.rngN === n0 && s.logs.length === l0 && rtUi() === ui0 && op.a.every((x) => x[0] === 's' && (x[1] === 'x' || op.a.length === 1));
+    if (!look && !me.left) { op.n = rt.seq++; op.h = rtDigest(s, `${s.turn}:${op.n} ${JSON.stringify(op.e)} ${JSON.stringify(op.a)}`); rt.send(op); }
+  }
+}
+const rtUi = () => `${B.mode}|${B.phase}|${B.combatDone}|${[...B.sel.keys()].join(',')}|${B.s.P.mana.filter((m) => m.tapped).length}|${B.s.P.bf.map((p) => `${p.tapped ? 1 : 0}${p.attached || ''}`).join(',')}`;
+// ターン おわりを おした あと：あいての ばんを まつ
+function rtAfterEnd() {
+  if (REPLAY) return;
+  const rt = B.rt;
+  rt.mine = false; B.s.active = 'E';
+  B.mode = 'enemy'; B.busy = false; B.sel = new Map();
+  rt.turnLog = B.s.logs.length; rt.turnCards = (B.s.foeCards || []).length;
+  render();
+}
+// あいての ばんの ログは あいてから 見た 文なので、こちらから 見た 文に なおす
+function rtFlipLog(l) {
+  const m = /^(\[\d+[PE]\] )?(.*)$/s.exec(l), head = (m[1] || '').replace('P]', 'E]');
+  const words = (t) => t.replace(/あいて|てきの 本体/g, '\u0001').replace(/プレイヤー/g, 'あいて').replace(/\u0001/g, 'きみ').replace(/あなたの もの/g, 'あいての もの');
+  const flip = (t) => (t.startsWith('てき：') ? words(t.slice(3)) : /^(あいて|てきの 本体|プレイヤー)に/.test(t) ? words(t) : `てき：${words(t)}`); // 「てき：」の つく・つかないを 入れかえる
+  const t = m[2], k = t.lastIndexOf(' → ');
+  // 「A → B に 3点」：だれの A かは 書いて いないので、あいて（B）の ほう だけ なおす
+  return head + (k >= 0 ? `${words(t.slice(0, k).replace(/てき：/g, ''))} → ${flip(t.slice(k + 3))}` : flip(t));
+}
+const rtEntry = (s, e) => {
+  if (e[0] === 'begin') return () => startTurn();
+  if (e[0] === 'act' && RT_ACTS.has(e[1])) return () => action(e[1]);
+  if (e[0] === 'hand' && s.P.hand[e[1]]) return () => tapHand(s.P.hand[e[1]]);
+  if (e[0] === 'perm' && s[e[1] === 'E' ? 'E' : 'P'].bf[e[2]]) return () => tapPerm_(s[e[1] === 'E' ? 'E' : 'P'].bf[e[2]]);
+  if (e[0] === 'swipe' && s.P.bf[e[1]] && (e[2] === 'face' || s.E.bf[e[2]])) return () => dropOn(s.P.bf[e[1]], e[2] === 'face' ? 'face' : s.E.bf[e[2]]);
+  return null;
+};
+// あいての そうさを 1つ さいせいする → { bad: 場が ずれた } ／ { over } ／ {}
+async function rtApply(op) {
+  const me = B;
+  if (!me?.rt || me.left || me.s.over) return {};
+  const s = me.s, rt = me.rt, l0 = s.logs.length, c0 = (s.foeCards || []).length;
+  let bad = false;
+  const R = { a: op.a, i: 0, q: [], bad: false, pumping: false };
+  rtFlip(s); B = rt.R; B.busy = false; REPLAY = R; s.rtWatch = true;
+  try {
+    const fn = rtEntry(s, op.e);
+    if (!fn) bad = true;
+    else {
+      let done = false;
+      Promise.resolve(fn()).then(() => { done = true; }, (err) => { R.bad = true; console.error(err); });
+      // ながれが おわり、まって いる まどが なくなる まで（きろくと あわなければ とちゅうで やめる）
+      for (;;) {
+        await rtWait(0);
+        if (R.bad) break;
+        if (done && !R.q.length && !R.pumping) { await rtWait(0); if (!R.q.length && !R.pumping) break; }
+      }
+    }
+    if (R.bad || R.i !== op.a.length) bad = true;
+  } catch (err) { bad = true; console.error(err); }
+  if (rtDigest(s, `${s.turn}:${op.n} ${JSON.stringify(op.e)} ${JSON.stringify(op.a)}`) !== op.h) bad = true;
+  s.rtWatch = false; REPLAY = null; B = me; rtFlip(s);
+  if (bad) return { bad: true };
+  for (let i = l0; i < s.logs.length; i++) s.logs[i] = rtFlipLog(s.logs[i]);
+  if (me.left) return {};
+  if (op.e[0] === 'begin') { rt.turnLog = l0; rt.turnCards = c0; if (!s.over) fx.banner('あいての ターン', true); }
+  const lines = s.logs.slice(rt.turnLog).map(logText);
+  if (checkOver(lines)) return { over: true };
+  render();
+  // あいてが つかった カードを 大きく 見せる（タップで すぐ つぎへ）
+  for (const { def } of (s.foeCards || []).slice(c0)) {
+    if (me.left) return {};
+    await fx.foeCard(`<p class="ff-who">あいてが つかった</p>${detail(def, { enemy: true })}<p class="ff-tap">タップで つぎへ</p>`, 2200);
+  }
+  if (op.e[0] === 'act' && op.e[1] === 'damage' && s.logs.length > l0) toast(`あいての こうげき：きみの ライフ ${s.P.life}`);
+  if (op.e[0] === 'act' && op.e[1] === 'end') {
+    await foeSummary(lines, (s.foeCards || []).slice(rt.turnCards).map((x) => x.def));
+    if (!me.left && !s.over) { rt.mine = true; await rtDo(['begin'], startTurn); }
+  }
+  return {};
+}
+// rt.js から つかう。さいせい中は B が あいての 画面の ようす（rt.R）なので、じぶんの ほう（rt.me）を 見る
+const rtMe = () => (B?.rt ? B.rt.me : B);
+export const rtCtl = {
+  apply: rtApply,
+  begin: () => { B.rt.mine = true; return rtDo(['begin'], startTurn); }, // じぶんが 先手の とき
+  stop: () => { const b = rtMe(); if (b) b.left = true; },              // たたかいを とめる（こうさん・あいてが いなく なった）
+  live: () => { const b = rtMe(); return !!b && !!b.rt && !b.left; },
+  // over は じぶんから 見た けっか（さいせい中は 場が 入れかわって いるので まだ 見ない）
+  state: () => { const b = rtMe(); return b?.rt ? { mine: b.rt.mine, over: REPLAY ? null : b.s.over } : null; },
+};
 
 // テスト用：いまの たたかいを さわってから 描きなおす（ブラウザの しらべで 場を つくる）
 export function debugBattle(fn) { if (B) { fn(B, api); render(); } }

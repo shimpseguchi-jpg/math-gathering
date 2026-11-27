@@ -114,7 +114,7 @@ export function castCard(s, c, pl, o = {}) {
   for (const h of P.emblem?.hooks || []) h.cast?.(s, api, def); // 次元渡りの レリック
   L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}${from === 'escape' ? '（だっしゅつ）' : ''}`);
   // あいて（入れかえて うごく AI）が つかった カードと、その あとの ログの 位置（画面で 1まいずつ 見せる。battle.js の foeShow）
-  if (s.swapped) (s.foeCards ||= []).push({ def, at: s.logs.length });
+  if (s.swapped || s.rtWatch) (s.foeCards ||= []).push({ def, at: s.logs.length }); // rtWatch：リアルタイムたいせんで あいての そうさを さいせい中（battle.js の rtApply）
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
     if (!onBf(s, q)) continue;

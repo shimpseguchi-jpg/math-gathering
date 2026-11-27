@@ -27,7 +27,8 @@ css/style.css       見た目
 js/ui/app.js        冒険の流れ（タイトル・パック・デッキ構築・塔・おわり）
 js/ui/battle.js     たたかいの画面（タップの操作、敵のターン中の質問）
 js/ui/tutorial.js   チュートリアル（メレティスの 訓練場）のステップ
-js/ui/online.js     オンライン バトル（ゴースト・あいて さがし・デッキの 点・ランキング）
+js/ui/online.js     ゴーストたいせん（非同期の オンラインバトル：ゴースト・あいて さがし・デッキの 点・ランキング）
+js/ui/rt.js         リアルタイムたいせん（あいことばの へやで 人と その場で たいせん。docs/REALTIME_PVP.md）
 js/ui/settings.js   せってい（おと・ひきつぎ。デバッグモードでは パックに 入る 弾を えらぶ。DEV）
 js/ui/server.js     GAS の サーバーと つなぐ（先生の せってい・ひきつぎ）
 js/ui/admin.js      開発モード（先生だけの 管理画面・ゲームを最新にする）
@@ -52,11 +53,16 @@ docs/               要件定義・カードリスト・敵・シミュレーシ
 tools/              sim.mjs（バランス）・e2e.mjs（ブラウザの通しテスト）・e2e_pb.mjs（パック＆バトルの 通しテスト）・build_standalone.mjs（単体版の 1ファイル）・e2e_solo.mjs（単体版の 通しテスト）・build_gas.mjs（GAS 版）・gas_Code.gs・kanji.mjs（漢字の チェック）・kanji_drafts.mjs（案の カード表の ふりがな）・gen_texts.py・check_cards.py・check_quiz.mjs（しゅぎょうの 問題）・packsim.py
 ```
 
-## GAS（Google Apps Script）版とオンライン バトル
+## GAS（Google Apps Script）版と 対人戦（リアルタイムたいせん・ゴーストたいせん）
 
 学校の iPad などで github.io が開けないときは、GAS のウェブアプリとして公開できる。手順は [`gas/README.md`](gas/README.md)。
-GAS 版では **オンライン バトル（非同期）** が遊べる：冒険を おえた デッキが「ゴースト」になり、ほかの人のゴーストと たたかう（REQUIREMENTS 11章）。
-GitHub Pages 版でも、見本デッキとの「れんしゅう」として遊べる。
+GAS 版では 2つの 対人戦が 遊べる：
+
+- **リアルタイムたいせん**（タイトルの いちばん上）：あいことば（4けたの 数字）の へやで、ともだちと その場で かわりばんこに たたかう。保管デッキか スターターデッキで。通信は 2秒ごとの ポーリングで 操作ログだけを 送る。しくみ・制限・デプロイの 注意は [`docs/REALTIME_PVP.md`](docs/REALTIME_PVP.md)
+- **ゴーストたいせん**（これまでの「オンライン バトル」・非同期）：冒険を おえた デッキが「ゴースト」になり、ほかの人のゴーストと たたかう（REQUIREMENTS 11章）
+
+GitHub Pages 版（サーバーなし）では、リアルタイムたいせんは「GASばんで あそべる」と 出て、ゴーストたいせんの「れんしゅう」（見本デッキ）へ 案内する。
+手元で 2画面を ためす とき：`node tools/build_gas.mjs && node tools/rt_server.mjs`（→ <http://localhost:8125/> を 2つの ウィンドウで）、通しテストは `node tools/rt_e2e.mjs`。
 
 ```sh
 node tools/build_gas.mjs   # gas/ の 1ファイル版を つくりなおす

@@ -16,6 +16,8 @@ import { colorsOf } from '../engine/game.js';
 import { ptsOf } from '../engine/ai.js';
 import { openPack, DECK_SIZE } from '../engine/run.js';
 import { startBattle } from './battle.js';
+import { rtMenu } from './rt.js';
+import { hasServer } from './server.js';
 import { gacha } from './gacha.js';
 import { deckBuilder, FLOOR_NAMES } from './app.js';
 import { autoCards } from './construct.js';
@@ -92,7 +94,7 @@ const ICON = {
   shop: pix(['.XXXXXXX.', '.X.X.X.X.', '.XXXXXXX.', '.X.....X.', '.X..X..X.', '.X.XXX.X.', '.X..X..X.', '.X.....X.', '.XXXXXXX.']),
   deck: pix(['..XXXXXX.', '..X....X.', 'XXXXXX.X.', 'X....X.X.', 'X....X.X.', 'X....XXX.', 'X....X...', 'X....X...', 'XXXXXX...']),
   grow: pix(['....X....', '...XXX...', '..XXXXX..', '.XXXXXXX.', '...XXX...', '...XXX...', '.X.XXX.X.', '.XXXXXXX.', '..XXXXX..']),
-  battle: pix(['.......XX', '......XXX', '.....XXX.', '....XXX..', 'X..XXX...', '.XXXX....', '..XX.....', '.XXXX....', 'XX..X....']),
+  battle: pix(['.......XX', '......XXX', '.....XXX.', '....XXX..', 'X..XXX...', '.XXXX....', '..XX.....', '.XXXX....', 'XX..X....']),  rt: pix(['XX.....XX', 'XXX...XXX', '.XXX.XXX.', '..XXXXX..', '...XXX...', '..XXXXX..', '.XXX.XXX.', 'XXX...XXX', 'XX.....XX']), // リアルタイムたいせん（剣を まじえる）
 };
 
 // ---- もちもの：カードは デッキの あいだで わけあえない ----
@@ -209,6 +211,7 @@ function home() {
       ${row('deck', 3, 'デッキ', ok ? `${A.name}：${deckLine(D)}` : D.problems[0], `ぜんぶで ${S.decks.length}こ`)}
       ${row('battle', 4, 'バトル', `${stageNote()}。あいてを えらんで たたかう`, ok ? 'いどめる' : 'デッキが まだ')}
       ${row('grow', 5, 'せいちょう', 'せいちょうポイントで、できる ことを ふやす', `${S.gp}ポイント`)}
+      ${row('rt', 6, 'リアルタイムたいせん', hasServer() ? 'ともだちと あいことばで たいせん。「つかう デッキ」で たたかう' : 'ともだちと あいことばで たいせん（いまは サーバーに つながって いない）', hasServer() ? (ok ? 'あそべる' : 'デッキが まだ') : 'つながって いない')}
     </ol>
     <p class="zk-note">ポイントが なくなっても、もんだいを とけば いつでも ためなおせる。たたかいに まけても、ポイントと カードは なくならない。</p>
     ${SOLO ? `<div class="row-btns pb-solo"><button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button><button type="button" class="btn ghost" data-reset="1">はじめから やりなおす</button></div>`
@@ -229,6 +232,7 @@ function home() {
     if (b.dataset.go === 'deck') return deckList();
     if (b.dataset.go === 'battle') return arena();
     if (b.dataset.go === 'grow') return grow();
+    if (b.dataset.go === 'rt') return realtime();
   };
 }
 
@@ -272,6 +276,15 @@ function runQuiz(tier) {
     gainLabel: 'ポイント', gainUnit: 'P', noPass: true, quitNote: 'やめても、ここまでの ポイントは もらえる。',
     back: home, backLabel: 'ホームへ', doneLabel: 'ホームへ',
   });
+}
+
+// ---- リアルタイムたいせん（ともだちと あいことばで。docs/REALTIME_PVP.md 8章）：つかうのは「つかう デッキ」（きそデッキでも）。ポイント・カード・ステージは かわらない ----
+function realtime() {
+  const A = activeDeck(), D = deckInfo();
+  rtMenu(APP, home, { pb: {
+    deck: { label: `${A ? A.name : 'デッキ'}（パック＆バトル）`, sub: D.problems.length ? 'まだ くめて いない' : `${deckLine(D)}・たりない ぶんは きほんカード`, d: D.problems.length ? [] : playDeck().map((d) => d.id) },
+    problems: D.problems, solo: SOLO,
+  } });
 }
 
 // ---- ② ショップ：ポイントで パックを あける。4まい もって いる カードは 出ない（こうちくモードと おなじ） ----

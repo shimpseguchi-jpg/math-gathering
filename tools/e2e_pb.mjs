@@ -50,6 +50,17 @@ check('あく まえ：ショップ・デッキ・せいちょうは おせな�
 await page.locator('.pb-steps [data-go=shop]').click({ force: true }); await page.locator('.pb-steps [data-go=deck]').click({ force: true });
 check('あく まえ：おしても ショップ・デッキに 入れない', await page.locator('.pb-steps').count() === 1 && await page.locator('.cs-sets, .cs-decks, .builder').count() === 0);
 check('あく まえ：もんだいは つかえる', await page.locator('.pb-steps [data-go=quiz]:not([disabled])').count() === 1);
+// リアルタイムたいせんの 入口（きそデッキでも・あく まえでも）。この テストの サーバーには GAS が ない ので「つながって いない」と 出る（通しの たしかめは tools/rt_e2e.mjs の PB=1）
+{
+  const rtRow = (await page.locator('.pb-steps [data-go=rt]').innerText()).replace(/\s+/g, ' ');
+  const before0 = JSON.stringify(await state());
+  await page.click('.pb-steps [data-go=rt]'); await page.waitForSelector('main.rt');
+  const off = (await page.locator('main.rt').innerText()).replace(/\s+/g, ' ');
+  await shot('02b_rt_offline');
+  check('ホームに「リアルタイムたいせん」の 入口（はじめから おせる）。サーバーが ない ときは つながって いない ことが 出て、へやは つくれない', /リアルタイムたいせん/.test(rtRow) && /つながって いない/.test(rtRow) && /つながって いない/.test(off) && /GAS/.test(off) && await page.locator('[data-r=make], [data-r=join], [data-r=ghost]').count() === 0, off.slice(0, 80));
+  await page.click('[data-r=back]');
+  check('リアルタイムたいせんから ホームへ もどる。セーブは かわらない', await page.locator('.pb-steps').count() === 1 && JSON.stringify(await state()) === before0);
+}
 
 // ---- ステージ：はじめは ステージ 1 だけ。あいてを えらべる ----
 await page.click('.pb-steps [data-go=battle]');

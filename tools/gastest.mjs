@@ -121,6 +121,58 @@ ok(G.mtgConfig().raid?.id === 'tarkir-1' && G.mtgRaidState({ id: 'tarkir-1' }).f
   throws(() => G.mtgDailySubmit({ d: '2020-01-01', f: 1, e: 0, t: 1, n: [0, 0], g: '0123456789ab' }), 'きょうで ない 日づけは だめ');
   throws(() => G.mtgDailySubmit({ d: today, f: 1, e: 0, t: 1, n: [0, 0] }), 'アカウントも 番号も ない ときは だめ'); }
 
+// ---- リアルタイムたいせん（docs/REALTIME_PVP.md）----
+{ const m = makeGas(''), R = m.G, D = vm.runInContext('Date', R), real = D.now; let skew = 0; D.now = () => real() + skew;
+  const { SAMPLE, sampleIds } = await import(join(ROOT, 'js/data/samples.js'));
+  for (const k of Object.keys(SAMPLE)) { const x = R.mtgRtCreate({ d: sampleIds(k), n: [0, 0] }); ok(/^\d{4}$/.test(x.c) && x.k.length === 32, `スターターデッキ ${k} で へやを つくれる（あいことば ${x.c}）`); R.mtgRtEnd({ c: x.c, k: x.k, why: 'cancel' }); }
+  throws(() => R.mtgRtCreate({ d: [...sampleIds('WG').slice(0, 19), 'NOPE'], n: [0, 0] }), 'しらない カードの デッキでは へやを つくれない');
+  throws(() => R.mtgRtCreate({ d: sampleIds('WG').slice(0, 5), n: [0, 0] }), '5まいの デッキでは へやを つくれない');
+  // ほかんした デッキ（デッキID つき）どうし
+  const ha = R.mtgSubmitGhost({ d: deckOk, t: 3, n: [1, 2] }).i, gb = R.mtgSubmitGhost({ d: deckOk, t: 2, n: [3, 4] }).i;
+  const h = R.mtgRtCreate({ d: deckOk, n: [1, 2], i: ha });
+  ok(R.mtgRtSync({ c: h.c, k: h.k }).st === 'wait' && R.mtgRtSync({ c: h.c, k: h.k }).left > 9 * 60 * 1000, 'まちあい：のこり時間');
+  throws(() => R.mtgRtSync({ c: h.c, k: 'x' }), 'ひみつの 番号が ちがうと 入れない');
+  throws(() => R.mtgRtJoin({ c: h.c, d: ['W01'], n: [0, 0] }), 'おかしな デッキでは 入れない');
+  throws(() => R.mtgRtJoin({ c: 'ab12', d: deckOk, n: [0, 0] }), 'あいことばは 4けたの すうじ');
+  const g = R.mtgRtJoin({ c: h.c, d: sampleIds('UR'), n: [3, 4], i: gb });
+  ok(g.st === 'play' && g.side === 'g' && g.foe.d.length === 20 && g.foe.n[1] === 2 && ['h', 'g'].includes(g.first) && g.seed >= 0 && !('k' in g.foe), `入る：あいての デッキと なまえ・たね・先手（${g.first}）を もらう（ひみつの 番号は もらわない）`);
+  throws(() => R.mtgRtJoin({ c: h.c, d: deckOk, n: [0, 0] }), '3人めは 入れない');
+  const hs = R.mtgRtSync({ c: h.c, k: h.k });
+  ok(hs.st === 'play' && hs.side === 'h' && hs.seed === g.seed && hs.first === g.first && hs.foe.d[0] === sampleIds('UR')[0] && hs.ops.length === 0, 'つくった 人にも はじまりが つたわる（おなじ たね・先手）');
+  // そうさ：通し番号の じゅん・かさなっても 2回 入らない・あいては まだの ぶん だけ もらう
+  const op = (n) => ({ n, e: ['hand', n], a: [['s', 'c', 0]], h: 'abc' });
+  ok(R.mtgRtSync({ c: h.c, k: h.k, ops: [op(0), op(1)], from: 0 }).n === 2, 'そうさを 2つ おくる');
+  ok(R.mtgRtSync({ c: h.c, k: h.k, ops: [op(1), op(2)], from: 0 }).n === 3, 'おくりなおしが かさなっても 2回 入らない');
+  ok(R.mtgRtSync({ c: h.c, k: h.k, ops: [op(5)], from: 0 }).n === 3, '番号が とんだ そうさは 入れない');
+  const g1 = R.mtgRtSync({ c: h.c, k: g.k, from: 0 });
+  ok(g1.ops.length === 3 && g1.ops[2].n === 2 && g1.ops[1].e[1] === 1 && g1.n === 0, 'あいてが そうさを もらう');
+  ok(R.mtgRtSync({ c: h.c, k: g.k, from: 2 }).ops.length === 1 && R.mtgRtSync({ c: h.c, k: g.k, from: 3 }).ops.length === 0, 'まだ もらって いない ぶん だけ');
+  for (let k = 3; k < 130; k += 30) R.mtgRtSync({ c: h.c, k: h.k, ops: Array.from({ length: 30 }, (_, j) => op(k + j)), from: 0 });
+  { let from = 0, n = 0; for (let t = 0; t < 10; t++) { const r = R.mtgRtSync({ c: h.c, k: g.k, from }); if (!r.ops.length) break; ok(r.ops[0].n === from, `つづきから もらう（${from}〜）`); from += r.ops.length; n += r.ops.length; } ok(n === 153, `たくさんの そうさも ぜんぶ とどく（${n}）`); }
+  ok(R.mtgRtSync({ c: h.c, k: h.k, ops: [{ n: 153, e: ["x"], a: ["y".repeat(3000)], h: "" }], from: 0 }).n === 153, '大きすぎる そうさは 入れない');
+  // けっか：ふたりが そろって きまる。デッキID が あれば デッキの 点（ゴーストたいせんと おなじ 表）
+  ok(R.mtgRtEnd({ c: h.c, k: h.k, why: 'play', r: 'w' }).st === 'play', 'かたほう だけの けっかでは まだ きまらない');
+  const e2 = R.mtgRtEnd({ c: h.c, k: g.k, why: 'play', r: 'l' });
+  ok(e2.st === 'over' && e2.res.w === 'h' && e2.res.why === 'play' && e2.pts === 0, 'ふたりの けっかが そろって きまる（まけた がわは 0点の まま）');
+  const e1 = R.mtgRtSync({ c: h.c, k: h.k, from: 0 });
+  ok(e1.st === 'over' && e1.pts === 2 && R.mtgMyGhosts([ha])[0].s === 2 && R.mtgMyGhosts([gb])[0].s === 0, 'かった デッキに ＋2（デッキの点 シート）');
+  ok(R.mtgRtEnd({ c: h.c, k: g.k, why: 'resign' }).res.w === 'h', 'きまった あとは かわらない');
+  const mk = (ia, ib) => { const x = R.mtgRtCreate({ d: deckOk, n: [1, 2], i: ia }), y = R.mtgRtJoin({ c: x.c, d: deckOk, n: [3, 4], i: ib }); return { c: x.c, h: x.k, g: y.k }; };
+  { const r = mk(ha, gb); const x = R.mtgRtEnd({ c: r.c, k: r.g, why: 'resign' }); ok(x.res.w === 'h' && x.res.why === 'resign' && R.mtgMyGhosts([ha])[0].s === 4, 'こうさん：あいての かち（＋2）'); }
+  { const r = mk(ha, gb); R.mtgRtEnd({ c: r.c, k: r.h, why: 'play', r: 'd' }); const x = R.mtgRtEnd({ c: r.c, k: r.g, why: 'play', r: 'd' }); ok(x.res.w === 'd' && x.pts === 1 && R.mtgMyGhosts([ha])[0].s === 5, 'ひきわけ：どちらも ＋1'); }
+  { const r = mk(ha, gb); R.mtgRtEnd({ c: r.c, k: r.h, why: 'play', r: 'w' }); const x = R.mtgRtEnd({ c: r.c, k: r.g, why: 'play', r: 'w' }); ok(x.res.w === 'x' && x.res.why === 'mismatch' && x.pts === null && R.mtgMyGhosts([ha])[0].s === 5, 'けっかが くいちがう：しょうぶなし（点は かわらない）'); }
+  { const r = mk(ha, gb); ok(R.mtgRtEnd({ c: r.c, k: r.h, why: 'desync' }).res.w === 'x', '画面が ずれた：しょうぶなし'); }
+  { const r = mk(ha, gb); R.mtgRtSync({ c: r.c, k: r.g, from: 0 }); throws(() => R.mtgRtEnd({ c: r.c, k: r.h, why: 'left' }), 'あいてが いる あいだは「いなく なった」と いえない');
+    skew += 30000; R.mtgRtSync({ c: r.c, k: r.h, from: 0 }); skew += 30000;
+    ok(R.mtgRtSync({ c: r.c, k: r.h, from: 0 }).away >= 45000, 'あいてが しずかな 時間が わかる');
+    const x = R.mtgRtEnd({ c: r.c, k: r.h, why: 'left' }); ok(x.res.w === 'h' && x.res.why === 'left' && R.mtgMyGhosts([ha])[0].s === 7, '45秒 しずかなら のこった がわの かち'); }
+  { const r = mk(ha, gb); R.mtgRtEnd({ c: r.c, k: r.g, why: 'play', r: 'w' }); skew += 31000; const x = R.mtgRtSync({ c: r.c, k: r.g, from: 0 }); ok(x.st === 'over' && x.res.w === 'g' && x.pts === 2, 'かたほうが けっかを おくらない まま 30秒：とどいた けっかで きまる'); }
+  // まちあい：10分で きえる
+  { const x = R.mtgRtCreate({ d: deckOk, n: [0, 0] }); skew += 10 * 60 * 1000 + 1000; ok(R.mtgRtSync({ c: x.c, k: x.k }).st === 'gone', 'まちあいが 10分 つづいた へやは きえる'); throws(() => R.mtgRtJoin({ c: x.c, d: deckOk, n: [0, 0] }), 'きえた へやには 入れない'); }
+  { const x = R.mtgRtCreate({ d: deckOk, n: [0, 0] }); skew += 10 * 60 * 1000 + 1000; throws(() => R.mtgRtJoin({ c: x.c, d: deckOk, n: [0, 0] }), 'つくった 人が 見て いなくても、10分 すぎた へやには 入れない'); }
+  { const x = R.mtgRtCreate({ d: deckOk, n: [0, 0] }); ok(R.mtgRtEnd({ c: x.c, k: x.k, why: 'cancel' }).st === 'gone' && R.mtgRtSync({ c: x.c, k: x.k }).st === 'gone', 'まつのを やめると へやは きえる'); }
+  ok(!Object.keys(m.book.sheets).some((n) => /リアル|rt/i.test(n)), 'へやは シートに 書かない（キャッシュ だけ）'); }
+
 // ---- あいことば ----
 setUser('taro@school.ed.jp');
 ok(G.mtgRedeem({ w: [0, 1, 2] }).card === 'W01', 'あいことばで カード');

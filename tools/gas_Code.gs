@@ -2,6 +2,7 @@
 // ・ゲーム本体は index.html（node tools/build_gas.mjs で つくる 1ファイル版）
 // ・データは この スクリプトが ついている スプレッドシートに おく（シートが なければ じどうで つくる）
 //   せってい・かんりしゃ・ゴースト・デッキの点・ランキング・レイド・レイドゴースト・あいことば・あいことばの記録・ひきつぎ
+//   （リアルタイムたいせんの へやだけは シートでは なく キャッシュに おく。docs/REALTIME_PVP.md）
 // ・学内（ドメイン内）だけに 公開する。ひらいた 人の 学校アカウントで 先生（かんりしゃ）か どうかと、ひきつぎの もちぬしを 見わける
 //   シートには 子どもの メールアドレスは 書かない（ひきつぎは 読めない 番号に かえて おく）
 function doGet() {
@@ -267,12 +268,16 @@ function mtgResult(q) {
     // じぶんの デッキの 点
     var id = String(q.i || '');
     if (!idOk_(id)) return { s: null };
-    var h = findRow_('deck', id), n = checkName_(q.n);
-    var s = Math.max(0, Math.min(99999, (h ? num_(h.r[1]) : 0) + POINTS[res]));
-    var row = [id, s, n[0], n[1], h ? str_(h.r[4]) : String(q.p || '').replace(/[^WUKGR]/g, '').slice(0, 3), time_(Date.now())];
-    if (h) put_('deck', h.i, row); else add_('deck', row);
-    return { s: s };
+    return { s: deckPts_(id, res, checkName_(q.n), q.p) };
   });
+}
+// デッキの 点を かえる（ロックの 中で よぶ）：かち ＋2・ひきわけ ＋1・まけ −1（0より 下には ならない）→ あたらしい 点
+function deckPts_(id, res, n, pair) {
+  var h = findRow_('deck', id);
+  var s = Math.max(0, Math.min(99999, (h ? num_(h.r[1]) : 0) + POINTS[res]));
+  var row = [id, s, n[0], n[1], h ? str_(h.r[4]) : String(pair || '').replace(/[^WUKGR]/g, '').slice(0, 3), time_(Date.now())];
+  if (h) put_('deck', h.i, row); else add_('deck', row);
+  return s;
 }
 
 // ランキング：上位20の デッキ。毎日 ランキングの時刻 に こうしんする（その あとで はじめて 見た 人が つくりなおす）
@@ -429,6 +434,176 @@ function mtgRaidGhost(q) {
   if (!list.length) return null;
   var r = list[Math.floor(Math.random() * list.length)];
   return { i: String(r[2]), c: String(r[3]), d: JSON.parse(r[4] || '[]'), n: [num_(r[5]), num_(r[6])], u: ms_(r[7]) };
+}
+
+// ───── リアルタイムたいせん（js/ui/rt.js・docs/REALTIME_PVP.md）─────
+// あいことば（4けたの すうじ）の へやで、ふたりが その場で かわりばんこに たたかう。WebSocket は ないので、画面が 2〜3秒ごとに mtgRtSync を よぶ
+// へやは キャッシュ（CacheService）だけに おく（シートには 書かない。はやい・じどうで きえる）。シートに 書くのは おわった ときの デッキの 点だけ
+//   rt:<あいことば>            … へや { c, st: 'wait'|'play'|'over', at, h: せき, g: せき, seed, first, t0, claim, res, pts }。せき ＝ { k: ひみつの 番号, d: デッキ, n: なまえ, i: デッキID }
+//   rt:<あいことば>:<h|g>:n    … その 人が おくった そうさの 数
+//   rt:<あいことば>:<h|g>:o<k> … そうさ（RT_CHUNK こずつ）。書くのは 本人だけ なので ロックは いらない
+//   rt:<あいことば>:<h|g>:s    … さいごに mtgRtSync を よんだ 時刻（あいてが いるかを 見る）
+var RT_WAIT = 10 * 60 * 1000; // まちあい：だれも こないまま 10分 たったら へやを けす
+var RT_LIFE = 2 * 3600;       // たいせん中の へやを おぼえて おく 秒（おわったら そうさは すぐ けす。キャッシュは ぜんぶで 1000こ まで）
+var RT_KEEP = 15 * 60;        // おわった へやを のこす 秒（けっかを 読む ため）
+var RT_AWAY = 45 * 1000;      // あいてが これだけ しずかなら「いなく なった」と いえる
+var RT_CLAIM = 30 * 1000;     // かたほう だけが けっかを おくって きた とき、これだけ まって きめる
+var RT_CHUNK = 40, RT_OPS_MAX = 4000, RT_OP_LEN = 1500, RT_SEND_MAX = 40;
+function rtCode_(c) { c = String(c == null ? '' : c); return /^\d{4}$/.test(c) ? c : ''; }
+function rtGet_(c) { var v = CacheService.getScriptCache().get('rt:' + c); return v ? JSON.parse(v) : null; }
+function rtPut_(m) { CacheService.getScriptCache().put('rt:' + m.c, JSON.stringify(m), m.st === 'wait' ? RT_WAIT / 1000 + 30 : m.st === 'over' ? RT_KEEP : RT_LIFE); }
+function rtDrop_(c) { CacheService.getScriptCache().remove('rt:' + c); }
+// せき：デッキは ゴーストと おなじ きまりで しらべる（しらない カード・21まい・点や 色の こえすぎは うけとらない）
+function rtSeat_(q) { return { k: Utilities.getUuid().replace(/-/g, ''), d: checkDeck_(q && q.d), n: checkName_(q && q.n), i: idOk_(q && q.i) ? String(q.i) : '' }; }
+function rtSide_(m, k) { k = String(k || ''); if (k && m.h && m.h.k === k) return 'h'; if (k && m.g && m.g.k === k) return 'g'; throw new Error('この へやには 入って いない'); }
+function rtOther_(side) { return side === 'h' ? 'g' : 'h'; }
+// 画面に かえす もの（あいての ひみつの 番号は 出さない）
+function rtOut_(m, side) {
+  var o = { st: m.st, c: m.c, side: side };
+  if (m.st === 'wait') { o.left = Math.max(0, m.at + RT_WAIT - Date.now()); return o; }
+  var foe = m[rtOther_(side)];
+  o.seed = m.seed; o.first = m.first; o.foe = { d: foe.d, n: foe.n };
+  if (m.res) { o.res = m.res; o.pts = m.pts && side in m.pts ? m.pts[side] : null; }
+  return o;
+}
+// へやを つくる：{ d: [カードID×20], n: [なまえ, なまえ], i: デッキID（なくても よい） } → { c: あいことば, k: ひみつの 番号 }
+function mtgRtCreate(q) {
+  var seat = rtSeat_(q);
+  return withLock_(function () {
+    for (var t = 0; t < 40; t++) {
+      var c = ('000' + Math.floor(Math.random() * 10000)).slice(-4);
+      if (rtGet_(c)) continue;
+      rtPut_({ c: c, st: 'wait', at: Date.now(), h: seat, g: null });
+      return { c: c, k: seat.k };
+    }
+    throw new Error('いまは へやが いっぱい。すこし まってね');
+  });
+}
+// あいことばで 入る：{ c, d, n, i } → { k, st: 'play', side: 'g', seed, first: 'h'|'g', foe: { d, n } }。先手は サーバーが きめる
+function mtgRtJoin(q) {
+  var c = rtCode_(q && q.c);
+  if (!c) throw new Error('あいことばは 4けたの すうじ');
+  var seat = rtSeat_(q);
+  return withLock_(function () {
+    var m = rtGet_(c), now = Date.now();
+    if (m && m.st === 'wait' && now - m.at > RT_WAIT) { rtDrop_(c); m = null; }
+    if (!m) throw new Error('その あいことばの へやは ない（10分 たつと きえる）');
+    if (m.st !== 'wait') throw new Error('その へやは もう はじまって いる');
+    m.g = seat; m.st = 'play'; m.t0 = now;
+    m.seed = Math.floor(Math.random() * 1e9);
+    m.first = Math.random() < 0.5 ? 'h' : 'g';
+    rtPut_(m);
+    CacheService.getScriptCache().put('rt:' + c + ':g:s', String(now), RT_LIFE);
+    var o = rtOut_(m, 'g'); o.k = seat.k;
+    return o;
+  });
+}
+// そうさ 1つ：{ n: 通し番号, e: [なにを したか], a: [えらんだ こたえ], h: たしかめの 数 }。なかみは 見ない（大きさだけ しらべる）
+function rtOp_(x) {
+  if (!x || typeof x !== 'object' || !Array.isArray(x.e) || !Array.isArray(x.a)) return null;
+  var o = { n: Math.floor(Number(x.n)), e: x.e, a: x.a, h: String(x.h || '').slice(0, 16) };
+  return o.n >= 0 && JSON.stringify(o).length <= RT_OP_LEN ? o : null;
+}
+// かたほう だけが けっかを おくって きて、あいてが RT_CLAIM たっても おくって こない：その けっかで きめる（ロックの 中で よぶ）
+function rtLate_(m, now) {
+  if (m.st !== 'play' || !m.claim) return false;
+  var ks = Object.keys(m.claim);
+  if (ks.length !== 1 || now - m.claim[ks[0]].at < RT_CLAIM) return false;
+  var r = m.claim[ks[0]].r;
+  rtFinish_(m, { w: r === 'd' ? 'd' : r === 'w' ? ks[0] : rtOther_(ks[0]), why: 'play' });
+  return true;
+}
+// けっかを きめる（ロックの 中で よぶ）。res ＝ { w: 'h'|'g'（かった がわ）|'d'（ひきわけ）|'x'（しょうぶなし）, why }
+// デッキID が ある デッキ（ぼうけんで くんで あずけた デッキ）は、ゴーストたいせんと おなじ「デッキの点」に たす（かち ＋2・ひきわけ ＋1・まけ −1）
+function rtFinish_(m, res) {
+  m.st = 'over'; m.res = res; m.pts = {};
+  ['h', 'g'].forEach(function (side) {
+    var seat = m[side], r = res.w === 'd' ? 'd' : res.w === 'x' ? '' : res.w === side ? 'w' : 'l';
+    if (seat && seat.i && r) m.pts[side] = deckPts_(seat.i, r, seat.n, pairOf_(seat.d));
+  });
+  rtPut_(m);
+  // そうさの きろくは もう いらない（キャッシュの 数を あけて おく）
+  var cache = CacheService.getScriptCache(), keys = [];
+  ['h', 'g'].forEach(function (side) {
+    var base = 'rt:' + m.c + ':' + side + ':', n = num_(cache.get(base + 'n'));
+    keys.push(base + 'n', base + 's');
+    for (var k = 0; k <= Math.floor(n / RT_CHUNK); k++) keys.push(base + 'o' + k);
+  });
+  cache.removeAll(keys);
+}
+// 2〜3秒ごとに よぶ：じぶんの そうさを おくり、あいての そうさ（from 番め から）を もらう
+// { c, k, ops: [そうさ…], from } → まちあい { st: 'wait', left } ／ たいせん { st, side, seed, first, foe, ops, n: うけとった じぶんの そうさの 数, away: あいてが しずかな ミリ秒 } ／ なくなった { st: 'gone' }
+function mtgRtSync(q) {
+  var c = rtCode_(q && q.c), m = c && rtGet_(c), now = Date.now();
+  if (!m) return { st: 'gone' };
+  var side = rtSide_(m, q.k);
+  if (m.st === 'wait') {
+    if (now - m.at > RT_WAIT) { rtDrop_(c); return { st: 'gone' }; }
+    return rtOut_(m, side);
+  }
+  if (m.st === 'over') { var done = rtOut_(m, side); done.ops = []; return done; }
+  var cache = CacheService.getScriptCache(), other = rtOther_(side), base = 'rt:' + c + ':';
+  var got = cache.getAll([base + side + ':n', base + other + ':n', base + other + ':s']);
+  var myN = num_(got[base + side + ':n']), foeN = num_(got[base + other + ':n']);
+  // じぶんの そうさ：通し番号が つぎの 番号の ものだけ たす（おくりなおしが かさなっても 2回 入らない）
+  var mine = Array.isArray(q.ops) ? q.ops.slice(0, RT_SEND_MAX).map(rtOp_) : [];
+  if (mine.length && mine.every(function (x) { return x; })) {
+    var put = {}, chunks = {};
+    for (var i = 0; i < mine.length && myN < RT_OPS_MAX; i++) {
+      if (mine[i].n !== myN) continue;
+      var ck = base + side + ':o' + Math.floor(myN / RT_CHUNK);
+      if (!(ck in chunks)) { var cur = myN % RT_CHUNK ? cache.get(ck) : '[]'; if (!cur) return { st: 'gone' }; chunks[ck] = JSON.parse(cur); }
+      chunks[ck].push(mine[i]); myN++;
+    }
+    Object.keys(chunks).forEach(function (k2) { put[k2] = JSON.stringify(chunks[k2]); });
+    put[base + side + ':n'] = String(myN);
+    cache.putAll(put, RT_LIFE);
+  }
+  cache.put(base + side + ':s', String(now), RT_LIFE);
+  // あいての そうさ
+  var from = Math.max(0, Math.floor(Number(q.from) || 0)), ops = [];
+  if (from < foeN) {
+    var keys = [];
+    for (var k = Math.floor(from / RT_CHUNK); k <= Math.floor((foeN - 1) / RT_CHUNK); k++) keys.push(base + other + ':o' + k);
+    var cs = cache.getAll(keys);
+    for (var j = 0; j < keys.length; j++) { if (!cs[keys[j]]) return { st: 'gone' }; ops = ops.concat(JSON.parse(cs[keys[j]])); }
+    ops = ops.filter(function (x) { return x.n >= from; }).slice(0, RT_SEND_MAX);
+  }
+  if (m.claim && Object.keys(m.claim).length === 1) withLock_(function () { var cur2 = rtGet_(c); if (cur2 && rtLate_(cur2, Date.now())) m = cur2; });
+  var o = rtOut_(m, side);
+  o.ops = ops; o.n = myN;
+  o.away = now - (num_(got[base + other + ':s']) || m.t0);
+  return o;
+}
+// おわり：{ c, k, why: 'play'（r: 'w'|'l'|'d' じぶんから 見た けっか）|'resign'（こうさん）|'left'（あいてが いなく なった）|'desync'（画面が ずれた）|'cancel'（まつのを やめる） }
+// 'play' は ふたりの けっかが そろったら きまる（くいちがったら しょうぶなし）。→ mtgRtSync と おなじ 形（まだ きまらない ときは st: 'play'）
+function mtgRtEnd(q) {
+  var c = rtCode_(q && q.c), why = String(q && q.why);
+  if (!c) return { st: 'gone' };
+  return withLock_(function () {
+    var m = rtGet_(c), now = Date.now();
+    if (!m) return { st: 'gone' };
+    var side = rtSide_(m, q.k), other = rtOther_(side);
+    if (m.st === 'wait') { rtDrop_(c); return { st: 'gone' }; }
+    if (m.st === 'over') return rtOut_(m, side);
+    if (why === 'resign') rtFinish_(m, { w: other, why: 'resign' });
+    else if (why === 'desync') rtFinish_(m, { w: 'x', why: 'desync' });
+    else if (why === 'left') {
+      var seen = num_(CacheService.getScriptCache().get('rt:' + c + ':' + other + ':s')) || m.t0;
+      if (now - seen < RT_AWAY) throw new Error('あいては まだ いる');
+      rtFinish_(m, { w: side, why: 'left' });
+    } else if (why === 'play') {
+      var r = String(q.r);
+      if (!(r in POINTS)) throw new Error('けっかが おかしい');
+      m.claim = m.claim || {};
+      if (!m.claim[side]) m.claim[side] = { r: r, at: now };
+      var a = m.claim[side].r, b = m.claim[other] && m.claim[other].r;
+      if (!b) { if (!rtLate_(m, now)) rtPut_(m); }
+      else if ((a === 'd' && b === 'd') || (a === 'w' && b === 'l') || (a === 'l' && b === 'w')) rtFinish_(m, { w: a === 'd' ? 'd' : a === 'w' ? side : other, why: 'play' });
+      else rtFinish_(m, { w: 'x', why: 'mismatch' });
+    } else throw new Error('おわりかたが おかしい');
+    return rtOut_(m, side);
+  });
 }
 
 // ───── きょうの ぼうけん（js/ui/daily.js・docs/DAILY.md）─────

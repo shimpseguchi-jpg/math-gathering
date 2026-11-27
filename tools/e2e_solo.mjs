@@ -39,7 +39,7 @@ async function noRoutes(where) {
     go: [...document.querySelectorAll('[data-go]')].map((b) => b.dataset.go),
     title: document.querySelectorAll('main.title .t-menu, .tile, [data-back="1"].btn.ghost[data-title]').length,
   }));
-  const bad = [...(r.text.match(OTHER) || []), ...r.go.filter((g) => !['quiz', 'shop', 'deck', 'battle', 'grow'].includes(g)), ...(r.title ? ['title'] : [])];
+  const bad = [...(r.text.match(OTHER) || []), ...r.go.filter((g) => !['quiz', 'shop', 'deck', 'battle', 'grow', 'rt'].includes(g)), ...(r.title ? ['title'] : [])];
   seen.push(where);
   if (bad.length) { console.log(`FAIL ほかの モードへの 入口が ある：${where}（${bad.join('・')}）`); fails.push(`routes:${where}`); }
 }
@@ -246,6 +246,16 @@ await page.click('.pb-steps [data-go=battle]');
 check('まえの セーブ：ステージ 2 の あいてを えらべる', (await page.locator('.pb-page b').innerText()).trim() === 'ステージ 2' && await page.locator('[data-foe]:not([disabled])').count() === 5);
 await page.click('[data-back]');
 await edit(keepSave);
+
+// ---- リアルタイムたいせんの 入口：この ファイル だけでは つながらない ことが 出る（サーバー＝GAS に のせると あそべる。tools/rt_e2e.mjs）----
+await page.click('.pb-steps [data-go=rt]');
+await page.waitForSelector('main.rt');
+await noRoutes('リアルタイムたいせん（つながって いない）');
+const rtOff = (await page.locator('main.rt').innerText()).replace(/\s+/g, ' ');
+await shot('rt_offline');
+check('リアルタイムたいせんの 入口が ある：サーバーに つながって いない ことと、あそぶには GAS に のせる ことが 出る（へやは つくれない）', /つながって いない/.test(rtOff) && /GAS/.test(rtOff) && /あいことば/.test(rtOff) && await page.locator('[data-r=make], [data-r=join]').count() === 0, rtOff.slice(0, 80));
+await page.click('[data-r=back]');
+check('リアルタイムたいせんから ホームへ もどれる（セーブは かわらない）', await page.locator('.pb-steps').count() === 1);
 
 // ---- はじめから やりなおす（ためしに あそぶ 用）----
 await page.click('[data-reset]'); await noRoutes('やりなおす まど'); await sheetClick('やりなおす');

@@ -105,7 +105,7 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   proliferate(s);
   check('増殖：時間カウンターも 1こ ふえる（3 → 4）', p.time === 4); p.time = 3;
   const picks = ['hexproof', 'ctr', 'deathtouch']; let asked = 0;
-  s.ai = { ...s.ai, choose: async (ss, title, opts) => { asked++; return picks.shift(); } };
+  s.ai = { ...s.ai, aim: true, choose: async (ss, title, opts) => { asked++; return picks.shift(); } };
   await D('MY03').upkeep(s, p, api);
   check('草十郎（人）：取りのぞく たびに 3つから えらぶ（呪禁カウンター）', asked === 1 && p.time === 2 && hasKw(s, p, 'hexproof') && !hasKw(s, p, 'deathtouch') && p.ctr === 0);
   await D('MY03').upkeep(s, p, api);
@@ -115,6 +115,13 @@ check('パック＆バトル：まほよパックが さいしょから ショ�
   const s2 = board(), q = put(s2, 'MY03');
   D('MY03').upkeep(s2, q, api); D('MY03').upkeep(s2, q, api);
   check('草十郎（AI）：接死 → 呪禁 の じゅん', hasKw(s2, q, 'deathtouch') && hasKw(s2, q, 'hexproof') && q.time === 1 && onBf(s2, q));
+  { // リアルタイムたいせん（s.ai.aim が false）：えらぶ まどは 出さず、AI と おなじ じゅん。青子の 魔弾も じどう（ふたりの 画面が ずれない ように）
+    const s9 = board(), q9 = put(s9, 'MY03'); let asked9 = 0;
+    s9.ai = { ...s9.ai, aim: false, choose: async () => { asked9++; return 'ctr'; } };
+    D('MY03').upkeep(s9, q9, api);
+    const a9 = put(s9, 'MY01'); cast(s9, 'MY47');
+    check('リアルタイムたいせん：草十郎の カウンターと 青子の 魔弾は えらばない（じどう。まどを 出さない）', asked9 === 0 && hasKw(s9, q9, 'deathtouch') && q9.time === 2 && !(s9.aimQ?.length) && a9.mp === 1);
+  }
   const egg = put(s2, 'MY08'), e = put(s2, vanillaE, 'E');
   D('MY08').upkeep(s2, egg, api); const mid = onBf(s2, egg); D('MY08').upkeep(s2, egg, api); sba(s2);
   check('スクラッチ・ダンプティ：消失 2。0こで 落ちて、敵の クリーチャー ぜんぶに 2点', egg && mid && !onBf(s2, egg) && !onBf(s2, e));
