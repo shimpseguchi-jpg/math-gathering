@@ -1,4 +1,5 @@
-// オンラインバトル（非同期）：冒険を おえた デッキを「ゴースト」として あずけ、ほかの 人の ゴーストと たたかう
+// ゴーストたいせん（非同期の オンラインバトル）：冒険を おえた デッキを「ゴースト」として あずけ、ほかの 人の ゴーストと たたかう
+// （人と その場で たたかう「リアルタイムたいせん」は js/ui/rt.js。なまえ・保管デッキ・点は ここの ものを いっしょに つかう）
 // GAS 版では google.script.run で サーバー（gas/Code.gs）に あずける。サーバーが ない とき（GitHub Pages など）は
 // 見本デッキの「れんしゅう あいて」と たたかえる（れんしゅうでは 点は つかない）
 // デッキの 点：かち ＋2・ひきわけ ＋1・まけ −1（0より 下には ならない）。上位20は ランキングに のる
@@ -29,7 +30,7 @@ const RANK_SIZE = 20;
 export const TIER_LABEL = ['', '1階まで', '2階まで', '3階まで', '4階まで', '5階まで', 'とうを クリア'];
 export const POINTS = { w: 2, d: 1, l: -1 };
 const RESULT = { w: 'かち', d: 'ひきわけ', l: 'まけ' };
-const addPoints = (s, r) => Math.max(0, (s || 0) + POINTS[r]);
+export const addPoints = (s, r) => Math.max(0, (s || 0) + POINTS[r]);
 
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } };
 const save = (o) => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch { /* 保存できなくても あそべる */ } };
@@ -40,16 +41,19 @@ function state() {
   o.decks = o.decks.slice(0, KEEP_DECKS);
   return o;
 }
+// リアルタイムたいせん（rt.js）も おなじ セーブ（mtg-online-v1）を つかう：なまえ・保管デッキ・かちまけ
+export const olState = () => state();
+export const olSave = (o) => save(o);
 export const nameOf = (n) => `${NAME_A[n[0]] || ''} ${NAME_B[n[1]] || ''}`.trim(); // 「ゆうかんな ドラゴン」「ほのお ドラゴン」
 // 2色は アーキタイプの よびかた（赤白・青白…）に そろえる
 const PAIR = { GW: '白緑', UW: '青白', RW: '赤白', RU: '赤青', GR: '緑赤', GU: '青緑', KW: '白黒', KU: '青黒', KR: '黒赤', GK: '黒緑' };
-const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
+export const pairName = (p) => { const k = [...(p || '')].sort().join(''); return PAIR[k] || [...k].map((c) => COLOR_NAME[c]).join('') || 'むしょく'; };
 
 // ---- サーバー ----
 export { hasServer, call, send } from './server.js';
 import { hasServer, call, send } from './server.js';
 
-const deckTitle = (x) => `${pairName(x.p)}・${TIER_LABEL[x.t]}`;
+export const deckTitle = (x) => `${pairName(x.p)}・${TIER_LABEL[x.t]}`;
 const deckName = (n, p) => `${nameOf(n)}の ${pairName(p)}デッキ`; // ランキングに 出る なまえ
 const when = (ms) => new Date(ms).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -113,7 +117,7 @@ export async function onlineMenu(app, back) {
     const cur = o.decks[pick];
     app().innerHTML = `<main class="online">
       <p class="eyebrow">${hasServer() ? 'オンライン' : 'れんしゅう（オンラインは GASばんで）'}</p>
-      <h2>オンライン バトル</h2>
+      <h2>ゴーストたいせん</h2>
       <div class="ol-me">
         <div class="ol-namebox"><span class="ol-name">${esc(nameOf(o.name))}</span>
           <div class="ol-selects">${[NAME_A, NAME_B].map((ws, k) => `<select data-n="${k}" aria-label="なまえの ${k + 1}つめの ことば">${ws.map((w, i) => `<option value="${i}" ${o.name[k] === i ? 'selected' : ''}>${esc(w)}</option>`).join('')}</select>`).join('')}</div></div>
@@ -181,7 +185,7 @@ async function findOpponent(app, back, o, mine) {
     } else if (v.id && hasServer()) send('mtgResult', { g: v.id, r: res }).catch(() => {});
     save(o);
     const cls = res === 'w' ? 'win' : res === 'l' ? 'lose' : 'draw';
-    await sheet(`<p class="big-result ${cls}">${{ w: 'かった！', l: 'まけた…', d: 'ひきわけ' }[res]}</p><p>${note}</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: `オンライン バトル：${RESULT[res]}`, dismiss: false });
+    await sheet(`<p class="big-result ${cls}">${{ w: 'かった！', l: 'まけた…', d: 'ひきわけ' }[res]}</p><p>${note}</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: `ゴーストたいせん：${RESULT[res]}`, dismiss: false });
     onlineMenu(app, back);
   }
 }

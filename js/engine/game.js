@@ -430,7 +430,7 @@ export function autoTargets(s, mode, spec, ctx, list, E) {
   // アンコモン：n 点（−n/−n）で たおせる なかで パワーが いちばん 大きい てき（spec.n。いなければ いちばん 大きい）。本体は さいご
   const m = mode === 'rand' ? null : mostOrder(s, list, typeof spec.n === 'function' ? spec.n(s, E, ctx) : spec.n === 'x' ? ctx.x : spec.n);
   const random = !m && list.length > k;
-  const order = m ? [...m.order, ...list.filter((t) => t === 'face')] : random ? [...list].sort(() => s.rng() - 0.5) : [...list];
+  const order = m ? [...m.order, ...list.filter((t) => t === 'face')] : random ? (s.rngN != null ? shuffle(s.rng, [...list]) : [...list].sort(() => s.rng() - 0.5)) : [...list]; // リアルタイムたいせん（s.rngN）：ブラウザの しゅるいで 乱数の 回数が かわらない まぜかた
   return { chosen: order.slice(0, k), order, kill: !!m?.kill, random };
 }
 

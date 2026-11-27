@@ -9,6 +9,7 @@ import { ptsOf } from '../engine/ai.js';
 import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
+import { rtMenu } from './rt.js';
 import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, storyTotal } from './story.js';
@@ -96,6 +97,7 @@ const T_ICON = {
   build: '<rect x="3" y="6" width="11" height="15" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/>',
   emblem: '<path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.5 2.4-7.4L2 9.6h7.6z" fill="currentColor" stroke="none"/>',
   online: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  rt: '<path d="M14.5 4l5.5 5.5-9 9H5.5V13z"/><path d="M9.5 4L4 9.5l3 3"/><path d="M16 14l4 4"/>',
   tut: '<path d="M5 21V4h12l-2 4 2 4H5"/>',
   kihon: '<path d="M12 21V11M12 11c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5"/>',
   story: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
@@ -148,11 +150,12 @@ export function title() {
     <section class="t-main">
       ${!narrow && raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
       <div class="title-btns">
+        ${narrow ? '' : `<button type="button" class="btn primary rt-main" data-go="rt">リアルタイムたいせん<small>${hasServer() ? 'ともだちと あいことばで たいせん' : 'ともだちと たいせん（GASばんで あそべる）'}</small></button>`}
         ${first || step === 'tutorial' ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
         ${step === 'story' ? `<button type="button" class="btn primary" data-go="story">ストーリーを すすめる<small>1章を クリアすると ${KIHON_NAME}へ</small></button>` : ''}
         ${step === 'kihon' ? `<button type="button" class="btn primary" data-go="kihon">${KIHON_NAME}<small>${ruby('課題（かだい）を 3つ クリアすると とうへ')}</small></button>` : ''}
         ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから<small>${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階から`}</small></button>` : ''}
-        ${step ? '' : `<button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>`}
+        ${step ? '' : '<button type="button" class="btn" data-go="new">あたらしい ぼうけん</button>'}
       </div>
       ${step ? '' : `<div class="t-opts">
         <p class="t-opts-h">ぼうけんの せってい</p>
@@ -166,6 +169,7 @@ export function title() {
       ${narrow ? `${step !== 'tutorial' ? tile('story', 'ストーリー', step === 'story' ? `1章を クリアすると ${KIHON_NAME}へ` : `せかいめぐり ${storyCount()} / ${storyTotal()}話`, tIcon('story'), step === 'story' ? 'next' : '') : ''}
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, ruby('課題（かだい）を 3つ クリアすると せかいが ひらける'), tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
       ${step !== 'tutorial' ? tile('tut', 'チュートリアル', 'もう いちど') : ''}
+      ${step !== 'tutorial' ? tile('rt', 'リアルタイムたいせん', hasServer() ? 'ともだちと あいことばで' : 'GASばんで あそべる') : ''}
       ${DEV ? tile('spire', ...spireTile()) : ''}` : `
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
       ${tile('emblem', 'もんしょう', activeIds().length ? `${activeIds().length}こ ついて いる・ポイント ${emblemPoints()}` : `ポイント ${emblemPoints()}・しゅぎょうで ふえる`)}
@@ -176,7 +180,7 @@ export function title() {
       ${tile('kobo', ruby('カード工房（こうぼう）'), koboCount() ? `つくった カード ${koboCount()}まい` : 'じぶんの カードを つくる', tIcon('kobo'))}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
-      ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
+      ${tile('online', 'ゴーストたいせん', hasServer() ? 'ひとりで ゴーストと たたかう' : 'れんしゅう')}
       ${tile('tut', 'チュートリアル', 'はじめての 人へ')}
       ${DEV ? tile('spire', ...spireTile()) : ''}`}
       ${tile('settings', 'せってい', 'みため・おと', tIcon('settings'), 'ghost')}
@@ -209,6 +213,7 @@ export function title() {
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     if (b.dataset.go === 'tut') return tutorial();
     if (b.dataset.go === 'online') return onlineMenu(app, title);
+    if (b.dataset.go === 'rt') return rtMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
     if (b.dataset.go === 'tsume') return tsumeMenu(title);
@@ -796,7 +801,7 @@ function ending(win) {
     </dl>
     ${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}
     ${ticketLine(got)}
-    <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
+    <p class="fine">この デッキは「ゴースト」に なった。タイトルの「ゴーストたいせん」と「リアルタイムたいせん」で つかえるよ。</p>
     ${adsOn() ? `<p class="say"><b>${strix() ? 'ストリクスヘイヴンの 先生たち' : A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${strix() ? 'もっと まなびたいかな？' : A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>` : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
   </main>`;
