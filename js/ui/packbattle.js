@@ -42,7 +42,7 @@ const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; //
 //   gp：せいちょうポイント, tree：{ 枝の id: とった 数 } }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 6, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
+const fresh = () => ({ v: 7, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -71,7 +71,16 @@ function load() {
       }
       // ステージ 2 の ならびが かわった（2026-11-22：ドラゴンが ボスで さいご、工場が 4ばんめ）：かった 回数を あいてに ついて いかせる（v5 の セーブ だけ。その まえは ばしょで おぼえて いた）
       if (v.v === 5) { const a = s.beat['th-e:3'], b = s.beat['th-e:4']; s.beat = { ...s.beat }; delete s.beat['th-e:3']; delete s.beat['th-e:4']; if (b) s.beat['th-e:3'] = b; if (a) s.beat['th-e:4'] = a; }
-      s.v = 6;
+      // 特別ステージ 7 が 6人 → 8人に なった（2026-11-27：星・穹・アキラ・リン）：かった 回数を あいてに ついて いかせる（v6 の セーブ だけ。ex:0〜5 → あたらしい ばしょ）
+      // 橙子 0 → 0、カルデア 1 → 1、星めぐり 2 → 星 2、ホロウ 3 → アキラ 4、青子 4 → 6、有珠 5 → 7。穹（3）と リン（5）は 0 から
+      // まえの 6人を クリアして いた セーブは、ステージ 7 を クリアした まま（s.stage ＝ 7。ひらいた ステージは とじない）
+      if (v.v === 6) {
+        const was = PB_STAGES.findIndex((t) => t.id === 'ex'), o = [0, 1, 2, 3, 4, 5].map((k) => s.beat['ex:' + k] || 0);
+        if (o.every((n) => n >= PB.need) && (s.stage || 0) >= was) s.stage = Math.max(s.stage || 0, was + 1);
+        s.beat = { ...s.beat }; for (let k = 0; k < 8; k++) delete s.beat['ex:' + k];
+        [0, 1, 2, 4, 6, 7].forEach((to, k) => { if (o[k]) s.beat['ex:' + to] = o[k]; });
+      }
+      s.v = 7;
       return s;
     }
   } catch { /* こわれていたら はじめから */ }

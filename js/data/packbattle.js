@@ -115,11 +115,13 @@ export const PB_CHARS = {
   dimir: { who: 'ラザーヴ', cols: 'UK', theme: 'まねっこ', style: 'きみの いちばん つよい 子を まねる', line: 'きみは……わたしかな？' },
   jace: { who: 'ジェイス', cols: 'U', theme: '10の ギルドの 力（ちから）', style: 'だんかいごとに ちがう 力', line: 'ギルドパクトの 名に おいて。' },
   ...NEW_CHARS,
-  // 特別ステージ「番外編の 挑戦者たち」（2026-11-27）：番外編の カードの デッキで たたかう 6人（PB_EX）
+  // 特別ステージ「番外編の 挑戦者たち」（2026-11-27）：番外編の カードの デッキで たたかう 8人（PB_EX。2026-11-27 に 6人 → 8人：星めぐりの 挑戦者 → 星・穹、ホロウの 挑戦者 → アキラ・リン）
   ex_touko: { who: '青崎橙子（あおざきとうこ）', cols: 'UK', theme: '人形（にんぎょう）を ならべる', style: 'たおれても 予備（よび）の 体で もどる', line: PB_LINES.ex_touko.start },
   ex_fgo: { who: 'カルデアの 挑戦者（ちょうせんしゃ）', cols: 'WU', theme: 'サーヴァントと 宝具（ほうぐ）', style: 'NP を ためて 宝具（ほうぐ）を うつ', line: PB_LINES.ex_fgo.start },
-  ex_sr: { who: '星（ほし）めぐりの 挑戦者（ちょうせんしゃ）', cols: 'UR', theme: 'せんぎポイントと 必殺技（ひっさつわざ）', style: 'なかまで せめて、せんぎを つかう', line: PB_LINES.ex_sr.start },
-  ex_zz: { who: 'ホロウの 挑戦者（ちょうせんしゃ）', cols: 'WK', theme: 'エージェントと ブレイク', style: '数を ならべて いっきに せめる', line: PB_LINES.ex_zz.start },
+  ex_hoshi: { who: '星（ほし）', cols: 'UR', theme: 'せんぎポイントと 必殺技（ひっさつわざ）', style: 'なかまで せめて、せんぎを つかう', line: PB_LINES.ex_hoshi.start },
+  ex_kyuu: { who: '穹（きゅう）', cols: 'WK', theme: '記憶（きおく）の精霊（せいれい）と 黄金裔（おうごんえい）', style: 'せんぎポイントで やすく 出し、精霊（せいれい）を つれて くる', line: PB_LINES.ex_kyuu.start },
+  ex_akira: { who: 'アキラ', cols: 'WK', theme: 'エージェントと ブレイク', style: '数を ならべて いっきに せめる', line: PB_LINES.ex_akira.start },
+  ex_rin: { who: 'リン', cols: 'UR', theme: '属性異常（ぞくせいいじょう）と 紊乱（びんらん）', style: '異常（いじょう）を つけて ダメージを かさねる', line: PB_LINES.ex_rin.start },
   ex_aoko: { who: '青崎青子（あおざきあおこ）', cols: 'UR', theme: '魔弾（まだん）と マジックガンナー', style: 'じゅもんを れんぱつして 魔力（まりょく）を ためる', line: PB_LINES.ex_aoko.start },
   ex_alice: { who: '久遠寺有珠（くおんじありす）', cols: 'KG', theme: 'プロイと グレートスリー', style: 'トークンを ならべて 魔力（まりょく）を 5こ ためる', line: PB_LINES.ex_alice.start },
 };
@@ -212,7 +214,7 @@ export const PB_GUILD = {
   orzhov: { ai: '', life: [8, 9], ids: ['RV37', 'RV37', 'RV38', 'RV39', 'RV40', 'K04', 'K05', 'W10', 'K01', 'K01'], hard: ['RV38', 'RV39', 'K13'],
     rule: 'あいてが じゅもんを つかう たびに、きみに 1点・あいての ライフ ＋1（ゆすり）', onSpells: spellHit('テイサ', true) },
 };
-// ---- 特別ステージ「番外編の 挑戦者たち」の 6人（2026-11-27）：ギルドの リーダーと おなじ つくり（じぶんの デッキを AI が 手札と マナで つかう）----
+// ---- 特別ステージ「番外編の 挑戦者たち」の 8人（2026-11-27）：ギルドの リーダーと おなじ つくり（じぶんの デッキを AI が 手札と マナで つかう）----
 // ids：デッキ（20まいに たりない ぶんは きほんカード）、life：ライフ、sets：アンティで もらえる 弾、sig：きめわざの セリフを 言う きっかけ（ログ）
 // あいての ターンの ログ（[3E] …）だけ 見る（きみの カードの 同じ ことばで しゃべらない ように）
 const foeLine = (re) => (s, l) => /^\[\d+E\]/.test(l) && re.test(l);
@@ -221,10 +223,18 @@ export const PB_EX = {
     ids: ['MY04', 'MY04', 'MY16', 'MY16', 'MY17', 'MY17', 'MY18', 'MY18', 'MY55', 'MY55', 'MY20', 'MY21', 'MY21', 'MY43', 'MY43', 'MY42', 'MY38', 'MY09', 'MY15', 'MY15'] },
   ex_fgo: { ai: '', life: 22, sets: [10, 14], sig: foeLine(/ほうぐ！/), rule: 'サーヴァントは こうげきで NP が たまり、100 で 宝具（ほうぐ）を つかう',
     ids: ['FG01', 'FG02', 'FG11', 'FG19', 'FG19', 'FG20', 'FG21', 'FG21', 'FG22', 'FG22', 'FG23', 'FG23', 'FG24', 'FG24', 'FG31', 'FG31', 'FG32', 'FG32', 'FG52', 'FG163'] },
-  ex_sr: { ai: '', life: 17, sets: [11, 15], sig: foeLine(/せんぎポイント \d+ − /), rule: 'こうげきで せんぎポイントが たまり、せんぎで つかう',
+  // 星：スターレイル 第1弾（まえの「星めぐりの 挑戦者」の デッキを ひきつぐ）
+  ex_hoshi: { ai: '', life: 17, sets: [11], sig: foeLine(/せんぎポイント \d+ − /), rule: 'こうげきで せんぎポイントが たまり、せんぎで つかう',
     ids: ['SR03', 'SR03', 'SR07', 'SR14', 'SR15', 'SR19', 'SR38', 'SR38', 'SR42', 'SR42', 'SR43', 'SR43', 'SR44', 'SR44', 'SR49', 'SR49', 'SR50', 'SR50', 'SR51', 'SR51'] },
-  ex_zz: { ai: '', life: 30, sets: [12, 16], sig: foeLine(/ブレイク！|(月城柳|朱鳶|儀玄|ダイアリン|アンビー).*せんじょうに 出た/), rule: 'エージェントの こうげきで ブレイクカウンターが たまる',
+  // 穹：スターレイル 第2弾（記憶の精霊と 黄金裔。せんぎポイントで やすく 出す）
+  ex_kyuu: { ai: '', life: 12, sets: [15], sig: foeLine(/きおくの せいれい：/), rule: 'せんぎポイントを つかって 黄金裔（おうごんえい）を やすく 出す。記憶（きおく）の精霊（せいれい）は つながった あいてと いっしょに たたかう',
+    ids: ['SR81', 'SR82', 'SR93', 'SR94', 'SR98', 'SR92', 'SR101', 'SR101', 'SR119', 'SR119', 'SR122', 'SR122', 'SR121', 'SR121', 'SR126', 'SR126', 'SR128', 'SR114', 'SR141', 'SR118'] },
+  // アキラ：ゼンゼロ 第1・2弾（白黒。まえの「ホロウの 挑戦者」の デッキを ひきつぐ）
+  ex_akira: { ai: '', life: 30, sets: [12, 16], sig: foeLine(/ブレイク！|(月城柳|朱鳶|儀玄|ダイアリン|アンビー).*せんじょうに 出た/), rule: 'エージェントの こうげきで ブレイクカウンターが たまる',
     ids: ['ZZ07', 'ZZ15', 'ZZ17', 'ZZ29', 'ZZ29', 'ZZ30', 'ZZ30', 'ZZ33', 'ZZ33', 'ZZ34', 'ZZ34', 'ZZ35', 'ZZ35', 'ZZ36', 'ZZ36', 'ZZ44', 'ZZ44', 'ZZ82', 'ZZ90', 'ZZ102'] },
+  // リン：ゼンゼロ 第2弾が 中心（青赤。属性異常と 紊乱）
+  ex_rin: { ai: '', life: 21, sets: [12, 16], sig: foeLine(/異常（いじょう）|紊乱（びんらん）！/), rule: '属性異常（ぞくせいいじょう）の こうげきで 異常（いじょう）が つき、ちがう 色の 異常が かさなると 紊乱（びんらん）で ダメージ',
+    ids: ['ZZ86', 'ZZ101', 'ZZ96', 'ZZ89', 'ZZ89', 'ZZ111', 'ZZ111', 'ZZ113', 'ZZ113', 'ZZ119', 'ZZ119', 'ZZ120', 'ZZ120', 'ZZ97', 'ZZ09', 'ZZ28', 'ZZ38', 'ZZ38', 'ZZ147', 'ZZ59'] },
   ex_aoko: { ai: '', life: 16, sets: [17], sig: foeLine(/マジックガンナー！/), rule: '青子（あおこ）は じゅもんを つかう たびに 1点。ダメージを あたえる たびに 魔力（まりょく）カウンターが たまり、マジックガンナーで まとめて うって くる',
     ids: ['MY01', 'MY01', 'MY19', 'MY19', 'MY19', 'MY20', 'MY20', 'MY35', 'MY35', 'MY45', 'MY45', 'MY46', 'MY46', 'MY36', 'MY36', 'MY41', 'MY30', 'MY30', 'MY31', 'MY31'] },
   ex_alice: { ai: '', life: 13, sets: [17], sig: (s, l) => /グレートスリー！/.test(l) && s.E.bf.some((p) => p.def.great), rule: '有珠（ありす）は トークンが 出る たびに 魔力（まりょく）カウンターが たまり、5こで グレートスリー（橋（はし）の巨人（きょじん）・月の油（あぶら）・薔薇（ばら）の猟犬（りょうけん））が 出る',
@@ -303,8 +313,8 @@ export const PB_STAGES = [
   { id: 'rv-n', name: 'ラヴニカ（ふつう）', diff: 'normal', slots: RAV_SLOTS, drop: { sets: [1, 2], w: [50, 35, 13, 2], boss: [20, 40, 33, 7] } },
   { id: 'rv-h', name: 'ラヴニカ（むずかしい）', diff: 'hard', slots: RAV_SLOTS, drop: { sets: [5], w: [45, 35, 17, 3], boss: [15, 35, 40, 10] } },
   { id: 'th-h', name: 'しゅうまつの しま（むずかしい）', diff: 'hard', slots: [['harisen'], ['kameron'], ['konkon'], ['rirara'], ['owaron']], drop: { sets: [1, 2, 5], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
-  // 特別ステージ（special）：番外編の カードの デッキで たたかう 6人。アンティは その あいての 番外編（PB_EX の sets）。むげんの たたかいには 入らない
-  { id: 'ex', name: '番外編（ばんがいへん）の 挑戦者（ちょうせんしゃ）たち', diff: 'hard', special: true, slots: [['ex_touko'], ['ex_fgo'], ['ex_sr'], ['ex_zz'], ['ex_aoko'], ['ex_alice']], drop: { sets: [17], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
+  // 特別ステージ（special）：番外編の カードの デッキで たたかう 8人。アンティは その あいての 番外編（PB_EX の sets）。むげんの たたかいには 入らない
+  { id: 'ex', name: '番外編（ばんがいへん）の 挑戦者（ちょうせんしゃ）たち', diff: 'hard', special: true, slots: [['ex_touko'], ['ex_fgo'], ['ex_hoshi'], ['ex_kyuu'], ['ex_akira'], ['ex_rin'], ['ex_aoko'], ['ex_alice']], drop: { sets: [17], w: [40, 35, 20, 5], boss: [10, 30, 45, 15] } },
 ];
 // むげんの たたかいが ひらく ステージの 数（特別ステージは 入れない）：ステージ 1〜6 を クリア
 export const PB_MAIN = PB_STAGES.filter((t) => !t.special).length;
