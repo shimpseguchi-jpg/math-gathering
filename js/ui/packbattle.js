@@ -28,6 +28,7 @@ import { zukanPack } from './zukan.js';
 import { applyTheme } from './settings.js';
 import { isSolo, isOripa } from './solo.js';
 import { learnMenu, freshLearn, fixLearn } from './learn.js';
+import { fullCan, isFull, setFull, homeTip } from './fullscreen.js';
 import { soundOn, setSound } from './sfx.js';
 import { nextStep as titleStep, unlockSheet, NEWS_TEXT } from './unlock.js';
 import { sheet, esc, ruby, info, fullCard, toast, COLOR_NAME } from './view.js';
@@ -228,6 +229,20 @@ export function pbMenu(appFn, back) {
   S = load(); VIEW = null; checkOpen(); save(); // まえの 形の セーブは ここで あたらしい 形に
   home();
 }
+// 合体版：ぜんがめんの ボタン（ホームと がくしゅうの メニュー）。おすと ぜんがめん、もう いちど おすと もどる。
+// ブラウザが ゆるさない とき（iPhone・ホーム画面に 追加した アプリ など）は、おすと わけを 出す（こわれない）
+const fullBtn = () => `<button type="button" class="btn oripa-full ${fullCan() ? '' : 'off'}" data-full="1" aria-pressed="${isFull()}">${isFull() ? 'ぜんがめんを やめる' : 'ぜんがめん'}</button>`;
+async function fullTap() {
+  if (!fullCan()) {
+    const alone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+    await sheet(alone ? '<p>もう 画面 いっぱいで うごいて いる（ホーム画面から ひらいた アプリ）。</p>'
+      : `<p>この ブラウザでは、ボタンで ぜんがめんに できない。</p>${homeTip() ? '<p class="zk-note">共有（きょうゆう）の ボタン →「ホーム画面に 追加」で ひらくと、画面 いっぱいで あそべる。</p>' : ''}`, [{ label: 'とじる', value: 0, kind: 'primary' }], { title: 'ぜんがめん' });
+    return;
+  }
+  setFull(!isFull());
+  await new Promise((r) => setTimeout(r, 350)); // きりかわるのを まつ
+}
+if (ORIPA) for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { for (const b of document.querySelectorAll('.oripa-full')) { b.setAttribute('aria-pressed', isFull()); b.textContent = isFull() ? 'ぜんがめんを やめる' : 'ぜんがめん'; } });
 // 合体版の ホーム：がくしゅう → せいちょう → ショップ → デッキ → バトル。コインと せいちょうポイントは いつも 見える
 function homeOripa() {
   look(); document.title = ORIPA_NAME;
@@ -236,7 +251,7 @@ function homeOripa() {
   const units = Object.keys(S.learn.units).filter((u) => learnUnitOpen(S.tree, u)).length;
   app().innerHTML = `<main class="zukan construct pb oripa">
     <p class="eyebrow">けいさんで コインを ためて、パックを あけて、てきを たおそう</p>
-    <h2 class="oripa-title">Mathematics of the Gathering<small>〜さんすうオリパ〜</small></h2>
+    <div class="oripa-head"><h2 class="oripa-title">Mathematics of the Gathering<small>〜さんすうオリパ〜</small></h2>${fullBtn()}</div>
     <ul class="pb-stats">
       <li><span>コイン</span><b id="pb-pts">${S.pts}</b><small>コイン</small></li>
       <li><span>せいちょうポイント</span><b id="pb-gp-home">${S.gp}</b><small>ポイント</small></li>
@@ -258,6 +273,7 @@ function homeOripa() {
   </main>`;
   app().onclick = async (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.full) { await fullTap(); return home(); }
     if (b.dataset.snd) { setSound(!soundOn()); return home(); }
     if (b.dataset.reset) {
       const v = await sheet('<p>コイン・カード・デッキ・がくしゅうの すすみ・たおした てきの 数を ぜんぶ けして、はじめから やりなおす？ もとに もどせない。</p>', [{ label: 'やりなおす', value: 1 }, { label: 'やめる', value: 0, kind: 'primary' }], { title: 'はじめから やりなおす' });
@@ -270,7 +286,7 @@ function homeOripa() {
 }
 // がくしゅう（ui/learn.js）：コインと せいちょうポイントは この セーブに 入る
 function learn() {
-  learnMenu({ app: APP, get: () => S, save, back: home, goGrow: grow, name: ORIPA_NAME,
+  learnMenu({ app: APP, get: () => S, save, back: home, goGrow: grow, name: ORIPA_NAME, fullBtn, fullTap,
     unitOpen: (u) => learnUnitOpen(S.tree, u), unitCost: (u) => PB_TREE_LEARN.nodes.find((n) => n.unit === u)?.cost || 0 });
 }
 function home() {
@@ -668,12 +684,12 @@ function grow() {
   if (!S.open) return home();
   const node = (b, n, i) => {
     const lv = S.tree[b.id] || 0, st = i < lv ? 'on' : i === lv && S.gp >= n.cost ? 'can' : 'lock';
-    return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(n.text)}</span><em>${i < lv ? 'とった' : `${n.cost}ポイント`}</em></button></li>`;
+    return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(c(n.text))}</span><em>${i < lv ? 'とった' : `${n.cost}ポイント`}</em></button></li>`;
   };
   // 「パック」の 枝（free）：ノード ＝ ロックの パック。じゅんばんの きまりは ない。ねだんと、あいてを あと 何回 たおせば ひらくか
   const packNode = (b, n, i) => {
     const p = packById(n.pack), ps = packState(p), st = ps.open ? 'on' : S.gp >= n.cost ? 'can' : 'lock';
-    return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}" data-pack="${n.pack}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(n.text)}</span>
+    return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}" data-pack="${n.pack}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(c(n.text))}</span>
       <small class="em-foe">${ps.open ? '' : `${ruby(ps.u.who)}を あと ${ps.left}回`}</small><em>${ps.open ? 'ひらいた' : `${n.cost}ポイント`}</em></button></li>`;
   };
   app().innerHTML = `<main class="zukan construct pb emblem">
@@ -681,7 +697,7 @@ function grow() {
     <h2>せいちょう</h2>
     <p class="em-pts">せいちょうポイント <b id="pb-gp">${S.gp}</b><small>たたかいに かつと ＋${PB.gpWin}、ステージを クリアすると ＋${PB.gpStage}。${ORIPA ? 'コイン' : 'もんだいの ポイント（P）'}とは べつ${ORIPA ? '。がくしゅうでも もらえる（はじめての クリアなど）' : ''}</small></p>
     <p class="zk-note">えだごとに、左から じゅんばんに とれる（「パック」の えだは どれからでも）。カードは つよく ならない：できる ことが ふえる。</p>
-    ${TREE.map((b) => `<section class="em-branch ${b.free ? 'em-any' : ''}" data-branch="${b.id}"><h3>${b.mark} ${esc(b.name)}<small>${esc(b.note)}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => (b.free ? packNode : node)(b, n, i)).join('')}</ol></section>`).join('')}
+    ${TREE.map((b) => `<section class="em-branch ${b.free ? 'em-any' : ''}" data-branch="${b.id}"><h3>${b.mark} ${esc(b.name)}<small>${esc(c(b.note))}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => (b.free ? packNode : node)(b, n, i)).join('')}</ol></section>`).join('')}
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
   </main>`;
   app().onclick = async (e) => {
@@ -693,7 +709,7 @@ function grow() {
       const p = packById(n.pack), ps = packState(p), name = p.name.replace(/（[^）]*）/g, '');
       if (ps.open) return toast('もう ひらいて いる（ショップで 買える）');
       const can = S.gp >= n.cost;
-      const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(n.text)}</p>${p.note ? `<p class="zk-note">${ruby(p.note)}</p>` : ''}
+      const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(c(n.text))}</p>${p.note ? `<p class="zk-note">${ruby(p.note)}</p>` : ''}
         <p class="what">カード ${ps.list.length}しゅるい・${c(`ショップで 1パック ${PB.pack}P`)}</p>
         <ul class="pb-list pb-how">
           <li>${ruby(`${ps.u.who}を ${PB.need}回 たおすと ひらく`)}<br><b>いま ${ps.wins}回・あと ${ps.left}回</b>${ps.canFight ? '' : `<br><small>ステージ ${ps.stage} が ひらくと たたかえる（いまは ポイントで ひらける）</small>`}</li>
@@ -706,7 +722,7 @@ function grow() {
     if (i < lv) return toast('もう とって いる');
     if (i > lv) return toast('左の ものから じゅんばんに とろう');
     if (S.gp < n.cost) return toast(`せいちょうポイントが たりない（あと ${n.cost - S.gp}）`);
-    const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(n.text)}</p><p class="cs-math">${S.gp} − ${n.cost} ＝ <b>${S.gp - n.cost}</b>ポイント</p>`,
+    const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(c(n.text))}</p><p class="cs-math">${S.gp} − ${n.cost} ＝ <b>${S.gp - n.cost}</b>ポイント</p>`,
       [{ label: 'とる', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'せいちょう' });
     if (v) { S.gp -= n.cost; S.tree = { ...S.tree, [b.id]: lv + 1 }; save(); }
     return grow();

@@ -3,7 +3,7 @@
 // みためは パック＆バトルの ドットの わく。もんだいの 文と 数字は 大きく（ひらがな 中心）
 // えんしゅつ（#lfx）は いつも いちばん 手前。まちがえた ときは 小さく やさしい 表示 だけ（大きい 字・ゆれ・かみふぶきは 出さない）
 import { UNITS, UNIT_NAME, newQ, mult, cnt, opCh, SF_COMBO, TN, LEARN_COIN, LEARN_GP, CLEAR_OK, rnd, pick } from '../data/learn.js';
-import { sfx } from './sfx.js';
+import { sfx, beep } from './sfx.js';
 import { esc } from './view.js';
 
 // がくしゅうの セーブ（パック＆バトルの セーブの learn）：
@@ -18,7 +18,10 @@ export function fixLearn(v) {
 }
 
 let O = null; // { app, get：セーブ, save, back, unitOpen(id), unitCost(id), goGrow, name }
-let st = null, Q = null, busy = false, sfAsked = false, lockUntil = 0;
+let st = null, Q = null, busy = false, sfAsked = false, lockUntil = 0, lastPres = '';
+// もんだいの 出しかた（けいさんオリパと おなじ 4つ）：まいかい ランダム。同じ 出しかたは つづけない
+const PRES = ['slot', 'gacha', 'card', 'dice'];
+const FP = (/p(slot|gacha|card|dice)/.exec(location.hash) || [])[1] || ''; // どうさかくにん用：#pslot など で こてい
 const S = () => O.get(), L = () => S().learn;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const app = () => O.app();
@@ -89,7 +92,7 @@ export function learnMenu(o) {
   };
   app().innerHTML = `<main class="zukan construct pb lq-menu">
     <p class="eyebrow">${esc(O.name)}</p>
-    <h2>がくしゅう</h2>
+    <div class="oripa-head"><h2>がくしゅう</h2>${O.fullBtn ? O.fullBtn() : ''}</div>
     <ul class="pb-stats">
       <li><span>コイン</span><b id="lq-coin">${s.pts}</b><small>コイン</small></li>
       <li><span>せいちょうポイント</span><b>${s.gp}</b><small>ポイント</small></li>
@@ -102,6 +105,7 @@ export function learnMenu(o) {
   app().onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.back) return O.back();
+    if (b.dataset.full) return O.fullTap().then(() => learnMenu());
     if (b.dataset.locked) return O.goGrow();
     if (b.dataset.unit) { sfx.tap(); return start(b.dataset.unit); }
   };
@@ -112,7 +116,10 @@ function start(mode) {
 }
 // つぎの もんだい。3つの かずが はじめて まざる ように なったら ごほうび
 function next() {
-  Q = newQ(st); lockUntil = Date.now() + (Q.word ? 0 : 350); // 出た すぐは 入力を うけない（れんだで つぎの もんだいに 入らない ように）
+  Q = newQ(st); lockUntil = 0;
+  // 出しかた：式の もんだいは えんしゅつが おわるまで 入力を うけない（spin）。文しょう題は 文が 1文ずつ あらわれる（intro）
+  Q.spin = !Q.word; Q.intro = Q.word; Q.spinning = false;
+  if (!Q.word) { Q.pres = FP || pick(PRES.filter((x) => x !== lastPres)); lastPres = Q.pres; }
   const u = L().units[st.mode];
   if (Q.open3 && !u.tri) { u.tri = 1; gp(LEARN_GP.tri, `${UNIT_NAME[st.mode]}で 3つの かずの もんだいが 出る ように なった`); }
 }
@@ -122,8 +129,83 @@ const os = (o) => `<span class="lq-op ${o === '-' ? 'mi' : o === '×' ? 'mu' : '
 const ansBox = () => `<span class="lq-ans ${Q.done ? 'ok' : ''}" id="lq-ans">${Q.input || '？'}</span>`;
 function eqHTML(small) {
   const unit = small ? `<span class="lq-u">${cnt(Q.ans, Q.u).slice(String(Q.ans).length)}</span>` : '';
-  if (Q.tri) return `<div class="lq-eq t3 ${small ? 's' : ''}" id="lq-eq">${Q.a}${os(Q.o1)}${Q.b}${os(Q.o2)}${Q.c}<span class="lq-is">＝</span>${ansBox()}${unit}</div>`;
-  return `<div class="lq-eq ${Q.tier ? `tq d${String(Q.a).length}` : ''} ${small ? 's' : ''}" id="lq-eq">${Q.a}${os(Q.op)}${Q.b}<span class="lq-is">＝</span>${ansBox()}${unit}</div>`;
+  const is = '<span class="lq-is">＝</span>';
+  if (Q.tri) { // 3つの かず：式 ぜんたいを 1ぎょうで。出る ときは 左から 1つずつ
+    const parts = [Q.a, os(Q.o1), Q.b, os(Q.o2), Q.c];
+    if (small) return `<div class="lq-eq t3 s" id="lq-eq">${parts.join('')}${is}${ansBox()}${unit}</div>`;
+    return `<div class="lq-eq t3" id="lq-eq">${parts.map((x, i) => `<span${Q.spin ? ` class="tin3" style="animation-delay:${i * 170}ms"` : ''}>${x}</span>`).join('')}${is}${ansBox()}</div>`;
+  }
+  if (Q.tier && !small) return `<div class="lq-eq tq d${String(Q.a).length} ${Q.spin ? 'hin' : ''}" id="lq-eq">${Q.a}${os(Q.op)}${Q.b}${is}${ansBox()}</div>`;
+  if (small) return `<div class="lq-eq s" id="lq-eq">${Q.a}${os(Q.op)}${Q.b}${is}${ansBox()}${unit}</div>`;
+  // 2つの かず：3つの ます（#lq-r0 かず・#lq-r1 ＋−・#lq-r2 かず）。スロットは リール、ほかは ガチャだま・カード・サイコロ
+  const sp = Q.spin ? ' spin' : '', slot = Q.pres === 'slot', kind = slot ? 'slotq' : `pq ${{ gacha: 'gq', card: 'cq', dice: 'dq' }[Q.pres]}`;
+  return `<div class="lq-eq ${kind}" id="lq-eq"><span class="lq-reel w${sp}" id="lq-r0"><span>${Q.a}</span></span><span class="lq-reel${!slot || Q.mode === 'mix' ? sp : ''}" id="lq-r1">${os(Q.op)}</span><span class="lq-reel${sp}" id="lq-r2"><span>${Q.b}</span></span>${is}${ansBox()}</div>`;
+}
+// ---- もんだいの 出しかた（けいさんオリパの えんしゅつ。きまりと 数は かえない：見せかた だけ）----
+const alive = (q) => Q === q && !!document.getElementById('lq-board');
+const el = (id) => document.getElementById(id);
+// スロット：左から じゅんに リールが とまる。3つめは すこし 長く まわる（1コマ 70ms・やく 1.5びょう）
+function spinQ(q) {
+  let tick = 0; const stop = [7, 12, 21], zc = q.op === '+' && q.a >= 6; // zc：ゾロめに なるかも
+  const iv = setInterval(() => {
+    if (!alive(q)) return clearInterval(iv);
+    tick++;
+    [0, 1, 2].forEach((i) => {
+      const e = el(`lq-r${i}`), f = e.firstChild;
+      if (tick === stop[i]) {
+        if (i === 1) { f.textContent = opCh(q.op); f.className = `lq-op ${q.op === '-' ? 'mi' : ''}`; } else f.textContent = i ? q.b : q.a;
+        e.classList.remove('spin', 'slow'); e.classList.add('hit'); beep(170, 0.12, 0, 'square', 0.1);
+      } else if (e.classList.contains('spin')) {
+        if (i === 1) { const pl = tick % 2; f.textContent = pl ? '＋' : '−'; f.className = `lq-op ${pl ? '' : 'mi'}`; }
+        else if (tick <= 17 || tick % 2) f.textContent = i === 0 && q.op === '-' ? rnd(11, 18) : rnd(2, 9);
+      }
+    });
+    if (tick === 18) { el('lq-r2').classList.add('slow'); if (zc) el('lq-eq').classList.add('zg'); } // ため。ゾロめの かのうせいが あれば 金色
+    if (tick % 2) beep(tick > 17 ? 700 + tick * 20 : 500 + (tick % 3) * 90, 0.03, 0, 'triangle', 0.03);
+    if (tick >= stop[2]) { clearInterval(iv); el('lq-eq').classList.remove('zg'); finish(q); }
+  }, 70);
+}
+// ガチャだま・カードめくり・サイコロ：3つの ますが きまった じゅんに ひらく（1コマ 70ms・やく 1.2びょう）
+const REV = { gacha: [9, 13, 17], card: [7, 11, 16], dice: [8, 11, 17] };
+function presentQ(q) {
+  if (q.pres === 'slot') return spinQ(q);
+  let tick = 0; const rev = REV[q.pres], zc = q.op === '+' && q.a >= 6, kind = q.pres;
+  const iv = setInterval(() => {
+    if (!alive(q)) return clearInterval(iv);
+    tick++;
+    [0, 1, 2].forEach((i) => {
+      const e = el(`lq-r${i}`), f = e.firstChild;
+      if (kind === 'card' && tick === rev[i] - 2) { e.classList.add('turn'); sfx.flip(); }
+      if (tick === rev[i]) {
+        if (i !== 1) f.textContent = i ? q.b : q.a;
+        e.classList.remove('spin', 'turn'); e.classList.add('hit');
+        if (kind === 'gacha') { beep(880, 0.07, 0, 'square', 0.07); beep(1319, 0.12, 0.06, 'square', 0.06); }
+        else if (kind === 'dice' && i === 1) beep(660, 0.1, 0, 'triangle', 0.08);
+        else beep(170, 0.12, 0, 'square', 0.1);
+        if (i === 0 && zc) el('lq-eq').classList.add('zg'); // ゾロめに なるかも：さいしょの かずを 金色に
+      } else if (kind === 'dice' && i !== 1 && e.classList.contains('spin') && tick % 2) {
+        f.textContent = i === 0 && q.op === '-' ? rnd(11, 18) : rnd(2, 9); // ころがって いる あいだ 目が かわる
+      }
+    });
+    if (kind === 'gacha' && (tick === 2 || tick === 4 || tick === 6)) beep(150, 0.1, 0, 'triangle', 0.09); // カプセルが おちる 音
+    if (kind === 'dice' && tick % 2) beep(380 + (tick % 3) * 70, 0.03, 0, 'triangle', 0.03);
+    if (tick >= rev[2]) { clearInterval(iv); setTimeout(() => { if (alive(q)) { el('lq-eq').classList.remove('zg'); finish(q); } }, 70); }
+  }, 70);
+}
+// 出しおわり：入力できる。ラッキーなら ここで しらせる（ひかり・音・かみふぶき ＋ しるし）
+function finish(q) {
+  q.spin = false;
+  if (q.lucky) { flash(0.6); sfx.rare(); confetti(30); render(); }
+}
+// 3つの かず：数と きごうが 左から 1つずつ 出る（やく 1.15びょう）
+function triIn(q) {
+  for (let i = 0; i < 5; i++) beep(i % 2 ? 660 : 440 + i * 60, 0.08, i * 0.17, 'triangle', 0.07);
+  setTimeout(() => { if (!alive(q)) return; for (const e of [...document.querySelectorAll('.tin3')]) e.classList.remove('tin3'); finish(q); }, 1150);
+}
+// はんいの そとの もんだい：式が とびだして くる（0.55びょう）
+function hellIn(q) {
+  beep(196, 0.12, 0, 'triangle', 0.08); beep(294, 0.18, 0.1, 'triangle', 0.08);
+  setTimeout(() => { if (alive(q)) q.spin = false; }, 550);
 }
 function hintHTML() {
   if (Q.tri) return `ひだりから じゅんに けいさんしよう。<br><b>${Q.a}</b>${opCh(Q.o1)}<b>${Q.b}</b>＝<b>${Q.mid}</b>。　<b>${Q.mid}</b>${opCh(Q.o2)}<b>${Q.c}</b>で …？`;
@@ -142,9 +224,9 @@ function render() {
   let h = `<main class="zukan construct pb lq ${sf || Q.tier ? 'hell' : ''} ${c >= 10 ? 'fv10' : c >= 5 ? 'fv' : ''}" data-unit="${st.mode}">
     <div class="lq-top"><button type="button" class="btn ghost" data-menu="1">◀ もどる</button><h2>${sf ? 'スーパーフィーバー！' : UNIT_NAME[st.mode]}</h2><span class="lq-coin">コイン <b id="lq-coin">${S().pts}</b></span></div>
     <div class="lq-bar">${cb}${sf ? '<button type="button" class="btn" data-unhell="1">ふつうに もどる</button>' : ''}</div>
-    <div class="lq-board ${Q.tier ? `tier t${Q.tier}` : Q.lucky ? 'lucky' : ''}" id="lq-board">`;
+    <div class="lq-board ${c >= 10 ? 'c10' : c >= 5 ? 'c5' : c >= 2 ? `c${c}` : ''} ${Q.tier ? `tier t${Q.tier}` : Q.lucky && !Q.spin ? 'lucky' : ''}" id="lq-board">`;
   if (Q.tier) h += `<p class="lq-tag t${Q.tier}" id="lq-tag">スーパー：${TN[Q.tier]}　コイン ${m}ばい</p>`;
-  else if (Q.lucky) h += `<p class="lq-tag">★ ${Q.zoro ? 'ゾロめ ボーナス' : 'ラッキーもんだい'}！ コイン 3ばい ★</p>`;
+  else if (Q.lucky && !Q.spin) h += `<p class="lq-tag">★ ${Q.zoro ? 'ゾロめ ボーナス' : 'ラッキーもんだい'}！ コイン 3ばい ★</p>`;
   let side;
   if (!Q.word) {
     h += eqHTML() + (Q.miss ? `<div class="lq-hint" id="lq-hint">${Q.tier ? tierHint() : hintHTML()}</div>` : '') + (Q.tier && Q.miss >= 2 ? '<button type="button" class="btn lq-skip" data-skip="1">パスして つぎの もんだいへ</button>' : '');
@@ -152,11 +234,15 @@ function render() {
   } else {
     const s = Q.step;
     h += `<div class="lq-steps"><span class="${s === 0 ? 'on' : 'done'}">① ことばを みつける</span><span class="${s === 1 ? 'on' : s > 1 ? 'done' : ''}">② たす？ ひく？</span><span class="${s === 2 ? 'on' : ''}">③ けいさん</span></div>`;
+    let sn = 0; // はじめ だけ、ばめん → とい の じゅんに 1文ずつ あらわれる
     h += `<div class="lq-story ${s === 0 ? 'pick' : ''}" id="lq-story">${Q.toks.map((t, i) => {
+      const dl = Q.intro ? ` style="animation-delay:${sn * 350}ms"` : '';
+      if (/。$/.test(t.t)) sn++;
       const shown = t.k && (s > 1 || (Q.tri && s === 1 && t.ki < Q.opi)); // たす／ひくが きまった ことばは 色を かえる（ひきざんは 青）
-      const cls = `lq-tok${t.k && s > 0 ? ` found${shown && t.o === '-' ? ' mi' : ''}` : ''}${t.k && ((s === 0 && Q.bad >= 2) || (s === 1 && Q.bad >= 1 && (!Q.tri || t.ki === Q.opi))) ? ' pulse' : ''}`;
-      return `<button type="button" class="${cls}" data-tok="${i}">${t.k ? `<span class="kw">${t.k}</span>` : ''}${t.t}</button>`;
+      const cls = `lq-tok${Q.intro ? ' tin' : ''}${t.k && s > 0 ? ` found${shown && t.o === '-' ? ' mi' : ''}` : ''}${t.k && ((s === 0 && Q.bad >= 2) || (s === 1 && Q.bad >= 1 && (!Q.tri || t.ki === Q.opi))) ? ' pulse' : ''}`;
+      return `<button type="button" class="${cls}" data-tok="${i}"${dl}>${t.k ? `<span class="kw">${t.k}</span>` : ''}${t.t}</button>`;
     }).join(' ')}</div>`;
+    if (Q.intro) { Q.intro = false; for (let k = 0; k < sn; k++) beep(520 + k * 130, 0.09, k * 0.35, 'triangle', 0.06); }
     if (Q.tri && s === 1) h += `<div class="lq-eq s t3">${Q.a}${Q.opi ? os(Q.o1) : '<span class="lq-ans q">？</span>'}${Q.b}<span class="lq-ans q">？</span>${Q.c}</div>`;
     const note = Q.tri && Q.o1 !== Q.o2 ? `「${Q.kw[0]}」は ${Q.o1 === '+' ? 'たしざん' : 'ひきざん'}、「${Q.kw[1]}」は ${Q.o2 === '+' ? 'たしざん' : 'ひきざん'}！`
       : `「${Q.kw.filter((x, i, a) => a.indexOf(x) === i).join('」「')}」は ${Q.op === '+' ? 'たしざん' : 'ひきざん'}の ことば！`;
@@ -166,8 +252,10 @@ function render() {
       <div class="lq-ops"><button type="button" class="lq-opb add" data-op="+"><span>＋</span>たしざん</button><button type="button" class="lq-opb sub" data-op="-"><span>−</span>ひきざん</button></div>`;
     else side = padHTML();
   }
-  app().innerHTML = `${h}</div><div class="lq-side">${side}</div></main>`;
+  const flames = sf || Q.tier ? `<div class="lq-flames" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<i style="animation-delay:-${(i * 137) % 500}ms"></i>`).join('')}</div>` : '';
+  app().innerHTML = `${h}</div><div class="lq-side">${side}</div>${flames}</main>`;
   app().onclick = click;
+  if (Q.spin && !Q.spinning) { Q.spinning = true; if (Q.tier) hellIn(Q); else if (Q.tri) triIn(Q); else presentQ(Q); }
 }
 const setAns = () => { const e = document.getElementById('lq-ans'); if (e) e.textContent = Q.input || '？'; };
 function click(e) {
@@ -176,8 +264,8 @@ function click(e) {
   const d = b.dataset;
   if (d.menu) { sfx.tap(); return learnMenu(); }
   if (Date.now() < lockUntil) return;
-  if (d.key != null) { if (Q.done) return; if (Q.input.length < (Q.tier ? 3 : 2)) Q.input = String(+(Q.input + d.key)); sfx.tap(); return setAns(); }
-  if (d.del) { Q.input = ''; sfx.tap(); return setAns(); }
+  if (d.key != null) { if (Q.done || Q.spin) return; if (Q.input.length < (Q.tier ? 3 : 2)) Q.input = String(+(Q.input + d.key)); sfx.tap(); return setAns(); }
+  if (d.del) { if (Q.spin) return; Q.input = ''; sfx.tap(); return setAns(); }
   if (d.ent) return answer();
   if (d.unhell) { st.hell = false; sfAsked = true; sfx.tap(); next(); return render(); } // じぶんで やめる：この フィーバーの あいだは もう きかない
   if (d.skip) { st.combo = 0; keep(); sfx.tap(); next(); return render(); } // パス：れんぞくは きれる
@@ -212,7 +300,7 @@ function gain(base) {
   coinUp();
 }
 function answer() {
-  if (busy || Q.done || !Q.input) return;
+  if (busy || Q.done || Q.spin || !Q.input) return;
   if (+Q.input === Q.ans) {
     Q.done = true; busy = true; st.okSeen++;
     st.combo = Q.miss || Q.bad ? 0 : st.combo + 1;
@@ -259,5 +347,5 @@ async function enterHell() {
   if (first) { sfx.unlock(); pop(`<span>せいちょうポイント ＋${LEARN_GP.sf}<small>はじめての スーパーフィーバー</small></span>`, 'gp', 2200); }
 }
 // テスト用（tools/e2e_oripa.mjs）：いまの もんだいと ようす
-export const learnPeek = () => (Q ? { mode: st.mode, a: Q.a, b: Q.b, c: Q.c, op: Q.op, o1: Q.o1, o2: Q.o2, ans: Q.ans, tri: !!Q.tri, tier: Q.tier || 0, lucky: !!Q.lucky, word: !!Q.word, step: Q.step, kw: Q.toks ? Q.toks.map((t, i) => (t.k ? i : -1)).filter((i) => i >= 0) : [], opi: Q.opi, combo: st.combo, hell: st.hell, qSeen: st.qSeen, okSeen: st.okSeen, busy } : null);
+export const learnPeek = () => (Q ? { mode: st.mode, a: Q.a, b: Q.b, c: Q.c, op: Q.op, o1: Q.o1, o2: Q.o2, ans: Q.ans, tri: !!Q.tri, tier: Q.tier || 0, lucky: !!Q.lucky, word: !!Q.word, step: Q.step, spin: !!Q.spin, pres: Q.pres || '', kw: Q.toks ? Q.toks.map((t, i) => (t.k ? i : -1)).filter((i) => i >= 0) : [], opi: Q.opi, combo: st.combo, hell: st.hell, qSeen: st.qSeen, okSeen: st.okSeen, busy } : null);
 export const learnPoke = (o) => { if (st) Object.assign(st, o); }; // テスト用：れんぞく などを きめる

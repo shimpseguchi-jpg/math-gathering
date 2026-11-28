@@ -4,6 +4,7 @@
 // ここで ぜんぶの キーの あたまに「motg-sansu-oripa:」を つける（ほかの アプリの キーと ぜったいに かさならない）
 import { setSolo, setOripa } from './solo.js';
 setSolo(); setOripa();
+document.documentElement.classList.add('oripa'); // 横画面の ならべかた など、合体版 だけの みため（css の :root.oripa）
 const PRE = 'motg-sansu-oripa', P = Storage.prototype, key = (k) => (String(k).startsWith(PRE) ? String(k) : `${PRE}:${k}`);
 const get = P.getItem, set = P.setItem, del = P.removeItem;
 P.getItem = function (k) { return get.call(this, key(k)); };

@@ -6,7 +6,7 @@
 const KEY = 'mtg-fullscreen'; // 'on' | 'off'（なければ iPad だけ on）
 const root = document.documentElement;
 const standalone = () => navigator.standalone === true || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
-const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+export const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
 // iPadOS の Safari は Mac と おなじ なまえで 名のる（タッチの 点が 2つ いじょう なら iPad）
 const iPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 let mode = (() => { try { return localStorage.getItem(KEY); } catch { return null; } })();

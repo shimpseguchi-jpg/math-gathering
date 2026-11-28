@@ -32,7 +32,8 @@ const TM = [1, 4, 6, 10, 10];
 const multOf = (q, combo) => Math.max(q.lucky ? 3 : 1, combo >= 10 ? 3 : combo >= 5 ? 2 : 1, TM[q.tier || 0]);
 const keys = async (v) => { for (const d of String(v)) await page.click(`[data-key="${d}"]`); await page.click('[data-ent]'); };
 // いまの もんだいを 出るまで まつ（入力を うけない 0.35びょうと、せいかいの あとの 1.3びょう）
-const ready = async () => { for (let i = 0; i < 80; i++) { const q = await peek(); if (q && !q.busy && !(await page.locator('#lq-ask').count())) break; await page.waitForTimeout(100); } await page.waitForTimeout(420); return peek(); };
+// いまの もんだいが 出おわる（出しかたの えんしゅつ・せいかいの あとの 1.3びょう）まで まつ
+const ready = async () => { for (let i = 0; i < 120; i++) { const q = await peek(); if (q && !q.busy && !q.spin && !(await page.locator('#lq-ask').count())) break; await page.waitForTimeout(60); } await page.waitForTimeout(60); return peek(); };
 // せいかいする。もらえる はずの コインを かえす。ask：スーパーフィーバーを きかれたら どう こたえるか（null：きかれない はず）
 let asked = 0;
 async function solve({ ask = 0 } = {}) {
@@ -79,10 +80,18 @@ await page.click('[data-back]'); await page.click('.pb-steps [data-go=learn]');
 
 // ---- ③ たしざん：まちがい → ヒント。せいかい → コイン ----
 await page.click('[data-unit=add]');
+// もんだいの 出しかた（けいさんオリパの えんしゅつ）：出て いる あいだは 入力を うけない
+await page.waitForTimeout(150);
+const sp = await page.evaluate(() => { const q = window.__oripaTest.peek(), e = document.getElementById('lq-eq'); return { spin: q.spin, pres: q.pres, cls: e.className, reels: document.querySelectorAll('#lq-eq .lq-reel').length, spinning: document.querySelectorAll('#lq-eq .lq-reel.spin').length, ans: q.ans }; });
+await page.click('[data-key="1"]'); await page.click('[data-ent]');
+const spIn = await page.evaluate(() => ({ t: document.getElementById('lq-ans').innerText.trim(), miss: document.querySelectorAll('#lq-hint').length }));
+check('③ もんだいの 出しかた：スロット・ガチャだま・カードめくり・サイコロの どれかで 出る（3つの ます）。出て いる あいだは 入力できない', sp.spin === true && ['slot', 'gacha', 'card', 'dice'].includes(sp.pres) && sp.reels === 3 && sp.spinning >= 2 && new RegExp({ slot: 'slotq', gacha: 'gq', card: 'cq', dice: 'dq' }[sp.pres]).test(sp.cls) && spIn.t === '？' && spIn.miss === 0, JSON.stringify(sp));
 let q = await ready();
+const spEnd = await page.evaluate(() => ({ spinning: document.querySelectorAll('#lq-eq .lq-reel.spin').length, hit: document.querySelectorAll('#lq-eq .lq-reel.hit').length, t: document.getElementById('lq-eq').innerText.replace(/\s/g, '') }));
+check('③ 出しおわると ますが とまって、式が そろう（数は もんだいと おなじ）', spEnd.spinning === 0 && spEnd.hit === 3 && spEnd.t === `${q.a}＋${q.b}＝？`, JSON.stringify(spEnd));
 await shot('03_quiz');
 const eqBox = await page.evaluate(() => { const e = document.getElementById('lq-eq'), b = document.getElementById('lq-board'); return { fs: parseFloat(getComputedStyle(e).fontSize), fit: e.scrollWidth <= b.clientWidth && document.documentElement.scrollWidth <= document.documentElement.clientWidth, t: e.innerText.replace(/\s/g, '') }; });
-check('③ もんだい：式が 大きい 字で 出て、画面に おさまる（くりあがりの たしざん）', eqBox.fs >= 48 && eqBox.fit && q.op === '+' && !q.tri && q.ans >= 11 && q.ans <= 18 && eqBox.t === `${q.a}＋${q.b}＝？`, JSON.stringify(eqBox));
+check('③ もんだい：式が 大きい 字で 出て、画面に おさまる（くりあがりの たしざん）', eqBox.fs >= 34 && eqBox.fit && q.op === '+' && !q.tri && q.ans >= 11 && q.ans <= 18 && eqBox.t === `${q.a}＋${q.b}＝？`, JSON.stringify(eqBox));
 await keys(q.ans === 11 ? 12 : 11); await page.waitForTimeout(250);
 const wrong = await page.evaluate(() => ({ pops: [...document.querySelectorAll('#lfx .lfx-pop')].map((p) => p.className + '|' + p.innerText.trim()), cf: document.querySelectorAll('#lfx .lfx-cf, #lfx .lfx-star, #lfx .lfx-beams').length, quake: !!document.querySelector('.lq-quake'), hint: document.getElementById('lq-hint')?.innerText.replace(/\s+/g, ' ') || '', skip: document.querySelectorAll('[data-skip]').length, fs: parseFloat(getComputedStyle(document.querySelector('#lfx .lfx-pop')).fontSize) }));
 await shot('04_wrong');
@@ -109,6 +118,7 @@ check('④ えんしゅつ：5〜7れんぞくは フィーバー（大きい �
 check('④ えんしゅつの そうは いちばん 手前', Number(seen[0].pops[0].z) >= 2147480000);
 check('④ スーパーフィーバーは 5もん れんぞくで 1回 だけ きかれる（「はいらない」の あと、同じ フィーバーでは もう きかれない）', asked === 1 && (await peek()).hell === false);
 check('④ 3つの かずは 4もんめ から（1〜3もんめには 出ない）', [r, ...seen].every((x) => !x.q.tri || x.q.qSeen >= 4) && (await peek()).qSeen >= 11);
+check('④ 出しかたは まいかい かわる（同じ 出しかたが つづかない）。4つの うち いくつも 出る', seen.every((x, i) => !i || x.q.pres !== seen[i - 1].q.pres) && new Set(seen.map((x) => x.q.pres)).size >= 3, seen.map((x) => (x.q.tri ? 'tri' : x.q.pres)).join(' '));
 check('④ せいちょうポイント：3つの かずの 初かいほう ＋2・たしざんの 初クリア（10もん せいかい）＋3', s.gp === 5 && s.learn.units.add.tri === 1 && s.learn.units.add.clear === 1 && s.learn.units.add.ok === 10, `gp ${s.gp}`);
 await shot('05_fever');
 // まちがえる → フィーバーが きれる → また 5れんぞくで もう いちど きかれる → はいる
@@ -341,6 +351,79 @@ check('⑪ まえの アプリ（パック＆バトル 単体版・けいさん�
 await page.click('[data-reset]'); await sheetClick('やりなおす');
 const z = await state();
 check('はじめから やりなおす：コイン 200・せいちょうポイント 0・たんげんは ロックに もどる', z.pts === 200 && z.gp === 0 && !z.tree.learn && z.learn.units.add.ok === 0 && z.learn.combo === 0);
+
+// ---- ⑫ ぜんがめんの ボタン ----
+{
+  const b0 = await text('.oripa-full');
+  const can = await page.evaluate(() => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled));
+  await page.click('.oripa-full'); await page.waitForTimeout(600);
+  const on = await page.evaluate(() => ({ full: !!(document.fullscreenElement || document.webkitFullscreenElement), t: document.querySelector('.oripa-full').innerText.trim(), home: !!document.querySelector('.pb-steps') }));
+  await page.click('.oripa-full'); await page.waitForTimeout(600);
+  const off = await page.evaluate(() => ({ full: !!(document.fullscreenElement || document.webkitFullscreenElement), t: document.querySelector('.oripa-full').innerText.trim() }));
+  check('⑫ ホームに「ぜんがめん」の ボタン。おすと ぜんがめん、もう いちど おすと もどる（ボタンの ことばも かわる）', b0 === 'ぜんがめん' && can && on.full && on.home && /やめる/.test(on.t) && !off.full && off.t === 'ぜんがめん', JSON.stringify({ b0, can, on, off }));
+  await page.click('.pb-steps [data-go=learn]');
+  check('⑫ がくしゅうの メニューにも ぜんがめんの ボタン', await page.locator('.lq-menu .oripa-full').count() === 1);
+  await page.click('[data-back]');
+  // ブラウザが ぜんがめんを ゆるさない とき（iPhone など）：おしても こわれない・わけが 出る
+  await page.evaluate(() => { for (const k of ['fullscreenEnabled', 'webkitFullscreenEnabled']) Object.defineProperty(document, k, { configurable: true, get: () => false }); });
+  await page.click('.pb-steps [data-go=learn]'); await page.click('[data-back]');
+  const offCls = await page.locator('.oripa-full.off').count();
+  await page.click('.oripa-full'); await page.waitForTimeout(300);
+  const tip = await text('#sheet .sheet-body');
+  check('⑫ ぜんがめんが つかえない ブラウザ：ボタンは うすく 出て、おすと「できない」と わかる（こわれない）', offCls === 1 && /ぜんがめんに できない/.test(tip) && errors.length === 0, tip.slice(0, 60));
+  await sheetClick('とじる');
+  await page.evaluate(() => { for (const k of ['fullscreenEnabled', 'webkitFullscreenEnabled']) delete document[k]; });
+}
+
+// ---- ⑬ よこ画面（iPad：1180×820）と たて画面 ----
+{
+  await page.evaluate((k) => { const s = JSON.parse(localStorage.getItem(k)); s.pts = 900; s.gp = 12; s.tree = { learn: 2 }; for (const id of ['W11', 'W14', 'U01', 'U30', 'R02', 'R28', 'G09', 'G11']) s.cards[id] = 4; localStorage.setItem(k, JSON.stringify(s)); }, KEY);
+  await page.setViewportSize({ width: 1180, height: 820 }); await page.reload(); await page.locator('.pb-steps').waitFor();
+  const box = (sel) => page.evaluate((q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), r: Math.round(r.right), b: Math.round(r.bottom) }; }, sel);
+  const doc = () => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, sh: document.documentElement.scrollHeight, w: innerWidth, h: innerHeight }));
+  const cols = (sel) => page.evaluate((q) => new Set([...document.querySelectorAll(q)].map((e) => Math.round(e.getBoundingClientRect().left))).size, sel);
+  const L = {};
+  L.home = { main: await box('main.pb'), stats: await box('.pb-stats'), steps: await box('.pb-steps'), doc: await doc() }; await shot('L1_home');
+  check('⑬ よこ画面・ホーム：はばを 広く つかう（1000px いじょう）。左に ようす・右に 入口の 2れつ。横に はみ出さない', L.home.main.w >= 1000 && L.home.steps.x > L.home.stats.r && L.home.steps.y < L.home.stats.b && L.home.doc.sw <= 1180 && L.home.doc.sh <= 900, JSON.stringify(L.home));
+  await page.click('.pb-steps [data-go=learn]');
+  L.menu = { stats: await box('.pb-stats'), steps: await box('.pb-steps'), doc: await doc() }; await shot('L2_learn');
+  check('⑬ よこ画面・がくしゅうの メニュー：左に ようす・右に たんげん 4つ', L.menu.steps.x > L.menu.stats.r && L.menu.doc.sw <= 1180 && L.menu.doc.sh <= 900, JSON.stringify(L.menu));
+  await page.click('[data-unit=add]'); await page.waitForTimeout(300); await shot('L3_quiz_pres');
+  let lq = await ready();
+  L.quiz = { board: await box('#lq-board'), pad: await box('.lq-pad'), key: await box('.lq-key'), doc: await doc(), fs: await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById('lq-eq')).fontSize)) }; await shot('L4_quiz');
+  check('⑬ よこ画面・もんだい：1画面（スクロール なし）。左に 式、右に 数字の ボタン。式の 字は 64px いじょう・ボタンは 大きい', L.quiz.pad.x >= L.quiz.board.r && L.quiz.board.w >= 600 && L.quiz.doc.sh <= 820 && L.quiz.doc.sw <= 1180 && L.quiz.pad.b <= 820 && L.quiz.fs >= 64 && L.quiz.key.h >= 100, JSON.stringify(L.quiz));
+  await keys(lq.ans === 11 ? 12 : 11); await page.waitForTimeout(200);
+  check('⑬ よこ画面・もんだい：ヒントが 出ても 1画面に おさまる', (await doc()).sh <= 820 && (await box('#lq-hint')).b <= (await box('#lq-board')).b);
+  await page.click('[data-menu]'); await page.click('[data-unit=word]'); lq = await ready(); await page.waitForTimeout(1200);
+  L.word = { board: await box('#lq-board'), side: await box('.lq-side'), story: await box('#lq-story'), doc: await doc(), fs: await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById('lq-story')).fontSize)) }; await shot('L5_word');
+  await page.click(`[data-tok="${lq.kw[0]}"]`); await page.waitForTimeout(200);
+  L.word.ops = await box('.lq-ops'); await shot('L6_word_op');
+  check('⑬ よこ画面・文しょう題：1画面。左に 文（字は 28px いじょう）、右に たす？ ひく？', L.word.side.x >= L.word.board.r && L.word.fs >= 28 && L.word.doc.sh <= 820 && L.word.story.b <= L.word.board.b && L.word.ops.x >= L.word.board.r && L.word.ops.b <= 820, JSON.stringify(L.word));
+  await page.click('[data-menu]'); await page.click('[data-back]');
+  await page.click('.pb-steps [data-go=shop]'); L.shop = { cols: await cols('.cs-sets > .cs-set'), doc: await doc() }; await shot('L7_shop'); await page.click('[data-back]');
+  await page.click('.pb-steps [data-go=grow]'); L.grow = { w: (await box('.em-branch')).w, row: await page.evaluate(() => new Set([...document.querySelectorAll('.em-branch[data-branch=pack] .em-node')].map((e) => Math.round(e.getBoundingClientRect().top))).size), doc: await doc() }; await shot('L8_grow'); await page.click('[data-back]');
+  await page.click('.pb-steps [data-go=deck]'); L.decks = { cols: await page.evaluate(() => getComputedStyle(document.querySelector('.cs-decks')).gridTemplateColumns.split(' ').length), doc: await doc() }; await shot('L9_decks');
+  await page.click('[data-new]'); await page.locator('.builder').waitFor(); L.builder = { main: await box('main.builder'), list: await box('.bp-list'), detail: await box('.bp-detail'), doc: await doc() }; await shot('L10_builder');
+  await page.click('[data-a=ok]'); await page.waitForTimeout(200);
+  if (await page.locator('#sheet:not([hidden]) button:has-text("デッキの いちらんへ")').count()) await sheetClick('デッキの いちらんへ');
+  await page.click('[data-back]');
+  await page.click('.pb-steps [data-go=battle]'); L.arena = { cols: await cols('.st-ch > ol > li'), doc: await doc() }; await shot('L11_arena');
+  check('⑬ よこ画面・ショップ／デッキの いちらん／あいての リスト：2れつ。せいちょう：はば いっぱい（パックの 枝は 3だん いない）。横に はみ出さない', L.shop.cols === 2 && L.decks.cols === 2 && L.arena.cols === 2 && L.grow.w >= 1000 && L.grow.row <= 3 && [L.shop, L.grow, L.decks, L.arena].every((x) => x.doc.sw <= 1180), JSON.stringify({ shop: L.shop, grow: L.grow, decks: L.decks, arena: L.arena }));
+  check('⑬ よこ画面・デッキを くむ：はばを 広く つかう（カードの ならびと せつめいの 2まい）', L.builder.main.w >= 1000 && L.builder.detail.x >= L.builder.list.r - 2 && L.builder.doc.sw <= 1180, JSON.stringify(L.builder));
+  await page.locator('[data-foe]').first().click(); await page.waitForTimeout(500);
+  if (await page.locator('#sheet:not([hidden]) button:has-text("はじめる")').count()) await sheetClick('はじめる');
+  await page.locator('.battle').waitFor(); await page.waitForTimeout(1500);
+  L.battle = { b: await box('.battle'), doc: await doc() }; await shot('L12_battle');
+  check('⑬ よこ画面・バトル：画面 いっぱい（スクロール なし）', L.battle.b.w >= 1100 && L.battle.doc.sh <= 820 && L.battle.doc.sw <= 1180, JSON.stringify(L.battle));
+  await page.click('[data-act=menu]'); await sheetClick('ホームへ もどる');
+  // たて画面に もどす：まえの ならび（1れつ）
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200);
+  const P = { stats: await box('.pb-stats'), steps: await box('.pb-steps'), main: await box('main.pb'), doc: await doc() };
+  await page.click('.pb-steps [data-go=learn]'); await page.click('[data-unit=add]'); await ready();
+  P.board = await box('#lq-board'); P.pad = await box('.lq-pad'); P.q = await doc();
+  await page.click('[data-menu]'); await page.click('[data-back]'); await page.click('.pb-steps [data-go=shop]'); P.shop = await cols('.cs-sets > .cs-set'); await page.click('[data-back]');
+  check('⑬ たて画面（390×844）：いままでの ならび（入口は ようすの 下・数字の ボタンは 式の 下・ショップは 1れつ）。横に はみ出さない', P.steps.y >= P.stats.b && P.main.w <= 390 && P.pad.y >= P.board.b && P.shop === 1 && P.doc.sw <= 390 && P.q.sw <= 390, JSON.stringify(P));
+}
 
 check('そとへの 通信が ない（この ファイル 1つ だけ）', outside.length === 0, outside.slice(0, 3).join(' '));
 check('エラーが 出ない', errors.length === 0, errors.slice(0, 3).join(' ｜ '));
