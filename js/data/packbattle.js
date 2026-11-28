@@ -430,6 +430,12 @@ export const PB_TREE = [
   { id: 'deck', mark: '▲', name: 'デッキの わく', note: 'のこせる デッキの 数が ふえる',
     nodes: [{ cost: 3, text: `デッキを ${PB.deckBase + 1}こまで` }, { cost: 5, text: `デッキを ${PB.deckBase + 2}こまで` }] },
 ];
+// 合体版「さんすうオリパ」だけ：がくしゅうの 枝（たんげんを ふやす）。ほかの 枝と おなじ「左から じゅんばん」。tree.learn ＝ とった 数（1：まぜまぜ、2：ぶんしょうもんだい）
+// たしざん・ひきざんは はじめから。docs/SANSU_ORIPA.md 4章
+export const PB_TREE_LEARN = { id: 'learn', mark: '＋', name: 'がくしゅう', note: 'がくしゅうの たんげんが ふえる',
+  nodes: [{ cost: 3, unit: 'mix', text: 'がくしゅうに「まぜまぜ」' }, { cost: 5, unit: 'word', text: 'がくしゅうに「ぶんしょうもんだい」' }] };
+export const learnUnitOpen = (tree = {}, unit) => { const i = PB_TREE_LEARN.nodes.findIndex((n) => n.unit === unit); return i < 0 || (tree.learn || 0) > i; };
+export const ORIPA_NAME = 'Mathematics of the Gathering〜さんすうオリパ〜';
 export const capOf = (tree = {}) => PB.cap + PB.capStep * (tree.cap || 0);
 export const deckMaxOf = (tree = {}) => PB.deckBase + (tree.deck || 0);
 

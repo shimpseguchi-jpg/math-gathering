@@ -1916,3 +1916,176 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 .em-branch.em-any .em-nodes li + li::before { content: none; }
 .em-foe { font-size: 10.5px; line-height: 1.4; color: var(--ink-dim); }
 .pb-how { text-align: left; } .pb-how li { margin: 6px 0; } .pb-how small { color: var(--ink-dim); }
+
+/* ---- 合体版「Mathematics of the Gathering〜さんすうオリパ〜」：がくしゅう（ui/learn.js。docs/SANSU_ORIPA.md）----
+   わくと ボタンは パック＆バトルの ドット。もんだいの 文と 数字は 大きく（数字は 太い ゴシック：ドットの 字より 読みやすい） */
+.oripa-title { font-size: clamp(20px, 6.2vw, 30px); line-height: 1.25; } .oripa-title small { display: block; font-size: 0.62em; margin-top: 2px; }
+.lq-mark { font-style: normal; font-family: var(--display); font-size: 20px; color: var(--gold); margin-left: 6px; }
+.lq-unit.lock { opacity: 0.75; border-style: dashed; }
+.lq-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.lq-top h2 { margin: 0; font-size: clamp(18px, 5.4vw, 26px); text-align: center; } .lq[data-unit=word] .lq-top h2 { font-size: clamp(13px, 4.2vw, 22px); white-space: nowrap; } .lq.hell .lq-top h2 { font-size: clamp(14px, 4.4vw, 24px); white-space: nowrap; color: #ff9a5c; }
+.lq-top .btn { width: auto; min-height: 40px; padding: 6px 10px; font-size: 14px; }
+.lq-coin { font-size: 13px; white-space: nowrap; } .lq-coin b { font-family: var(--display); font-size: 22px; color: var(--gold); }
+.lq-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; margin: 6px 0; }
+.lq-bar .btn { width: auto; min-height: 34px; padding: 4px 10px; font-size: 13px; }
+.lq-combo { font-family: var(--display); font-size: 18px; color: #6bb8ff; } .lq-combo.c5 { color: var(--gold); } .lq-combo.c10 { color: #ff8be0; }
+.lq-board { position: relative; overflow: hidden; background: #fffdf4; color: #1a1436; border: 3px solid var(--gold); box-shadow: 0 0 0 2px #04030c, 4px 4px 0 2px rgba(0, 0, 0, 0.55); padding: 26px 10px 14px; min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
+.lq-board.lucky { background: #fff6c8; } .lq-board.tier { background: #2a0705; color: #ffe9d6; border-color: #ff7a3d; }
+.lq-tag { position: absolute; top: 0; left: 50%; transform: translateX(-50%); margin: 0; padding: 2px 12px; background: #d6247a; color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.lq-tag.t1 { background: #16a34a; } .lq-tag.t2 { background: #b87400; } .lq-tag.t3 { background: #e11d48; } .lq-tag.t4 { background: #7a3fd0; }
+.lq-eq { display: flex; align-items: center; justify-content: center; gap: 0.12em; font-family: 'Hiragino Maru Gothic ProN', 'Zen Maru Gothic', system-ui, sans-serif; font-weight: 900; line-height: 1; font-size: clamp(40px, 13.6vw, 84px); max-width: 100%; animation: lq-in 0.3s ease-out; }
+.lq-eq.t3 { font-size: clamp(28px, 9.4vw, 58px); } .lq-eq.tq { font-size: clamp(34px, 11.4vw, 70px); } .lq-eq.tq.d3 { font-size: clamp(28px, 9.4vw, 58px); }
+.lq-eq.s { font-size: clamp(32px, 10.6vw, 56px); } .lq-eq.s.t3 { font-size: clamp(24px, 8vw, 46px); }
+.lq-op { color: #e8360c; } .lq-op.mi { color: #1466d8; } .lq-op.mu { color: #8a2be2; }
+.lq .hell .lq-op, .lq-board.tier .lq-op { color: #ff9a5c; }
+.lq-ans { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.2em; padding: 0 0.06em; border: 3px dashed #8c7bb5; border-radius: 10px; background: #fff; color: #1a1436; }
+.lq-ans.ok { border-style: solid; border-color: #12b35f; background: #d9ffe9; } .lq-ans.soft { border-color: #6b55b8; background: #efeaff; }
+.lq-ans.q { min-width: 1.2em; height: 1.1em; font-size: 0.7em; }
+.lq-u { font-size: 0.45em; align-self: flex-end; }
+.lq-hint { background: #fff3c4; color: #1a1436; border: 3px solid #ffc93c; border-radius: 10px; padding: 8px 12px; font-size: clamp(15px, 4.4vw, 20px); font-weight: 700; line-height: 1.6; }
+.lq-hint b { color: #e8360c; font-size: 1.15em; } .lq-sm { font-size: 0.8em; }
+.lq-board.tier .lq-hint { background: #3a0d08; color: #ffe9d6; border-color: #ff7a3d; } .lq-board.tier .lq-hint b { color: #ffd23c; }
+.lq-skip { width: auto; }
+.lq-side { margin-top: 12px; }
+.lq-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lq-key { min-height: 58px; font-family: var(--display); font-size: 28px; color: var(--ink); background: var(--win, #241a52); border: 2px solid var(--line); box-shadow: 0 0 0 2px #04030c, 3px 3px 0 2px rgba(0, 0, 0, 0.5); cursor: pointer; }
+.lq-key:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px #04030c; }
+.lq-key.del { font-size: 17px; background: #4a1f2a; } .lq-key.go { font-size: 18px; background: var(--gold); color: var(--gold-ink, #1d1204); border-color: var(--gold); }
+.lq.hell .lq-key { background: #4a120c; } .lq.hell .lq-key.go { background: #ff7a3d; border-color: #ff7a3d; }
+.lq-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.lq-steps span { padding: 3px 10px; border-radius: 999px; background: #e6def7; color: #8c7bb5; } .lq-steps span.on { background: #6a1fd0; color: #fff; } .lq-steps span.done { background: #12b35f; color: #fff; }
+.lq-story { font-size: clamp(19px, 5.6vw, 26px); font-weight: 700; line-height: 2; text-align: left; width: 100%; }
+.lq-tok { display: inline; font: inherit; color: inherit; background: none; border: 0; border-bottom: 4px solid transparent; border-radius: 8px; padding: 0 4px; margin: 0 1px; cursor: default; }
+.lq-story.pick .lq-tok { background: #f1ecfb; border-bottom-color: #cfc0f0; cursor: pointer; }
+.lq-tok.ng { background: #ffd9d9 !important; } .lq-tok.pulse { animation: lq-pk 0.7s ease-in-out infinite alternate; }
+.lq-tok.found .kw { background: linear-gradient(transparent 45%, #ffe04a 45%); color: #e8360c; font-weight: 900; }
+.lq-tok.found.mi .kw { background: linear-gradient(transparent 45%, #9be0ff 45%); color: #1466d8; }
+.lq-note { margin: 0; font-size: clamp(15px, 4.4vw, 19px); font-weight: 900; color: #6a1fd0; }
+.lq-guide { margin: 0 0 10px; padding: 12px; text-align: center; font-size: 17px; font-weight: 700; line-height: 1.6; border: 2px solid var(--line); background: var(--win, #241a52); } .lq-guide b { color: var(--gold); }
+.lq-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lq-opb { min-height: 96px; font-size: 20px; font-weight: 900; color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 2px #04030c, 4px 4px 0 2px rgba(0, 0, 0, 0.5); cursor: pointer; } .lq-opb span { display: block; font-size: 44px; line-height: 1; }
+.lq-opb.add { background: #c8401c; } .lq-opb.sub { background: #1c5cc8; }
+.lq.fv .lq-board { box-shadow: 0 0 0 2px #04030c, 0 0 0 5px #ffb13d, 4px 4px 0 5px rgba(0, 0, 0, 0.55); } .lq.fv10 .lq-board { box-shadow: 0 0 0 2px #04030c, 0 0 0 5px #ff8be0, 4px 4px 0 5px rgba(0, 0, 0, 0.55); }
+.lq-quake { animation: lq-qk 0.25s; }
+@keyframes lq-qk { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
+@keyframes lq-in { from { transform: scale(0.85); opacity: 0; } }
+@keyframes lq-pk { to { background: #ffe9a8; } }
+/* えんしゅつの そう：いつも いちばん 手前（さわれない） */
+#lfx { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; overflow: hidden; }
+#lfx > .lfx-dark, #lfx > .lfx-glow, #lfx > .lfx-flash { position: absolute; inset: 0; opacity: 0; }
+.lfx-dark { background: #000; transition: opacity 0.12s; } .lfx-flash { background: #fff; }
+.lfx-glow { background: linear-gradient(120deg, rgba(255, 93, 93, 0.6), rgba(255, 243, 92, 0.6), rgba(93, 255, 143, 0.6), rgba(93, 200, 255, 0.6), rgba(181, 107, 255, 0.6)); }
+.lfx-pop { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-family: var(--display); line-height: 1.2; color: #ffe04a; text-shadow: 3px 3px 0 #04030c, -2px -2px 0 #04030c, 2px -2px 0 #04030c, -2px 2px 0 #04030c; animation: lfx-popi 1s both; }
+.lfx-pop small { display: block; font-size: 0.45em; color: #fff; }
+.lfx-pop.p0 { top: 98px; font-size: clamp(17px, 5vw, 24px); text-shadow: none; } .lfx-pop.p0 small { display: inline; font-size: 0.8em; margin-left: 8px; } .lfx-pop.p0 span { display: inline-block; background: #14112a; border: 2px solid var(--gold, #f4c94c); padding: 3px 14px; }
+.lfx-pop.p1 { font-size: clamp(38px, 12vw, 68px); } .lfx-pop.p2 { top: 27%; font-size: clamp(38px, 12vw, 80px); }
+.lfx-pop.p3 { top: 24%; font-size: clamp(34px, 10.4vw, 90px); color: #fff; } .lfx-pop b { white-space: nowrap; }
+.lfx-pop.p3 b { font-weight: 400; background: linear-gradient(90deg, #ff5d5d, #ffb13d, #fff35c, #5dff8f, #5dc8ff, #b56bff, #ff5dd0); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(3px 3px 0 #04030c); }
+.lfx-pop.p3.sf { top: 30%; font-size: clamp(30px, 9vw, 80px); }
+.lfx-pop.mini { top: 98px; font-family: inherit; font-size: clamp(14px, 4vw, 18px); font-weight: 700; color: #fff; text-shadow: none; } .lfx-pop.mini span { display: inline-block; background: #6b55b8; border-radius: 999px; padding: 5px 16px; }
+.lfx-pop.gp { top: auto; bottom: 22%; font-size: clamp(16px, 4.6vw, 22px); color: #1d1204; text-shadow: none; } .lfx-pop.gp span { display: inline-block; background: var(--gold, #f4c94c); padding: 8px 16px; box-shadow: 0 0 0 2px #04030c, 4px 4px 0 2px rgba(0, 0, 0, 0.55); } .lfx-pop.gp small { color: #1d1204; font-size: 0.75em; }
+@keyframes lfx-popi { 0% { transform: scale(0.2); opacity: 0; } 20% { transform: scale(1.1); opacity: 1; } 35% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-30px); } }
+.lfx-cf { position: absolute; top: -20px; width: 10px; height: 16px; }
+.lfx-star { position: absolute; left: 50%; top: 45%; font-style: normal; font-size: 30px; color: #ffe04a; text-shadow: 2px 2px 0 #04030c; }
+.lfx-beams { position: absolute; left: 50%; top: 45%; width: 220vmax; height: 220vmax; border-radius: 50%; opacity: 0; background: repeating-conic-gradient(var(--bc, #fff6a8) 0 6deg, transparent 6deg 18deg); -webkit-mask: radial-gradient(circle, #000 0, transparent 60%); mask: radial-gradient(circle, #000 0, transparent 60%); }
+#lq-ask { position: fixed; inset: 0; z-index: 2147482000; display: grid; place-items: center; padding: 16px; background: rgba(6, 4, 20, 0.86); }
+.lq-ask-in { max-width: 460px; padding: 18px 16px; text-align: center; color: #f8f8f8; background: #241a52; border: 3px solid var(--gold, #f4c94c); box-shadow: 0 0 0 2px #04030c, 6px 6px 0 2px rgba(0, 0, 0, 0.6); }
+.lq-ask-in h3 { margin: 0 0 10px; font-family: var(--display); font-weight: 400; font-size: clamp(20px, 6vw, 28px); color: var(--gold, #f4c94c); }
+.lq-ask-in p { margin: 0 0 14px; font-size: 16px; font-weight: 700; line-height: 1.7; } .lq-ask-in p b { color: #ffd23c; }
+.lq-ask-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (prefers-reduced-motion: reduce) { .lq-quake, .lq-eq { animation: none; } }
+
+/* ---- がくしゅう：もんだいの 出しかた（けいさんオリパの えんしゅつ。スロット・ガチャだま・カードめくり・サイコロ／3つの かず／はんいの そと／文しょう題）----
+   大きさは 式の 字の 大きさ（em）で きめる：たて画面でも よこ画面でも 同じ 形 */
+.lq-reel { display: inline-grid; place-items: center; overflow: hidden; min-width: 1.1em; height: 1.75em; padding: 0 0.12em; border-radius: 0.16em; background: linear-gradient(180deg, #aaa, #fff 28%, #fff 72%, #aaa); border: 3px solid #5a2c00; color: #1a1436; box-sizing: border-box; }
+.lq-reel.w { min-width: 1.55em; }
+.lq-eq.slotq { gap: 0.07em; font-size: clamp(34px, 10.6vw, 80px); padding: 0.14em; border-radius: 0.28em; border: 4px solid #fff3a0; background: linear-gradient(180deg, #ff3d6e, #a3002f); box-shadow: 0 0 0 2px #04030c, inset 0 0 12px rgba(0, 0, 0, 0.5); color: #fff; }
+.slotq .lq-ans { min-width: 1.4em; height: 1.75em; }
+.slotq .lq-reel.spin span { animation: lq-rs 0.13s linear infinite; filter: blur(2px); }
+.lq-reel.slow span { animation-duration: 0.32s !important; filter: none !important; }
+.slotq.zg { border-color: #ffd23c; box-shadow: 0 0 0 2px #04030c, 0 0 30px 8px #ffd23c, inset 0 0 12px rgba(0, 0, 0, 0.5); } .slotq.zg #lq-r2 { border-color: #ffd23c; box-shadow: 0 0 18px #ffd23c; }
+.slotq .lq-reel.hit { animation: lq-bump 0.35s 2; border-color: #ffe04a; box-shadow: 0 0 18px #ffe04a; }
+.lq-eq.pq { gap: 0.1em; font-size: clamp(30px, 9.2vw, 70px); padding: 0.16em 0; }
+.pq .lq-reel { width: 1.77em; min-width: 0; height: 1.77em; padding: 0; background: #fff; border: 4px solid #b79cf0; }
+.pq #lq-r1 { width: 1.2em; } .pq .lq-ans { min-width: 1.6em; height: 1.77em; }
+.pq .lq-reel.spin span { opacity: 0; }
+.pq.zg #lq-r0 { border-color: #ffd23c; box-shadow: 0 0 22px 8px #ffd23c; }
+.gq .lq-reel { border-radius: 50%; } .gq #lq-r1 { height: 1.2em; }
+.gq .lq-reel.spin { border-color: #fff; background: linear-gradient(180deg, var(--cap) 0 46%, #fff 46% 54%, #f2f2f7 54%); box-shadow: inset -0.14em -0.14em 0 rgba(0, 0, 0, 0.13); animation: lq-gdrop 0.38s cubic-bezier(0.3, 1.5, 0.5, 1) backwards, lq-wob 0.45s 0.4s ease-in-out infinite; }
+.gq #lq-r0 { --cap: #19b8a6; } .gq #lq-r1 { --cap: #ff8a3d; } .gq #lq-r2 { --cap: #8a63d2; }
+.gq #lq-r1.spin { animation-delay: 0.14s, 0.54s; } .gq #lq-r2.spin { animation-delay: 0.28s, 0.68s; }
+.gq .lq-reel.hit, .dq #lq-r1.hit { animation: lq-gpop 0.32s cubic-bezier(0.2, 1.8, 0.4, 1); }
+.cq .lq-reel { height: 2.14em; border-radius: 0.2em; border-color: #2b3a67; background: #fffdf5; } .cq .lq-ans { height: 2.14em; }
+.cq .lq-reel.spin { border-color: #dfe6ff; background: repeating-linear-gradient(45deg, #24345e 0 10px, #2f4479 10px 20px); transition: transform 0.13s ease-in; animation: lq-cdeal 0.22s ease-out backwards; }
+.cq #lq-r1.spin { animation-delay: 0.08s; } .cq #lq-r2.spin { animation-delay: 0.16s; }
+.cq .lq-reel.turn { transform: rotateY(90deg); } .cq .lq-reel.hit { animation: lq-cflip 0.2s ease-out; }
+.dq .lq-reel { border-radius: 0.34em; border-color: #c9c9d6; box-shadow: inset 0 -0.13em 0 #e3e3ee; }
+.dq .lq-reel.spin { animation: lq-droll 0.3s linear infinite; } .dq .lq-reel.spin span { opacity: 1; filter: blur(1px); }
+.dq #lq-r2.spin { animation-delay: -0.12s; } .dq .lq-reel.hit { animation: lq-bump 0.3s; }
+.dq #lq-r1 { background: none; border-color: transparent; box-shadow: none; } .dq #lq-r1.spin { animation: none; transform: scale(0); } .dq #lq-r1.spin span { opacity: 0; }
+.lq-eq .tin3 { opacity: 0; animation: lq-tin3 0.3s cubic-bezier(0.2, 1.6, 0.4, 1) forwards; }
+.lq-eq.hin { animation: lq-hin 0.5s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.lq-tok.tin { opacity: 0; animation: lq-tin 0.25s ease-out forwards; }
+.lq-ans.soft { animation: lq-soft 0.5s; }
+.lq-board.c2 { border-color: #2f9dff; } .lq-board.c3 { border-color: #19b8a6; } .lq-board.c4 { border-color: #22c55e; } .lq-board.c5 { border-color: #ffb800; } .lq-board.c10 { border-color: #ff8be0; }
+.lq-board.lucky { border-color: #ff5dd0; animation: lq-lk 0.6s ease-in-out infinite alternate; }
+.lq-flames { position: fixed; left: 0; right: 0; bottom: 0; height: 26px; display: flex; justify-content: space-between; pointer-events: none; z-index: 1; opacity: 0.85; }
+.lq-flames i { width: 22px; height: 22px; align-self: flex-end; background: linear-gradient(135deg, #ffd23c, #ff5a1f 55%, #a30d00); transform-origin: 50% 100%; clip-path: polygon(50% 0, 100% 100%, 0 100%); animation: lq-flick 0.5s ease-in-out infinite alternate; }
+@keyframes lq-rs { from { transform: translateY(-1.2em); } to { transform: translateY(1.2em); } }
+@keyframes lq-bump { 50% { transform: scale(1.2); } }
+@keyframes lq-wob { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) scale(1.06); } }
+@keyframes lq-gdrop { from { transform: translateY(-4.5em); opacity: 0; } }
+@keyframes lq-gpop { from { transform: scale(0.2); } }
+@keyframes lq-cdeal { from { transform: translate(-2.2em, -0.6em) rotate(-18deg); opacity: 0; } }
+@keyframes lq-cflip { from { transform: rotateY(-90deg); } }
+@keyframes lq-droll { 0% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-0.42em) rotate(90deg); } 50% { transform: translateY(0) rotate(180deg); } 75% { transform: translateY(-0.22em) rotate(270deg); } 100% { transform: translateY(0) rotate(360deg); } }
+@keyframes lq-tin3 { from { opacity: 0; transform: scale(2.2); } to { opacity: 1; } }
+@keyframes lq-hin { from { transform: scale(2.6); opacity: 0; filter: blur(8px); } }
+@keyframes lq-tin { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; } }
+@keyframes lq-soft { 0%, 100% { filter: none; } 40% { filter: brightness(0.92) sepia(0.25); } }
+@keyframes lq-lk { to { box-shadow: 0 0 0 2px #04030c, 0 0 22px #ff5dd0, 4px 4px 0 2px rgba(0, 0, 0, 0.55); } }
+@keyframes lq-flick { from { transform: scale(0.85, 0.8) rotate(-4deg); } to { transform: scale(1.1, 1.6) rotate(4deg); } }
+
+/* もんだいの 画面は 1画面に おさめる（上下の よはくで 画面より 高く ならない ように） */
+main.pb.lq { box-sizing: border-box; }
+:root.oripa main.pb { box-sizing: border-box; }
+/* ---- 合体版：ぜんがめんの ボタン ---- */
+.oripa-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; } .oripa-head h2 { margin: 0; }
+.oripa-full { flex: none; width: auto; min-height: 38px; padding: 6px 12px; font-size: 13px; white-space: nowrap; } .oripa-full.off { opacity: 0.6; }
+.oripa-full[aria-pressed="true"] { border-color: var(--good); }
+
+/* ---- 合体版：よこ画面（iPad など。1180×820 くらい）。たて画面は いままでの まま ----
+   はばを 広く つかう：ホームと がくしゅうの メニューは 左に ようす・右に 入口、もんだいは 左に 式・右に 数字の ボタン（1画面）、
+   ショップ・デッキ・あいての リストは 2れつ。バトルは もとから 画面 いっぱい */
+@media (orientation: landscape) and (min-width: 900px) {
+  :root.oripa #app:has(> main.pb), :root.oripa #app:has(> main.builder) { max-width: 1180px; }
+  :root.oripa main.pb, :root.oripa main.pb.emblem { max-width: none; }
+  /* ホーム・がくしゅうの メニュー */
+  :root.oripa main.pb.oripa, :root.oripa main.pb.lq-menu { display: grid; grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr); grid-auto-rows: min-content; column-gap: 22px; row-gap: 10px; align-content: start; }
+  :root.oripa main.pb.oripa > *, :root.oripa main.pb.lq-menu > * { grid-column: 1; margin: 0; }
+  :root.oripa main.pb.oripa > .pb-steps, :root.oripa main.pb.lq-menu > .pb-steps { grid-column: 2; grid-row: 1 / span 12; display: flex !important; flex-direction: column; gap: 10px; align-self: start; }
+  :root.oripa main.pb.oripa > .pb-stats, :root.oripa main.pb.lq-menu > .pb-stats { grid-template-columns: 1fr 1fr; }
+  :root.oripa main.pb.oripa > .pb-steps .st-ep { min-height: 84px; } :root.oripa main.pb.oripa .st-title { font-size: 22px; }
+  :root.oripa main.pb.lq-menu > .pb-steps .st-ep { min-height: 92px; } :root.oripa .lq-menu .st-title { font-size: 24px; } :root.oripa .lq-mark { font-size: 28px; }
+  /* もんだい：1画面（スクロール なし）。左に 式・右に 数字の ボタン */
+  :root.oripa main.pb.lq { display: grid; grid-template-columns: minmax(0, 1fr) 350px; grid-template-rows: auto auto minmax(0, 1fr); column-gap: 16px; row-gap: 6px; height: 100%; min-height: 0; box-sizing: border-box; padding-block: 12px; }
+  :root.oripa .lq > .lq-top, :root.oripa .lq > .lq-bar { grid-column: 1 / -1; margin: 0; }
+  :root.oripa .lq > .lq-board { grid-column: 1; min-height: 0; padding: 34px 20px 18px; gap: 16px; }
+  :root.oripa .lq > .lq-side { grid-column: 2; margin: 0; display: flex; flex-direction: column; min-height: 0; }
+  :root.oripa .lq-pad { flex: 1; grid-template-rows: repeat(4, 1fr); gap: 10px; } :root.oripa .lq-key { font-size: 40px; min-height: 0; } :root.oripa .lq-key.del, :root.oripa .lq-key.go { font-size: 22px; }
+  :root.oripa .lq-top h2 { font-size: 30px !important; } :root.oripa .lq-coin b { font-size: 30px; } :root.oripa .lq-combo { font-size: 24px; } :root.oripa .lq-tag { font-size: 19px; padding: 3px 18px; }
+  :root.oripa .lq-eq { font-size: 104px; } :root.oripa .lq-eq.slotq { font-size: 80px; } :root.oripa .lq-eq.pq { font-size: 70px; }
+  :root.oripa .lq-eq.t3 { font-size: 64px; } :root.oripa .lq-eq.tq { font-size: 72px; } :root.oripa .lq-eq.tq.d3 { font-size: 62px; }
+  :root.oripa .lq-eq.s { font-size: 60px; } :root.oripa .lq-eq.s.t3 { font-size: 50px; }
+  :root.oripa .lq-hint { font-size: 23px; padding: 8px 18px; } :root.oripa .lq-story { font-size: 30px; line-height: 1.9; } :root.oripa .lq-steps { font-size: 17px; } :root.oripa .lq-note { font-size: 22px; }
+  :root.oripa .lq-guide { flex: none; font-size: 21px; padding: 18px 12px; } :root.oripa .lq-ops { flex: 1; grid-template-columns: 1fr; } :root.oripa .lq-opb { font-size: 28px; } :root.oripa .lq-opb span { font-size: 54px; }
+  :root.oripa .lq-side > .lq-guide:only-child { flex: 1; display: grid; place-items: center; }
+  :root.oripa .lfx-pop.p0, :root.oripa .lfx-pop.mini { top: 112px; right: 366px; font-size: 26px; } :root.oripa .lfx-pop.gp { font-size: 24px; }
+  /* ショップ・デッキの いちらん・あいての リスト：2れつ */
+  :root.oripa .pb .cs-sets, :root.oripa .pb .cs-decks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+  :root.oripa .pb .st-ch > ol { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+  :root.oripa .pb .st-ch > ol > li { display: flex; } :root.oripa .pb .st-ch > ol > li > .st-ep { flex: 1; }
+  :root.oripa .pb.emblem .em-nodes { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  :root.oripa .study { max-width: 900px; margin-inline: auto; }
+}
+

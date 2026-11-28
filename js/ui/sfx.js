@@ -64,3 +64,5 @@ export const sfx = {
   unlock: () => { [72, 79, 84].forEach((n, i) => tone(NOTE(n), i * 0.08, 0.28, { type: 'triangle', gain: 0.08 })); tone(NOTE(91), 0.26, 0.6, { type: 'sine', gain: 0.05 }); }, // あたらしく かいほう された！
   trophy: () => { [67, 72, 76, 79].forEach((n, i) => tone(NOTE(n), i * 0.09, 0.3, { type: 'triangle', gain: 0.08 })); tone(NOTE(84), 0.4, 0.6, { type: 'sine', gain: 0.07 }); },
 };
+// みじかい 音 1つ（がくしゅうの もんだいの 出しかた：リールの カチカチ など）。f：高さ（Hz）、d：長さ（びょう）、t：なんびょう あとか
+export const beep = (f, d, t = 0, type = 'square', v = 0.07) => tone(f, t, d, { type, gain: v });
