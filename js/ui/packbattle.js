@@ -9,7 +9,7 @@ import { CATS, QUIZ_SECONDS } from '../data/quiz.js';
 import {
   PB, PB_NAME, PB_STAGES, PB_STARTER, PB_TREE, quizGain, battleGain, deckProblems,
   foesOf, foeFloor, towerFloor, guildFloor, topStage, endlessAt, PB_SIG, PB_PAL, SIG_COPIES, PB_MAIN, ghostDeck, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
-  PB_UNLOCK, PB_SHOP_BANDS, PB_SHOP_TREE, packOpen, unlockWins, unlockStage,
+  PB_UNLOCK, packOpen, unlockWins, unlockStage,
 } from '../data/packbattle.js';
 import { HARD_TIERS, hardSession } from '../data/quiz2.js';
 import { PB_FACES } from '../data/pbfaces.js';
@@ -310,9 +310,8 @@ function realtime() {
 
 // ---- ② ショップ：ポイントで パックを あける。4まい もって いる カードは 出ない（こうちくモードと おなじ） ----
 const packCards = (p) => p.ids.filter((id) => BY_ID[id]);
-// ショップは 横むきの 木：START が 左、右へ 本編 → サブセット → 番外編（帯で 色わけ）。ひしがたが パック。左右に スクロール（スワイプ）で たどる
-// ひらいて いない パック（ロック）は、きまった あいてを PB.need 回 たおすか、せいちょうポイントで ひらく（data/packbattle.js の PB_UNLOCK）
-const TREE = { w: 108, h: 112, left: 8, top: 34, r: 30 };
+// ショップは リスト（2026-11-28 の 夜に 横むきの 木を やめて もどした）。買えるのは ひらいて いる パック だけ
+// ロックの パックは 買えない 行：ひらく じょうけん（あと ○回・○ポイント）と「せいちょうで かいほう」。ひらくのは せいちょうの「パック」の 枝（か、きまった あいてを PB.need 回 たおす）
 const packById = (id) => packsFor().find((p) => p.id === id);
 const isOpen = (id) => packOpen(id, S);
 const packState = (p) => {
@@ -321,79 +320,45 @@ const packState = (p) => {
   const wins = u ? Math.min(PB.need, unlockWins(p.id, S.beat, S.seed)) : 0;
   return { list, have, full, done: full === list.length, open, u, wins, left: PB.need - wins, canFight: u ? unlockStage(p.id) <= top() : true, stage: u ? unlockStage(p.id) + 1 : 0 };
 };
-let SHOP_X = 0; // 木の よこの いち（買って もどって きても おなじ ところ）
 function shop() {
   if (!S.open) return home();
   const afford = S.pts >= PB.pack;
-  const at = (n) => ({ x: TREE.left + n.col * TREE.w + TREE.w / 2, y: TREE.top + n.row * TREE.h + TREE.r + 14 });
-  const START = { col: 0, row: 1 }, pos = { start: at(START) };
-  for (const n of PB_SHOP_TREE) pos[n.id] = at(n);
-  const cols = Math.max(...PB_SHOP_TREE.map((n) => n.col)) + 1, W = TREE.left * 2 + cols * TREE.w, H = TREE.top + 3 * TREE.h + 6;
-  const bands = PB_SHOP_BANDS.map((b) => `<div class="pb-band pb-b-${b.id}" style="left:${TREE.left + b.cols[0] * TREE.w}px;width:${(b.cols[1] - b.cols[0] + 1) * TREE.w}px"><b>${ruby(b.name)}</b></div>`).join('');
-  // 線：左の パック → 右の パック（かくかくの 線）。右の パックが ひらいて いれば 金
-  const lines = PB_SHOP_TREE.flatMap((n) => n.from.map((f) => {
-    const a = pos[f], b = pos[n.id], mx = Math.round((a.x + b.x) / 2);
-    return `<path class="${isOpen(n.id) ? 'on' : ''}" d="M${a.x} ${a.y}H${mx}V${b.y}H${b.x}"/>`;
-  })).join('');
-  const nodes = PB_SHOP_TREE.map((n) => {
-    const p = packById(n.id), st = packState(p), c = pos[n.id];
-    const cls = st.open ? (st.done ? 'done' : 'open') : 'lock';
-    const mark = st.open ? (st.done ? 'OK' : `${PB.pack}P`) : 'ロック';
-    const sub = st.open ? `${st.have}/${st.list.length}` : `あと ${st.left}回・${st.u.cost}ポイント`;
-    return `<button type="button" class="pb-nd ${cls} pb-b-${n.band}" data-pack="${p.id}" style="left:${c.x}px;top:${c.y}px" aria-label="${esc(p.name.replace(/（[^）]*）/g, ''))}${st.open ? '' : '（ロック）'}">
-      <i class="pb-dia"><span>${mark}</span></i><b>${esc(n.short)}</b><small>${sub}</small></button>`;
+  const rows = packsFor().map((p) => {
+    const st = packState(p);
+    if (!st.open) return `<li class="cs-set pb-pack-lock" data-lock="${p.id}">
+      <span class="cs-set-name"><b>${ruby(p.name)}</b>
+        <small>${p.note ? `${ruby(p.note)}・` : ''}${st.list.length}しゅるい</small>
+        <small class="pb-pack-how">ロック：${ruby(st.u.who)}を あと ${st.left}回 たおす か、せいちょうポイント ${st.u.cost}。「せいちょう」で かいほうできる</small></span>
+      <button type="button" class="btn" data-go="grow">ロック<small>せいちょうへ</small></button>
+    </li>`;
+    return `<li class="cs-set ${st.done ? 'done' : ''}">
+      <span class="cs-set-name"><b>${ruby(p.name)}</b>
+        <small>${p.note ? `${ruby(p.note)}・` : ''}もって いる ${st.have} / ${st.list.length}しゅるい</small></span>
+      <button type="button" class="btn ${st.done ? '' : 'primary'}" data-buy="${p.id}" ${st.done || !afford ? 'disabled' : ''}>${st.done ? 'コンプリート！' : 'あける'}<small>${st.done ? 'ぜんぶ 4まい' : `${PB.pack}P`}</small></button>
+    </li>`;
   }).join('');
-  const nOpen = PB_SHOP_TREE.filter((n) => isOpen(n.id)).length;
   app().innerHTML = `<main class="zukan construct pb">
     <p class="eyebrow">${PB_NAME}</p>
     <h2>ショップ</h2>
-    <p class="zk-total">ポイント <b>${S.pts}</b>P<small class="pb-shop-gp">せいちょうポイント <b>${S.gp}</b></small></p>
-    <p class="zk-note">${ruby(`パック 1つ ${PB.pack}P。カードが 8まい 入って いる。ひしがたを おすと、パックの 中みと あけかたが 見える。ロックの パックは、きまった あいてを ${PB.need}回 たおすか、せいちょうポイントで ひらく（どの パックからでも ひらける）。`)}</p>
+    <p class="zk-total">ポイント <b>${S.pts}</b>P</p>
+    <p class="zk-note">${ruby(`パック 1つ ${PB.pack}P。カードが 8まい 入って いる。中の カードは あけるまで わからない。同じ カードは ${MAX_COPY}まいまで（${MAX_COPY}まい もって いる カードは もう 出ない）。ロックの パックは「せいちょう」で かいほうできる。`)}</p>
     ${afford ? '' : `<div class="pb-need"><p>ポイントが あと <b>${PB.pack - S.pts}P</b> たりない。もんだいを といて ためよう。</p><button type="button" class="btn primary" data-go="quiz">もんだいへ<small>1もん せいかいで ＋${PB.quiz}P</small></button></div>`}
-    <p class="pb-swipe">左右に スワイプで 木を たどる。ひらいて いる パック ${nOpen} / ${PB_SHOP_TREE.length}</p>
-    <div class="pb-tree-wrap" tabindex="0" aria-label="パックの 木"><div class="pb-tree" style="width:${W}px;height:${H}px">
-      ${bands}
-      <svg class="pb-lines" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${lines}</svg>
-      <span class="pb-start" style="left:${pos.start.x}px;top:${pos.start.y}px">START</span>
-      ${nodes}
-    </div></div>
+    <ul class="cs-sets">${rows}</ul>
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
   </main>`;
-  const wrap = app().querySelector('.pb-tree-wrap');
-  wrap.scrollLeft = SHOP_X; wrap.onscroll = () => { SHOP_X = wrap.scrollLeft; };
   app().onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.back) return home();
     if (b.dataset.go === 'quiz') return quiz();
-    if (b.dataset.pack) return packSheet(packById(b.dataset.pack));
+    if (b.dataset.go === 'grow') return grow();
+    if (b.dataset.buy) return buy(packById(b.dataset.buy));
   };
 }
-// パックの まど：名前・しょうかい・ねだん・ひらく じょうけん。ひらいて いれば「あける」、ロックなら「ポイントで ひらく」
-async function packSheet(p) {
-  const st = packState(p), u = st.u;
-  const head = `<p><b>${ruby(p.name)}</b></p>${p.note ? `<p class="zk-note">${ruby(p.note)}</p>` : ''}<p class="what">カード ${st.list.length}しゅるい（もって いる ${st.have}）・1パック ${PB.pack}P で 8まい</p>`;
-  if (st.open) {
-    if (st.done) { await sheet(`${head}<p>コンプリート！ ぜんぶ ${MAX_COPY}まい もって いる。</p>`, [{ label: 'とじる', value: 0 }], { title: 'ショップ' }); return shop(); }
-    const can = S.pts >= PB.pack;
-    const v = await sheet(`${head}<p class="cs-math">${can ? `${S.pts}P − ${PB.pack}P ＝ <b>${S.pts - PB.pack}</b>P` : `ポイントが あと <b>${PB.pack - S.pts}P</b> たりない`}</p>`,
-      [{ label: 'あける', note: `${PB.pack}P`, value: 'buy', kind: 'primary', disabled: !can }, { label: 'やめる', value: 0 }], { title: 'ショップ' });
-    return v === 'buy' ? buy(p) : shop();
-  }
-  const can = S.gp >= u.cost;
-  const v = await sheet(`${head}<p><b>ロック</b>：つぎの どちらかで ひらく</p>
-    <ul class="pb-list pb-how">
-      <li>${ruby(`${u.who}を ${PB.need}回 たおす`)}<br><b>いま ${st.wins}回・あと ${st.left}回</b>${st.canFight ? '' : `<br><small>ステージ ${st.stage} が ひらくと たたかえる（いまは ポイントで ひらける）</small>`}</li>
-      <li>せいちょうポイント <b>${u.cost}</b>で ひらく<br>${can ? `<span class="cs-math">${S.gp} − ${u.cost} ＝ <b>${S.gp - u.cost}</b>ポイント</span>` : `<small>いま ${S.gp}ポイント（あと ${u.cost - S.gp}）</small>`}</li>
-    </ul>`,
-    [{ label: 'ポイントで ひらく', note: `せいちょうポイント ${u.cost}`, value: 'open', kind: 'primary', disabled: !can }, { label: 'やめる', value: 0 }], { title: 'ショップ' });
-  if (v === 'open' && S.gp >= u.cost && !isOpen(p.id)) {
-    S.gp -= u.cost; S.packs = { ...(S.packs || {}), [p.id]: 1 }; save();
-    toast(`${p.name.replace(/（[^）]*）/g, '')}が ひらいた！`);
-  }
-  return shop();
-}
 async function buy(p) {
-  if (!p || S.pts < PB.pack || !isOpen(p.id)) return shop(); // たしかめは packSheet で すんで いる
+  if (!p || S.pts < PB.pack || !isOpen(p.id)) return shop(); // ロックの パックは 買えない
+  const ok = await sheet(`<p>${ruby(`${p.name}を あける？`)}</p><p class="cs-math">${S.pts}P − ${PB.pack}P ＝ <b>${S.pts - PB.pack}</b>P</p>`,
+    [{ label: 'あける', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'ショップ' });
+  if (!ok) return shop();
   const before = { ...S.cards };
   const cards = openPack(Math.random, { ids: packCards(p), have: before, max: MAX_COPY });
   if (!cards.length) return shop(); // コンプリート（ボタンは おせないので ここには こない）
@@ -618,7 +583,7 @@ function fight(f) {
       await anteShow(card, dupe);
       // きまった あいてを PB.need 回 たおした：パックが ひらく
       const newPacks = packsFor().filter((p) => isOpen(p.id) && !openWas.includes(p.id));
-      if (newPacks.length) await sheet(`<p>${newPacks.map((p) => `<b>${ruby(p.name)}</b>`).join('と ')}が ショップで ひらいた！</p><p class="zk-note">${ruby(foeName(f))}を ${PB.need}回 たおした。</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'パックが ひらいた', dismiss: false });
+      if (newPacks.length) await sheet(`<p>${newPacks.map((p) => `<b>${ruby(p.name)}</b>`).join('と ')}が ひらいた！ ショップで 買える。</p><p class="zk-note">${ruby(foeName(f))}を ${PB.need}回 たおした。</p>`, [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'パックが ひらいた', dismiss: false });
       if (cleared) {
         const N = PB_STAGES.length;
         NEWS_TEXT.pbStage = now >= N
@@ -641,12 +606,18 @@ function grow() {
     const lv = S.tree[b.id] || 0, st = i < lv ? 'on' : i === lv && S.gp >= n.cost ? 'can' : 'lock';
     return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(n.text)}</span><em>${i < lv ? 'とった' : `${n.cost}ポイント`}</em></button></li>`;
   };
+  // 「パック」の 枝（free）：ノード ＝ ロックの パック。じゅんばんの きまりは ない。ねだんと、あいてを あと 何回 たおせば ひらくか
+  const packNode = (b, n, i) => {
+    const p = packById(n.pack), ps = packState(p), st = ps.open ? 'on' : S.gp >= n.cost ? 'can' : 'lock';
+    return `<li><button type="button" class="em-node ${st}" data-b="${b.id}" data-i="${i}" data-pack="${n.pack}"><span class="em-lv">${b.mark}<b>${i + 1}</b></span><span class="em-text">${ruby(n.text)}</span>
+      <small class="em-foe">${ps.open ? '' : `${ruby(ps.u.who)}を あと ${ps.left}回`}</small><em>${ps.open ? 'ひらいた' : `${n.cost}ポイント`}</em></button></li>`;
+  };
   app().innerHTML = `<main class="zukan construct pb emblem">
     <p class="eyebrow">${PB_NAME}</p>
     <h2>せいちょう</h2>
     <p class="em-pts">せいちょうポイント <b id="pb-gp">${S.gp}</b><small>たたかいに かつと ＋${PB.gpWin}、ステージを クリアすると ＋${PB.gpStage}。もんだいの ポイント（P）とは べつ</small></p>
-    <p class="zk-note">えだごとに、左から じゅんばんに とれる。カードは つよく ならない：できる ことが ふえる。パックは「ショップ」で ひらく。</p>
-    ${PB_TREE.map((b) => `<section class="em-branch"><h3>${b.mark} ${esc(b.name)}<small>${esc(b.note)}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => node(b, n, i)).join('')}</ol></section>`).join('')}
+    <p class="zk-note">えだごとに、左から じゅんばんに とれる（「パック」の えだは どれからでも）。カードは つよく ならない：できる ことが ふえる。</p>
+    ${PB_TREE.map((b) => `<section class="em-branch ${b.free ? 'em-any' : ''}" data-branch="${b.id}"><h3>${b.mark} ${esc(b.name)}<small>${esc(b.note)}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => (b.free ? packNode : node)(b, n, i)).join('')}</ol></section>`).join('')}
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
   </main>`;
   app().onclick = async (e) => {
@@ -654,6 +625,20 @@ function grow() {
     if (el.dataset.back) return home();
     const b = PB_TREE.find((x) => x.id === el.dataset.b); if (!b) return;
     const i = +el.dataset.i, lv = S.tree[b.id] || 0, n = b.nodes[i];
+    if (b.free) {
+      const p = packById(n.pack), ps = packState(p), name = p.name.replace(/（[^）]*）/g, '');
+      if (ps.open) return toast('もう ひらいて いる（ショップで 買える）');
+      const can = S.gp >= n.cost;
+      const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(n.text)}</p>${p.note ? `<p class="zk-note">${ruby(p.note)}</p>` : ''}
+        <p class="what">カード ${ps.list.length}しゅるい・ショップで 1パック ${PB.pack}P</p>
+        <ul class="pb-list pb-how">
+          <li>${ruby(`${ps.u.who}を ${PB.need}回 たおすと ひらく`)}<br><b>いま ${ps.wins}回・あと ${ps.left}回</b>${ps.canFight ? '' : `<br><small>ステージ ${ps.stage} が ひらくと たたかえる（いまは ポイントで ひらける）</small>`}</li>
+          <li>せいちょうポイント <b>${n.cost}</b>で ひらく<br>${can ? `<span class="cs-math">${S.gp} − ${n.cost} ＝ <b>${S.gp - n.cost}</b>ポイント</span>` : `<small>いま ${S.gp}ポイント（あと ${n.cost - S.gp}）</small>`}</li>
+        </ul>`,
+        [{ label: 'ポイントで ひらく', note: `せいちょうポイント ${n.cost}`, value: 1, kind: 'primary', disabled: !can }, { label: 'やめる', value: 0 }], { title: 'せいちょう' });
+      if (v && S.gp >= n.cost && !isOpen(p.id)) { S.gp -= n.cost; S.packs = { ...(S.packs || {}), [p.id]: 1 }; save(); toast(`${name}が ひらいた！ ショップで 買える`); }
+      return grow();
+    }
     if (i < lv) return toast('もう とって いる');
     if (i > lv) return toast('左の ものから じゅんばんに とろう');
     if (S.gp < n.cost) return toast(`せいちょうポイントが たりない（あと ${n.cost - S.gp}）`);

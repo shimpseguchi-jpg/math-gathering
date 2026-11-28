@@ -178,7 +178,7 @@ check('④ よみこみなおしても あいた まま（すぐ ホーム）', 
 
 // ---- ⑤ ショップ：パックを あける ----
 const openPack = async (id) => {
-  await page.click(`[data-pack=${id}]`); await sheetClick("あける");
+  await page.click(`[data-buy=${id}]`); await sheetClick('あける');
   for (let i = 0; i < 400 && await page.locator('.gacha').count(); i++) {
     if (i === 3) await noRoutes('パックを あける 画面');
     for (const [sel, wait] of [['[data-open]', 650], ['[data-flip]', 1100], ['.stage.shown', 400], ['[data-done]', 100]]) {

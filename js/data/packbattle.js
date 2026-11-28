@@ -385,30 +385,6 @@ export const unlockStage = (id) => Math.min(...PB_UNLOCK[id].stages.map((sid) =>
 export const unlockWins = (id, beat = {}, seed = 1) => unlockFoes(id, seed).reduce((t, f) => t + (beat[f.key] || 0), 0);
 // ひらいて いるか。sv：セーブ（packs：ポイントで ひらいた・うつしかえで ひらいた パック、beat、seed）
 export const packOpen = (id, sv) => !PB_UNLOCK[id] || !!sv.packs?.[id] || unlockWins(id, sv.beat, sv.seed) >= PB.need;
-// ショップの 木（横むき：START が 左、右へ のびる）。band：帯（色わけ）、col・row：ます（row は 0〜2）、from：線で つながる 左がわの パック（かざり。ひらく じゅんばんの きまりでは ない）
-export const PB_SHOP_BANDS = [
-  { id: 'main', name: '本編（ほんぺん）', cols: [1, 3] },
-  { id: 'sub', name: 'サブセット', cols: [4, 5] },
-  { id: 'extra', name: '番外編（ばんがいへん）', cols: [6, 8] },
-];
-export const PB_SHOP_TREE = [
-  { id: 'p1', band: 'main', col: 1, row: 1, from: ['start'], short: 'みならい' },
-  { id: 's1', band: 'main', col: 2, row: 0, from: ['p1'], short: '第1弾' },
-  { id: 's2', band: 'main', col: 2, row: 2, from: ['p1'], short: '第2弾' },
-  { id: 's3', band: 'main', col: 3, row: 0, from: ['s1'], short: '第3弾' },
-  { id: 's4', band: 'main', col: 3, row: 1, from: ['s1', 's2'], short: '第4弾' },
-  { id: 's5', band: 'main', col: 3, row: 2, from: ['s2'], short: '第5弾' },
-  { id: 's6', band: 'sub', col: 4, row: 0, from: ['s3'], short: '三つの旗' },
-  { id: 's7', band: 'sub', col: 4, row: 2, from: ['s5'], short: 'アルケミー' },
-  { id: 's9', band: 'sub', col: 5, row: 1, from: ['s6', 's7'], short: 'ラヴニカ' },
-  { id: 's10', band: 'extra', col: 6, row: 0, from: ['s9'], short: 'FGO' },
-  { id: 's11', band: 'extra', col: 6, row: 1, from: ['s9'], short: 'スタレ' },
-  { id: 's12', band: 'extra', col: 6, row: 2, from: ['s9'], short: 'ゼンゼロ' },
-  { id: 's14', band: 'extra', col: 7, row: 0, from: ['s10'], short: 'FGO 2' },
-  { id: 's15', band: 'extra', col: 7, row: 1, from: ['s11'], short: 'スタレ 2' },
-  { id: 's16', band: 'extra', col: 7, row: 2, from: ['s12'], short: 'ゼンゼロ 2' },
-  { id: 's17', band: 'extra', col: 8, row: 1, from: ['s14', 's15', 's16'], short: 'まほよ' },
-];
 // むげんの たたかい（ぜんぶ クリアした あとの おまけ）：「むずかしい」の 2つの ステージを じゅんばんに。1しゅう ごとに てきの クリーチャーが ＋1/＋1
 const LOOP = PB_STAGES.map((t, si) => si).filter((si) => PB_STAGES[si].diff === 'hard' && !PB_STAGES[si].special);
 export function endlessAt(n, seed = 1) {
@@ -445,6 +421,10 @@ export function antePick(foe, rng) {
 export const PB_TREE = [
   { id: 'cap', mark: '◆', name: 'キャパシティ', note: 'デッキに 入れられる 点が ふえる',
     nodes: [2, 3, 4, 5, 6].map((cost, i) => ({ cost, text: `デッキの 点が ${PB.cap + PB.capStep * (i + 1)}点までに` })) },
+  // パック（2026-11-28）：ロックの パック 13こ（ショップの ならびと おなじ：本編 → サブセット → 番外編）。free：じゅんばんの きまりが ない（どれからでも ひらける。あいてを 3回 たおして ひらく パックが とびとびに ひらく ため）
+  // とった かどうかは セーブの packs と かった 回数（packOpen）。tree.pack（数）は つかわない
+  { id: 'pack', mark: '■', name: 'パック', note: 'ショップで 買える パックを ひらく（どれからでも。きまった あいてを 3回 たおしても ひらく）', free: true,
+    nodes: Object.entries(PB_UNLOCK).map(([id, u]) => ({ pack: id, cost: u.cost, text: `ショップに ${[...PB_PACKS, ...PB_PACKS_MORE, ...PB_PACKS_SPECIAL].find((x) => x.id === id).name}` })) },
   { id: 'quiz', mark: '？', name: 'もんだい', note: 'むずかしい もんだいが とける（もらえる ポイントが 多い）',
     nodes: [{ cost: 4, text: `むずかしい もんだい（1もん ${PB.quizTier[1]}P）` }, { cost: 6, text: `とても むずかしい もんだい（1もん ${PB.quizTier[2]}P）` }] },
   { id: 'deck', mark: '▲', name: 'デッキの わく', note: 'のこせる デッキの 数が ふえる',

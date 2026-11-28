@@ -237,7 +237,7 @@ await page.click('[data-back]');
 // ---- ② ショップ：パックを あける（「〇〇を てに いれた！」）----
 const openPack = async (id) => {
   let got = '';
-  await page.click(`[data-pack=${id}]`); await sheetClick('あける');
+  await page.click(`[data-buy=${id}]`); await sheetClick('あける');
   for (let i = 0; i < 400 && await page.locator('.gacha').count(); i++) {
     if (!got && await page.locator('.gacha-hint.got').count()) got = (await page.locator('.gacha-hint.got').innerText()).replace(/\s+/g, ' ');
     for (const [sel, wait] of [['[data-open]', 650], ['[data-flip]', 1100], ['.stage.shown', 400], ['[data-done]', 100]]) {
@@ -249,28 +249,13 @@ const openPack = async (id) => {
 await page.click('.pb-steps [data-go=shop]');
 await shot('07_shop');
 {
-  const T = await page.evaluate(() => { const w = document.querySelector('.pb-tree-wrap'), q = (x) => [...document.querySelectorAll(x)]; const r = (el) => el.getBoundingClientRect();
-    return { all: q('.pb-nd').map((x) => x.dataset.pack).join(), open: q('.pb-nd:not(.lock)').map((x) => x.dataset.pack).join(), lock: q('.pb-nd.lock').length, bands: q('.pb-band').map((x) => x.innerText.replace(/\s+/g, '').replace(/[ぁ-ん]+(?=本|番)/g, '')).join(), start: !!document.querySelector('.pb-start'), lines: q('.pb-lines path').length, linesOn: q('.pb-lines path.on').length,
-      scroll: w.scrollWidth > w.clientWidth + 200, fit: document.documentElement.scrollWidth <= document.documentElement.clientWidth, startLeft: r(document.querySelector('.pb-start')).left < r(document.querySelector('[data-pack=p1]')).left, right: r(document.querySelector('[data-pack=s17]')).left > r(document.querySelector('[data-pack=s9]')).left && r(document.querySelector('[data-pack=s9]')).left > r(document.querySelector('[data-pack=s5]')).left,
-      dia: getComputedStyle(document.querySelector('.pb-dia')).transform !== 'none', lockTxt: document.querySelector('[data-pack=s5]').innerText.replace(/\s+/g, ' '), lockDash: getComputedStyle(document.querySelector('[data-pack=s5] .pb-dia')).borderTopStyle, openDash: getComputedStyle(document.querySelector('[data-pack=s1] .pb-dia')).borderTopStyle }; });
-  check('ショップ：横むきの 木（START が 左・ひしがた 16こ・帯 3つ・線）。はじめに ひらいて いるのは みならい・第1弾・第2弾 だけ（のこり 13こは ロック）', T.all === 'p1,s1,s2,s3,s4,s5,s6,s7,s9,s10,s11,s12,s14,s15,s16,s17' && T.open === 'p1,s1,s2' && T.lock === 13 && /本編/.test(T.bands) && /サブセット/.test(T.bands) && /番外編/.test(T.bands) && T.start && T.lines >= 16 && T.linesOn === 3 && T.startLeft && T.right && T.dia, JSON.stringify(T).slice(0, 300));
-  check('ショップ：木は 左右に スクロール（スワイプ）で たどる。ページは 横に はみ出さない', T.scroll && T.fit);
-  check('ロックの パック：見た目が ちがう（点線）・「あと 何回」と「何ポイント」が 木の 上で 見える', T.lockDash === 'dashed' && T.openDash === 'solid' && /ロック/.test(T.lockTxt) && /あと 3回/.test(T.lockTxt) && /5ポイント/.test(T.lockTxt), T.lockTxt);
-  // ロックの パックを おす：名前・しょうかい・ねだん・ひらく じょうけん。ポイントが たりないと ひらけない
-  await page.click('[data-pack=s5]'); await page.waitForTimeout(300);
-  const sh = (await page.locator('#sheet:not([hidden]) .sheet-body').innerText()).replace(/\s+/g, ' ');
-  const g5 = (await state()).gp;
-  await shot('07b_shop_locked');
-  check('ロックの パックの まど：名前・ねだん・「からくり とけいとうを 3回 たおす（いま 0回・あと 3回）」・「せいちょうポイント 5で ひらく」と その 計算・「ポイントで ひらく」', /大きな 数の/.test(sh) && /100P/.test(sh) && /からくり とけいとうを 3回 たおす/.test(sh) && /いま 0回・あと 3回/.test(sh) && /せいちょうポイント 5で ひらく/.test(sh) && new RegExp(`${g5} − 5 ＝ ${g5 - 5}`).test(sh) && !/ひらくと たたかえる/.test(sh) && await page.locator('#sheet:not([hidden]) button:has-text("ポイントで ひらく"):not([disabled])').count() === 1, sh.slice(0, 200));
-  await sheetClick('やめる');
-  await page.click('[data-pack=s17]'); await page.waitForTimeout(300);
-  const sh17 = (await page.locator('#sheet:not([hidden]) .sheet-body').innerText()).replace(/\s+/g, ' ');
-  check('まだ たたかえない あいての パック（まほよ）：「ステージ 7 が ひらくと たたかえる（いまは ポイントで ひらける）」と 出て、ポイントで ひらける', /ステージ 7 が ひらくと たたかえる/.test(sh17) && /ポイントで ひらける/.test(sh17) && /せいちょうポイント 6で ひらく/.test(sh17) && await page.locator('#sheet:not([hidden]) button:has-text("ポイントで ひらく"):not([disabled])').count() === 1, sh17.slice(0, 200));
-  await sheetClick('やめる');
-  await page.click('[data-pack=s2]'); await page.waitForTimeout(300);
-  const sh2 = (await page.locator('#sheet:not([hidden]) .sheet-body').innerText()).replace(/\s+/g, ' ');
-  check('ひらいて いる パックの まど：名前・カードの 数・ねだんの 計算・「あける」', /英雄譚/.test(sh2.replace(/（[^）]*）/g, '')) && /120しゅるい/.test(sh2) && /− 100P ＝/.test(sh2) && await page.locator('#sheet:not([hidden]) button:has-text("あける"):not([disabled])').count() === 1, sh2.slice(0, 160));
-  await sheetClick('やめる');
+  const L = await page.evaluate(() => ({ rows: document.querySelectorAll('.cs-sets > .cs-set').length, tree: document.querySelectorAll('.pb-tree-wrap, .pb-nd, .pb-dia').length, fit: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    s5: document.querySelector('[data-lock=s5]').innerText.replace(/\s+/g, ' '), s17: document.querySelector('[data-lock=s17]').innerText.replace(/\s+/g, ' '), buyInLock: document.querySelectorAll('[data-lock] [data-buy]').length, growBtn: document.querySelectorAll('[data-lock] [data-go=grow]').length, dash: getComputedStyle(document.querySelector('[data-lock=s5]')).borderTopStyle }));
+  check('ショップ：リスト（16行。横むきの 木は ない）。買えるのは ひらいて いる みならい・第1弾・第2弾 だけ', L.rows === 16 && L.tree === 0 && L.fit && (await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy).join())) === 'p1,s1,s2', JSON.stringify(L).slice(0, 120));
+  check('ショップ：ロックの パック 13こは 買えない 行（「あける」が ない・点線）。「あと ○回・○ポイント」と「せいちょうで かいほうできる」が 出る', (await page.locator('[data-lock]').evaluateAll((xs) => xs.map((x) => x.dataset.lock).join())) === 's3,s4,s5,s6,s7,s9,s10,s14,s11,s15,s12,s16,s17' && L.buyInLock === 0 && L.growBtn === 13 && L.dash === 'dashed' && /ロック/.test(L.s5) && /からくり とけいとうを あと 3回 たおす/.test(L.s5) && /せいちょうポイント 5/.test(L.s5) && /「せいちょう」で かいほうできる/.test(L.s5) && /あと 3回/.test(L.s17) && /せいちょうポイント 6/.test(L.s17), `${L.s5}｜${L.s17}`.slice(0, 260));
+  await page.click('[data-lock=s5] [data-go=grow]'); await page.waitForTimeout(200);
+  check('ロックの 行の ボタンで「せいちょう」の ページへ', (await page.locator('main.pb h2').innerText()).includes('せいちょう') && await page.locator('.em-node[data-pack=s5]').count() === 1);
+  await page.click('[data-back]'); await page.click('.pb-steps [data-go=shop]');
 }
 s = await state();
 const had = count(s), p0 = s.pts;
@@ -279,9 +264,7 @@ s = await state();
 check(`パックを あけると ${PB.pack}P へって カードが 8まい ふえる（めくると「〇〇を てに いれた！」）`, s.pts === p0 - PB.pack && count(s) === had + 8 && /を てに いれた！/.test(gotLine), `${s.pts}P・${count(s)}まい・${gotLine}`);
 await openPack('s1');
 while ((await state()).pts >= PB.pack) await openPack('s2'); // のこりの ポイントも つかう
-await page.click('[data-pack=s2]'); await page.waitForTimeout(300);
-check('ポイントが たりないと 買えない（「あける」が おせない・もんだいへの あんないが 出る）', await page.locator('#sheet:not([hidden]) button:has-text("あける")').isDisabled() && await page.locator('.pb-need [data-go=quiz]').count() === 1);
-await sheetClick('やめる');
+check('ポイントが たりないと 買えない（もんだいへの あんないが 出る）', await page.locator('[data-buy]:not([disabled])').count() === 0 && await page.locator('.pb-need [data-go=quiz]').count() === 1);
 await page.click('[data-back]');
 check('あたらしい カードが 入ったら「デッキ」が つぎ', (await nextStep()) === 'deck');
 const total = count(await state());
@@ -326,7 +309,12 @@ await page.click('[data-back]');
 await edit('s.gp = 40;');
 await page.click('.pb-steps [data-go=grow]');
 await shot('10_grow');
-check('せいちょう：3つの えだ（キャパシティ 5・もんだい 2・デッキの わく 2）。「パック」の えだは ない（ショップで ひらく）', await page.locator('.em-branch').count() === 3 && await page.locator('.em-node').count() === 9 && await page.locator('.em-node[data-b=pack]').count() === 0 && (await page.textContent('#pb-gp')) === '40');
+{
+  const G = await page.evaluate(() => { const q = (x) => [...document.querySelectorAll(x)]; return { br: q('.em-branch').map((x) => x.dataset.branch).join(), n: q('.em-node').length, packs: q('.em-branch[data-branch=pack] .em-node').map((x) => x.dataset.pack).join(), on: q('.em-branch[data-branch=pack] .em-node.on').length,
+    s5: document.querySelector('.em-node[data-pack=s5]').innerText.replace(/\s+/g, ' '), s17: document.querySelector('.em-node[data-pack=s17]').innerText.replace(/\s+/g, ' '), arrow: getComputedStyle(document.querySelector('.em-branch[data-branch=pack] li + li'), '::before').content, arrow0: getComputedStyle(document.querySelector('.em-branch[data-branch=cap] li + li'), '::before').content, same: document.querySelector('.em-node[data-pack=s5]').className.includes('em-node') }; });
+  check('せいちょう：4つの えだ（キャパシティ 5・パック 13・もんだい 2・デッキの わく 2）。いつもの 木の デザインの まま', G.br === 'cap,pack,quiz,deck' && G.n === 22 && (await page.textContent('#pb-gp')) === '40' && G.same, JSON.stringify(G).slice(0, 100));
+  check('「パック」の えだ：ロックの パック 13こが ノード（ショップの ならび）。ねだんと「あと 何回」が 出る。じゅんばんの やじるしは ない', G.packs === 's3,s4,s5,s6,s7,s9,s10,s14,s11,s15,s12,s16,s17' && G.on === 0 && /5ポイント/.test(G.s5) && /からくり とけいとうを あと 3回/.test(G.s5) && /6ポイント/.test(G.s17) && /あと 3回/.test(G.s17) && G.arrow === 'none' && G.arrow0 !== 'none', `${G.s5}｜${G.s17}｜${G.arrow}`);
+}
 const take = async (b, i) => { await page.click(`.em-node[data-b=${b}][data-i="${i}"]`); await sheetClick('とる'); };
 await page.click('.em-node[data-b=cap][data-i="1"]'); // じゅんばんを とばせない
 check('せいちょう：左から じゅんばんに（とばして とれない）', await page.locator('#sheet:not([hidden]) .sheet-actions').count() === 0 && !(await state()).tree.cap);
@@ -340,21 +328,26 @@ check(`デッキの わく：${PB.deckBase + 1}こまでに なる`, (await page
 await page.click(`[data-deck=${s.decks[0].id}]`); await sheetClick('なおす');
 check(`キャパシティ：デッキの 点が ${PB.cap + PB.capStep}点までに なる`, (await page.locator('.builder .meter').first().innerText()).includes(`/${PB.cap + PB.capStep}点`), (await page.locator('.builder .meter').first().innerText()).replace(/\s+/g, ' '));
 await page.click('[data-a=back]'); await page.click('[data-back]');
-// パック：せいちょうポイントで ひらく（三つの 旗 3ポイント）
-await page.click('.pb-steps [data-go=shop]');
+// パック：せいちょうの ノードから ポイントで ひらく（じゅんばんは じゆう：4ばんめの 三つの 旗 3ポイントを さきに）
+await page.click('.pb-steps [data-go=grow]');
 {
   const g0 = (await state()).gp;
-  await page.click('[data-pack=s6]'); await page.waitForTimeout(300);
+  await page.click('.em-node[data-pack=s17]'); await page.waitForTimeout(300);
+  const sh17 = (await page.locator('#sheet:not([hidden]) .sheet-body').innerText()).replace(/\s+/g, ' ');
+  check('ノードの まど（まほよ）：名前・ねだん 6・「いま 0回・あと 3回」・まだ たたかえない ので「ステージ 7 が ひらくと たたかえる（いまは ポイントで ひらける）」', /まほよパック/.test(sh17) && /せいちょうポイント 6で ひらく/.test(sh17) && /いま 0回・あと 3回/.test(sh17) && /ステージ 7 が ひらくと たたかえる/.test(sh17) && new RegExp(`${g0} − 6 ＝ ${g0 - 6}`).test(sh17), sh17.slice(0, 200));
+  await sheetClick('やめる');
+  await page.click('.em-node[data-pack=s6]'); await page.waitForTimeout(300);
   const sh = (await page.locator('#sheet:not([hidden]) .sheet-body').innerText()).replace(/\s+/g, ' ');
   await sheetClick('ポイントで ひらく'); await page.waitForTimeout(300);
   const a1 = await state();
-  await shot('10b_shop_unlocked');
-  check('パック：せいちょうポイントで ひらく（三つの 旗：3ポイント へる・ロックが とける・ほかは ロックの まま）', /たからの 山の ドラゴンを 3回 たおす/.test(sh) && new RegExp(`${g0} − 3 ＝ ${g0 - 3}`).test(sh) && a1.gp === g0 - 3 && a1.packs.s6 === 1 && await page.locator('[data-pack=s6]:not(.lock)').count() === 1 && await page.locator('.pb-nd.lock').count() === 12, `${g0} → ${a1.gp}`);
-  await page.click('[data-pack=s6]'); await page.waitForTimeout(300);
-  check('ひらいた パックは「あける」に なる', await page.locator('#sheet:not([hidden]) button:has-text("あける")').count() === 1 && await page.locator('#sheet:not([hidden]) button:has-text("ポイントで ひらく")').count() === 0);
-  await sheetClick('やめる');
+  await shot('10b_grow_pack');
+  check('せいちょうの ノードから ポイントで ひらく（三つの 旗：3ポイント へる・ノードが「ひらいた」に・まえの ノードを とばしても よい・ほかは そのまま）', /たからの 山の ドラゴンを 3回 たおすと ひらく/.test(sh) && new RegExp(`${g0} − 3 ＝ ${g0 - 3}`).test(sh) && a1.gp === g0 - 3 && a1.packs.s6 === 1 && !a1.tree.pack && await page.locator('.em-node.on[data-pack=s6]').count() === 1 && /ひらいた/.test(await page.locator('.em-node[data-pack=s6]').innerText()) && await page.locator('.em-branch[data-branch=pack] .em-node.on').count() === 1 && (await page.textContent('#pb-gp')) === String(g0 - 3), `${g0} → ${a1.gp}`);
+  await page.click('.em-node[data-pack=s6]'); await page.waitForTimeout(300);
+  check('ひらいた ノードは もう とれない（まどが 出ない・ポイントは へらない）', await page.locator('#sheet:not([hidden]) .sheet-actions').count() === 0 && (await state()).gp === g0 - 3);
+  await page.click('[data-back]'); await page.click('.pb-steps [data-go=shop]');
+  check('ショップ：ひらいた 三つの 旗が 買える 行に なる（ほかの 12こは ロックの まま）', await page.locator('[data-buy=s6]').count() === 1 && await page.locator('[data-lock=s6]').count() === 0 && await page.locator('[data-lock]').count() === 12);
   await page.reload(); await page.click('[data-go=pb]'); await page.click('.pb-steps [data-go=shop]');
-  check('よみこみなおしても ひらいた まま', await page.locator('[data-pack=s6]:not(.lock)').count() === 1 && (await state()).gp === g0 - 3);
+  check('よみこみなおしても ひらいた まま', await page.locator('[data-buy=s6]').count() === 1 && (await state()).gp === g0 - 3);
 }
 await page.click('[data-back]');
 // もんだい：むずかしい（1もん 15P）
@@ -689,7 +682,7 @@ await page.reload(); await page.click('[data-go=pb]');
   m = await old({ ...baseSave, v: 7, pts: 650, beat: { ...kihon3 }, stage: 1, tree: { cap: 2, pack: 2 }, cards: { ...baseSave.cards, MY01: 1, [s5id]: 2 } });
   await page.click('.pb-steps [data-go=shop]');
   await shot('22b_shop_migrated');
-  const open = await page.locator('.pb-nd:not(.lock)').evaluateAll((xs) => xs.map((x) => x.dataset.pack).join());
+  const open = (await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy).join()));
   check('うつしかえ（v7 → v8）：「パック」の 枝 2つ → 三つの 旗・アルケミーが ひらいて いる（ラヴニカは ロック）。枝は きえて、ほかの 枝・せいちょうポイントは そのまま', m.v === 8 && m.packs.s6 === 1 && m.packs.s7 === 1 && !m.packs.s9 && m.tree.pack === undefined && m.tree.cap === 2 && m.gp === 9, JSON.stringify(m.packs));
   check('うつしかえ：カードを もって いる パック（第5弾・まほよ）は ひらいて いる。きそデッキの カード だけでは 第3弾は ひらかない', m.packs.s5 === 1 && m.packs.s17 === 1 && !m.packs.s3 && !m.packs.s4 && open === 'p1,s1,s2,s5,s6,s7,s17', open);
   check('うつしかえ：ポイント・カード・かった 回数は そのまま', m.pts === 650 && m.cards.R01 === 3 && m.cards.MY01 === 1 && m.wins === 40 && Object.entries(kihon3).every(([k, n]) => m.beat[k] === n));
@@ -716,11 +709,14 @@ check('うつしかえ（v6 → v8・枝 3つ）：三つの 旗・アルケミ�
 m = await old({ ...baseSave, v: 8, packs: {}, pts: 100, gp: 0, beat: { ...kihon3, ...all3, 'ex:6': 1, 'ex:7': 1, 'th-e:1': 2 }, stage: 6, tree: {} });
 await page.click('.pb-steps [data-go=shop]');
 {
-  const open0 = await page.locator('.pb-nd:not(.lock)').evaluateAll((xs) => xs.map((x) => x.dataset.pack).join());
+  const open0 = (await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy).join()));
   check('かった 回数で ひらく：ステージ 2〜6 の あいてを 3回ずつ たおして いる セーブは、第3〜5弾・サブセット 3つが ひらいて いる（とけいとう 2回の 第5弾は まだ）', open0 === 'p1,s1,s2,s3,s4,s6,s7,s9', open0);
-  const t5 = (await page.locator('[data-pack=s5]').innerText()).replace(/\s+/g, ' '), t17 = (await page.locator('[data-pack=s17]').innerText()).replace(/\s+/g, ' ');
-  check('木の 上：第5弾「あと 1回」・まほよ「あと 1回」（青子 1回 ＋ 有珠 1回）', /あと 1回/.test(t5) && /あと 1回/.test(t17) && /6ポイント/.test(t17), `${t5}｜${t17}`);
-  await page.click('[data-pack=s17]'); await page.waitForTimeout(300);
+  const t5 = (await page.locator('[data-lock=s5]').innerText()).replace(/\s+/g, ' '), t17 = (await page.locator('[data-lock=s17]').innerText()).replace(/\s+/g, ' ');
+  check('ショップの ロックの 行：第5弾「あと 1回」・まほよ「あと 1回」（青子 1回 ＋ 有珠 1回）', /あと 1回/.test(t5) && /あと 1回/.test(t17) && /せいちょうポイント 6/.test(t17), `${t5}｜${t17}`.slice(0, 240));
+  await page.click('[data-lock=s17] [data-go=grow]'); await page.waitForTimeout(200);
+  const n17 = (await page.locator('.em-node[data-pack=s17]').innerText()).replace(/\s+/g, ' ');
+  check('せいちょう：かった 回数で ひらいた パックの ノードは「ひらいた」。まほよの ノードは「あと 1回」', await page.locator('.em-branch[data-branch=pack] .em-node.on').evaluateAll((xs) => xs.map((x) => x.dataset.pack).join()) === 's3,s4,s6,s7,s9' && /あと 1回/.test(n17) && /6ポイント/.test(n17), n17);
+  await page.click('.em-node[data-pack=s17]'); await page.waitForTimeout(300);
   const sh = (await page.locator('#sheet:not([hidden]) .sheet-body').innerText()).replace(/\s+/g, ' ');
   check('まど：「いま 2回・あと 1回」。もう たたかえる ので「ステージが ひらくと」は 出ない。ポイントが 0 なので ポイントでは ひらけない', /いま 2回・あと 1回/.test(sh) && !/ひらくと たたかえる/.test(sh) && await page.locator('#sheet:not([hidden]) button:has-text("ポイントで ひらく")').isDisabled(), sh.slice(0, 200));
   await sheetClick('やめる'); await page.click('[data-back]');
@@ -735,11 +731,21 @@ await page.click('.pb-steps [data-go=shop]');
   }
   if ((await state()).wins > b0.wins) { const seen = await afterWin(); seenNew = seen.find((w) => /パックが ひらいた/.test(w.title))?.text || ''; }
   const a1 = await state();
-  check('有珠を たおして あわせて 3回：「パックが ひらいた」の おしらせ（まほよパック）', a1.beat['ex:7'] === 2 && /まほよパック/.test(seenNew) && /ショップで ひらいた/.test(seenNew), seenNew.slice(0, 120) || `かち ${a1.beat['ex:7']}`);
+  check('有珠を たおして あわせて 3回：「パックが ひらいた」の おしらせ（まほよパック）', a1.beat['ex:7'] === 2 && /まほよパック/.test(seenNew) && /ショップで 買える/.test(seenNew), seenNew.slice(0, 120) || `かち ${a1.beat['ex:7']}`);
   await page.reload(); await page.click('[data-go=pb]'); await page.click('.pb-steps [data-go=shop]');
-  check('ショップ：まほよパックの ロックが とけて いる（せいちょうポイントは つかって いない）。ほかの 番外編は ロックの まま', await page.locator('[data-pack=s17]:not(.lock)').count() === 1 && !(await state()).packs.s17 && await page.locator('[data-pack=s10].lock').count() === 1 && (await state()).gp === a1.gp);
+  check('ショップ：まほよパックが 買える 行に なって いる（じどうで ひらく・せいちょうポイントは つかって いない）。ほかの 番外編は ロックの まま', await page.locator('[data-buy=s17]').count() === 1 && !(await state()).packs.s17 && await page.locator('[data-lock=s10]').count() === 1 && (await state()).gp === a1.gp);
+  await page.click('[data-back]'); await page.click('.pb-steps [data-go=grow]');
+  check('せいちょう：まほよの ノードも「ひらいた」に なって いる', await page.locator('.em-node.on[data-pack=s17]').count() === 1);
   await page.click('[data-back]');
 }
+
+// ---- v13（32ce1c6）の セーブ：ひらいて いた パックは ひらいた まま（うつしかえで ロックに もどらない）----
+m = await old({ ...baseSave, v: 8, packs: { s4: 1, s10: 1, s9: 1 }, pts: 120, gp: 7, beat: { ...kihon3, 'th-e:1': 3 }, stage: 1, tree: { cap: 2 } });
+await page.click('.pb-steps [data-go=shop]');
+check('v13 の セーブ：ポイントで ひらいて いた 第4弾・ラヴニカ・FGO と、とけいとうを 3回 たおして いた 第5弾は ひらいた まま。形・ポイントも そのまま', m.v === 8 && m.packs.s4 === 1 && m.packs.s10 === 1 && m.packs.s9 === 1 && Object.keys(m.packs).length === 3 && m.gp === 7 && m.tree.cap === 2 && m.tree.pack === undefined && m.pts === 120 && (await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy).join())) === 'p1,s1,s2,s4,s5,s9,s10', (await page.locator('[data-buy]').evaluateAll((xs) => xs.map((x) => x.dataset.buy).join())));
+await page.click('[data-back]'); await page.click('.pb-steps [data-go=grow]');
+check('v13 の セーブ：せいちょうの ノードも ひらいた まま（第4弾・第5弾・ラヴニカ・FGO）', await page.locator('.em-branch[data-branch=pack] .em-node.on').evaluateAll((xs) => xs.map((x) => x.dataset.pack).join()) === 's4,s5,s9,s10');
+await page.click('[data-back]');
 
 // ---- 番外編「魔法使いの夜」：まほよパック（100P）・たたかいの 画面で カウンターの しくみが うごく ----
 m = await old({ ...baseSave, v: 8, packs: { s17: 1 }, pts: 250, beat: { ...kihon3 }, stage: 1 });

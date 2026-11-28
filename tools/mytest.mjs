@@ -40,21 +40,18 @@ check('パック＆バトル：まほよパックが ショップに ある（10
   check('第3弾・第4弾は 出た 弾：ふつうの パック（ALL）に 入り、パック＆バトルの ショップに さいしょから ある', SETS.filter((x) => x.released).map((x) => x.id).join() === '1,2,3,4,5' && ALL.some((d) => SET_OF[d.id] === 3) && ALL.some((d) => SET_OF[d.id] === 4) && PB_PACKS.map((p) => p.id).join() === 'p1,s1,s2,s3,s4,s5');
   const ids3 = packsFor().map((p) => p.id);
   check('ショップの パックは 16こ（かさなり なし）', new Set(ids3).size === 16 && ids3.length === 16);
-  const { PB_UNLOCK, PB_SHOP_TREE, PB_SHOP_BANDS, packOpen, unlockFoes, unlockWins, unlockStage, foesOf, PB_STAGES: ST } = await import('../js/data/packbattle.js');
+  const { PB_UNLOCK, packOpen, unlockFoes, unlockWins, unlockStage, foesOf, PB_STAGES: ST } = await import('../js/data/packbattle.js');
   const fresh = { packs: {}, beat: {}, seed: 7 };
   check('はじめに ひらいて いるのは みならい・第1弾・第2弾 だけ（のこり 13こは ロック）', ids3.filter((id) => packOpen(id, fresh)).join() === 'p1,s1,s2' && Object.keys(PB_UNLOCK).length === 13 && ids3.every((id) => ['p1', 's1', 's2'].includes(id) || PB_UNLOCK[id]));
   const C = Object.fromEntries(Object.entries(PB_UNLOCK).map(([id, u]) => [id, u.cost]));
   check('ひらく ねだん（せいちょうポイント）：本編 3・4・5、サブセット 3・4・5（ラヴニカ 5）、番外編 6ずつ。ぜんぶで 66', [C.s3, C.s4, C.s5, C.s6, C.s7, C.s9].join() === '3,4,5,3,4,5' && [10, 14, 11, 15, 12, 16, 17].every((n) => C['s' + n] === 6) && Object.values(C).reduce((t, x) => t + x, 0) === 66);
-  check('せいちょうの「パック」の 枝は ない（キャパシティ・もんだい・デッキの わく だけ。ぜんぶで 38ポイント）', PB_TREE.map((t) => t.id).join() === 'cap,quiz,deck' && PB_TREE.flatMap((t) => t.nodes).reduce((t, n) => t + n.cost, 0) === 38 && PB_PACKS_MORE.map((p) => p.set).join() === '6,7,9');
+  check('せいちょうの「パック」の 枝：ロックの パック 13こが ノード（ショップの ならび・ねだんは PB_UNLOCK と おなじ・じゅんばんは じゆう）。ほかの 枝は 38ポイントの まま', PB_TREE.map((t) => t.id).join() === 'cap,pack,quiz,deck' && PB_TREE.filter((t) => !t.free).flatMap((t) => t.nodes).reduce((t, n) => t + n.cost, 0) === 38 && PB_TREE.find((t) => t.id === 'pack').free && PB_TREE.find((t) => t.id === 'pack').nodes.map((n) => n.pack).join() === ids3.filter((id) => PB_UNLOCK[id]).join() && PB_TREE.find((t) => t.id === 'pack').nodes.every((n) => n.cost === PB_UNLOCK[n.pack].cost && /^ショップに /.test(n.text)) && PB_PACKS_MORE.map((p) => p.set).join() === '6,7,9');
   const who = (id) => unlockFoes(id, 7).map((f) => f.floorId).join();
   check('パック ↔ あいて：第3弾 エレボス・第4弾 ゼナゴス・第5弾 とけいとう・三つの 旗 ドラゴン・アルケミー スライム・ラヴニカ ステージ 4・5 の 10人', who('s3') === 'erebos' && who('s4') === 'xenagos' && who('s5') === 'clock' && who('s6') === 'dragon' && who('s7') === 'slime' && unlockFoes('s9', 7).length === 10 && unlockFoes('s9', 7).every((f) => ['rv-n', 'rv-h'].includes(ST[f.si].id)));
   check('パック ↔ あいて（番外編）：FGO 2つ カルデア・スターレイル 星／穹・ゼンゼロ アキラ／リン・まほよ 橙子と 青子と 有珠', who('s10') === 'ex_fgo' && who('s14') === 'ex_fgo' && who('s11') === 'ex_hoshi' && who('s15') === 'ex_kyuu' && who('s12') === 'ex_akira' && who('s16') === 'ex_rin' && who('s17') === 'ex_touko,ex_aoko,ex_alice' && unlockStage('s17') === 6 && unlockStage('s5') === 1);
   const k = (id) => unlockFoes(id, 7)[0].key;
   check('あいてを 3回 たおすと ひらく（2回では まだ）。グループは あわせて 3回', !packOpen('s5', { ...fresh, beat: { [k('s5')]: 2 } }) && packOpen('s5', { ...fresh, beat: { [k('s5')]: 3 } }) && !packOpen('s4', { ...fresh, beat: { [k('s5')]: 3 } }) && packOpen('s17', { ...fresh, beat: { 'ex:0': 1, 'ex:6': 1, 'ex:7': 1 } }) && !packOpen('s17', { ...fresh, beat: { 'ex:0': 1, 'ex:6': 1 } }) && unlockWins('s9', { 'rv-n:0': 2, 'rv-h:3': 1 }, 7) === 3);
   check('ポイントで ひらいた パック（packs）は ひらいて いる', packOpen('s16', { ...fresh, packs: { s16: 1 } }) && !packOpen('s12', { ...fresh, packs: { s16: 1 } }));
-  check('ショップの 木：16この パックが 1こずつ・帯 3つ（本編 6・サブセット 3・番外編 7）・START から 右へ（線の 左がわは 左の 列）', PB_SHOP_TREE.map((n) => n.id).sort().join() === [...ids3].sort().join() && ['main', 'sub', 'extra'].map((b) => PB_SHOP_TREE.filter((n) => n.band === b).length).join() === '6,3,7' && PB_SHOP_BANDS.length === 3
-    && PB_SHOP_TREE.every((n) => n.from.every((f) => f === 'start' ? n.col === 1 : PB_SHOP_TREE.find((x) => x.id === f).col < n.col) && PB_SHOP_BANDS.find((b) => b.id === n.band).cols[0] <= n.col && n.col <= PB_SHOP_BANDS.find((b) => b.id === n.band).cols[1])
-    && new Set(PB_SHOP_TREE.map((n) => `${n.col}:${n.row}`)).size === 16);
 }
 
 // ---- キーワードカウンター ----
