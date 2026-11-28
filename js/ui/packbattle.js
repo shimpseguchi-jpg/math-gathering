@@ -9,7 +9,7 @@ import { CATS, QUIZ_SECONDS } from '../data/quiz.js';
 import {
   PB, PB_NAME, PB_STAGES, PB_STARTER, PB_TREE, quizGain, battleGain, deckProblems,
   foesOf, foeFloor, towerFloor, guildFloor, topStage, endlessAt, PB_SIG, PB_PAL, SIG_COPIES, PB_MAIN, ghostDeck, antePick, capOf, deckMaxOf, packsFor, migrateProgress,
-  PB_UNLOCK, packOpen, unlockWins, unlockStage,
+  PB_UNLOCK, packOpen, unlockWins, unlockStage, PB_TREE_LEARN, learnUnitOpen, ORIPA_NAME,
 } from '../data/packbattle.js';
 import { HARD_TIERS, hardSession } from '../data/quiz2.js';
 import { PB_FACES } from '../data/pbfaces.js';
@@ -26,14 +26,22 @@ import { MAX_COPY } from './collection.js';
 import { studyScreen } from './study.js';
 import { zukanPack } from './zukan.js';
 import { applyTheme } from './settings.js';
-import { isSolo } from './solo.js';
+import { isSolo, isOripa } from './solo.js';
+import { learnMenu, freshLearn, fixLearn } from './learn.js';
 import { soundOn, setSound } from './sfx.js';
 import { nextStep as titleStep, unlockSheet, NEWS_TEXT } from './unlock.js';
 import { sheet, esc, ruby, info, fullCard, toast, COLOR_NAME } from './view.js';
 
 // 単体版（パック＆バトル だけの ゲーム）は べつの セーブ（本編の パック＆バトルと まざらない）。セーブの 中にも solo の しるし
 const SOLO = isSolo();
-const KEY = SOLO ? 'mtg-packbattle-solo-v1' : 'mtg-packbattle-v1';
+// 合体版「さんすうオリパ」（docs/SANSU_ORIPA.md）：単体版の うえに がくしゅうを たした もの。セーブは この アプリ だけの キー（まえの アプリの セーブは ひきつがない・さわらない）
+// ポイント（pts）を「コイン」と よぶ。ショップ・デッキ・せいちょうは はじめから あいて いる（open）。セーブに learn（がくしゅうの すすみ）
+const ORIPA = isOripa();
+const KEY = ORIPA ? 'motg-sansu-oripa-v1' : SOLO ? 'mtg-packbattle-solo-v1' : 'mtg-packbattle-v1';
+const NAME = ORIPA ? ORIPA_NAME : PB_NAME;
+// 合体版の ことば：「ポイント」→「コイン」（「せいちょうポイント」は そのまま）、「100P」→「100コイン」。画面に 出す 文に かける
+const c = (h) => (ORIPA ? String(h).replace(/(せいちょう)?ポイント/g, (m, g) => (g ? m : 'コイン')).replace(/(\d)\s?P(?![A-Za-z0-9])/g, '$1コイン').replace(/(<\/b>)P(?![A-Za-z0-9])/g, '$1コイン').replace('もんだいを といて ためよう', 'がくしゅうで ためよう').replace('>もんだいへ<', '>がくしゅうへ<').replace('もんだいで コインを ためて', 'がくしゅうで コインを ためて') : h);
+const TREE = ORIPA ? [PB_TREE_LEARN, ...PB_TREE] : PB_TREE;
 const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; // デッキの「こまかく」（ぼうけん・こうちくとは べつに のこす）
 // { pts：ポイント, cards：{ id: もって いる まい数 }, decks：[{ id, name, cards: [id…] }], active：つかう デッキの id, wins：たおした てきの 数, seed：てきを きめる 数,
 //   quiz：{ n：といた 数, ok：せいかい, sessions }, cats：もんだいの しゅるい, opened：あけた パック, earned：ためた ポイントの 合計, lost：さいごの たたかいで まけた,
@@ -43,7 +51,7 @@ const FILTER_KEY = SOLO ? 'mtg-build-filter-pb-solo' : 'mtg-build-filter-pb'; //
 //   gp：せいちょうポイント, tree：{ 枝の id: とった 数 } }
 const count = (ids) => ids.reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
 const starterDeck = () => ({ id: 'd0', name: PB_STARTER.name, cards: [...PB_STARTER.cards] });
-const fresh = () => ({ v: 8, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, packs: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: 0, ...(SOLO ? { solo: 1 } : {}) });
+const fresh = () => ({ v: 8, beat: {}, stage: 0, endless: 0, gp: 0, tree: {}, packs: {}, pts: PB.start, cards: count(PB_STARTER.cards), decks: [starterDeck()], active: 'd0', wins: 0, seed: Math.floor(Math.random() * 1e9), quiz: { n: 0, ok: 0, sessions: 0 }, cats: null, opened: 0, earned: 0, lost: 0, starter: 1, fresh: 0, open: ORIPA ? 1 : 0, ...(ORIPA ? { oripa: 1, learn: freshLearn() } : {}), ...(SOLO ? { solo: 1 } : {}) });
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -93,6 +101,7 @@ function load() {
         for (const p of packsFor()) if (PB_UNLOCK[p.id] && p.ids.some((id) => !p1.has(id) && (s.cards?.[id] || 0) > 0)) s.packs[p.id] = 1;
       }
       s.v = 8;
+      if (ORIPA) { s.learn = fixLearn(v.learn); s.open = 1; }
       return s;
     }
   } catch { /* こわれていたら はじめから */ }
@@ -111,6 +120,7 @@ const leave = () => { document.documentElement.classList.remove('pb-on'); applyT
 // ドットの 絵（9×9 の ます）：X の ところを ぬる
 const pix = (rows) => `<svg class="pb-ico" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true">${rows.flatMap((r, y) => [...r].map((c, x) => (c === 'X' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : ''))).join('')}</svg>`;
 const ICON = {
+  learn: pix(['....X....', '....X....', '..XXXXX..', '....X....', '....X....', '.........', '..XXXXX..', '.........', '.........']), // がくしゅう（合体版）：＋ と −
   quiz: pix(['..XXXXX..', '.XX...XX.', '.XX...XX.', '.....XX..', '....XX...', '...XX....', '...XX....', '.........', '...XX....']),
   shop: pix(['.XXXXXXX.', '.X.X.X.X.', '.XXXXXXX.', '.X.....X.', '.X..X..X.', '.X.XXX.X.', '.X..X..X.', '.X.....X.', '.XXXXXXX.']),
   deck: pix(['..XXXXXX.', '..X....X.', 'XXXXXX.X.', 'X....X.X.', 'X....X.X.', 'X....XXX.', 'X....X...', 'X....X...', 'XXXXXX...']),
@@ -172,9 +182,11 @@ function checkOpen() {
 }
 
 // ---- つぎに する こと：はじめは バトル（きそデッキで 1かち）→ ショップと デッキが あく → もんだい → ショップ → デッキ → バトル ----
-function nextStep() {
+const learnOk = () => (ORIPA ? Object.values(S.learn.units).reduce((t, u) => t + u.ok, 0) : 0);
+function nextStep() { const n = nextStep0(); return ORIPA && n === 'quiz' ? 'learn' : n; } // 合体版：コインを ためるのは「がくしゅう」
+function nextStep0() {
   if (!S.open) return 'battle';
-  if (!S.quiz.n && !S.opened) return 'quiz'; // はじめて
+  if (!S.quiz.n && !S.opened && !learnOk()) return 'quiz'; // はじめて
   const afford = S.pts >= PB.pack;
   if (S.lost) return afford ? 'shop' : 'quiz'; // まけた あと：カードを ふやして つよく する
   if (deckInfo().problems.length) return !activeDeck() || canBuild() || S.decks.some(deckOk) ? 'deck' : afford ? 'shop' : 'quiz';
@@ -194,7 +206,13 @@ const GUIDE = {
   lostShop: 'まけても だいじょうぶ。「ショップ」で パックを あけて、デッキを つよく しよう。',
   lostQuiz: 'まけても だいじょうぶ。「もんだい」で ポイントを ためて、パックを あけよう。',
 };
-const guideText = (step) => (!S.open ? (S.lost ? GUIDE.lockedLost : GUIDE.locked) : step === 'quiz' && !S.quiz.n && !S.opened ? GUIDE.quiz0 : S.lost ? (step === 'shop' ? GUIDE.lostShop : GUIDE.lostQuiz) : step === 'deck' && deckInfo().problems.length ? GUIDE.deckFix : GUIDE[step]);
+const GUIDE_O = {
+  learn0: `まずは「がくしゅう」で コインを ためよう。はじめに ${PB.start}コインと「${PB_STARTER.name}」を もって いるので、すぐに パックを あけても、バトルに 出ても いいよ。`,
+  learn: 'コインが たりない ときは「がくしゅう」へ。けいさんは なんどでも できるよ。',
+  lostLearn: 'まけても だいじょうぶ。「がくしゅう」で コインを ためて、パックを あけよう。',
+};
+const guideText = (step) => (ORIPA && step === 'learn' ? (S.lost ? GUIDE_O.lostLearn : !learnOk() && !S.opened ? GUIDE_O.learn0 : GUIDE_O.learn) : ORIPA ? c(guideText0(step)) : guideText0(step));
+const guideText0 = (step) => (!S.open ? (S.lost ? GUIDE.lockedLost : GUIDE.locked) : step === 'quiz' && !S.quiz.n && !S.opened ? GUIDE.quiz0 : S.lost ? (step === 'shop' ? GUIDE.lostShop : GUIDE.lostQuiz) : step === 'deck' && deckInfo().problems.length ? GUIDE.deckFix : GUIDE[step]);
 
 // ---- ステージと あいて ----
 const top = () => topStage(S.beat, S.seed, S.stage); // ひらいて いる いちばん 上（PB_STAGES.length ＝ ぜんぶ クリア：むげんの たたかい）
@@ -210,7 +228,53 @@ export function pbMenu(appFn, back) {
   S = load(); VIEW = null; checkOpen(); save(); // まえの 形の セーブは ここで あたらしい 形に
   home();
 }
+// 合体版の ホーム：がくしゅう → せいちょう → ショップ → デッキ → バトル。コインと せいちょうポイントは いつも 見える
+function homeOripa() {
+  look(); document.title = ORIPA_NAME;
+  const A = activeDeck(), D = deckInfo(), step = nextStep(), ok = !D.problems.length;
+  const row = (go, no, name, sub, em) => `<li><button type="button" class="st-ep ${step === go ? 'next' : ''}" data-go="${go}"><b><i class="pb-num">${no}</i>${ICON[go]}</b><span><i class="st-title">${name}</i><small>${ruby(sub)}</small></span><em>${em}</em></button></li>`;
+  const units = Object.keys(S.learn.units).filter((u) => learnUnitOpen(S.tree, u)).length;
+  app().innerHTML = `<main class="zukan construct pb oripa">
+    <p class="eyebrow">けいさんで コインを ためて、パックを あけて、てきを たおそう</p>
+    <h2 class="oripa-title">Mathematics of the Gathering<small>〜さんすうオリパ〜</small></h2>
+    <ul class="pb-stats">
+      <li><span>コイン</span><b id="pb-pts">${S.pts}</b><small>コイン</small></li>
+      <li><span>せいちょうポイント</span><b id="pb-gp-home">${S.gp}</b><small>ポイント</small></li>
+      <li><span>カード</span><b>${totalCards()}</b><small>まい（${kinds().length}しゅるい）</small></li>
+      <li class="${ok ? 'ok' : 'ng'}"><span>つかう デッキ</span><b>${ok ? 'かんせい' : 'まだ'}</b><small>${A ? `${esc(A.name)}${D.count ? `・${D.count}まい` : ''}` : 'デッキを えらぼう'}</small></li>
+      <li><span>たおした てき</span><b>${S.wins}</b><small>たい</small></li>
+    </ul>
+    <p class="pb-guide">${esc(guideText(step))}</p>
+    <ol class="pb-steps">
+      ${row('learn', 1, 'がくしゅう', `たんげんを えらんで けいさん。1もん せいかいで 10コイン。れんぞくで フィーバー！`, `たんげん ${units} / 4`)}
+      ${row('grow', 2, 'せいちょう', 'せいちょうポイントで、パックと たんげんを ひらく', `${S.gp}ポイント`)}
+      ${row('shop', 3, 'ショップ', `パック 1つ ${PB.pack}コイン（カード 8まい）`, S.pts >= PB.pack ? `${Math.floor(S.pts / PB.pack)}つ あけられる` : `あと ${PB.pack - S.pts}コイン`)}
+      ${row('deck', 4, 'デッキ', ok ? `${A.name}：${deckLine(D)}` : D.problems[0], `ぜんぶで ${S.decks.length}こ`)}
+      ${row('battle', 5, 'バトル', `${stageNote()}。あいてを えらんで たたかう`, ok ? 'いどめる' : 'デッキが まだ')}
+      ${row('quiz', 6, 'もんだい', `${QUIZ_SECONDS}びょう もんだい。1もん せいかいで ＋${PB.quiz}コイン`, 'いろいろな もんだい')}
+    </ol>
+    <p class="zk-note">コインが なくなっても、がくしゅうで いつでも ためなおせる。たたかいに まけても、コインと カードは なくならない。</p>
+    <div class="row-btns pb-solo"><button type="button" class="btn" data-snd="1" aria-pressed="${soundOn()}">おと ${soundOn() ? 'あり' : 'なし'}</button><button type="button" class="btn ghost" data-reset="1">はじめから やりなおす</button></div>
+  </main>`;
+  app().onclick = async (e) => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.snd) { setSound(!soundOn()); return home(); }
+    if (b.dataset.reset) {
+      const v = await sheet('<p>コイン・カード・デッキ・がくしゅうの すすみ・たおした てきの 数を ぜんぶ けして、はじめから やりなおす？ もとに もどせない。</p>', [{ label: 'やりなおす', value: 1 }, { label: 'やめる', value: 0, kind: 'primary' }], { title: 'はじめから やりなおす' });
+      if (v) { S = fresh(); VIEW = null; save(); }
+      return home();
+    }
+    const go = { learn, quiz, shop, deck: deckList, battle: arena, grow }[b.dataset.go];
+    if (go) return go();
+  };
+}
+// がくしゅう（ui/learn.js）：コインと せいちょうポイントは この セーブに 入る
+function learn() {
+  learnMenu({ app: APP, get: () => S, save, back: home, goGrow: grow, name: ORIPA_NAME,
+    unitOpen: (u) => learnUnitOpen(S.tree, u), unitCost: (u) => PB_TREE_LEARN.nodes.find((n) => n.unit === u)?.cost || 0 });
+}
 function home() {
+  if (ORIPA) return homeOripa();
   look();
   const A = activeDeck(), D = deckInfo(), step = nextStep();
   const ok = !D.problems.length;
@@ -218,7 +282,7 @@ function home() {
   const row = (go, no, name, sub, em) => `<li><button type="button" class="st-ep ${step === go ? 'next' : ''} ${lock(go) ? 'lock' : ''}" data-go="${go}" ${lock(go) ? 'disabled' : ''}><b><i class="pb-num">${no}</i>${ICON[go]}</b><span><i class="st-title">${name}</i><small>${lock(go) ? LOCK_NOTE : ruby(sub)}</small></span><em>${lock(go) ? 'まだ あかない' : em}</em></button></li>`;
   app().innerHTML = `<main class="zukan construct pb">
     <p class="eyebrow">もんだいで ためて、パックを あけて、てきを たおそう</p>
-    <h2>${PB_NAME}</h2>
+    <h2>${NAME}</h2>
     <ul class="pb-stats">
       <li><span>ポイント</span><b id="pb-pts">${S.pts}</b><small>P</small></li>
       <li><span>カード</span><b>${totalCards()}</b><small>まい（${kinds().length}しゅるい）</small></li>
@@ -262,8 +326,8 @@ function home() {
 async function quiz() {
   const lv = S.tree.quiz || 0;
   if (!lv) return runQuiz(0);
-  const v = await sheet('<p>むずかしい もんだいほど、もらえる ポイントが 多い。</p>',
-    [...Array.from({ length: lv + 1 }, (_, t) => ({ label: `${t ? HARD_TIERS[t].name : 'ふつう'}（1もん ${PB.quizTier[t]}P）`, value: t, kind: t === (S.quizTier ?? 0) ? 'primary' : '' })), { label: 'やめる', value: null }], { title: 'もんだいの むずかしさ' });
+  const v = await sheet(c('<p>むずかしい もんだいほど、もらえる ポイントが 多い。</p>'),
+    [...Array.from({ length: lv + 1 }, (_, t) => ({ label: c(`${t ? HARD_TIERS[t].name : 'ふつう'}（1もん ${PB.quizTier[t]}P）`), value: t, kind: t === (S.quizTier ?? 0) ? 'primary' : '' })), { label: 'やめる', value: null }], { title: 'もんだいの むずかしさ' });
   if (v == null) return home();
   S.quizTier = v; save();
   return runQuiz(v);
@@ -276,25 +340,25 @@ function runQuiz(tier) {
     ...(T ? { defs, session: (rng, cats) => hardSession(rng, tier, cats) } : {}),
     cats: saved.filter((c) => defs[c]).length ? saved.filter((c) => defs[c]) : Object.keys(defs),
     setCats: (c) => { if (tier) S.cats2 = { ...S.cats2, [tier]: c }; else S.cats = c; save(); },
-    eyebrow: `${PB_NAME}　もんだい${T ? `（${T.name}）` : ''}`,
+    eyebrow: `${NAME}　もんだい${T ? `（${T.name}）` : ''}`,
     title: `${QUIZ_SECONDS}びょう もんだい`,
-    lead: `${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>1もん せいかいで ＋${per}P</b>。${PB.streakEvery}もん れんぞくで せいかいする たびに ボーナス ＋${PB.streakBonus}P。まちがえても ポイントは へらない。`,
+    lead: c(`${QUIZ_SECONDS}びょうで できるだけ たくさん とこう。<b>1もん せいかいで ＋${per}P</b>。${PB.streakEvery}もん れんぞくで せいかいする たびに ボーナス ＋${PB.streakBonus}P。まちがえても ポイントは へらない。`),
     onAnswer: (right) => {
       streak = right ? streak + 1 : 0;
       const g = quizGain(right, streak, tier);
       S.quiz.n++; if (right) S.quiz.ok++;
       S.pts += g; S.earned += g; gain += g; if (g > per) bonus += g - per;
       save();
-      return !right ? '' : g > per ? `${streak}もん れんぞく！ ＋${g}P` : `＋${g}P`;
+      return !right ? '' : c(g > per ? `${streak}もん れんぞく！ ＋${g}P` : `＋${g}P`);
     },
     record: (r) => {
       S.quiz.sessions++; save();
       const g = gain;
-      r.gainNote = `いま ${S.pts}P${bonus ? `（れんぞく ボーナス ＋${bonus}P こみ）` : ''}`;
+      r.gainNote = c(`いま ${S.pts}P${bonus ? `（れんぞく ボーナス ＋${bonus}P こみ）` : ''}`);
       streak = 0; gain = 0; bonus = 0; // 「もう いちど」は はじめから かぞえる
       return g;
     },
-    gainLabel: 'ポイント', gainUnit: 'P', noPass: true, quitNote: 'やめても、ここまでの ポイントは もらえる。',
+    gainLabel: c('ポイント'), gainUnit: ORIPA ? 'コイン' : 'P', noPass: true, quitNote: c('やめても、ここまでの ポイントは もらえる。'),
     back: home, backLabel: 'ホームへ', doneLabel: 'ホームへ',
   });
 }
@@ -337,26 +401,26 @@ function shop() {
       <button type="button" class="btn ${st.done ? '' : 'primary'}" data-buy="${p.id}" ${st.done || !afford ? 'disabled' : ''}>${st.done ? 'コンプリート！' : 'あける'}<small>${st.done ? 'ぜんぶ 4まい' : `${PB.pack}P`}</small></button>
     </li>`;
   }).join('');
-  app().innerHTML = `<main class="zukan construct pb">
-    <p class="eyebrow">${PB_NAME}</p>
+  app().innerHTML = c(`<main class="zukan construct pb">
+    <p class="eyebrow">${NAME}</p>
     <h2>ショップ</h2>
     <p class="zk-total">ポイント <b>${S.pts}</b>P</p>
     <p class="zk-note">${ruby(`パック 1つ ${PB.pack}P。カードが 8まい 入って いる。中の カードは あけるまで わからない。同じ カードは ${MAX_COPY}まいまで（${MAX_COPY}まい もって いる カードは もう 出ない）。ロックの パックは「せいちょう」で かいほうできる。`)}</p>
     ${afford ? '' : `<div class="pb-need"><p>ポイントが あと <b>${PB.pack - S.pts}P</b> たりない。もんだいを といて ためよう。</p><button type="button" class="btn primary" data-go="quiz">もんだいへ<small>1もん せいかいで ＋${PB.quiz}P</small></button></div>`}
     <ul class="cs-sets">${rows}</ul>
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
-  </main>`;
+  </main>`);
   app().onclick = (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.back) return home();
-    if (b.dataset.go === 'quiz') return quiz();
+    if (b.dataset.go === 'quiz') return ORIPA ? learn() : quiz();
     if (b.dataset.go === 'grow') return grow();
     if (b.dataset.buy) return buy(packById(b.dataset.buy));
   };
 }
 async function buy(p) {
   if (!p || S.pts < PB.pack || !isOpen(p.id)) return shop(); // ロックの パックは 買えない
-  const ok = await sheet(`<p>${ruby(`${p.name}を あける？`)}</p><p class="cs-math">${S.pts}P − ${PB.pack}P ＝ <b>${S.pts - PB.pack}</b>P</p>`,
+  const ok = await sheet(c(`<p>${ruby(`${p.name}を あける？`)}</p><p class="cs-math">${S.pts}P − ${PB.pack}P ＝ <b>${S.pts - PB.pack}</b>P</p>`),
     [{ label: 'あける', value: 1, kind: 'primary' }, { label: 'やめる', value: 0 }], { title: 'ショップ' });
   if (!ok) return shop();
   const before = { ...S.cards };
@@ -369,8 +433,8 @@ async function buy(p) {
   if (!SOLO) zukanPack(cards); // 単体版に ずかんは ない
   gacha(APP, cards, {
     got: true, // めくった カードの 下の まどに「〇〇を てに いれた！」
-    eyebrow: `${PB_NAME}　${ruby(p.name)}`, owned: new Set(Object.keys(before)), doneLabel: 'ショップへ',
-    bonus: `<div class="bonus"><p class="bonus-title">${ruby(p.name)}</p><span>のこり ${S.pts}P</span></div>`,
+    eyebrow: `${NAME}　${ruby(p.name)}`, owned: new Set(Object.keys(before)), doneLabel: 'ショップへ',
+    bonus: `<div class="bonus"><p class="bonus-title">${ruby(p.name)}</p><span>${c(`のこり ${S.pts}P`)}</span></div>`,
     done: shop, // トロフィーは つけない（トロフィーで こうちくの パックけんが ふえて しまう。この モードの ものは この モードの 中だけ）
   });
 }
@@ -391,7 +455,7 @@ function deckList() {
     </button></li>`;
   }).join('');
   app().innerHTML = `<main class="zukan construct pb">
-    <p class="eyebrow">${PB_NAME}</p>
+    <p class="eyebrow">${NAME}</p>
     <h2>デッキ</h2>
     <p class="zk-note">カードは デッキの あいだで わけあえない。1つの デッキに 入れた カードは、ほかの デッキでは のこりの まい数しか つかえない（4まい もって いて、デッキに 3まい 入れたら、ほかの デッキには あと 1まい）。バトルには「つかう デッキ」で 出る。</p>
     ${S.decks.length ? `<ul class="cs-decks">${rows}</ul>` : '<p class="zk-note">デッキが 1つも ない。あたらしく つくろう。</p>'}
@@ -449,7 +513,7 @@ function build(deck) {
     pool, phantom, stock: (id) => ({ own: own(id), other: usedOther(deck, id) }),
     pane: true, // 左に カードの ならび、右に えらんだ カードの せつめい
     deck: deck.cards ? idx(deck.cards) : null, stack: true, filterKey: FILTER_KEY,
-    title: `${PB_NAME}：${deck.name}`,
+    title: `${NAME}：${deck.name}`,
     cap: capNow(),
     auto: () => idx(autoCards(pool.slice(0, real), 'normal', null, capNow())), // おまかせ：のこって いる カードで いちばん つよい 2色
     save: () => { deck.cards = C.deck.map((k) => pool[k]); save(); },
@@ -495,8 +559,8 @@ function arena() {
   const E = endless ? endlessAt(S.endless, S.seed) : null;
   const left = endless || locked ? 0 : stageLeft(VIEW);
   const dots = Array.from({ length: pages }, (_, si) => `<button type="button" class="pb-dot ${si === VIEW ? 'on' : ''} ${si < N && si > t ? 'lock' : ''}" data-stage="${si}" aria-label="${si >= N ? 'むげんの たたかい' : `ステージ ${si + 1}`}${si > t ? '（まだ）' : ''}">${si >= N ? '∞' : si + 1}</button>`).join('');
-  app().innerHTML = `<main class="zukan construct pb pb-arena">
-    <p class="eyebrow">${PB_NAME}　たおした てき ${S.wins}たい</p>
+  app().innerHTML = c(`<main class="zukan construct pb pb-arena">
+    <p class="eyebrow">${NAME}　たおした てき ${S.wins}たい</p>
     <h2>バトル</h2>
     <div class="pb-pager" role="group" aria-label="ステージを えらぶ">
       <button type="button" class="btn pb-arrow" data-step="-1" ${VIEW <= 0 ? 'disabled' : ''} aria-label="まえの ステージ">◀</button>
@@ -517,7 +581,7 @@ function arena() {
     : `<div class="pb-need"><p><b>つかう デッキが まだ できて いない</b>ので、バトルに 出られない。</p>${needList(D.problems)}</div>`}
     ${S.open ? `<div class="row-btns"><button type="button" class="btn" data-go="deck">${ok ? 'デッキを かえる' : 'デッキを なおす'}</button></div>` : `<p class="pb-guide">${esc(`${PB_STARTER.name}で あいてを 1たい たおすと、ショップと デッキが あくよ。`)}</p>`}
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
-  </main>`;
+  </main>`);
   const step = (d) => { const v = VIEW + d; if (v < 0 || v >= pages) return; VIEW = v; arena(); };
   // スワイプ：よこに 40px いじょう（たてより よこが 大きい とき）。スワイプの すぐ あとの タップは あいてを えらばない
   const main = app().firstElementChild;
@@ -542,7 +606,7 @@ function arena() {
 // アンティ：かって もらった カードを 大きく 見せる（くらい 画面の まんなかに カード、下の まどに「〇〇を てに いれた！」）
 const anteShow = (d, dupe) => sheet(`<div class="ante-card ${d.rar === 'L' ? 'legend' : ''}">${fullCard(d)}</div>
   <p class="ante-msg">${ruby(`${info(d).name}を てに いれた！`)}</p>
-  ${dupe ? `<p class="ante-dupe">もう ${MAX_COPY}まい もって いるので、<b>＋${PB.anteDupe}P</b> に かわった</p>` : `<p class="ante-have">もって いる ${own(d.id)}まい</p>`}`,
+  ${dupe ? `<p class="ante-dupe">もう ${MAX_COPY}まい もって いるので、<b>${c(`＋${PB.anteDupe}P`)}</b> に かわった</p>` : `<p class="ante-have">もって いる ${own(d.id)}まい</p>`}`,
   [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'アンティ：かって もらった カード', cls: 'ante', dismiss: false });
 function fight(f) {
   if (!f || deckInfo().problems.length) return arena();
@@ -553,12 +617,12 @@ function fight(f) {
     extraNote: [f.buff ? `${f.lap ? `${f.lap}しゅうめ：` : 'ボスは 本気（ほんき）：'}てきの クリーチャーは ＋${f.buff}/＋${f.buff}` : '', f.lifeBonus ? `てごわい あいて なので、きみの ライフは ${20 + f.lifeBonus}から` : '',
       PB_SIG[f.floorId] && !f.kihon && !f.ghost ? `きめわざ「${PB_SIG[f.floorId].def.name}」：${PB_SIG[f.floorId].text}` : '',
       PB_PAL[f.floorId] && !f.kihon && !f.ghost ? `なかま「${PB_PAL[f.floorId].def.name}」：${PB_PAL[f.floorId].text}` : ''].filter(Boolean).join('。'),
-    quit: { label: 'ホームへ もどる', note: 'たたかいを やめて もどる？ ポイントと カードは そのまま。この てきには また いどめるよ。', go: home },
+    quit: { label: 'ホームへ もどる', note: c('たたかいを やめて もどる？ ポイントと カードは そのまま。この てきには また いどめるよ。'), go: home },
     onEnd: async (r) => {
       S = load();
       if (!r.win) {
         S.lost = 1; save();
-        await sheet(`<p>まけて しまった。でも、ポイントと カードは そのまま。</p><p class="zk-note">${!S.open ? 'もう いちど いどもう。' : S.pts >= PB.pack ? 'ショップで パックを あけて、デッキを つよく しよう。' : 'もんだいで ポイントを ためて、パックを あけよう。'}</p>`,
+        await sheet(c(`<p>まけて しまった。でも、ポイントと カードは そのまま。</p><p class="zk-note">${!S.open ? 'もう いちど いどもう。' : S.pts >= PB.pack ? 'ショップで パックを あけて、デッキを つよく しよう。' : 'もんだいで ポイントを ためて、パックを あけよう。'}</p>`),
           [{ label: 'ホームへ', value: 1, kind: 'primary' }], { title: r.draw ? 'ひきわけ' : 'まけて しまった', dismiss: false });
         return home();
       }
@@ -575,10 +639,10 @@ function fight(f) {
       if (cleared) { S.stage = now; S.gp += PB.gpStage * (now - was); VIEW = now; }
       save();
       if (!SOLO && !dupe) zukanPack([card]);
-      await sheet(`<p><b>${ruby(foeName(f))}</b>を たおした！</p>
+      await sheet(c(`<p><b>${ruby(foeName(f))}</b>を たおした！</p>
         <p class="what">${f.boss ? 'ボスを たおした' : 'かった'} ＋${g.base}P${g.exact ? `　ぴったり ${Math.min(PB.exactMax, r.exact)}回 ＋${g.exact}P` : ''}</p>
         <p class="cs-math">${before}P ＋ ${g.total}P ＝ <b>${before + g.total}</b>P</p>
-        <p class="what">せいちょうポイント ＋${PB.gpWin}${cleared ? `　ステージ クリア ＋${PB.gpStage * (now - was)}` : ''}（いま ${S.gp}）</p>`,
+        <p class="what">せいちょうポイント ＋${PB.gpWin}${cleared ? `　ステージ クリア ＋${PB.gpStage * (now - was)}` : ''}（いま ${S.gp}）</p>`),
         [{ label: 'つぎへ', value: 1, kind: 'primary' }], { title: 'かった！', dismiss: false });
       await anteShow(card, dupe);
       // きまった あいてを PB.need 回 たおした：パックが ひらく
@@ -613,24 +677,24 @@ function grow() {
       <small class="em-foe">${ps.open ? '' : `${ruby(ps.u.who)}を あと ${ps.left}回`}</small><em>${ps.open ? 'ひらいた' : `${n.cost}ポイント`}</em></button></li>`;
   };
   app().innerHTML = `<main class="zukan construct pb emblem">
-    <p class="eyebrow">${PB_NAME}</p>
+    <p class="eyebrow">${NAME}</p>
     <h2>せいちょう</h2>
-    <p class="em-pts">せいちょうポイント <b id="pb-gp">${S.gp}</b><small>たたかいに かつと ＋${PB.gpWin}、ステージを クリアすると ＋${PB.gpStage}。もんだいの ポイント（P）とは べつ</small></p>
+    <p class="em-pts">せいちょうポイント <b id="pb-gp">${S.gp}</b><small>たたかいに かつと ＋${PB.gpWin}、ステージを クリアすると ＋${PB.gpStage}。${ORIPA ? 'コイン' : 'もんだいの ポイント（P）'}とは べつ${ORIPA ? '。がくしゅうでも もらえる（はじめての クリアなど）' : ''}</small></p>
     <p class="zk-note">えだごとに、左から じゅんばんに とれる（「パック」の えだは どれからでも）。カードは つよく ならない：できる ことが ふえる。</p>
-    ${PB_TREE.map((b) => `<section class="em-branch ${b.free ? 'em-any' : ''}" data-branch="${b.id}"><h3>${b.mark} ${esc(b.name)}<small>${esc(b.note)}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => (b.free ? packNode : node)(b, n, i)).join('')}</ol></section>`).join('')}
+    ${TREE.map((b) => `<section class="em-branch ${b.free ? 'em-any' : ''}" data-branch="${b.id}"><h3>${b.mark} ${esc(b.name)}<small>${esc(b.note)}</small></h3><ol class="em-nodes">${b.nodes.map((n, i) => (b.free ? packNode : node)(b, n, i)).join('')}</ol></section>`).join('')}
     <button type="button" class="btn ghost" data-back="1">ホームへ</button>
   </main>`;
   app().onclick = async (e) => {
     const el = e.target.closest('button'); if (!el) return;
     if (el.dataset.back) return home();
-    const b = PB_TREE.find((x) => x.id === el.dataset.b); if (!b) return;
+    const b = TREE.find((x) => x.id === el.dataset.b); if (!b) return;
     const i = +el.dataset.i, lv = S.tree[b.id] || 0, n = b.nodes[i];
     if (b.free) {
       const p = packById(n.pack), ps = packState(p), name = p.name.replace(/（[^）]*）/g, '');
       if (ps.open) return toast('もう ひらいて いる（ショップで 買える）');
       const can = S.gp >= n.cost;
       const v = await sheet(`<p><b>${b.mark} ${esc(b.name)} ${i + 1}</b></p><p>${ruby(n.text)}</p>${p.note ? `<p class="zk-note">${ruby(p.note)}</p>` : ''}
-        <p class="what">カード ${ps.list.length}しゅるい・ショップで 1パック ${PB.pack}P</p>
+        <p class="what">カード ${ps.list.length}しゅるい・${c(`ショップで 1パック ${PB.pack}P`)}</p>
         <ul class="pb-list pb-how">
           <li>${ruby(`${ps.u.who}を ${PB.need}回 たおすと ひらく`)}<br><b>いま ${ps.wins}回・あと ${ps.left}回</b>${ps.canFight ? '' : `<br><small>ステージ ${ps.stage} が ひらくと たたかえる（いまは ポイントで ひらける）</small>`}</li>
           <li>せいちょうポイント <b>${n.cost}</b>で ひらく<br>${can ? `<span class="cs-math">${S.gp} − ${n.cost} ＝ <b>${S.gp - n.cost}</b>ポイント</span>` : `<small>いま ${S.gp}ポイント（あと ${n.cost - S.gp}）</small>`}</li>
