@@ -114,7 +114,7 @@ export function castCard(s, c, pl, o = {}) {
   for (const h of P.emblem?.hooks || []) h.cast?.(s, api, def); // 次元渡りの レリック
   L(s, `${s.swapped ? 'てき：' : ''}となえた：${def.name}${o.x != null ? `（X=${o.x}）` : ''}${from === 'escape' ? '（だっしゅつ）' : ''}`);
   // あいて（入れかえて うごく AI）が つかった カードと、その あとの ログの 位置（画面で 1まいずつ 見せる。battle.js の foeShow）
-  if (s.swapped) (s.foeCards ||= []).push({ def, at: s.logs.length });
+  if (s.swapped || s.rtWatch) (s.foeCards ||= []).push({ def, at: s.logs.length }); // rtWatch：リアルタイムたいせんで あいての そうさを さいせい中（battle.js の rtApply）
   const noncreature = !def.types.includes('creature');
   for (const q of [...P.bf]) {
     if (!onBf(s, q)) continue;
@@ -677,9 +677,10 @@ function reactLoop(s, ctx) {
       const d = c.def;
       if (!d.react || c.locked) continue;
       const o = { convoke: d.kw?.includes('convoke') };
-      if (!plan(s, d.cost, colorsOf(d), o)) continue;
-      const r = d.react(s, api, { ...ctx, manaLeft: manaCount(s, o) - d.cost });
-      if (r && r.score > 0) opts.push({ score: r.score, exec: () => { const pl = plan(s, d.cost + (r.extra || 0), colorsOf(d), o); if (pl) castCard(s, c, pl, { run: r.run }); } });
+      const dc = api.freeCast(s, d) ? 0 : d.cost; // タダで 唱えられる（星が瞬くこんな夜に）
+      if (!plan(s, dc, colorsOf(d), o)) continue;
+      const r = d.react(s, api, { ...ctx, manaLeft: manaCount(s, o) - dc });
+      if (r && r.score > 0) opts.push({ score: r.score, exec: () => { const pl = plan(s, dc + (r.extra || 0), colorsOf(d), o); if (pl) castCard(s, c, pl, { run: r.run }); } });
     }
     if (!opts.length) break;
     opts.sort((a, b) => b.score - a.score);

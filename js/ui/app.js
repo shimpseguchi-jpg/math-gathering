@@ -9,6 +9,7 @@ import { ptsOf } from '../engine/ai.js';
 import { startBattle } from './battle.js';
 import { tutorialDeck, tutorialSetup, TUTORIAL_DONE } from './tutorial.js';
 import { onlineMenu, saveGhost, hasServer } from './online.js';
+import { rtMenu } from './rt.js';
 import { raidMenu } from './raid.js';
 import { pickLegend, cmdColorText } from './commander.js';
 import { storyMenu, storyCount, storyTotal } from './story.js';
@@ -40,6 +41,7 @@ import { addTickets, tickets, ENDLESS_PER } from './collection.js';
 import { spireMenu, spireTile } from './spire.js';
 import { pbMenu, pbSummary } from './packbattle.js';
 import { PB_NAME } from '../data/packbattle.js';
+import { isSolo } from './solo.js';
 import './fullscreen.js'; // iPad の Safari：タップで ぜんがめん（せっていで かえられる）
 
 const SAVE = 'mtg-adventure-v1';
@@ -98,6 +100,7 @@ const T_ICON = {
   build: '<rect x="3" y="6" width="11" height="15" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/>',
   emblem: '<path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.5 2.4-7.4L2 9.6h7.6z" fill="currentColor" stroke="none"/>',
   online: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  rt: '<path d="M14.5 4l5.5 5.5-9 9H5.5V13z"/><path d="M9.5 4L4 9.5l3 3"/><path d="M16 14l4 4"/>',
   tut: '<path d="M5 21V4h12l-2 4 2 4H5"/>',
   pb: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M5 7h14"/><path d="M12 9.5l1.3 2.6 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4z" fill="currentColor" stroke="none"/>',
   kihon: '<path d="M12 21V11M12 11c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5"/>',
@@ -151,11 +154,12 @@ export function title() {
     <section class="t-main">
       ${!narrow && raidShown() ? `<button type="button" class="raid-banner ${raidOpen() ? '' : 'done'}" data-go="raid"><span class="rb-tag">${raidOpen() ? 'かいさい中' : 'けっか'}</span><b>レイド：タルキール</b><small>${ruby(raidOpen() ? `龍族（りゅうぞく） vs 人間（にんげん）の 統率者戦（とうそつしゃせん）${raidFree() ? '（WEBばんは 仮（かり）モード）' : `・${new Date(RAID.ends).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: 'numeric' })} まで`}` : 'どちらの 陣営（じんえい）が かった？')}</small></button>` : ''}
       <div class="title-btns">
+        ${narrow ? '' : `<button type="button" class="btn primary rt-main" data-go="rt">リアルタイムたいせん<small>${hasServer() ? 'ともだちと あいことばで たいせん' : 'ともだちと たいせん（GASばんで あそべる）'}</small></button>`}
         ${first || step === 'tutorial' ? '<button type="button" class="btn primary" data-go="tut">チュートリアル（はじめての 人）</button>' : ''}
         ${step === 'story' ? `<button type="button" class="btn primary" data-go="story">ストーリーを すすめる<small>1章を クリアすると ${KIHON_NAME}へ</small></button>` : ''}
         ${step === 'kihon' ? `<button type="button" class="btn primary" data-go="kihon">${KIHON_NAME}<small>${ruby('課題（かだい）を 3つ クリアすると とうへ')}</small></button>` : ''}
         ${old && !old.over ? `<button type="button" class="btn primary" data-go="cont">つづきから<small>${old.endless ? `むげんの とう ${old.endless.floor}階` : `${old.idx + 1}階から`}</small></button>` : ''}
-        ${step ? '' : `<button type="button" class="btn ${(old && !old.over) || first ? '' : 'primary'}" data-go="new">あたらしい ぼうけん</button>`}
+        ${step ? '' : '<button type="button" class="btn" data-go="new">あたらしい ぼうけん</button>'}
       </div>
       ${step ? '' : `<div class="t-opts">
         <p class="t-opts-h">ぼうけんの せってい</p>
@@ -170,6 +174,7 @@ export function title() {
       ${GATES.kihon() ? tile('kihon', KIHON_NAME, ruby('課題（かだい）を 3つ クリアすると せかいが ひらける'), tIcon('kihon'), step === 'kihon' ? 'next' : '') : ''}
       ${step !== 'tutorial' ? tile('pb', PB_NAME, pbSummary(), tIcon('pb')) : ''}
       ${step !== 'tutorial' ? tile('tut', 'チュートリアル', 'もう いちど') : ''}
+      ${step !== 'tutorial' ? tile('rt', 'リアルタイムたいせん', hasServer() ? 'ともだちと あいことばで' : 'GASばんで あそべる') : ''}
       ${DEV ? tile('spire', ...spireTile()) : ''}` : `
       ${tile('pb', PB_NAME, pbSummary(), tIcon('pb'))}
       ${tile('build', 'こうちく', `パックけん ${tickets()}まい`)}
@@ -181,7 +186,7 @@ export function title() {
       ${tile('kobo', ruby('カード工房（こうぼう）'), koboCount() ? `つくった カード ${koboCount()}まい` : 'じぶんの カードを つくる', tIcon('kobo'))}
       ${tile('zukan', 'ずかん', `カード ${zukanCount()}しゅるい`)}
       ${tile('trophy', 'トロフィー', `${trophyCount()} / ${TROPHIES.length}`, cup(trophyCount() ? 'G' : 'X'))}
-      ${tile('online', 'オンライン', hasServer() ? 'ゴーストと たたかう' : 'れんしゅう')}
+      ${tile('online', 'ゴーストたいせん', hasServer() ? 'ひとりで ゴーストと たたかう' : 'れんしゅう')}
       ${tile('tut', 'チュートリアル', 'はじめての 人へ')}
       ${DEV ? tile('spire', ...spireTile()) : ''}`}
       ${tile('settings', 'せってい', 'みため・おと', tIcon('settings'), 'ghost')}
@@ -214,6 +219,7 @@ export function title() {
     if (b.dataset.go === 'cont') { A = old; return resume(); }
     if (b.dataset.go === 'tut') return tutorial();
     if (b.dataset.go === 'online') return onlineMenu(app, title);
+    if (b.dataset.go === 'rt') return rtMenu(app, title);
     if (b.dataset.go === 'raid') return raidMenu(app, title);
     if (b.dataset.go === 'story') return storyMenu(title);
     if (b.dataset.go === 'tsume') return tsumeMenu(title);
@@ -467,7 +473,8 @@ function whyNotPts(sel, i, pool = A.pool, cap = CAPACITY) {
 //         cap: キャパシティ（なければ 30点。冒険は 階で ふえる）, noCap: キャパシティと 色を 見ない（エターナル）, ident: 統率者の 色（この 色の カードだけ。noCap でも 見る）, stack: 同じ カードを 1まいに まとめて「●●○○」と 見せる,
 //         back: { label, go() }：もどる ボタン（入れる・はずすの たびに save() するので ここでは しない）, filterKey：こまかくの せっていを のこす key,
 //         stock(id) → { own, other }・phantom：Set（パック＆バトル。カードは デッキの あいだで わけあわない）：pool には この デッキに 入れられる まい数 だけ。
-//           ほかの デッキで つかって いる カードは、pool の おわりに「入れられない 1まい」（phantom の 番号）を 足して、わけを 出す }
+//           ほかの デッキで つかって いる カードは、pool の おわりに「入れられない 1まい」（phantom の 番号）を 足して、わけを 出す,
+//         pane：2つに わける（パック＆バトル。左に カードの ならび：なまえ・点・在庫、右に えらんだ カードの せつめいと 入れる・はずす。stack と いっしょに つかう） }
 const advCtx = () => ({
   get pool() { return A.pool; }, get deck() { return A.deck; }, set deck(v) { A.deck = v; }, save, auto: autoDeck, ok: tower, title: 'デッキを くむ', free: false, get cap() { return advCap(); },
   colorNote: A.cmd ? '色（統率者（とうそつしゃ）の 色）' : '',
@@ -516,6 +523,21 @@ export function deckBuilder(C = advCtx()) {
   let mode = (() => { try { return localStorage.getItem(TAP_MODE) === 'quick' ? 'quick' : 'detail'; } catch { return 'detail'; } })();
   // デッキの カード（view = 'deck'）：同じ カードを 1行に まとめて マナコストの じゅん。−／＋で 1まいずつ、なまえで せつめい
   let view = 'pool';
+  // 2つに わけた 画面（C.pane）：えらんで いる カード（さいしょは ならびの いちばん 上）
+  let sel = null;
+  const paneList = (list) => (list.length ? list.map((i) => {
+    const d = BY_ID[C.pool[i]], k = nIn(i), it = stackItem(i), t = C.stock ? stockOf(i) : null;
+    return `<li><button type="button" class="bp-row ${k ? 'in' : ''} ${it.no ? 'no' : ''} ${C.pool[i] === sel ? 'sel' : ''}" data-row="${i}"><span class="dl-cost">${d.cost ?? 0}</span><span class="zk-dots">${colorsOf(d).map((c) => `<i class="m-${c}"></i>`).join('')}</span><b>${ruby(info(d).name)}</b><small>${ptsOf(d)}点</small>${t ? `<span class="stk ${t.other ? 'used' : ''}">もち${t.own}${t.other ? `・ほか${t.other}` : ''}・あと${t.left}</span>` : ''}<span class="cnt">${'●'.repeat(k)}${'○'.repeat(usable(i) - k)}</span></button></li>`;
+  }).join('') : '<li class="pool-empty">あてはまる カードが ない。しぼりこみを へらそう。</li>');
+  const paneDetail = () => {
+    const i = sel != null && G.has(sel) ? G.get(sel)[0] : null;
+    if (i == null) return '<p class="pool-empty">カードを えらぼう。</p>';
+    const f = freeOf(i), last = lastIn(i), no = f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f), t = C.stock ? stockOf(i) : null;
+    return `<div class="row-btns"><button type="button" class="btn primary" data-pin="${i}" ${no ? 'disabled' : ''}>1まい 入れる</button><button type="button" class="btn" data-pout="${i}" ${last == null || outNo(last) ? 'disabled' : ''}>1まい はずす</button></div>
+      ${no ? `<p class="bp-no">入れられない：${esc(no)}</p>` : ''}
+      <p class="zk-note">${t ? `もって いる ${t.own}まい／ほかの デッキで ${t.other}まい つかって いる／この デッキに ${nIn(i)}まい／あと ${t.left}まい 入れられる` : `デッキに ${nIn(i)}まい`}</p>
+      ${detail(BY_ID[C.pool[i]])}`;
+  };
   const addOf = (id) => { const f = G.get(id).find((k) => !C.deck.includes(k)); return { f, no: f == null ? 'もって いる カードは ぜんぶ 入れた' : ruleNo(f) }; };
   const deckHtml = (st) => {
     if (!st.count) return '<p class="pool-empty">まだ デッキに カードが ない。「カード」の タブから 入れよう。</p>';
@@ -538,7 +560,8 @@ export function deckBuilder(C = advCtx()) {
     const st = deckStats(C.deck, C.pool);
     const left = cap - st.points;
     const list = shownIdx();
-    app().innerHTML = `<main class="builder ${F.open && view === 'pool' ? 'has-filter' : ''}">
+    if (C.pane && (sel == null || !G.has(sel)) && list.length) sel = C.pool[list[0]];
+    app().innerHTML = `<main class="builder ${F.open && view === 'pool' ? 'has-filter' : ''} ${C.pane ? 'two' : ''}">
       <header class="b-head">
         <h2>${ruby(C.title)}</h2>
         <div class="meters">
@@ -557,7 +580,7 @@ export function deckBuilder(C = advCtx()) {
         <p class="hint">${mode === 'quick' ? (C.stack ? 'タップで 1まいずつ 入れる。ぜんぶ 入れた カードは タップで ぜんぶ はずす。長おしで せつめい。' : 'タップで 入れる ⇔ はずす。長おしで せつめい。') : 'タップで せつめい → 入れる・はずす。'}${C.stack ? '同じ カードは 4まいまで。' : ''}${C.noCap ? '' : '点数は コモン1・アンコモン2・レア3・レジェンド4。'}${C.stock ? 'カードの 下：もち＝もって いる まい数・ほか＝ほかの デッキで つかって いる・あと＝この デッキに 入れられる。' : ''}</p>
       </header>
       ${view === 'deck' ? deckHtml(st) : `${filterPanel(F, C.pool.map((id) => BY_ID[id]), list.length, total(), unit)}
-      <div class="pool ${mode}">${poolHtml(list)}</div>`}
+      ${C.pane ? `<div class="bp"><ul class="bp-list">${paneList(list)}</ul><aside class="bp-detail">${paneDetail()}</aside></div>` : `<div class="pool ${mode}">${poolHtml(list)}</div>`}`}
       <footer class="actions">${C.back ? `<button type="button" class="btn" data-a="back">${esc(C.back.label)}</button>` : ''}<button type="button" class="btn" data-a="auto">おまかせ</button><button type="button" class="btn" data-a="clear">ぜんぶ はずす</button><button type="button" class="btn primary" data-a="ok">けってい</button></footer>
     </main>`;
   };
@@ -596,9 +619,9 @@ export function deckBuilder(C = advCtx()) {
   app().onpointerup = app().onpointercancel = () => clearTimeout(press);
   // なまえ・テキストで さがす：入力ちゅうは カードの ならびだけ かきかえる（入力欄が きえない ように）
   app().oninput = (e) => {
-    if (!onFilterInput(F, e.target) || !app().querySelector('.pool')) return;
+    if (!onFilterInput(F, e.target) || !app().querySelector('.pool, .bp-list')) return;
     const list = shownIdx();
-    app().querySelector('.pool').innerHTML = poolHtml(list);
+    if (C.pane) app().querySelector('.bp-list').innerHTML = paneList(list); else app().querySelector('.pool').innerHTML = poolHtml(list);
     const sum = app().querySelector('.fsum span'); if (sum) sum.textContent = `${list.length} / ${total()}${unit} を 見せて いる`;
   };
   app().onclick = async (e) => {
@@ -626,6 +649,10 @@ export function deckBuilder(C = advCtx()) {
       if (!C.deck.length && !C.cmd) return sheet('<p>カードを 1まい いじょう 入れよう。</p>', [{ label: 'とじる', value: 0 }]);
       C.save(); return C.ok();
     }
+    // 2つに わけた 画面：ならびを タップで えらぶ、右の ボタンで 1まいずつ
+    if (b.dataset.row != null) { sel = C.pool[+b.dataset.row]; return draw(); }
+    if (b.dataset.pin != null) { const f = freeOf(+b.dataset.pin); if (f == null || ruleNo(f)) return; C.deck.push(f); sfx.tap(); C.save(); return draw(); }
+    if (b.dataset.pout != null) { const last = lastIn(+b.dataset.pout); if (last == null || outNo(last)) return; C.deck = C.deck.filter((k) => k !== last); sfx.tap(); C.save(); return draw(); }
     if (b.dataset.i == null) return;
     const i = +b.dataset.i;
     if (mode === 'detail') return showDetail(i);
@@ -808,7 +835,7 @@ function ending(win) {
     </dl>
     ${mat ? `<p class="what mat-get"><span class="mat-sw" data-m="${mat}"></span><span>${ruby(`プレイマット「${matName(mat)}」を 手に 入れた！（せっていで かえられる）`)}</span></p>` : ''}
     ${ticketLine(got)}
-    <p class="fine">この デッキは「ゴースト」に なった。タイトルの「オンライン バトル」で つかえるよ。</p>
+    <p class="fine">この デッキは「ゴースト」に なった。タイトルの「ゴーストたいせん」と「リアルタイムたいせん」で つかえるよ。</p>
     ${adsOn() ? `<p class="say"><b>${strix() ? 'ストリクスヘイヴンの 先生たち' : A.plane === 'ravnica' ? 'ジェイス' : 'テーロスの 神々'}</b><span>${strix() ? 'もっと まなびたいかな？' : A.plane === 'ravnica' ? 'もっと つよく なりたいかい？' : 'もっと つよく なりたいか？'}</span></p>
     <div class="row-btns"><button type="button" class="btn primary" data-a="more">しゅぎょうする<small>ボーナス ＋2ポイント</small></button><button type="button" class="btn" data-a="t">タイトルへ</button></div>` : '<button type="button" class="btn primary" data-a="t">タイトルへ</button>'}
   </main>`;
@@ -965,8 +992,9 @@ function endlessEnd() {
 applyTheme();
 applyMat();
 initTerms();
+// 単体版（パック＆バトル だけ。standalone.js）は タイトルを 出さない：入口が じぶんで ホームを ひらく
 // GAS 版：さいしょに 先生の せってい（パックの 弾・レイド）と、先生か どうかを もらう
-if (hasServer()) {
+if (isSolo()) { /* なにも しない */ } else if (hasServer()) {
   app().innerHTML = `<main class="title">${loading()}</main>`;
   loadConf().then(() => { applyConf(); applyRaid(); title(); });
 } else title();

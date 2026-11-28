@@ -219,7 +219,7 @@ function build(deck, fresh = false) {
 }
 // おまかせ：ノーマルは 30点の 中で（冒険と 同じ buildDeck）、エターナルは ねうちの 高い じゅんに 20まい。
 // 統率者の ルールは 統率者の 色で、ほかは いちばん つよい 2色で
-export function autoCards(pool, rule, ident) { // パック＆バトル（packbattle.js）の おまかせも これ
+export function autoCards(pool, rule, ident, cap = CAPACITY) { // cap：パック＆バトルの キャパシティ（せいちょうで ふえる） // パック＆バトル（packbattle.js）の おまかせも これ
   const defs = pool.map((id) => BY_ID[id]);
   const inside = (pair) => defs.filter((d) => colorsOf(d).every((c) => pair.includes(c)));
   if (isEternal(rule)) {
@@ -234,8 +234,8 @@ export function autoCards(pool, rule, ident) { // パック＆バトル（packba
   }
   // 同じ 色・点・ねうちの カードは 入る 数まで に へらす（ぜんぶ 開放だと プールが 大きくて おそい）
   const seen = {};
-  const few = defs.filter((d) => { const k = `${colorsOf(d).join('')}|${ptsOf(d)}|${cardValue(d)}|${d.banner || ''}`; seen[k] = (seen[k] || 0) + 1; return seen[k] <= Math.min(DECK_SIZE, Math.floor(CAPACITY / Math.max(1, ptsOf(d)))); });
-  return buildDeck(few, ident ? { pair: ident } : {}).deck.filter((d) => !d.basic).map((d) => d.id);
+  const few = defs.filter((d) => { const k = `${colorsOf(d).join('')}|${ptsOf(d)}|${cardValue(d)}|${d.banner || ''}`; seen[k] = (seen[k] || 0) + 1; return seen[k] <= Math.min(DECK_SIZE, Math.floor(cap / Math.max(1, ptsOf(d)))); });
+  return buildDeck(few, { ...(ident ? { pair: ident } : {}), capacity: cap }).deck.filter((d) => !d.basic).map((d) => d.id);
 }
 // たたかう デッキ：もって いない カードは のぞいて、たりない ぶんは よく つかう 色（なければ 統率者の 色）の きほんカード
 function playDeck(deck) {

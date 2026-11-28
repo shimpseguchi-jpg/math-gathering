@@ -833,7 +833,7 @@ export function tutorial() {
 }
 
 // ===== オンラインバトル：ほかの 人の デッキ（ゴースト）と 1対1 =====
-// g = { deck: [def…], name, first: 'P' | 'E' }。どちらも ライフ 20。攻撃は あいて（プレイヤー）に する（MTG と おなじ）
+// g = { deck: [def…], name, first: 'P' | 'E', style?: 'rush' | 'guard'（こうげきの くせ） }。どちらも ライフ 20。攻撃は あいて（プレイヤー）に する（MTG と おなじ）
 // あいての ターンは P と E を 入れかえて、プレイヤー用の AI（ai.js）と カードの 効果を そのまま 使う
 export function pvp(g) {
   return {
@@ -850,28 +850,41 @@ export function pvp(g) {
       const human = s.ai, AI = E.AI;
       const mine = () => { E.swapSides(s); s.ai = AI; };
       const back = () => { E.swapSides(s); s.ai = human; };
+      // あいて だけの きまり（g.turnStart・g.beforeAttack・g.onSpells：パック＆バトルの ギルドの リーダー。data/packbattle.js）。なければ なにも しない
+      await g.turnStart?.(s, E);
+      if (s.over) return;
+      // じゅもん（インスタント・ソーサリー）を つかった 数：メインの まえと あとの 墓地を くらべる
+      const spellsIn = (from) => s.P.gy.slice(from).filter((c) => c.def.types.includes('instant') || c.def.types.includes('sorcery')).length;
       mine();
       ghostBegin(s, E);
-      let atk = [];
+      let atk = [], gy0 = s.P.gy.length, cast = 0;
       // あいてが つかった カードは、メインの あとで 画面に 1まいずつ 見せる（human.foeShow。AI どうしの シミュレーションでは なし）
       let from = s.logs.length;
       if (!s.over) AI.main(s, 1);
+      cast = spellsIn(gy0);
       let to = s.logs.length;
       if (!s.over) E.combatStart(s);
       if (!s.over) {
         atk = AI.attack(s).filter((a) => a.t);
-        if (atk.length) { E.L(s, `てきの こうげき：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
+        // たたかいかたの くせ（g.style。パック＆バトルの キャラクター：data/packbattle.js）。なければ いつもの AI
+        // rush：こうげきできる クリーチャーは ぜんぶ こうげき（そんな こうげきも やめない）。guard：クリーチャーの 数で かって いる ときか、あいての ライフが 少ない ときだけ こうげき
+        if (g.style === 'rush') atk = E.readyAttackers(s).map((p) => ({ p, t: 'face' }));
+        if (g.style === 'guard') { const n = (side) => side.bf.filter((q) => E.isCreature(q)).length; if (n(s.P) <= n(s.E) && s.E.life > 5) atk = []; }
+        if (atk.length) { g.beforeAttack?.(s, E, atk.map((a) => a.p)); E.L(s, `てきの こうげき：${atk.map((a) => a.p.def.name).join('、')}`); E.attackTriggers(s, atk); }
       }
       back();
+      if (cast && !s.over) g.onSpells?.(s, E, cast);
       await human.foeShow?.(s, from, to);
       if (!s.over && atk.length) await E.enemyAttack(s, atk.map((a) => a.p));
       if (s.over) return;
       mine();
-      from = s.logs.length;
+      from = s.logs.length; gy0 = s.P.gy.length;
       AI.main(s, 2);
+      cast = spellsIn(gy0);
       to = s.logs.length;
       for (const p of [...s.P.bf]) if (E.onBf(s, p) && p.def.endStep) p.def.endStep(s, p, E);
       back();
+      if (cast && !s.over) g.onSpells?.(s, E, cast);
       await human.foeShow?.(s, from, to);
     },
     // ニクスの 嵐：じぶんの 10ターンめから、ターンの はじめに ライフを 1・2・3…と 失う（長びかない ように）
@@ -884,6 +897,7 @@ export function pvp(g) {
     threat(s, E) { const a = s.E.bf.filter((q) => E.isCreature(q) && !E.hasKw(s, q, 'defender') && !q.def.cantAttack); return { damage: sumPow(s, E, a), attackers: a.length }; },
     anyTarget() { return 'face'; },
     castThreat(s, d) { return d.types.includes('creature') ? (d.pow || 0) + 1 : 2; },
+    ...(g.goal ? { goal: g.goal } : {}), ...g.hooks, // あいて だけの きまり（かちかたの せつめい・コストの ぜい など）
   };
 }
 

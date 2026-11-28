@@ -226,6 +226,9 @@ export function permFace(s, p, o = {}) {
     p.def.levels ? `<span class="b lv">Lv${p.level}</span>` : '',
     p.def.saga ? `<span class="b lore">${['', 'I', 'II', 'III'][p.lore] || ''}/${['', 'I', 'II', 'III'][p.def.saga.length]}</span>` : '',
     p.def.vanishing ? `<span class="b time">じかん ${p.time || 0}</span>` : '',
+    p.mp ? `<span class="b mark">まりょく ${p.mp}</span>` : '',
+    p.stun ? `<span class="b time">まひ ${p.stun}</span>` : '', // 麻痺カウンター // 魔力カウンター（番外編「魔法使いの夜」）
+    ...[...(p.kwc || [])].map((k) => `<span class="b mark">${KW[k] || k}</span>`), // キーワードカウンター
     p.marks ? `<span class="b mark">しるし ${p.marks}</span>` : '',
     p.def.hellbent && !(s[p.side].hand || [1]).length ? '<span class="b hell">ぼうゆう</span>' : '',
     p.tapped ? '<span class="b tap">タップ</span>' : '',
@@ -299,6 +302,9 @@ export function permState(s, p) {
   if (p.shieldCtr) rows.push(`盾（たて）カウンター：${p.shieldCtr}こ`);
   if (p.anom) rows.push(`${ANOM_JA[p.anom]}の 異常（いじょう）：${p.anom === 'L' ? 'どの 色の クリーチャーで ダメージを あたえても' : `${COLOR_JA[p.anom]} いがいの 色の クリーチャーで ダメージを あたえると`} 2ばい（紊乱（びんらん））`);
   if (p.def.vanishing) rows.push(`じかんカウンター：${p.time || 0}こ（0に なると 墓地（ぼち）へ）`);
+  if (p.mp) rows.push(`魔力（まりょく）カウンター：${p.mp}こ`);
+  if (p.stun) rows.push(`麻痺（まひ）カウンター：${p.stun}こ（アンタップする かわりに 1こ 取（と）りのぞく）`);
+  for (const k of p.kwc || []) rows.push(`${KW[k] || k}カウンター：1こ（${KW[k] || k}を もつ）`);
   if (p.marks) rows.push(`しるし：${p.marks}こ`);
   if (p.fire) rows.push(`ひだね：${p.fire}こ`);
   if (p.bud) rows.push(`しんらい：${p.bud}こ`);

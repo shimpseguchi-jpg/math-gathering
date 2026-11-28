@@ -617,6 +617,21 @@ span.pile { cursor: default; }
 .ol-selects select { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: var(--table-3); color: var(--ink); font: inherit; font-weight: 700; padding: 4px 8px; }
 .ol-empty { margin: 0; padding: 12px; border-radius: 12px; border: 2px dashed var(--line); color: var(--ink-dim); font-size: 13px; line-height: 1.9; }
 .ol-found { font-family: var(--display); font-size: 22px; color: var(--gold-text); margin: 0 0 4px; }
+/* リアルタイムたいせん（js/ui/rt.js） */
+.rt-steps { margin: 0; padding: 10px 12px 10px 34px; border-radius: 12px; background: var(--table-2); font-size: 14px; line-height: 2; }
+.rt-code { margin: 4px 0; display: flex; justify-content: center; gap: 10px; }
+.rt-code b { font-family: var(--display); font-size: clamp(40px, 14vw, 64px); line-height: 1.2; min-width: 1.3em; text-align: center; border-radius: 14px; background: var(--paper); color: var(--paper-ink); }
+.rt-code b.empty { opacity: 0.45; }
+.rt-wait { margin: 0; padding: 12px; border-radius: 12px; background: var(--table-2); text-align: center; font-weight: 700; }
+.rt-wait b { margin-left: 10px; font-family: var(--display); font-size: 20px; color: var(--gold-text); }
+.rt-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 320px; width: 100%; margin: 0 auto; }
+.rt-pad .btn { min-height: 56px; font-size: 22px; }
+.rt-go .btn { flex: 1; }
+.rt-first { font-weight: 700; color: var(--gold-text); }
+.rt-why { font-weight: 700; }
+.btn.rt-main { font-size: 1.1em; }
+.banner.rt-wait { background: var(--table-2); padding: 6px 10px; text-align: center; font-weight: 700; }
+.banner.rt-mine[data-away]:not([data-away=""])::after { content: "（" attr(data-away) "）"; color: var(--gold-text); }
 
 /* ---- トロフィー ---- */
 .cup { width: 22px; height: 22px; flex: none; fill: currentColor; }
@@ -1769,3 +1784,135 @@ body[data-mat]:not([data-mat="plain"]):has(.battle) .zone { backdrop-filter: blu
 :root.pb-on[data-theme="gba"] .study :is(.qz-bar, .qz-bar i, .qz-mark, .qz-miss li) { border-radius: 2px; }
 :root.pb-on[data-theme="gba"] .study .qz-bar { box-shadow: 0 0 0 2px var(--px); }
 :root[data-theme="gba"] .pool-item .stk { font-family: var(--display); border-radius: 2px; }
+
+/* ---- パック＆バトル：ステージ・アンティ・せいちょう・デッキの 2つに わけた 画面（2026-11-17。docs/PACKBATTLE.md 11・12章） ---- */
+.pb-stages { display: flex; flex-wrap: wrap; gap: 6px; }
+.pb-stages .chip { min-width: 44px; justify-content: center; } .pb-stages .chip:disabled { opacity: 0.35; cursor: not-allowed; }
+.pb-boss { font-style: normal; font-size: 10.5px; font-weight: 700; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--bad); color: #2a0703; }
+.pb .em-nodes { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.pb .em-branch h3 small { display: block; margin: 2px 0 0; }
+/* アンティ：くらい 画面の まんなかに カード、下の まどに ことば */
+#sheet:has(.sheet-body.ante) .sheet-back { background: rgba(3, 2, 10, 0.94); }
+#sheet .sheet-body.ante { text-align: center; }
+.ante-card { width: min(62vw, 230px); margin: 4px auto 10px; animation: pop 0.35s ease-out; }
+.ante-card.legend .fcard { box-shadow: 0 0 0 4px #ff8ad8, 0 0 40px 10px rgba(255, 120, 220, 0.7); }
+.ante-msg { margin: 0; font-size: 18px; font-weight: 700; color: var(--gold-text); }
+.ante-dupe, .ante-have { margin: 4px 0 10px; font-size: 13px; color: var(--ink-dim); } .ante-dupe b { color: var(--gold-text); font-size: 17px; }
+/* デッキ：左に ならび、右（せまい 画面では 上）に えらんだ カード */
+.builder.two .tapmode > span, .builder.two .tapmode [data-mode] { display: none; }
+.bp { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding-block: 6px 90px; }
+.builder.two .b-head { position: static; } /* 上の メーターは ながれて、えらんだ カードの まどが 上に のこる */
+.bp-detail { order: -1; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 4px); z-index: 2; max-height: 38vh; overflow-y: auto; padding: 8px; border-radius: 12px; background: var(--table-2); border: 2px solid var(--line); }
+.bp-detail .row-btns { margin-bottom: 6px; } .bp-detail .row-btns .btn { flex: 1; } .bp-detail .zk-note { margin-bottom: 6px; }
+.bp-no { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #9cc4ff; }
+.bp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.bp-row { width: 100%; display: flex; align-items: center; gap: 6px; text-align: left; padding: 5px 8px; border-radius: 10px; border: 2px solid transparent; background: var(--table-2); cursor: pointer; min-height: 40px; }
+.bp-row b { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bp-row small { flex: none; font-size: 11px; color: var(--ink-dim); }
+.bp-row .zk-dots { margin: 0; } .bp-row .cnt { flex: none; font-size: 11px; letter-spacing: -0.5px; min-width: 2.6em; text-align: right; }
+.bp-row .stk { flex: none; font-size: 10.5px; font-weight: 700; padding: 1px 4px; border-radius: 6px; background: #10162c; color: #fff; white-space: nowrap; }
+.bp-row .stk.used { background: #5a1f14; color: #ffe08a; }
+.bp-row.in { border-color: var(--gold); }
+.bp-row.sel { box-shadow: 0 0 0 2px var(--gold); }
+.bp-row.no { background: #14305c; color: #b9d4ff; } .bp-row.no small { color: #8fb2e6; } /* 入れられない カードは 青 */
+@media (min-width: 760px) { .bp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } .bp-detail { order: 0; max-height: 78vh; } }
+.gacha-hint.got small { display: block; font-size: 12px; font-weight: 500; }
+.qz-story { font-size: 20px; line-height: 1.8; text-align: left; }
+
+/* ---- パック＆バトルの みため（2026-11-17。docs/PACKBATTLE.md 12章）：黒・こい 紺・ふかい 紫 ＋ 金の かざりわく。この モードの あいだだけ（:root.pb-on） ---- */
+:root.pb-on[data-theme="gba"] {
+  --table: #0a0916; --table-2: #17123a; --table-3: #2c2260; --line: #c79a2e; --ink: #f6eedb; --ink-dim: #a79cc9;
+  --gold: #f4c94c; --gold-ink: #1d1204; --px: #04030c; --good: #7fe3a3; --bad: #ff7b5e;
+  --win: linear-gradient(#241a52, #100c2a); /* まど：ふかい 紫 → 黒に 近い 紺 */
+  --slab: conic-gradient(#3a3368 25%, #2f2958 0 50%, #3a3368 0 75%, #2f2958 0) 0 0 / 4px 4px; /* 石板 */
+  --orn: linear-gradient(var(--gold), var(--gold)); /* かどの かざり */
+  --frame: var(--orn) 3px 3px / 6px 6px no-repeat, var(--orn) calc(100% - 3px) 3px / 6px 6px no-repeat, var(--orn) 3px calc(100% - 3px) / 6px 6px no-repeat, var(--orn) calc(100% - 3px) calc(100% - 3px) / 6px 6px no-repeat;
+  --enemy: #2a0b2e; --enemy-2: #4a1650; --enemy-ink: #ffe4f2;
+}
+:root.pb-on[data-theme="gba"] body { background: #0a0916 conic-gradient(#0a0916 25%, #100d24 0 50%, #0a0916 0 75%, #100d24 0) 0 0 / 4px 4px; }
+/* 額縁：金の わく ＋ 四すみの かざり ＋ 中の ほそい 線 */
+:root.pb-on[data-theme="gba"] :is(.pb .pb-stats li, .pb .pb-guide, .pb .st-ch, .pb .cs-set, .pb .cs-deck, .pb .em-branch, .sheet-body, .study .qz-q, .builder .meter, .bp-detail, .gacha .bonus) {
+  background: var(--frame), var(--win); border: 2px solid var(--line); border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--px), inset 0 0 0 2px #06051a, inset 0 0 0 3px #4a3c8c, 4px 4px 0 2px rgba(0, 0, 0, 0.55);
+}
+:root.pb-on[data-theme="gba"] .sheet-body { border-bottom: 0; }
+/* 石板の タイル：メニュー・あいて・せいちょうの ノード・カードの ならび */
+:root.pb-on[data-theme="gba"] :is(.pb .st-ep, .pb .em-node, .bp-row, .study .qz-cat, .study .qz-pad button, .study .qz-choices button, .study .qz-break li) {
+  background: var(--frame), var(--slab); border: 2px solid #6d6298; border-radius: 2px; color: var(--ink);
+  box-shadow: 0 0 0 2px var(--px), inset 2px 2px 0 rgba(255, 255, 255, 0.12), inset -2px -2px 0 rgba(0, 0, 0, 0.35), 3px 3px 0 2px rgba(0, 0, 0, 0.5);
+}
+:root.pb-on[data-theme="gba"] .pb :is(.st-ep.next, .st-ep.open, .em-node.can) { border-color: var(--gold); }
+:root.pb-on[data-theme="gba"] .pb .pb-steps .st-ep.next { background: var(--frame), conic-gradient(#5a4a9c 25%, #4b3d88 0 50%, #5a4a9c 0 75%, #4b3d88 0) 0 0 / 4px 4px; }
+:root.pb-on[data-theme="gba"] .pb :is(.st-ep.done, .em-node.on) { border-color: var(--good); }
+:root.pb-on[data-theme="gba"] .pb :is(.st-ep.lock, .em-node.lock, .st-ep:disabled) { background: #14112a; border-color: #3a3458; opacity: 0.6; }
+:root.pb-on[data-theme="gba"] .pb .em-node.on { background: var(--frame), conic-gradient(#2c5a48 25%, #244c3c 0 50%, #2c5a48 0 75%, #244c3c 0) 0 0 / 4px 4px; box-shadow: 0 0 0 2px var(--px), 3px 3px 0 2px rgba(0, 0, 0, 0.5); }
+:root.pb-on[data-theme="gba"] .study .qz-q { color: var(--ink); } :root.pb-on[data-theme="gba"] .study .qz-q :is(.qz-cat-name, .qz-ask) { color: var(--ink-dim); }
+:root.pb-on[data-theme="gba"] .study .qz-q .qz-ans { border-color: var(--gold); color: var(--gold); }
+:root.pb-on[data-theme="gba"] .study .qz-pad button.go { background: var(--gold); color: var(--gold-ink); border-color: #fff2b8; }
+:root.pb-on[data-theme="gba"] .study .qz-cat.on { border-color: var(--gold); }
+/* ステータス：金の プレート */
+:root.pb-on[data-theme="gba"] .pb .pb-stats li { border-width: 3px; background: var(--frame), linear-gradient(#1a1440, #0c0a22); }
+:root.pb-on[data-theme="gba"] .pb .pb-stats span { color: var(--gold); letter-spacing: 0.06em; }
+:root.pb-on[data-theme="gba"] .pb .pb-stats li.ok { border-color: var(--good); }
+:root.pb-on[data-theme="gba"] .pb .pb-need { background: #1c0d1c; }
+:root.pb-on[data-theme="gba"] .pb .chip { border-radius: 2px; border: 2px solid var(--line); background: var(--win); font-family: var(--display); box-shadow: 0 0 0 2px var(--px); }
+:root.pb-on[data-theme="gba"] .pb .chip.on { background: var(--gold); color: var(--gold-ink); }
+@media (min-width: 700px) { :root.pb-on[data-theme="gba"] .pb .pb-steps { display: grid; grid-template-columns: 1fr 1fr; } }
+/* デッキ */
+:root.pb-on[data-theme="gba"] .bp-row { min-height: 42px; font-family: var(--display); }
+:root.pb-on[data-theme="gba"] .bp .bp-row.in { border-color: var(--gold); }
+:root.pb-on[data-theme="gba"] .bp .bp-row.sel { box-shadow: 0 0 0 2px var(--px), 0 0 0 4px var(--gold); }
+:root.pb-on[data-theme="gba"] .bp .bp-row.no { background: var(--frame), conic-gradient(#1b3d78 25%, #163466 0 50%, #1b3d78 0 75%, #163466 0) 0 0 / 4px 4px; border-color: #5b8fe0; color: #cfe2ff; }
+:root.pb-on[data-theme="gba"] .bp-row :is(.stk, .dl-cost) { border-radius: 2px; }
+:root.pb-on[data-theme="gba"] :is(.b-head, .builder .actions) { background: var(--table); }
+/* パック・アンティ：くらく して、カードを まんなかに 大きく。下の まどに「〇〇を てに いれた！」 */
+:root.pb-on[data-theme="gba"] .gacha { background: radial-gradient(ellipse at 50% 38%, #1c1446 0, #05040e 70%); margin-inline: -16px; padding-inline: 16px; }
+:root.pb-on[data-theme="gba"] .gacha-hint.got { align-self: stretch; margin: 0; padding: 10px 12px; text-align: center; font-family: var(--display); font-size: 17px; color: var(--ink);
+  background: var(--frame), var(--win); border: 2px solid var(--line); border-radius: 2px; box-shadow: 0 0 0 2px var(--px), inset 0 0 0 2px #06051a, inset 0 0 0 3px #4a3c8c; }
+:root.pb-on[data-theme="gba"] .ante-msg { font-family: var(--display); }
+/* たたかい：上＝てき（紫）・下＝じぶん（紺）。てきの かおと ライフを 大きく */
+:root.pb-on[data-theme="gba"] .battle .zone { border-radius: 2px; border: 2px solid var(--line); box-shadow: 0 0 0 2px var(--px), inset 0 0 0 2px #06051a; }
+:root.pb-on[data-theme="gba"] .battle .zone.enemy { background: var(--frame), linear-gradient(#3a1242, #1a0820); border-color: #c05a9a; }
+:root.pb-on[data-theme="gba"] .battle .zone.mine { background: var(--frame), linear-gradient(#141a52, #0a0c2a); }
+:root.pb-on[data-theme="gba"] .battle .face-tile { position: sticky; left: 0; top: 0; z-index: 1; grid-row: span 1; border: 2px solid var(--gold); border-radius: 2px; background: #1a0820; box-shadow: 0 0 0 2px var(--px); gap: 2px; font-family: var(--display); }
+:root.pb-on[data-theme="gba"] .battle .face-tile::before { content: ''; width: 36px; height: 36px; image-rendering: pixelated; background: center / contain no-repeat
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23c05a9a' d='M2 1h2v1H2zM8 1h2v1H8zM1 2h10v6H1zM2 8h8v2H2zM3 10h2v1H3zM7 10h2v1H7z'/%3E%3Cpath fill='%23ffe4f2' d='M3 4h2v2H3zM7 4h2v2H7z'/%3E%3Cpath fill='%2304030c' d='M4 5h1v1H4zM7 5h1v1H7zM4 8h1v1H4zM6 8h1v1H6zM5 8h1v1H5zM7 8h1v1H7z'/%3E%3C/svg%3E"); }
+:root.pb-on[data-theme="gba"] .battle .face-tile b { font-size: 17px; color: var(--gold); }
+/* えらんだ カードの せつめいは 上の まどに（たたかいの あいだ） */
+:root.pb-on[data-theme="gba"]:has(.battle) #sheet:has(.sheet-body > .detail) { align-items: flex-start; padding-top: env(safe-area-inset-top, 0px); }
+:root.pb-on[data-theme="gba"]:has(.battle) #sheet:has(.sheet-body > .detail) .sheet-body { border-bottom: 2px solid var(--line); border-top: 0; animation: none; }
+
+/* ---- パック＆バトル：ステージを めくる 画面と キャラクター（2026-11-18。docs/PACKBATTLE.md 13章） ---- */
+.pb-arena { touch-action: pan-y; } /* よこの スワイプは ステージを めくる（たての スクロールは そのまま） */
+.pb-pager { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.pb-arrow { min-width: 54px; min-height: 54px; font-size: 20px; padding: 0; }
+.pb-page { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.pb-page b { font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--gold-text); }
+.pb-page span { font-size: 14px; font-weight: 700; }
+.pb-dots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.pb-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--table-2); color: var(--ink); font-weight: 700; cursor: pointer; padding: 0; }
+.pb-dot.on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.pb-dot.lock { opacity: 0.45; border-style: dashed; }
+.pb-swipe-note { text-align: center; }
+.pb-lock { margin: 0; padding: 8px 10px; border-radius: 10px; border: 2px dashed var(--bad); font-weight: 700; }
+.pb-char .pb-line { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.5; }
+.pb-char .pb-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.pb-char .pb-kind .pip { font-size: 10px; padding: 0 6px; }
+.pb-char .pb-kind > span { display: block; flex: 1 1 100%; min-width: 0; font-weight: inherit; } /* 色の しるしの 下に 文を 1つに まとめて おく（ふりがなで わかれない） */
+.pb-char > span { gap: 2px; }
+.pb-char .pb-sig { color: var(--gold-text); }
+/* 顔グラ（96×96 の ドット絵を そのまま 大きく）：ステージを えらぶ 画面 だけ */
+.pb-face { display: block; width: 72px; height: 72px; image-rendering: pixelated; image-rendering: crisp-edges; border: 2px solid var(--gold); box-shadow: 0 0 0 2px var(--px, #05040e); background: #14112a; }
+:root.pb-on[data-theme="gba"] .pb :is(.pb-dot, .pb-lock) { border-radius: 2px; font-family: var(--display); }
+:root.pb-on[data-theme="gba"] .pb .pb-dot { background: var(--win); box-shadow: 0 0 0 2px var(--px); }
+:root.pb-on[data-theme="gba"] .pb .pb-dot.on { background: var(--gold); }
+:root.pb-on[data-theme="gba"] .pb .pb-lock { background: #1c0d1c; }
+:root.pb-on[data-theme="gba"] .pb .st-ch.pb-locked { border-color: #5a4d86; }
+
+/* ---- パック＆バトル：ロックの パック（ショップの 買えない 行）・せいちょうの「パック」の 枝（どれからでも ＝ やじるし なし。2026-11-28）---- */
+.cs-set.pb-pack-lock { opacity: 0.8; border-style: dashed !important; }
+.cs-set.pb-pack-lock .cs-set-name b { color: var(--ink-dim); }
+.pb-pack-how { color: var(--ink) !important; }
+.em-branch.em-any .em-nodes li + li::before { content: none; }
+.em-foe { font-size: 10.5px; line-height: 1.4; color: var(--ink-dim); }
+.pb-how { text-align: left; } .pb-how li { margin: 6px 0; } .pb-how small { color: var(--ink-dim); }
